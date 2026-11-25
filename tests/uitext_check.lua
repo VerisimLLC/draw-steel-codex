@@ -27,6 +27,8 @@ local DEFAULT_TEXT = {
     "EncounterOfTheWeek/EncounterAuthoringText.lua",
     --the main game's Hero Builder, which EotW runs too.
     "Draw Steel Character Builder/HeroBuilderText.lua",
+    --History, the main game's record of play that replaces the Action Log.
+    "Draw Steel V/HistoryText.lua",
 }
 
 local DEFAULT_CODE = {
@@ -73,6 +75,11 @@ local DEFAULT_CODE = {
     "EncounterOfTheWeek/EncounterScriptValidator.lua",
     "EncounterOfTheWeek/EncounterTest.lua",
     "EncounterOfTheWeek/EncounterZones.lua",
+    --History: its store, what it records, the tray and the detail card.
+    "Draw Steel V/History.lua",
+    "Draw Steel V/HistoryCapture.lua",
+    "Draw Steel V/HistoryCard.lua",
+    "Draw Steel V/HistoryTray.lua",
 }
 
 local textFiles, codeFiles = {}, {}

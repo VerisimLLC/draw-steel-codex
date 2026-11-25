@@ -275,6 +275,13 @@ function EncounterMontage.Story(doc)
                 retreated = EncounterMontage.CopyRetreated(r.retreated) }
         end
     end)
+    --what a hero who dies here meets, for "If the consequence is Lost:" lines.
+    pcall(function()
+        local eotwGame = rawget(_G, "EncounterOfTheWeekGame")
+        if eotwGame ~= nil and eotwGame.Consequence ~= nil then
+            result.consequence = eotwGame.Consequence()
+        end
+    end)
     return result
 end
 
@@ -333,6 +340,52 @@ function EncounterMontage.SeedStory(doc, part, carried)
     end
     doc.data.story = story
     return true
+end
+
+--Host: tells play observers (History) what the montage's log gained since last time: a
+--line per test, per threat whose consequence landed, and one when the montage ends.
+--historyLogged counts the log entries already told, and lives on the montage so a new
+--host does not tell them again.
+function EncounterMontage.NoteHistory(montage)
+    if type(montage) ~= "table" then
+        return
+    end
+    local log = montage.log or {}
+    for i = (tonumber(montage.historyLogged) or 0) + 1, #log do
+        local entry = log[i]
+        if entry.consequence then
+            GameSystem.NotifyPlayObservers("montage", {kind = "threat", name = entry.entryName, applied = entry.applied})
+        elseif not entry.delve and not entry.passed and not entry.interrupted and type(entry.tier) == "number" and entry.tier > 0 and entry.total ~= nil then
+            GameSystem.NotifyPlayObservers("montage", {
+                kind = "test",
+                heroid = entry.heroid,
+                total = entry.total,
+                tier = entry.tier,
+                entry = entry.entryName,
+                option = entry.optionName,
+            })
+        end
+    end
+    montage.historyLogged = #log
+    if montage.phase == "done" and not montage.historyEnded then
+        montage.historyEnded = true
+        local totals = EncounterMontage.TotalsFromLog(montage)
+        --how many tests the montage held, so a beat nobody rolled in (a "Proceed") can
+        --be told apart from one whose tests all came out Tier 2.
+        local tests = 0
+        for _, entry in ipairs(log) do
+            if not entry.consequence and not entry.delve and type(entry.tier) == "number" and entry.tier > 0 then
+                tests = tests + 1
+            end
+        end
+        GameSystem.NotifyPlayObservers("montage", {
+            kind = "ended",
+            successes = totals.successes,
+            failures = totals.failures,
+            unvanquished = totals.unvanquished,
+            tests = tests,
+        })
+    end
 end
 
 --One montage's totals, from its log: successes (tier 3, or the critical
@@ -2078,9 +2131,9 @@ end
 function EncounterMontage.LocalUserPacesScene(m)
     local t = m ~= nil and m.turn or nil
     if t ~= nil and t.status == "scene" and t.arrival then
-        --a Gauntlet section's arrival: no hero has stepped up, so anyone
-        --may turn the page (see GAUNTLET_PLAN.md).
-        return true
+        --a Gauntlet section's arrival: no hero has stepped up, so anyone who is
+        --playing may turn the page (see GAUNTLET_PLAN.md).
+        return not EncounterNarrative.LocalUserIsObserver()
     end
     return t ~= nil and t.status == "scene" and t.userid == dmhub.loginUserid
 end
@@ -5526,7 +5579,13 @@ function EncounterMontage.ConsumableUses(charid, itemid)
 
     local filterReason = nil
     if c ~= nil then
-        pcall(function() filterReason = ability:AbilityFilterFailureMessage(c) end)
+        --the cast gate that holds abilities back until combat is for the map;
+        --the montage has rules of its own for when an item may be used.
+        pcall(function()
+            local clone = ability:MakeTemporaryClone()
+            clone._tmp_ignoreCastGates = true
+            filterReason = clone:AbilityFilterFailureMessage(c)
+        end)
     end
 
     --false stands for "no mode": an ability without modes is one use.
@@ -5687,6 +5746,7 @@ function EncounterMontage.ConsumeItem(charid, itemid, mode)
     local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
     local ability = item:try_get("consumable"):MakeTemporaryClone()
     ability._tmp_boundCaster = tok.properties
+    ability._tmp_ignoreCastGates = true
 
     local m = EncounterMontage.GetState()
     local t = m ~= nil and m.turn or nil
@@ -6573,6 +6633,9 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if m.phase ~= "consequences" then
             return "ignored continue"
         end
+        if EncounterNarrative.IsObserver(userid, heroes) then
+            return "ignored continue: only watching"
+        end
         if m.dice ~= nil then
             return "ignored continue: the dice are out"
         end
@@ -6904,7 +6967,9 @@ end
 --present the opening montage during its own arrival setup, before the party
 --is in (and before its heroes are even placed), and the stage is what every
 --player's loading screen reveals.
-function EncounterMontage.Begin(script, beat, beatIndex)
+--options.startSection (a narrative's section id, from the authoring test):
+--the narrative opens on that section instead of its first.
+function EncounterMontage.Begin(script, beat, beatIndex, options)
     local doc = EncounterMontage.GetDoc()
     doc:BeginChange()
     doc.data.montage = {
@@ -6918,6 +6983,7 @@ function EncounterMontage.Begin(script, beat, beatIndex)
         handled = {},
         log = {},
         seq = 0,
+        startSection = options ~= nil and options.startSection or nil,
     }
     doc.data.stageDismissAt = nil
     --scene ids restart with m.seq, so a cursor left over from an earlier
@@ -7268,6 +7334,12 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
     local upkeepOk, upkeepErr = pcall(MaintainMontageUses, m, doc, heroes)
     if not upkeepOk then
         printf("EotW montage: item upkeep failed: %s", tostring(upkeepErr))
+    end
+
+    --History reads the montage's own log; a failure there must not stop the montage.
+    local historyOk, historyErr = pcall(EncounterMontage.NoteHistory, m)
+    if not historyOk then
+        printf("EotW montage: History note failed: %s", tostring(historyErr))
     end
 
     --a finished montage's totals go into the part's score (a series'
@@ -8174,6 +8246,7 @@ function EncounterMontage.ResetTest(options)
         state.data.proceedRequested = nil
         state.data.arrange = nil
         state.data.arrivalItems = nil
+        state.data.arrivalEffects = nil
         state:CompleteChange("Montage test reset", { undoable = false })
     end
     local ms = rawget(_G, "MapScript")

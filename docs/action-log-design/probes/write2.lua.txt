@@ -1,0 +1,116 @@
+-- History chunk 0.1 probe: writer. Fill ARG_TOTAL and ARG_PACE, run over the bridge on one client.
+-- Writes one full-sized record per step into a probe document, timing each step, and samples
+-- frame times between writes. Results print to Player.log as HPROBE:: and stay in g_hprobe.
+local mod = nil
+for i = 1, 10 do
+    local n, v = debug.getupvalue(BattleLog.GetDocPath, i)
+    if n == "mod" then mod = v end
+end
+local DOC = "historyProbe2"
+local TOTAL, PACE, BUCKET = ARG_TOTAL, ARG_PACE, 50
+
+local function Who(name, side)
+    return {id = dmhub.GenerateGuid(), name = name, img = dmhub.GenerateGuid(), side = side}
+end
+
+-- A record as full as stage 2 will make it: two targets, a roll, sources, one trigger.
+local function Record(i)
+    local rec = Who("Polder Elementalist", "hero")
+    rec = {
+        id = dmhub.GenerateGuid(), t = dmhub.serverTime, kind = "action", by = dmhub.userid,
+        encounter = dmhub.GenerateGuid(), round = 1 + i // 24, turn = 1 + i // 2, map = dmhub.GenerateGuid(),
+        actor = rec,
+        ability = {name = "Brutal Slam of the Hammer", icon = dmhub.GenerateGuid(), action = "Main action", cost = 3, resource = "Essence"},
+        roll = {dice = {7, 9}, characteristic = "Might", mod = 2, total = 18, edges = 1, banes = 1, tier = 3, surges = 2},
+        sources = {
+            {kind = "edge", name = "Flanking", who = dmhub.GenerateGuid(), img = dmhub.GenerateGuid()},
+            {kind = "bane", name = "Reactor trigger", who = dmhub.GenerateGuid(), img = dmhub.GenerateGuid()},
+            {kind = "damage", name = "Kit: Panther", n = 2, note = "Includes +2 damage from Panther kit"},
+        },
+        targets = {},
+        triggers = {
+            {when = "After the roll", owner = Who("Reactor 1", "foe"), name = "Reactor Trigger", text = "An ally within 2 squares is targeted by a strike.",
+             targets = {{id = dmhub.GenerateGuid(), taken = 2, type = "fire"}}},
+        },
+    }
+    for k = 1, 2 do
+        local tg = Who("Test Monster Z " .. k, "foe")
+        tg.tier = 3
+        tg.taken = 11 + k
+        tg.before, tg.after = 40, 28
+        tg.steps = {{"tier", 9}, {"surges", 4}, {"immunity", -2, "fire"}, {"temp", 0}}
+        tg.conditions = {{name = "Slowed", duration = "save ends", icon = dmhub.GenerateGuid(), potency = "A<2", resisted = false}}
+        tg.caps = {"Push 3", "Winded"}
+        tg.moved = {kind = "push", n = 3, path = "0,0,0;1,0,0;2,0,0;3,0,0", collide = false, fall = 0}
+        rec.targets[k] = tg
+    end
+    return rec
+end
+
+local sample = dmhub.ToJson(Record(1))
+local stats = {}
+local g = {stats = stats, recordBytes = #sample, done = false, started = dmhub.serverTime}
+rawset(_G, "g_hprobe", g)
+print("HPROBE:: record bytes", #sample)
+
+local function Bucket(n)
+    local b = (n // BUCKET) * BUCKET
+    stats[b] = stats[b] or {n = 0, begin = 0, complete = 0, total = 0, worst = 0, frames = 0, frameSum = 0, frameWorst = 0}
+    return stats[b]
+end
+
+local written = 0
+local function Step()
+    written = written + 1
+    local rec = Record(written)
+    local clock = dmhub.Stopwatch()
+    local packed = dmhub.ToJson(rec)
+    local tp = clock.milliseconds
+    local b0 = Bucket(written)
+    b0.pack = (b0.pack or 0) + tp
+    local doc = mod:GetDocumentSnapshot(DOC)
+    doc:BeginChange()
+    local t1 = clock.milliseconds
+    if type(doc.data.entries) ~= "table" then
+        doc.data.entries = {}
+    end
+    doc.data.entries[string.format("%013d-%s", dmhub.serverTimeMilliseconds, rec.id)] = packed
+    doc.data.lastSeq = written
+    doc.data.lastMs = dmhub.serverTimeMilliseconds
+    local t2 = clock.milliseconds
+    doc:CompleteChange("History probe", {undoable = false})
+    local t3 = clock.milliseconds
+    local b = Bucket(written)
+    b.n = b.n + 1
+    b.begin = b.begin + t1
+    b.complete = b.complete + (t3 - t2)
+    b.total = b.total + t3
+    b.worst = math.max(b.worst, t3)
+    if written < TOTAL then
+        dmhub.Schedule(PACE, Step)
+    else
+        g.done = true
+        print("HPROBE:: writes done", written)
+    end
+end
+
+-- frame sampler: dt per frame, filed in the bucket of the current document size.
+local clock = dmhub.Stopwatch()
+local lastF, lastT = dmhub.FrameCount(), 0
+local function Frames()
+    local f, t = dmhub.FrameCount(), clock.milliseconds
+    if f ~= lastF then
+        local dt = (t - lastT) / (f - lastF)
+        local b = Bucket(written)
+        b.frames = b.frames + 1
+        b.frameSum = b.frameSum + dt
+        b.frameWorst = math.max(b.frameWorst, t - lastT)
+        lastF, lastT = f, t
+    end
+    if not g.done then
+        dmhub.Schedule(0.001, Frames)
+    end
+end
+dmhub.Schedule(0.001, Frames)
+dmhub.Schedule(ARG_DELAY, Step)
+return "started"

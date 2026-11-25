@@ -193,8 +193,12 @@ Before the monster side picks its next group, the process also waits while any
 live player combatant has a trigger prompt the player has not answered
 (`FindPendingPlayerTrigger` in `MonsterAIPanel.lua`): the Gunslinger's Begin
 Round "Showdown", Hesitation Is Weakness, any custom class's trigger. It is
-data-driven, with no ability-name list. Hostile prompts, power-roll modifiers
-and the hidden members of a merged prompt do not count. It also waits up to
+data-driven, with no ability-name list. Power-roll modifiers and the hidden
+members of a merged prompt do not count. Hostile prompts (Bleeding's Stamina
+loss, an aura's environment roll) do count, so a player cannot put off harm by
+leaving the card unanswered. They never expire, and under strict action economy
+(forced on in EotW) nobody but a Director can dismiss them, so the monsters wait
+until the hero accepts. It also waits up to
 10s while a trigger event relayed to that hero's client is still being
 evaluated there, because the prompt does not exist until it has been (in the
 2026-10-19 playtest Showdown arrived while the AI was already choosing). The
@@ -210,13 +214,32 @@ accepted card also adds a `turn-claim` marker to the hero's
 cast's normal AI-reaction completion path. The AI keeps waiting while that
 marker is resolving (up to 60s) and for 2s after it completes, with the banner
 "Waiting for Iswyln's Hesitation Is Weakness to finish" (BR8M9Z2W). The check
-is `creature:TurnClaimResolving()`, and the end-of-turn handoff
-(`GameHud.WaitForHeroTriggerPrompts` in `MCDMInitiativeBar.lua`) waits on it
-too, so a hero's turn does not pass while an accepted claim is still landing:
-the two initiative writes used to cross, leaving the claimant's entry current
-with the monsters' side to pick (AH6SYXTP). As a last guard, the AI thread
-never plays a current entry that `IsEntryPlayer` says is the players' (it logs
-`TURN REFUSED` once and leaves it to its player).
+is `creature:TurnClaimResolving()`. As a last guard, the AI thread never plays a
+current entry that `IsEntryPlayer` says is the players' (it logs `TURN REFUSED`
+once and leaves it to its player).
+
+Ending a turn does not wait for hero prompts: the turn passes at once on every
+client, and this AI wait is what keeps the monsters from acting (2026-11-23
+playtest N12; the earlier "End Turn Hero Prompts" hold is gone). Two things in
+`TriggeredAbility.lua` make that safe:
+
+- **How long a hero's prompt lives** (`TriggeredAbility.PromptTurnWatch`). It
+  stays up through the whole turn after the one it was raised in, hero's or
+  monster's, and ends when that turn ends. It used to end 6s after any other
+  turn started, so a Mark prompt died when another hero began their turn
+  (2026-11-05 N4). A turn claim (an `endturn` trigger with a Begin Turn
+  initiative behavior, `ClaimsTurnAtTurnEnd`) ends the moment someone else
+  starts a turn. Hostile prompts never end this way; a monster's prompt still
+  ends 6s after another turn starts. All but hostile ones age out at 10 minutes.
+- **A claim waits for the turn to pass** (`TriggeredAbility.WaitToClaimTurn`).
+  Accepted while the ended turn is still current (the ending client is running a
+  villain action or finishing a cast), it casts only once this client sees the
+  turn pass, up to 45s, so the two initiative writes cannot cross and leave the
+  claimant's entry current with the monsters' side to pick (AH6SYXTP). If someone
+  else's turn has started by then it does nothing and costs nothing.
+
+Run `../dependencies/lua/bin/lua.exe tests/trigger_prompt_turn_life_test.lua`
+from the codex root.
 
 Two more holds keep the thread from spinning (2026-11-13 playtest, where it
 replayed one monster turn over a thousand times after an EotW defeat):
@@ -472,6 +495,17 @@ action in a child coroutine, forwards delays, and returns errors to the caller.
   the background process. A failed registered trigger is best-effort dismissed
   after token-control cleanup so the roll that offered it can continue.
 
+A creature can leave the map in the middle of its own action: a minion killed
+during Dread March is removed, and its token then has no properties (engine
+calls such as `Distance` on it throw). So `HandlePrompt` skips (`PROMPT
+SKIPPED`, returns `"skip"`) a prompt whose caster has left the map, checked on
+entry and again after the handler returns, because a handler can wait (the free
+strike speaks first). `ExecuteInvoke` already ends an invoke whose invoker has
+gone; the entry check covers that too, as a backstop. The Malice window and villain
+actions read the caster's monster type before casting, so the rest of the group
+still acts. Dread March moves its caster last, so the undead before it still
+march if it dies.
+
 Failed move quarantine is per actor and each failure consumes one of the six
 cycles. This prevents a broken highest-scoring move from being selected in a
 tight loop while still allowing lower-scoring legal moves to run.
@@ -534,6 +568,7 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
 - `{targets = {}}` does not decline an ability chooser (`Invoked Ability`): with one ability on offer the invoke casts it anyway, with no targets, and any prompt inside it still comes up. The Minotaur's retaliation once declined its Charge this way, so the strike prompt inside Charge found no target and went to a person (R6ATBX7P)
+- `{decline = true, reason = "..."}` turns the offer down, as a player's Skip would (`HandlePrompt` returns `"skip"`, logged `PROMPT DECLINED`). Use it for self-targeted abilities: given `{targets = {}}` they still resolve on the caster. The War Dog Commando's "Caster May Hide" declines this way when hiding would not stick
 - `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
 - `resolvesInvokedAbility` -- optional registration flag. Set it when the handler carries out the whole invoked ability itself (and returns `{targets = {}}`), so the synthesizer does not reject an ability for prompts inside the invoked ability that never come up
 - `answersForCaster` -- optional registration flag. When a hero's ability invokes this prompt on an AI-run monster (the monster is the caster), the AI answers it instead of the hero's player. Only for prompts where the monster acts on its own (To the Death!'s free strike); forced movement and other choices about the target stay with the invoker (`MonsterAI.PromptAnswersForCaster`)
@@ -554,11 +589,50 @@ wrapper names such as `Invoked Ability` when every synthesized choice is a Basic
 Attack. Monster-qualified prompt handlers are tried first and can fall through
 to this generic handler by returning `nil`.
 
-The generic `Push!`, `Pull!`, and `Slide!` handler recognizes
-`vertical_push`, `vertical_pull`, and `vertical_slide`. It uses the ability's
-normal altitude calculator and gives altitude priority over its horizontal
-collision and positioning heuristics, selecting the highest legal requested
-altitude before breaking ties tactically.
+The generic `Push!`, `Pull!`, and `Slide!` handler picks the landing that deals
+the most net damage (`PredictForcedMoveDamage`): damage to the invoker's
+enemies minus damage to its friends, read from the same preview arrow the cast
+uses (through creatures, straight up and the mover's Rebound included). It
+mirrors the Collision global rule (1 per square left, +2 into an object or wall,
+the pusher's `BonusPushDamageIntoObjects` on a push, less `Forced Movement Damage
+Reduction`, the no-damage attributes and "No Collision Damage" objects), counts
+the creature hit as well as the mover, 1 each for creatures passed through,
+every rebound bounce, and a fall (`creature:PredictedFallDamage`). So it shoves
+heroes into walls, into each other and off ledges, and avoids slamming them into
+its own allies. Only equal damage falls to the older tie-breaks: altitude for
+`vertical_push`/`vertical_pull`/`vertical_slide` (from the ability's altitude
+calculator), then the positioning heuristics. A Force Into zone and a slid
+object aimed as a missile still come first. Each choice logs `FORCED MOVE` with
+its `damage`.
+
+Planning can ask the same question ahead of time:
+`MonsterAI.BestForcedMoveDamage(invoker, mover, "push"|"pull"|"slide",
+distance, originLoc)` gives the most net damage a horizontal forced move could
+deal with the invoker standing at `originLoc` (it sets the forced-movement
+origin symbols, so "away from the pusher" is judged from that square). The
+generic **Knockback** move (`PlanKnockback` in `MonsterAIMonsters.lua`) uses it:
+for each reachable square and adjacent target it reads the push distance of
+each power roll tier from the ability ("Push 1/2/3"), adjusts it as the rules do
+(Stability, Big Versus Little, Forced Movement Increase, the pusher's bonus),
+weights each by its chance on 2d10 + Might, and adds
+`MonsterAI.knockbackDamageWeight` (0.05) per point of expected damage to the old
+preference score. The total is capped at `MonsterAI.knockbackMaxScore` (0.9),
+under a signature strike, so the main action still goes first and the push
+cannot shove its target out of reach. The plan logs `TARGET PLAN` with
+`expected-push-damage`, and the execute strikes the planned target first.
+
+A pull that moves the target always wins. When none does (an adjacent enemy
+can move no closer), the handler considers pulls that leave the target in
+place for the collision alone (`StandingPullCollisionValue`), only when a
+creature pulls an enemy creature. For an adjacent enemy that means a pull into
+the puller itself: both take the squares left as damage. `SelfCollisionWorthIt`
+takes it only when the puller is not a minion, the target would take damage,
+and the puller survives the hit: then always when the puller takes none or the
+hit drops the target (Temporary Stamina counted), otherwise only while the
+puller stays above half its Stamina. When the only pull left is into the
+puller and it is not worth it, the handler answers with no movement
+(`PULL DECLINED` in the log) instead of asking a Director. A pull by an object
+(a trap) is left as before.
 
 #### 4. Tactics (`MonsterAI:RegisterTactic{}`)
 

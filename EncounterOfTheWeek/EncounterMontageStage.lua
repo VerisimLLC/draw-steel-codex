@@ -1836,6 +1836,23 @@ end
 local RULES_COLOR = "#8ee08e"
 local RULES_COLOR_DIM = "#5d7a5d"
 
+--Opening prose (a montage or narrative intro) with each line the author began
+--"Warning:" drawn red, for a danger players must not miss ("Warning: heroes
+--who fall here rise as undead."). Players see only the red text, not the word Warning.
+--A field, not a local: this file is near Lua's 200-local ceiling.
+EncounterMontageStage.WARNING_COLOR = "#ff5a4a"
+function EncounterMontageStage.IntroMarkup(text)
+    local lines = {}
+    for line in string.gmatch((text or "") .. "\n", "(.-)\n") do
+        local warningText = string.match(line, "^%s*[Ww][Aa][Rr][Nn][Ii][Nn][Gg]:%s*(.-)%s*$")
+        if warningText ~= nil then
+            line = "<color=" .. EncounterMontageStage.WARNING_COLOR .. ">" .. warningText .. "</color>"
+        end
+        lines[#lines + 1] = line
+    end
+    return table.concat(lines, "\n")
+end
+
 --What one tier row reads. A tier with a "teaser => full text" line shows
 --only its teaser until it is the landed tier
 --(EncounterScript.TierDisplayText); tiers not achieved keep their teaser.
@@ -2999,7 +3016,7 @@ local function GauntletAssistChildren(m, t)
     elseif a ~= nil and a.outcome == "bane" then
         onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_assist_bane", { helper = a.heroName or "" })
     end
-    local rolls = EncounterGauntlet.RollsMade(m, t.heroid)
+    local rolls = EncounterGauntlet.WearyRolls(m, t.heroid)
     if rolls == 1 then
         onRoll[#onRoll + 1] = T("stage.gauntlet.on_roll_weary_one")
     elseif rolls >= 2 then
@@ -4781,6 +4798,9 @@ local function BuildTurnChildren(m, beat, consequenceStart)
             Add(gui.Label{ classes = {"eotwTurnHint"}, text = DiceHint(m) })
             return children
         end
+        if EncounterNarrative.LocalUserIsObserver() then
+            return children
+        end
         Add(gui.Button{
             text = T("stage.consequence.continue_button"),
             halign = "center",
@@ -6246,7 +6266,7 @@ local function CreateStage(args)
             m_builtBeat = m.beatIndex
             m_entryRound = nil
             m_entryPhase = nil
-            introLabel:FireEvent("setProse", string.format("intro:%s", tostring(m.beatIndex)), beat.intro or "")
+            introLabel:FireEvent("setProse", string.format("intro:%s", tostring(m.beatIndex)), EncounterMontageStage.IntroMarkup(beat.intro))
             introLabel:SetClass("collapsed", (beat.intro or "") == "")
             m_turnSignature = nil
         end
@@ -6954,7 +6974,7 @@ local function CreateNarrativeStage(args)
             textLabel.text = sectionText
             textLabel:SetClass("collapsed", sectionText == "")
             local intro = cond(index == 1, beat.intro or "", "")
-            introLabel.text = intro
+            introLabel.text = EncounterMontageStage.IntroMarkup(intro)
             introLabel:SetClass("collapsed", intro == "")
             local cards = {}
             for i, option in ipairs(section.options) do
@@ -7342,13 +7362,14 @@ function EncounterMontageStage.GauntletClaimOptions(charid)
 end
 
 --A narrative's Weary as a chip on the hero card (EotwHeroCard's
---extraChips): one bane after a roll, a double bane (badge "2") after two.
+--extraChips): one bane for one roll not yet worn off, a double bane (badge
+--"2") for two or more.
 function EncounterMontageStage.WearyChips(charid)
     local m = EncounterMontage.GetState()
     if m == nil or m.gauntlet == nil then
         return {}
     end
-    local n = EncounterGauntlet.RollsMade(m, charid)
+    local n = EncounterGauntlet.WearyRolls(m, charid)
     if n <= 0 then
         return {}
     end
@@ -7758,7 +7779,7 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
                 Add(gui.Label{ classes = {"eotwAppliedLine"}, text = line })
             end
         end
-        if fight and not m.doneAck then
+        if fight and not m.doneAck and not EncounterNarrative.LocalUserIsObserver() then
             Add(EncounterMontageStage.GauntletBigButton(T("stage.gauntlet.draw_steel_button"), function()
                 EncounterMontageStage.drawSteelPressedAt = dmhub.Time()
                 EncounterMontage.SendRequest("drawSteel", {})
@@ -7801,8 +7822,8 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
     if section.implicitOption then
         --no options: not a choice, just a Proceed under the text. Anyone's
         --click moves the party on; when it is the last section before a
-        --fight it is the "Draw Steel!" click as well.
-        if vote.result == nil and next(vote.choices or {}) == nil then
+        --fight it is the "Draw Steel!" click as well. Not an observer's.
+        if vote.result == nil and next(vote.choices or {}) == nil and not EncounterNarrative.LocalUserIsObserver() then
             local label = T("stage.gauntlet.proceed_button")
             local _, script = EncounterMontage.CurrentBeat()
             local drawSteel = EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex)
@@ -8433,7 +8454,7 @@ local function CreateGauntletStage(args)
         local introKey = cond(intro ~= "", string.format("intro:%s", tostring(m.beatIndex)), nil)
         if introKey ~= m_introKey then
             m_introKey = introKey
-            introLabel:FireEvent("setProse", introKey, intro)
+            introLabel:FireEvent("setProse", introKey, EncounterMontageStage.IntroMarkup(intro))
         end
         introLabel:SetClass("collapsed", intro == "")
         if not embedded then

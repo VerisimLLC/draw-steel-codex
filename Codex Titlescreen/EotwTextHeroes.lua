@@ -226,6 +226,11 @@ text("herosheet.card.epitaph", [[Fell in <b>{encounter}</b>
 Played by {who}]])
 text("herosheet.card.epitaph_week", [[Fell in <b>{encounter}</b>, week {week}
 Played by {who}]])
+--The same for a Lost hero (the encounter's consequence was Lost).
+text("herosheet.card.epitaph_lost", [[Lost in <b>{encounter}</b>
+Played by {who}]])
+text("herosheet.card.epitaph_lost_week", [[Lost in <b>{encounter}</b>, week {week}
+Played by {who}]])
 --{who} when it was your own Hero.
 text("herosheet.card.epitaph_you", [[you]])
 
@@ -518,57 +523,122 @@ Click to jump to {hero}.]])
 text("herocard.dismiss.tooltip", [[Dismiss]])
 
 --THE BACK OF THE HERO CARD
---The tabs along the top of a turned-over hero card.
-text("herocard.back.tab.combat", [[Tactical]])
-text("herocard.back.tab.montage", [[Montage]])
-text("herocard.back.tab.negotiation", [[Negotiation]])
-text("herocard.back.tab.downtime", [[Downtime]])
---The tooltip on the green dot that marks the tab for what the party is doing now.
-text("herocard.back.tab.current", [[The current scene]])
+--The section headings in the one scroll of a turned-over hero card, which
+--are also the buttons in the jump row above it.
+text("herocard.back.section.stats", [[Stats]])
+text("herocard.back.section.abilities", [[Abilities]])
+text("herocard.back.section.features", [[Features]])
+text("herocard.back.section.gear", [[Gear]])
 
---The second row of tabs under Combat. {resource} is the class's heroic
---resource (Ferocity, Wrath, ...) and {value} how much the hero has.
-text("herocard.back.sub.basics", [[Basics]])
-text("herocard.back.sub.abilities", [[Abilities]])
-text("herocard.back.sub.triggers", [[Triggers]])
-text("herocard.back.sub.resource", [[{resource} {value}]])
-
---The folding groups on the Abilities tab.
+--The folding groups in the Abilities section.
 text("herocard.back.bucket.signature", [[Signature]])
 text("herocard.back.bucket.heroic", [[Heroic]])
+text("herocard.back.bucket.triggered", [[Triggered]])
 text("herocard.back.bucket.main", [[Main actions]])
 text("herocard.back.bucket.maneuver", [[Maneuvers]])
 text("herocard.back.bucket.other", [[Other]])
 text("herocard.back.bucket.freestrike", [[Free strikes]])
-text("herocard.back.bucket.standard", [[Standard actions]])
+--every hero's standard actions, by when they are taken.
+text("herocard.back.bucket.standard", [[On your turn]])
+text("herocard.back.turn.move", [[Move]])
+text("herocard.back.turn.main", [[Main]])
+text("herocard.back.turn.maneuvers", [[Maneuvers]])
+text("herocard.back.turn.other", [[Other]])
 text("herocard.back.abilities.none", [[No abilities]])
 
---The Triggers tab. {trigger} is what sets the triggered action off.
+--The Triggered group. {trigger} is what sets the triggered action off.
 text("herocard.back.triggers.ready", [[Triggered action ready this round]])
 text("herocard.back.triggers.used", [[Triggered action used this round]])
-text("herocard.back.triggers.none", [[No triggered actions]])
 text("herocard.back.trigger.when", [[<b>When:</b> {trigger}]])
 
---The heroic resource tab. {resource} is the resource's name; {count} is a number.
-text("herocard.back.resource.spend", [[Spend {resource}]])
+--Beside the stamina numbers. {winded} is the winded value; {death} the
+--(negative) Stamina at which a hero dies; {dot} a small middle dot (not a
+--hyphen, which would read as a minus sign before {death}).
+text("herocard.back.stamina.winded", [[Winded at {winded}]])
+text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
+--After the numbers while a hero is between 0 and their death value.
+text("herocard.back.stamina.dying", [[Dying]])
+
+--The kit's modifiers at the end of Stats. {kit} is the kit's name (or both
+--kits' names, for a hero with two). Damage values read +1/+2/+3, by tier.
+text("herocard.back.kit.title", [[{kit} kit]])
+text("herocard.back.kit.stamina", [[Stamina]])
+text("herocard.back.kit.speed", [[Speed]])
+text("herocard.back.kit.stability", [[Stability]])
+text("herocard.back.kit.disengage", [[Disengage]])
+text("herocard.back.kit.melee_distance", [[Melee distance]])
+text("herocard.back.kit.ranged_distance", [[Ranged distance]])
+text("herocard.back.kit.area", [[Area]])
+text("herocard.back.kit.melee_damage", [[Melee damage]])
+text("herocard.back.kit.ranged_damage", [[Ranged damage]])
+--a caster kit's bonus to magic and psionic abilities.
+text("herocard.back.kit.supernatural_damage", [[Supernatural damage]])
+text("herocard.back.kit.armor", [[Armor]])
+
+--The hero's complication in Features: a heading, then each one's name and
+--these two labels before its rules text.
+text("herocard.back.label.complication", [[Complication]])
+text("herocard.back.complication.benefit", [[Benefit:]])
+text("herocard.back.complication.drawback", [[Drawback:]])
+
+--Under the condition chips while something ends on a save. {threshold} is the
+--number to reach (already formatted, with its +); {roll} is the dice, e.g.
+--1d10 or 1d10 + 1.
+text("herocard.back.save.line", [[Save ends on {threshold} ({roll}) at the end of your turn]])
+
+--After the Surges count in Stats: the damage each surge adds. {damage} is a number.
+text("herocard.back.surges.damage", [[(+{damage} each)]])
+
+--The potency row at the top of the Abilities section, and its hover.
+text("herocard.back.potency.title", [[Potency]])
+text("herocard.back.potency.weak", [[Weak]])
+text("herocard.back.potency.average", [[Average]])
+text("herocard.back.potency.strong", [[Strong]])
+text("herocard.back.potency.tip", [[An ability's potency effect lands only on a target whose characteristic is lower than your potency for it: Weak, Average or Strong. Your bonuses to potency are included.]])
+
+--A Summoner's minion squads, in Stats. {live} and {total} count a squad's
+--minions (up, and in the squad); {stamina} is its Stamina, already formatted;
+--{dot} a small middle dot.
+text("herocard.back.summoner.title", [[Minion squads]])
+text("herocard.back.summoner.count", [[{live}/{total} up {dot} {stamina}]])
+text("herocard.back.summoner.none", [[No minions summoned]])
+text("herocard.back.summoner.sacrifice", [[Sacrifice]])
+text("herocard.back.summoner.sacrifice_tip", [[Sacrifice one or more of your minions to reduce the cost of a heroic ability by 1 or more.]])
+text("herocard.back.summoner.edit", [[Edit squads]])
+text("herocard.back.summoner.edit_tip", [[Open the squad manager to reassign, combine, split, rename, recolor, or delete your squads.]])
+--Markdown: the hover on the Minion squads label.
+text("herocard.back.summoner.rules", [[**Your minion squads**
+* Move action
+* Maneuver or main action
+* If a minion has a signature ability, apply one instance of its effects to each target.
+* Each additional minion that strikes the target adds its free strike value to the action.]])
+
+--The heroic resource. {resource} is the resource's name; {count} is a number.
 text("herocard.back.resource.epic", [[{resource} (epic)]])
 text("herocard.back.growth.needs", [[Needs {count} more.]])
 
---Labels on the Montage, Negotiation and Downtime tabs.
-text("herocard.back.label.hero_tokens", [[Hero Tokens]])
+--Labels in the Features and Gear sections.
+text("herocard.back.label.skills", [[Skills]])
 text("herocard.back.label.renown", [[Renown]])
 text("herocard.back.label.wealth", [[Wealth]])
-text("herocard.back.label.victories", [[Victories]])
 text("herocard.back.label.xp", [[XP]])
 text("herocard.back.label.languages", [[Languages]])
 text("herocard.back.label.perks", [[Perks]])
 text("herocard.back.label.notes", [[Notes]])
-text("herocard.back.label.recoveries", [[Recoveries]])
 text("herocard.back.label.downtime", [[Downtime Activities]])
 text("herocard.back.label.projects", [[Projects]])
-text("herocard.back.negotiation.trained", [[Trained]])
-text("herocard.back.negotiation.untrained", [[Untrained]])
 text("herocard.back.skills.none", [[No skills]])
+--The Gear section. {equipped} and {cap} count leveled treasures equipped and
+--the most that may be; {echelon} is a number.
+text("herocard.back.gear.leveled", [[Leveled treasures]])
+text("herocard.back.gear.leveled_count", [[{equipped} of {cap} equipped]])
+text("herocard.back.gear.trinkets", [[Trinkets]])
+text("herocard.back.gear.consumables", [[Consumables]])
+text("herocard.back.gear.titles", [[Titles]])
+text("herocard.back.gear.equipped", [[equipped]])
+text("herocard.back.gear.carried", [[carried]])
+text("herocard.back.gear.echelon", [[Echelon {echelon}]])
+--The Gear section while the hero has no treasures, titles or projects.
+text("herocard.back.gear.none", [[Nothing here yet]])
 --The title of the test a click on a skill rolls. {skill} is the skill's name.
 text("herocard.back.skill_test", [[{skill} Test]])
-text("herocard.back.empty", [[Nothing to show here yet]])

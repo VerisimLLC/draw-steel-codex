@@ -880,7 +880,34 @@ local function InvokeIsWholeAbility(behavior, ability)
     return true
 end
 
+--- Runs the invoke, then gives the invoking cast back the power roll tier it had.
+--- An invoked ability shares its parent's cast, so a power roll inside it (an ally's
+--- granted signature strike) used to overwrite the parent's tier, and the parent's
+--- later tier-gated behaviors then ran for the ally's tier: Hammer and Anvil granted
+--- extra strikes (X8QSSTAJ). Only a tier the parent already rolled is put back; when
+--- the invoked ability makes the parent's roll (no tier yet), its tier stands.
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
+    local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
+    --A cast relayed from another client can arrive as a plain table with no methods.
+    if cast == nil or cast.try_get == nil or cast.tier == 0 then
+        self:CastInvoke(ability, casterToken, targets, options)
+        return
+    end
+
+    local savedTier = cast.tier
+    local savedTokenToTier = cast:try_get("tokenToTier")
+    if savedTokenToTier ~= nil then
+        savedTokenToTier = table.shallow_copy(savedTokenToTier)
+    end
+
+    self:CastInvoke(ability, casterToken, targets, options)
+
+    cast.tier = savedTier
+    cast.tokenToTier = savedTokenToTier
+end
+
+--The invoke itself; see Cast above for the tier it keeps.
+function ActivatedAbilityInvokeAbilityBehavior:CastInvoke(ability, casterToken, targets, options)
 
     --Resolve a "choose an ability off your class list" pick up front, before any
     --targeting and before CommitToPaying: backing out of the picker must not spend
@@ -1303,6 +1330,17 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     if abilityTemplate ~= nil then
                         local abilityClone = abilityTemplate:MakeTemporaryClone()
 
+                        --A custom ability is written into the ability that invokes it: a step of
+                        --that ability, not an ability of its own. Records of play (History) file it,
+                        --whatever card it shows, under the invoker's name.
+                        if self.abilityType == "custom" then
+                            --a step inside a step belongs to the outermost ability.
+                            abilityClone._tmp_partOfAbility = ability:try_get("_tmp_partOfAbility") or ability.name
+                        elseif self.abilityType == "named" or self.abilityType == "chooseClassAbility" then
+                            --one of the creature's own abilities, used as part of the invoker.
+                            abilityClone._tmp_usedAsAbility = true
+                        end
+
                         --The invoked ability is cast through the normal path, which pays
                         --its own action cost as well as the invoking ability's. When the
                         --invoker already charges the action for the whole package, that
@@ -1470,8 +1508,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
 
                             local stability = target.token.properties:Stability()
+                            local stabilityIgnored = false
                             if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
                                 stability = 0
+                                stabilityIgnored = true
                                 adjustments[#adjustments+1] = "Ignoring Stability"
                             end
 
@@ -1496,6 +1536,16 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                             if stability > 0 then
                                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+                            end
+
+                            --Nothing else matters once the target can't be moved, so this replaces the other notes.
+                            if target.token.properties:CannotBeForceMoved() then
+                                adjustedRange = 0
+                                adjustments = {"Immune to Forced Movement"}
+                                ActivatedAbilityInvokeAbilityBehavior.NoteImmune(target.token, forcedMovementType)
+                            else
+                                abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(target.token, forcedMovementType,
+                                    baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
                             end
 
                             abilityClone.range = adjustedRange * dmhub.unitsPerSquare
@@ -1662,6 +1712,49 @@ function ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
     return string.format("%s:%s:%s", tostring(q.round), tostring(q.turn), tostring(q.currentTurn))
 end
 
+--- What stability did to a forced move, for play observers (History). Put what it returns on
+--- the forced-movement clone as _tmp_forcedMoveStability, so the move reports it when it
+--- lands. A move that stability stops entirely never takes place, so it is reported here.
+--- @param targetToken CharacterToken The creature being moved.
+--- @param kind string "push", "vertical_pull" and so on.
+--- @param requested number Squares before stability.
+--- @param stability number What stability took off (0 when ignored).
+--- @param ignored boolean The mover ignores stability.
+--- @return nil|{requested: number, stability: number, ignored: boolean}
+function ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, kind, requested, stability, ignored)
+    if stability <= 0 and not ignored then
+        return nil
+    end
+    local facts = {requested = requested, stability = stability, ignored = ignored}
+    if stability > 0 and requested > 0 and requested <= stability then
+        GameSystem.NotifyPlayObservers("forcedmove", targetToken.properties, {
+            kind = kind,
+            distance = 0,
+            stopped = true,
+            requested = requested,
+            stability = stability,
+            collision = 0,
+            walls = 0,
+        })
+    end
+    return facts
+end
+
+--- Tells play observers that a forced move never happened because its target is immune to
+--- forced movement (the move is set to 0 squares, so no move event follows).
+--- @param targetToken CharacterToken The creature that was to be moved.
+--- @param kind string "push", "vertical_pull" and so on.
+function ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, kind)
+    GameSystem.NotifyPlayObservers("forcedmove", targetToken.properties, {
+        kind = kind,
+        distance = 0,
+        stopped = true,
+        immune = true,
+        collision = 0,
+        walls = 0,
+    })
+end
+
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
     --record if we have to 'pay' for the invoke -- if work was done.
     local haveToPay = false
@@ -1716,11 +1809,32 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --wait until we aren't casting on the action bar to invoke this. Also resolve
     --any new casts that may have started since we got here.
     local snapshot = ActivatedAbility.GetActiveCastSnapshot()
+    --DIAG: every 5s while this wait holds, log which of its three conditions is true.
+    --A hang here used to leave no trace (3VAQJS4A, YYK97NNG). Safe to keep.
+    local preWaitLogged = dmhub.Time()
+    local function LogPreContinueWait()
+        local now = dmhub.Time()
+        if now - preWaitLogged < 5 then
+            return
+        end
+        preWaitLogged = now
+        local rolling = gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()
+        local barCasting = gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() or nil
+        local barName = tostring(barCasting ~= nil and barCasting ~= false)
+        if type(barCasting) == "table" then
+            pcall(function() barName = tostring(barCasting.name) end)
+        end
+        print(string.format("INVOKEDIAG:: %s waiting to start: rollDialog=%s actionBar=%s newCasts=%s T=%.2f",
+            tostring(abilityClone.name), tostring(rolling), barName,
+            tostring(ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)), now))
+    end
     while (gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()) or (gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell()) or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
+        LogPreContinueWait()
         coroutine.safe_sleep_while(function()
             if not gamehud.actionBarPanel.valid then
                 return false
             end
+            LogPreContinueWait()
             return gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
         end)
 
@@ -1888,8 +2002,18 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
         end
 
-        --false unless the Monster AI controls the invoker.
-        local aiPromptCallback = creature.GetTokenAIPromptCallback(invokerToken.charid)
+        --Who picks the answer. Usually the invoker, but an ability can name someone else:
+        --Behold the Face of Justice! pushes as the struck monster, yet the Censor's player picks.
+        local deciderToken = invokerToken
+        local deciderId = abilityClone:try_get("promptDeciderId")
+        if deciderId ~= nil then
+            local token = dmhub.GetTokenById(deciderId)
+            if token ~= nil and token.valid then
+                deciderToken = token
+            end
+        end
+        --false unless the Monster AI controls the decider.
+        local aiPromptCallback = creature.GetTokenAIPromptCallback(deciderToken.charid)
         --A Director-run creature the AI is not driving right now (a dying minion's
         --death strike on a hero's turn) still has its prompts answered while the AI
         --runs, as its rolls already are. rawget: Monster AI may not be loaded.
@@ -1897,11 +2021,12 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             local monsterAI = rawget(_G, "MonsterAI")
             local fallback = monsterAI ~= nil and rawget(monsterAI, "PromptCallbackForCreature") or nil
             if fallback ~= nil then
-                aiPromptCallback = fallback(invokerToken) or false
-                --When a hero's ability acts on a monster, the monster is the caster here, but
-                --the hero's player still chooses (where to push it). Only prompts marked
-                --answersForCaster, like a free strike the monster makes itself, go to the AI.
+                aiPromptCallback = fallback(deciderToken) or false
+                --When a hero's ability acts on a monster, the hero's player still chooses (where
+                --to push it). Only answersForCaster prompts, like a free strike the monster makes
+                --itself, go to the AI, and never one that already names who picks.
                 if not aiPromptCallback and casterToken ~= nil and casterToken ~= invokerToken
+                    and deciderToken == invokerToken
                     and monsterAI.PromptAnswersForCaster(abilityClone) then
                     aiPromptCallback = fallback(casterToken) or false
                 end
@@ -1934,6 +2059,8 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         if abilityOverride ~= nil then
             options.abilityOverride = nil
             abilityClone = abilityOverride
+            --an ability chosen from a list (Prism's heroic abilities): one of the creature's own.
+            abilityClone._tmp_usedAsAbility = true
             abilityClone.invoker = invokerToken.properties
             installCastCallbacks(abilityClone)
         end
@@ -2032,6 +2159,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                     --if exactly one synthesized ability then just auto-cast it?
                     local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")
                     abilityClone = synth[1]
+                    abilityClone._tmp_usedAsAbility = true
                     --Synthesizing builds a fresh ability, so copy the opt-out across.
                     --Without it a minion gets asked for one target per squad member.
                     if preSynthDisableSquad ~= nil then
@@ -2052,12 +2180,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 --almost always free custom abilities); callers that invoke a REAL costed ability
                 --stamp _tmp_payInvokedCost so its own resource cost is actually charged.
                 --The selected area is cast state and must survive this invoke boundary.
+                --invokeMarkLineOfSight: targeting arrows the invoker drew (the Monster
+                --AI), handed to the cast so its roll dialog can badge them. Not
+                --markLineOfSight, which nested invokes inherit from their parent cast.
                 local castOptions = {
                     symbols = symbols,
                     targetArea = options.targetArea,
                     targetAreaList = options.targetAreaList,
                     pay = abilityClone:try_get("_tmp_payInvokedCost", false),
                     OnFinishCastHandlers = { finishHandler },
+                    markLineOfSight = options.invokeMarkLineOfSight,
                 }
                 abilityClone:Cast(casterToken, targets, castOptions)
             end
@@ -2988,8 +3120,10 @@ function AbilityInvocation:Invoke()
 		-- Big Versus Little check
 
 		local stability = targetToken.properties:Stability()
+		local stabilityIgnored = false
 		if stability ~= 0 and pusherToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
 			stability = 0
+			stabilityIgnored = true
 			adjustments[#adjustments+1] = "Ignoring Stability"
 		end
 
@@ -3014,6 +3148,16 @@ function AbilityInvocation:Invoke()
 
 		if stability > 0 then
 			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+		end
+
+		--Nothing else matters once the target can't be moved, so this replaces the other notes.
+		if targetToken.properties:CannotBeForceMoved() then
+			adjustedRange = 0
+			adjustments = {"Immune to Forced Movement"}
+			ActivatedAbilityInvokeAbilityBehavior.NoteImmune(targetToken, forcedMovementType)
+		else
+			abilityClone._tmp_forcedMoveStability = ActivatedAbilityInvokeAbilityBehavior.NoteStability(targetToken, forcedMovementType,
+				baseRange + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus, stability, stabilityIgnored)
 		end
 
 		abilityClone.range = adjustedRange * dmhub.unitsPerSquare

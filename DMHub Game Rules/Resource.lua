@@ -59,6 +59,14 @@ function CharacterResource.SetGlobalResource(resourceid, amount, note)
 
     doc.data = doc.data or {}
     local entry = doc.data[resourceid] or CharacterResource.new{}
+    local amountBefore = entry:try_get("unbounded", 0)
+    --a value left from an earlier combat reads as 0 (GetGlobalResource), so it is 0 here too.
+    if resourceInfo.clearOutsideOfCombat and entry:try_get("combatid") ~= q.guid then
+        amountBefore = 0
+    end
+    if amountBefore ~= amount then
+        GameSystem.NotifyPlayObservers("globalresource", resourceid, amountBefore, amount, note)
+    end
     entry.unbounded = amount
     entry.history = entry.history or StatHistory.Create()
     entry.history:Append{
@@ -821,6 +829,31 @@ function creature:ResourceToConsume(key)
 	return key
 end
 
+--- Runs change on owner's properties and returns its result.
+--- A summon or retainer can share a pool (heroic resource or surges) with its summoner or mentor,
+--- the owner. Its spends and gains land on the owner, and the other players only see them if the
+--- owner's token saves them (the ModifyProperties below).
+--- @param owner creature the summoner or mentor holding the pool
+--- @param description string shown in the undo list
+--- @param change fun(ownerProperties: creature): number|nil
+--- @return number|nil
+local function ChangeSharedPool(owner, description, change)
+	local ownerToken = dmhub.LookupToken(owner)
+	if ownerToken == nil then
+		--No token to save through, so the change stays on this computer.
+		return change(owner)
+	end
+
+	local result = nil
+	ownerToken:ModifyProperties{
+		description = description,
+		execute = function()
+			result = change(ownerToken.properties)
+		end,
+	}
+	return result
+end
+
 --records resource usage for the resource with the given key, which is an arbitrary string
 --and the given refreshType, which is one of the standard refresh types.
 function creature:ConsumeResource(key, refreshType, quantity, note)
@@ -844,12 +877,16 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 		if self:IsRetainer() then
 			local mentor = self:GetMentor()
 			if mentor ~= nil then
-				return mentor:ConsumeResource(key, refreshType, quantity, note)
+				return ChangeSharedPool(mentor, "Spend shared surges", function(mentorProperties)
+					return mentorProperties:ConsumeResource(key, refreshType, quantity, note)
+				end)
 			end
 		end
 		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
 		if summonerToken ~= nil then
-			return summonerToken.properties:ConsumeResource(key, refreshType, quantity, note)
+			return ChangeSharedPool(summonerToken.properties, "Spend shared surges", function(summonerProperties)
+				return summonerProperties:ConsumeResource(key, refreshType, quantity, note)
+			end)
 		end
 	end
 
@@ -858,7 +895,9 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 	--resourceid field (= Malice) and those must keep routing to the summoner.
 	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
 	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
-		return heroicSharingSummoner.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+		return ChangeSharedPool(heroicSharingSummoner.properties, "Spend shared heroic resource", function(summonerProperties)
+			return summonerProperties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+		end)
 	end
 
 	local resourceTable = self:GetResourceTable(refreshType)
@@ -1023,19 +1062,25 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 		if self:IsRetainer() then
 			local mentor = self:GetMentor()
 			if mentor ~= nil then
-				return mentor:RefreshResource(key, refreshType, quantity, note)
+				return ChangeSharedPool(mentor, "Gain shared surges", function(mentorProperties)
+					return mentorProperties:RefreshResource(key, refreshType, quantity, note)
+				end)
 			end
 		end
 		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
 		if summonerToken ~= nil then
-			return summonerToken.properties:RefreshResource(key, refreshType, quantity, note)
+			return ChangeSharedPool(summonerToken.properties, "Gain shared surges", function(summonerProperties)
+				return summonerProperties:RefreshResource(key, refreshType, quantity, note)
+			end)
 		end
 	end
 
 	--Malice matched explicitly for the same reason as in ConsumeResource above.
 	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
 	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
-		return heroicSharingSummoner.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+		return ChangeSharedPool(heroicSharingSummoner.properties, "Gain shared heroic resource", function(summonerProperties)
+			return summonerProperties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+		end)
 	end
 
 	local animQuantity = 0
@@ -1161,19 +1206,25 @@ function creature:AddUnboundedResource(key, quantity, note)
 		if self:IsRetainer() then
 			local mentor = self:GetMentor()
 			if mentor ~= nil then
-				return mentor:AddUnboundedResource(key, quantity, note)
+				return ChangeSharedPool(mentor, "Change shared surges", function(mentorProperties)
+					return mentorProperties:AddUnboundedResource(key, quantity, note)
+				end)
 			end
 		end
 		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
 		if summonerToken ~= nil then
-			return summonerToken.properties:AddUnboundedResource(key, quantity, note)
+			return ChangeSharedPool(summonerToken.properties, "Change shared surges", function(summonerProperties)
+				return summonerProperties:AddUnboundedResource(key, quantity, note)
+			end)
 		end
 	end
 
 	--Malice matched explicitly for the same reason as in ConsumeResource above.
 	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
 	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
-		return heroicSharingSummoner.properties:AddUnboundedResource(CharacterResource.heroicResourceId, quantity, note)
+		return ChangeSharedPool(heroicSharingSummoner.properties, "Change shared heroic resource", function(summonerProperties)
+			return summonerProperties:AddUnboundedResource(CharacterResource.heroicResourceId, quantity, note)
+		end)
 	end
 
 	local resourceTable = self:get_or_add('resources', {})

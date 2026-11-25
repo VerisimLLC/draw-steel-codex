@@ -204,6 +204,42 @@ function EncounterNarrative.VoterKeyForUser(userid, heroes)
     return nil
 end
 
+--Is this user only watching: not a Director or host of the game, and in
+--control of no hero? Also used outside Encounter of the Week, by the Draw
+--Steel die (DSInitiativeRoll.lua).
+---@param userid string|nil
+---@param heroes table[]|nil { ownerId }, ...; every hero on the map, dead or alive, when nil
+---@return boolean
+function EncounterNarrative.IsObserver(userid, heroes)
+    if userid == nil or dmhub.IsUserDM(userid) then
+        return false
+    end
+    if EncounterNarrative.VoterKeyForUser(userid, heroes) ~= nil then
+        return false
+    end
+    if heroes == nil then
+        --Hero Death despawns a dead hero into a corpse, out of dmhub.allTokens:
+        --their player is still a player.
+        local fallen = {}
+        for _, tok in ipairs(dmhub.despawnedTokens or {}) do
+            pcall(function()
+                if tok.valid and tok.properties ~= nil and tok.properties:IsHero() then
+                    fallen[#fallen + 1] = { ownerId = tok.ownerId }
+                end
+            end)
+        end
+        return EncounterNarrative.VoterKeyForUser(userid, fallen) == nil
+    end
+    return true
+end
+
+--Is the local user only watching? Every shared control a watcher must not
+--press asks this; the host re-checks requests with IsObserver.
+---@return boolean
+function EncounterNarrative.LocalUserIsObserver()
+    return EncounterNarrative.IsObserver(dmhub.loginUserid)
+end
+
 --The voters who have not chosen yet, as display names.
 function EncounterNarrative.PendingVoters(m, section, heroes)
     local pending = {}

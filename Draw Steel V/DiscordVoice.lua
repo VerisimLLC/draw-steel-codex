@@ -27,9 +27,21 @@ DiscordVoice.TALK_EMOTE = "5d398acd-fcf1-47e1-8feb-6f94c1a48d27"
 
 local TOKEN_EVENT = "discordvoice:token"
 
---seconds between automatic join attempts, so a failing join cannot burn
+--seconds to wait after the 1st, 2nd, ... automatic join attempt before the
+--next, so a join that keeps failing (or a call that keeps dropping) cannot burn
 --Discord's app-wide lobby join cap (100 per 2 hours before approval).
-local JOIN_RETRY_SECONDS = 30
+local JOIN_RETRY_SECONDS = {30, 60, 120, 300, 600}
+
+--a call that has been up this long forgets the attempts before it.
+local JOIN_SETTLED_SECONDS = 300
+
+--seconds before the first rejoin after a drop, and before asking again when the
+--engine refused to start a join (which asks nothing of Discord).
+local JOIN_SOON_SECONDS = 5
+
+--seconds a call may sit "disconnected" before we leave it to rejoin. An engine
+--that clears a dropped call itself is quicker than this.
+local DROPPED_SECONDS = 6
 
 --how often our voice token is re-announced, for people who arrive later.
 local ANNOUNCE_REFRESH_SECONDS = 20
@@ -62,6 +74,20 @@ local g_speakingTokens = {}
 local SPEAKING_LINGER_SECONDS = 0.6
 
 local g_nextJoinAttempt = 0
+--automatic join attempts since the call last settled.
+local g_joinAttempts = 0
+--the game those attempts were in.
+---@type string|nil
+local g_joinGameId = nil
+--the game whose call we have been in and did not choose to leave: while it is
+--set, not being connected means the call dropped.
+---@type string|nil
+local g_inVoiceGameId = nil
+--dmhub.Time() the call connected, and when it was first seen "disconnected".
+---@type number|nil
+local g_connectedSince = nil
+---@type number|nil
+local g_disconnectedSince = nil
 --the gameid the user chose to leave voice in; no auto-join there until they rejoin.
 local g_leftGameId = nil
 
@@ -259,21 +285,87 @@ function DiscordVoice.CancelLink()
 end
 
 function DiscordVoice.Unlink()
+    --unlinking signs out of voice: like Leave, only Join voice goes back in.
+    if VoiceOnInThisGame() then
+        g_leftGameId = dmhub.gameid
+        g_inVoiceGameId = nil
+    end
     dmhub.DiscordUnlink()
+end
+
+--counts a join attempt and puts the next automatic one off.
+local function CountJoinAttempt()
+    g_joinAttempts = g_joinAttempts + 1
+    g_nextJoinAttempt = dmhub.Time() + JOIN_RETRY_SECONDS[math.min(g_joinAttempts, #JOIN_RETRY_SECONDS)]
 end
 
 --- Joins this game's call now (also clears a previous Leave).
 --- @return string|nil error
 function DiscordVoice.Join()
     g_leftGameId = nil
-    g_nextJoinAttempt = dmhub.Time() + JOIN_RETRY_SECONDS
+    g_joinAttempts = 0
+    CountJoinAttempt()
     return dmhub.DiscordJoinVoice()
 end
 
 --- Leaves the call; it is not rejoined automatically in this game.
 function DiscordVoice.Leave()
     g_leftGameId = dmhub.gameid
+    g_inVoiceGameId = nil
     dmhub.DiscordLeaveVoice()
+end
+
+--- True while a call we were in has dropped and is being rejoined.
+--- @return boolean
+function DiscordVoice.Rejoining()
+    return g_inVoiceGameId ~= nil and g_inVoiceGameId == dmhub.gameid and DiscordVoice.Status().voice ~= "connected"
+end
+
+--notices the call connecting and dropping. A call Discord dropped is left, so
+--the state becomes "off" and the automatic join in Tick runs again.
+local function TrackCall(status)
+    local now = dmhub.Time()
+    if g_joinGameId ~= dmhub.gameid then
+        g_joinGameId = dmhub.gameid
+        g_inVoiceGameId = nil
+        g_connectedSince = nil
+        g_disconnectedSince = nil
+        g_joinAttempts = 0
+        g_nextJoinAttempt = now
+    end
+
+    if status.voice == "connected" then
+        g_inVoiceGameId = dmhub.gameid
+        g_connectedSince = g_connectedSince or now
+        g_disconnectedSince = nil
+        if now - g_connectedSince >= JOIN_SETTLED_SECONDS then
+            g_joinAttempts = 0
+        end
+        return
+    end
+
+    if g_connectedSince ~= nil then
+        --a call that had settled is rejoined soon; one that keeps dropping
+        --waits out the delay its last attempt set.
+        g_connectedSince = nil
+        if g_joinAttempts == 0 then
+            g_nextJoinAttempt = now
+        end
+        g_nextJoinAttempt = math.max(g_nextJoinAttempt, now + JOIN_SOON_SECONDS)
+    end
+
+    if status.voice ~= "disconnected" then
+        g_disconnectedSince = nil
+        return
+    end
+    g_disconnectedSince = g_disconnectedSince or now
+    if now - g_disconnectedSince >= DROPPED_SECONDS then
+        g_disconnectedSince = nil
+        printf("DiscordVoice: the call dropped (disconnected); leaving it to rejoin in %d seconds", math.max(JOIN_SOON_SECONDS, math.ceil(g_nextJoinAttempt - now)))
+        --Discord is still ending the old call, so the join waits a little.
+        g_nextJoinAttempt = math.max(g_nextJoinAttempt, now + JOIN_SOON_SECONDS)
+        dmhub.DiscordLeaveVoice()
+    end
 end
 
 function DiscordVoice.SetMuted(muted)
@@ -394,17 +486,27 @@ function DiscordVoice.Tick()
 
     if DiscordVoice.Available() then
         local now = dmhub.Time()
+        TrackCall(status)
         if status.account == "ready" and status.voice == "off" and g_leftGameId ~= dmhub.gameid and now >= g_nextJoinAttempt then
-            g_nextJoinAttempt = now + JOIN_RETRY_SECONDS
-            dmhub.DiscordJoinVoice()
+            CountJoinAttempt()
+            if dmhub.DiscordJoinVoice() ~= nil then
+                --refused before anything was asked of Discord: not an attempt.
+                g_joinAttempts = g_joinAttempts - 1
+                g_nextJoinAttempt = now + JOIN_SOON_SECONDS
+            end
         elseif status.account == "notlinked" and status.provisionalUnavailable ~= true and g_leftGameId ~= dmhub.gameid and now >= g_nextJoinAttempt then
             --joining voice is a use of Discord: a player who has not linked
             --gets a provisional account, and the branch above joins once it is ready.
-            g_nextJoinAttempt = now + JOIN_RETRY_SECONDS
+            g_nextJoinAttempt = now + JOIN_RETRY_SECONDS[1]
             dmhub.DiscordUseProvisional()
         end
-    elseif status.voice ~= "off" then
-        dmhub.DiscordLeaveVoice()
+    else
+        g_inVoiceGameId = nil
+        g_connectedSince = nil
+        g_disconnectedSince = nil
+        if status.voice ~= "off" then
+            dmhub.DiscordLeaveVoice()
+        end
     end
 
     AnnounceMyToken(status)
@@ -503,6 +605,8 @@ function DiscordVoice.StatusText()
         return "Connecting to Discord..."
     elseif s.account == "error" then
         return s.accountError or "Discord sign-in failed."
+    elseif s.voice ~= "connected" and s.voiceError == nil and DiscordVoice.Rejoining() then
+        return "Reconnecting to voice..."
     elseif s.voice == "joining" or s.voice == "connecting" then
         return "Joining voice..."
     elseif s.voice == "connected" then
@@ -831,6 +935,22 @@ local function MenuSliderRow(label, maxValue, value, onchange)
     }
 end
 
+--the name to show for a call participant: their name in the Codex, else the
+--Discord name (which is only a numeric id when Discord does not know them).
+local function ParticipantName(p)
+    local name = p.name
+    if p.userid ~= nil then
+        local info = dmhub.GetSessionInfo(p.userid)
+        if info ~= nil and info.displayName ~= nil and info.displayName ~= "" then
+            name = info.displayName
+        end
+    end
+    if p.isSelf then
+        name = name .. " (you)"
+    end
+    return name
+end
+
 --one person in the call: who, whether they are talking, and how loud they are for us.
 local function ParticipantRow(p)
     local dot = gui.Panel{
@@ -842,17 +962,23 @@ local function ParticipantRow(p)
         valign = "center",
         rmargin = 6,
     }
+    --a long name is cut short (it would run under the slider), in full on hover.
+    local nameLabel = gui.Label{
+        classes = {"voiceName"},
+        fontSize = 13,
+        text = ParticipantName(p),
+        width = cond(p.isSelf, 290, 118),
+        height = "auto",
+        valign = "center",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        hover = function(element)
+            gui.Tooltip(element.text)(element)
+        end,
+    }
     local children = {
         dot,
-        gui.Label{
-            classes = {"voiceName"},
-            fontSize = 13,
-            text = p.isSelf and (p.name .. " (you)") or p.name,
-            width = 104,
-            height = "auto",
-            valign = "center",
-            textWrap = false,
-        },
+        nameLabel,
     }
     local muteToggle = nil
     if not p.isSelf then
@@ -895,6 +1021,11 @@ local function ParticipantRow(p)
         --q: this participant's entry in the latest status.
         updateParticipant = function(element, q)
             dot.selfStyle.bgcolor = q.speaking and COLOR_GOOD or COLOR_IDLE
+            --who they are in the Codex can arrive after they join.
+            local name = ParticipantName(q)
+            if nameLabel.text ~= name then
+                nameLabel.text = name
+            end
             if muteToggle ~= nil then
                 if q.localMute then
                     muteToggle:FireEvent("setState", "phosphor/speaker-slash-fill.png", COLOR_BAD, "Muted for you. Click to hear them again.")

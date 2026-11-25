@@ -63,7 +63,7 @@
 --- @field infallHaloBrightness number Brightness multiplier of the infall halo, applied on top of the surface material's Infall Streaks brightness.
 --- @field infallHaloOpacity number Opacity (coverage) multiplier of the infall halo: how solid the filaments read over the map. Brightness only raises their emitted color; this thickens them.
 --- @field trailSpritesEnabled boolean Whether the dice drop procedural trail sprites (petals/stars/sparks/embers/bubbles plus soft haze puffs) along their path while moving. Entirely slider-driven -- see trailShape/trailColorA/trailColorB/trailRate/trailSize/trailSizeVariation/trailLifetime/trailFlutter/trailSpin/trailTwinkle/trailIntensity/trailHaze/trailHazeColor/trailHazeSize.
---- @field trailShape string The trail sprite shape: 'petal', 'star4', 'star5', 'spark', 'glint', 'ember', or 'bubble'.
+--- @field trailShape string The trail sprite shape: 'petal', 'star4', 'star5', 'spark', 'glint', 'ember', 'cinder', or 'bubble'.
 --- @field trailColorA Color First trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
 --- @field trailColorB Color Second trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
 --- @field trailRate number Trail sprites emitted per second while the die moves.
@@ -79,10 +79,10 @@
 --- @field trailHazeColor Color Tint of the trail's soft haze puffs.
 --- @field trailHazeSize number Haze puff size, as a multiple of the trail sprite size.
 --- @field trailHueVariation number Per-sprite random hue shift around the born trail color: 0 = exact colors, 1 = full rainbow.
---- @field trailFall number Downward drift speed of the trail sprites (0 = they hang in the air where dropped).
+--- @field trailFall number Drift speed of the trail sprites: positive falls down the playfield, negative rises (0 = they hang in the air where dropped).
 --- @field trailSpread number Trail emission radius around the die, in fractions of its diameter.
 --- @field trail2Enabled boolean Whether a second, independent trail sprite layer is emitted alongside the first (e.g. petals over sparks). It has its own shape/colors/rate/size and shares the motion/glow/lifetime sliders.
---- @field trail2Shape string The second trail layer's sprite shape: 'petal', 'star4', 'star5', 'spark', 'glint', 'ember', or 'bubble'.
+--- @field trail2Shape string The second trail layer's sprite shape: 'petal', 'star4', 'star5', 'spark', 'glint', 'ember', 'cinder', or 'bubble'.
 --- @field trail2ColorA Color The second trail layer's first color.
 --- @field trail2ColorB Color The second trail layer's second color.
 --- @field trail2Rate number The second trail layer's sprites emitted per second while the die moves.

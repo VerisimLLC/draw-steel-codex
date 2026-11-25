@@ -18,6 +18,7 @@
 --- @field versionStatus AppVersionStatus (Read-only) Where this build sits relative to the app versions published on each channel (/AppVersions). Available immediately from the on-disk cache when one exists; listen to versionStatusEvent to be told when it changes.
 --- @field versionStatusEvent nil|EventSourceLua (Read-only) Event source that fires 'appVersionStatus' on listening panels whenever versionStatus is recomputed, i.e. when the cached or fresh /AppVersions record is applied. nil before the monitor exists.
 --- @field safeMode boolean True if the app was launched with --safe-mode: the lobby game (the titlescreen) loads no module code, so a broken Hero module can be removed.
+--- @field launchedIntoGame boolean True while the app, launched with --gameid, is still in the game it was launched into. The titlescreen is not built until it leaves that game.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
 --- @field tokenAnimations TokenAnimationsLuaInterface Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field tokenFrames TokenFramesLuaInterface Registry of premium token frame materials. Register{...} defines a frame (albedo + normal + roughness maps and lighting parameters); a token uses it by setting token.portraitFrameMaterial to the id (and token.portraitFrame to the material's albedo asset).
@@ -223,7 +224,7 @@
 --- @field mapTransitionCovered boolean (read-only) Tabletop mode: true while the window that has just taken the map named by mapTransitionMapId should stay covered by what it showed before (its snapshot), because the new map is still building or loading its images. When it turns false the window's cover should fade out over about 0.3 seconds; mapTransitionMapId clears when that is done.
 --- @field mapWindowPictureVisit boolean (read-only) Tabletop mode: true while the engine is visiting maps behind a cover to take their windows' pictures (SetTabletopWindowMaps). A map change seen meanwhile is not the user's: the tabletop must not bring windows forward, flash or refocus them.
 --- @field mapViewportActive boolean (read-only) Tabletop mode: true while a map window panel is showing the live map ("#MapView").
---- @field tabletopSurface string Tabletop mode: the table's surface. One of "leather" (the playmat with the debossed wordmark, the default), "felt" (green card-table felt with the logo burnt into it), "stars" (Sea of Stars: a slowly drifting nebula and twinkling stars with the logo glowing in it), "marble" (polished white marble with the logo chiselled into it), "darkmarble" (the same in polished black marble), "llianar" (white marble veined with gold, the logo gilded, a glint sweeping across it now and then), "soulkiller" (spectral mist: teal fog drifting, souls rising, the logo as a ghost), "terransteel" (etched Damascus gunmetal, the logo engraved and heating to a forge glow now and then), "zodiakol" (molten obsidian: cracked black glass with heat glowing in the cracks and the logo as molten metal) or "custom" (the image in dmhub.tabletopSurfaceImage, scaled to cover the screen). Any other value means "leather". Takes effect at once, frosted panels included. Client-only; not saved.
+--- @field tabletopSurface string Tabletop mode: the table's surface. One of "leather" (the playmat with the debossed wordmark, the default), "felt" (green card-table felt with the logo burnt into it), "stars" (Sea of Stars: a slowly drifting nebula and twinkling stars with the logo glowing in it), "marble" (polished white marble with the logo chiselled into it), "darkmarble" (the same in polished black marble), "llianar" (white marble veined with gold, the logo gilded, a glint sweeping across it now and then), "soulkiller" (spectral mist: teal fog drifting, souls rising, the logo as a ghost), "terransteel" (etched Damascus gunmetal, the logo engraved and heating to a forge glow now and then), "zodiakol" (molten obsidian: cracked black glass with heat glowing in the cracks and the logo as molten metal) or "custom" (the image in dmhub.tabletopSurfaceImage, scaled to cover the screen). "table:<id>" is a table made in the Table Studio and put live (dmhub.GetLiveTables), drawn as leather until its images load; a built-in put live from the studio draws its live version the same way. Any other value means "leather". Takes effect at once, frosted panels included. Client-only; not saved.
 --- @field tabletopSurfaceImage nil|string Tabletop mode: the image the "custom" table surface shows, by image id (a cloud asset id, an "md5:" id or a built-in image path), or nil. Drawn to cover the screen: scaled to fill it with its aspect kept, centred and cropped. Until it has loaded, or if it can't be loaded (or is a video), the leather table is drawn. Client-only; not saved.
 --- @field mouseOutsideMapView boolean (read-only) Tabletop mode: true while the mouse is outside the live map window, or no window shows the map, so the map under the mouse is hidden and takes no input. A creature dragged from a panel and dropped there fires the global event 'tabletopCreatureDropped' {monsterid, monsterids, charids, quantity, screenx, screeny}; a token dragged off the map fires 'tabletopTokenDropped' {charid, charids, screenx, screeny}. screenx/screeny are pixels from the top-left of the screen. Neither fires over a UI panel.
 --- @field tabletopDragSurface nil|string (read-only) Tabletop mode: what a drag released now would land on. "map" while the placement preview (the ghost of a character or creature dragged from a panel or a table card) is showing in the live map window; "table" over the bare table: outside the live map window, with no UI panel under the mouse (the panel being dragged doesn't count), where a drop fires 'tabletopCreatureDropped'. nil otherwise: over a UI panel, inside the window with no preview showing, or with the view off.
@@ -880,6 +881,12 @@ function dmhub.ClearRollBonusTypes() end
 --- @return nil|{image: string, width: number, height: number}
 function dmhub.SetMovementCrossSection(args) end
 
+--- Builds a path from a list of squares, such as a move recorded earlier, so it can be drawn again: pass it to CharacterToken:MarkMovementArrow as options.path, or to dmhub.SetMovementCrossSection. floor defaults to 0 and altitude to the ground there. options.forced marks it forced movement (a push, pull or slide; the side view then keeps it airborne), options.flying makes it a flight, options.teleport a teleport (a purple arrow). Nothing moves. Returns nil with fewer than two steps.
+--- @param steps {x: integer, y: integer, floor: nil|integer, altitude: nil|integer}[] The squares moved through, start first.
+--- @param options nil|{forced: nil|boolean, flying: nil|boolean, teleport: nil|boolean}
+--- @return nil|LuaPath
+function dmhub.CreatePath(steps, options) end
+
 --- Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
 function dmhub.ClearMovementCrossSection() end
 
@@ -1423,6 +1430,11 @@ function dmhub:DumpSteamRichPresence() end
 --- @return boolean
 function dmhub.IsSteamOverlayRunning() end
 
+--- Unlocks the Steam achievement with this API Name (as set up in Steamworks) for the local user. Returns true once Steam has it, including when it was already unlocked. Returns false, and does nothing, when not running under Steam, when Steam has not finished loading this user's stats yet, or when the name is not a known achievement; call it again later to retry.
+--- @param apiName? string
+--- @return boolean
+function dmhub.UnlockSteamAchievement(apiName) end
+
 --- Opens the Steam overlay's 'invite a friend' dialog so a Steam friend can be invited to join the given game. The friend sees a 'Join Game' button that drops them into the game (handled by SteamJoinHandler). No-op when not running under Steam (e.g. dev builds).
 --- @param gameid? string
 function dmhub.InviteToGameViaSteam(gameid) end
@@ -1857,6 +1869,10 @@ function dmhub.DescribeTabletop() end
 --- @param mapids string[]
 --- @param needPictures nil|string[]
 function dmhub.SetTabletopWindowMaps(mapids, needPictures) end
+
+--- Tabletop mode: the tables put live from the Table Studio, as a list of {id, builtin, name, access, dice, position, version}. id is what dmhub.tabletopSurface takes: a built-in's id ("soulkiller") for one that replaces that built-in, else "table:<id>". builtin is the built-in id it replaces, or nil. name is its name in the players' menu. access is "everyone", "dice" for the owners of the dice set dice (a dice asset id, or nil), or "nobody": unpublished, so players' menus leave it out (and leave out the built-in it replaces). position orders the menu (the built-ins are 1 to 9). Each is drawn once its images have loaded; a built-in's own drawing shows until then.
+--- @return table
+function dmhub.GetLiveTables() end
 
 --- Admin only, for testing: feeds the main window an operating-system file drag step as if files were dragged in from the desktop. x and y are screen pixels from the top-left (the measure of dmhub.mouseScreenPosition). Send "over" steps while moving, then "drop" or "leave"; the drop runs exactly as a real one would (uploads included).
 --- @param args {paths: string[], x: number, y: number, phase: "over"|"leave"|"drop"}

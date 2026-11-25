@@ -2155,6 +2155,130 @@ local g_heroOptionTables = {
 	titles = true,
 }
 
+--Game type names used anywhere inside one published entry, keyed by entry guid.
+--Entries don't change while the dialog is open, so each is walked once.
+local g_entryGameTypesCache = {}
+
+--The data behind a publish-dialog entry, for the entry kinds that can hold
+--game-typed content (compendium objects, bestiary monsters, characters).
+local function PublishedEntryData(guid, info)
+	local t = info.type or ""
+	local tableName = string.match(t, "^object:(.+)$")
+	if tableName ~= nil then
+		local tbl = dmhub.GetTable(tableName)
+		return tbl ~= nil and tbl[guid] or nil
+	elseif t == "Monster" then
+		local monster = assets.monsters[guid]
+		return monster ~= nil and monster.properties or nil
+	elseif t == "character" then
+		local token = dmhub.GetCharacterById(guid)
+		return token ~= nil and token.properties or nil
+	end
+	return nil
+end
+
+--{typeName -> true} for every game-typed table reachable from the entry. Walks
+--with next() so no type's metamethods run.
+local function EntryGameTypes(guid, info)
+	local cached = g_entryGameTypesCache[guid]
+	if cached ~= nil then
+		return cached
+	end
+	local result = {}
+	local seen = {}
+	local function Walk(v, depth)
+		if type(v) ~= "table" or seen[v] or depth > 40 then
+			return
+		end
+		seen[v] = true
+		local mt = getmetatable(v)
+		local typeName = type(mt) == "table" and rawget(mt, "typeName") or nil
+		if type(typeName) == "string" then
+			result[typeName] = true
+		end
+		for _, child in next, v do
+			Walk(child, depth + 1)
+		end
+	end
+	pcall(function() Walk(PublishedEntryData(guid, info), 0) end)
+	g_entryGameTypesCache[guid] = result
+	return result
+end
+
+--Warnings, for every module type, when the content being published uses game
+--types whose code won't reach the people who install it: a code mod of this
+--game that isn't ticked, or no loaded code at all (an engine placeholder).
+--Without it, installers get entries that break the panels that read them
+--(DBVJBNJT: a hero module's Servitor companions, published without their code).
+local function MissingCodeWarnings(ctx)
+	--code this game could bundle: the same lists the Code section offers.
+	local bundleable = {}
+	for _, modid in ipairs(code.loadedModsLocalToGame) do
+		bundleable[modid] = true
+	end
+	for _, modid in ipairs(code.loadedModsFromModules) do
+		bundleable[modid] = true
+	end
+
+	local included = {}
+	for guid, _ in pairs(ctx.includedAssets) do
+		included[guid] = true
+	end
+	for guid, _ in pairs(ctx.dependencyAssets) do
+		included[guid] = true
+	end
+
+	local usersByMod = {}      --{modid -> {entry display names}}
+	local unregistered = {}    --{typeName -> {entry display names}}
+	local registeringMod = rawget(_G, "g_gameTypeRegisteringMod") or {}
+	for guid, _ in pairs(included) do
+		local info = ctx.assetInfo[guid]
+		if info ~= nil and info.type ~= "code" then
+			for typeName, _ in pairs(EntryGameTypes(guid, info)) do
+				if IsPlaceholderGameType(typeName) then
+					local list = unregistered[typeName] or {}
+					list[#list + 1] = info.displayName
+					unregistered[typeName] = list
+				else
+					local modid = registeringMod[typeName]
+					if modid ~= nil and bundleable[modid] and not included[modid] then
+						local list = usersByMod[modid] or {}
+						list[#list + 1] = info.displayName
+						usersByMod[modid] = list
+					end
+				end
+			end
+		end
+	end
+
+	local function NameList(names)
+		local unique, seen = {}, {}
+		for _, name in ipairs(names) do
+			if not seen[name] then
+				seen[name] = true
+				unique[#unique + 1] = name
+			end
+		end
+		table.sort(unique)
+		if #unique > 5 then
+			return string.format("%s and %d more", table.concat(unique, ", ", 1, 5), #unique - 5)
+		end
+		return table.concat(unique, ", ")
+	end
+
+	local warnings = {}
+	for modid, names in pairs(usersByMod) do
+		local modInfo = code.GetMod(modid)
+		local modName = modInfo ~= nil and modInfo.name or modid
+		warnings[#warnings + 1] = string.format("%s need the code mod %s. Tick it under Code.", NameList(names), modName)
+	end
+	for typeName, names in pairs(unregistered) do
+		warnings[#warnings + 1] = string.format("%s use the type %s, which no code in this game defines.", NameList(names), typeName)
+	end
+	table.sort(warnings)
+	return warnings
+end
+
 --Module types. Each entry is an option in the Module Type dropdown at the top
 --of the publish dialog; the chosen id is stored on the module record as
 --moduleInstance.moduleType so the rest of the app can tell packs apart.
@@ -2477,6 +2601,9 @@ local showShareModuleDialog = function(options)
 	--guid -> {type, displayName} for every entry in the dialog, addressable
 	--or not, so module type validators can tell maps from everything else.
 	local assetInfo = {}
+
+	--content may have been edited since the dialog was last open.
+	g_entryGameTypesCache = {}
 
 	--errors from the selected module type's validator; while non-empty the
 	--Proceed button stays hidden on the content page.
@@ -3865,6 +3992,9 @@ local showShareModuleDialog = function(options)
 		local errors, warnings = {}, {}
 		if typeInfo.validate ~= nil then
 			errors, warnings = typeInfo.validate(ModuleTypeContext())
+		end
+		for _,msg in ipairs(MissingCodeWarnings(ModuleTypeContext())) do
+			warnings[#warnings+1] = msg
 		end
 		--holds Proceed until every selected map's content is known.
 		if SearcherPending() then

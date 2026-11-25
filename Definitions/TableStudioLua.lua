@@ -12,6 +12,18 @@
 --- @field comparing boolean While true, the preview shows the table's last save (Compare).
 --- @field logoPreview string Which logo and logo layout the preview shows: "" for this build's white label, "drawsteel" or "dmhub".
 --- @field paused boolean While true, the table's motion is frozen.
+--- @field builtin string The built-in tabletop the open table is ("soulkiller"), or "" for a table made in the studio.
+--- @field version number The version being edited.
+--- @field liveVersion number The table's live version, or 0 if none is live.
+--- @field isLiveVersion boolean True if the version open is the live one. Its first edit starts nextVersion.
+--- @field nextVersion number The number the next new version gets.
+--- @field notes string The version's notes.
+--- @field access string The access the open version carries: "everyone", "dice" for the owners of the dice set `dice`, or "nobody" (unpublished: it leaves players' menus). Who gets the table now is GetLiveAccess; SetLiveAccess changes it.
+--- @field dice string The dice set (a dice asset id) the table is linked to, or "".
+--- @field menuName string The table's name in the players' menu ("" uses its name).
+--- @field position number The table's place in the players' menu, lower first (the built-ins are 1 to 9).
+--- @field sendState string The last Upload, Set Live or SetLiveAccess of the open table: "" (none, or the last was for another table), "sending", "sent" or "failed".
+--- @field viewAsPlayer boolean View as Player: while true, this admin's table menus offer only what this account would get without admin rights (the Table Studio's switch; Tabletop.lua reads it). Not saved.
 TableStudioLua = {}
 
 --- The seven table types: a list of {id, reflects, parallax, tiled, timed}.
@@ -170,3 +182,65 @@ function TableStudioLua:ExportTexture(prop) end
 --- @param prop? string
 --- @return string
 function TableStudioLua:GetTextureWarning(prop) end
+
+--- Opens a built-in tabletop (an id from GetPresets) for editing: the work saved on this machine, else its live version, else the built-in itself, named name, linked to the dice asset id dice (or nil) and at position in the players' menu. Set live, it replaces that tabletop. False if it can't be loaded.
+--- @param id? string
+--- @param name? string
+--- @param dice? string
+--- @param position? number
+--- @return boolean
+function TableStudioLua:EditBuiltin(id, name, dice, position) end
+
+--- The table's saved versions, lowest first, as a list of {version, status}; status is "live", "uploaded", "changed" (since upload) or "local". The version open is included even if it isn't saved yet.
+--- @return table
+function TableStudioLua:GetVersions() end
+
+--- Opens one of the table's saved versions. False if it can't be read.
+--- @param version? number
+--- @return boolean
+function TableStudioLua:LoadVersion(version) end
+
+--- Sets who gets the table ("everyone", "dice" or "nobody") and its dice set (a dice asset id, or "").
+--- @param access? string
+--- @param dice? string
+function TableStudioLua:SetAccess(access, dice) end
+
+--- Sets the table's menu name and place.
+--- @param menuName? string
+--- @param position? number
+function TableStudioLua:SetMenu(menuName, position) end
+
+--- Who Gets It: changes who gets the open table, at once. With a version live only its access changes (the look stays, unsaved edits stay unsaved); with none live, the table is saved and the open version set live with it. access is "everyone", "dice" or "nobody"; dice a dice asset id or "". False if it couldn't start (a table never saved: SaveAs first). Progress is in sendState; RetrySend repeats it.
+--- @param access? string
+--- @param dice? string
+--- @return boolean
+function TableStudioLua:SetLiveAccess(access, dice) end
+
+--- Who gets the live version of the open table now, as {access, dice}; nil if none is live.
+--- @return any
+function TableStudioLua:GetLiveAccess() end
+
+--- Saves the version and uploads it to the admin-only version history. Players see nothing. False if it couldn't start (no name yet: SaveAs first). Progress is in sendState.
+--- @return boolean
+function TableStudioLua:Upload() end
+
+--- Saves the version, uploads it and makes it the version players get (replacing the built-in, for an edited built-in tabletop). False if it couldn't start. Progress is in sendState.
+--- @return boolean
+function TableStudioLua:SetLive() end
+
+--- Repeats the last Upload, Set Live or SetLiveAccess, if it was for the open table; false (and nothing sent) otherwise.
+--- @return boolean
+function TableStudioLua:RetrySend() end
+
+--- The tables saved on this machine: a list of {name, type, id, access, dice}. id is the table's cloud id ("" if never uploaded); access and dice are its latest save's, which is not who gets it once it is live.
+--- @return table
+function TableStudioLua:GetTableList() end
+
+--- Live tables made in the studio that this machine has no files for: a list of {id, name, type, access, dice}.
+--- @return table
+function TableStudioLua:GetCloudTables() end
+
+--- Opens a live table from GetCloudTables and keeps it on this machine. False if it isn't live.
+--- @param id? string
+--- @return boolean
+function TableStudioLua:OpenCloudTable(id) end

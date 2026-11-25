@@ -199,6 +199,41 @@ local function CreateCombatQueue(heroesWin)
     })
 end
 
+--May this user roll the Draw Steel die? Only the Director (or the host of a
+--game with none) and whoever controls someone on the heroes' side: a player
+--there to watch may not. The banner's document lists the heroes' side; when it
+--does not (a per-round reroll), any hero on the map counts.
+---@param userid string
+---@return boolean
+local function MayRollInitiative(userid)
+    local narrative = rawget(_G, "EncounterNarrative")
+    if narrative == nil then
+        return true
+    end
+    local fighters = mod:GetDocumentSnapshot("drawsteel").data.fighters
+    if type(fighters) ~= "table" or next(fighters) == nil then
+        return not narrative.IsObserver(userid)
+    end
+    local heroes = {}
+    for charid,_ in pairs(fighters) do
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            heroes[#heroes+1] = { ownerId = tok.ownerId }
+        end
+    end
+    return not narrative.IsObserver(userid, heroes)
+end
+
+--Does one of the banner's claims to the die come from someone who may roll it?
+local function HasAllowedClaim(claims)
+    for userid,_ in pairs(claims or {}) do
+        if MayRollInitiative(userid) then
+            return true
+        end
+    end
+    return false
+end
+
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
 
@@ -216,6 +251,16 @@ local function createDrawSteelBanner(options)
         m_document.data.finished = nil
         m_document.data.delayFinished = nil
         m_document.data.result = nil
+        --who may roll (MayRollInitiative). A reroll's fight was set up long
+        --ago, perhaps by another client.
+        m_document.data.fighters = nil
+        if not options.reroll and g_playerTokensOpenInitiative ~= nil then
+            local fighters = {}
+            for charid,_ in pairs(g_playerTokensOpenInitiative) do
+                fighters[charid] = true
+            end
+            m_document.data.fighters = fighters
+        end
         if options.immediateResult then
             m_document.data.finished = true
             m_document.data.delayFinished = 1
@@ -346,6 +391,21 @@ local function createDrawSteelBanner(options)
 
             local doc = mod:GetDocumentSnapshot("drawsteel")
             if doc.data.finished then
+                --a roll by someone who may not roll decides nothing. (Only a
+                --client running older code can write one.) The controller
+                --wipes it and the die is still there to be rolled.
+                --delayFinished = a result chosen in advance, with no roll.
+                if doc.data.delayFinished == nil and not HasAllowedClaim(doc.data.claims) then
+                    if m_roll ~= nil and not m_roll.done then
+                        doc:BeginChange()
+                        doc.data.claims = {}
+                        doc.data.finished = nil
+                        doc.data.result = nil
+                        doc:CompleteChange("Refuse initiative roll")
+                    end
+                    return
+                end
+
                 if doc.data.delayFinished ~= nil then
                     self.data.delay = self.data.delay or (dmhub.Time() + doc.data.delayFinished)
                     if self.data.delay > dmhub.Time() then
@@ -511,11 +571,26 @@ local function createDrawSteelBanner(options)
             local bestid = nil
             local bestClaim = nil
             local doc = mod:GetDocumentSnapshot("drawsteel")
+            --claims by users who may not roll.
+            local refused = nil
             for userid,claim in pairs(doc.data.claims or {}) do
-                if bestClaim == nil or claim.priority > bestClaim.priority or (claim.priority == bestClaim.priority and claim.timestamp < bestClaim.timestamp) then
+                if not MayRollInitiative(userid) then
+                    refused = refused or {}
+                    refused[#refused+1] = userid
+                elseif bestClaim == nil or claim.priority > bestClaim.priority or (claim.priority == bestClaim.priority and claim.timestamp < bestClaim.timestamp) then
                     bestid = userid
                     bestClaim = claim
                 end
+            end
+
+            --the controller takes a refused claim away, so the client that
+            --made it stops acting as the roller.
+            if refused ~= nil and m_roll ~= nil and not m_roll.done then
+                doc:BeginChange()
+                for _,userid in ipairs(refused) do
+                    doc.data.claims[userid] = nil
+                end
+                doc:CompleteChange("Refuse initiative roll")
             end
 
             if bestClaim ~= nil then
@@ -799,6 +874,25 @@ local function createDrawSteelBanner(options)
                 valign = "center",
                 classes = "dice",
 
+                --whether this client may roll: false while its user is only
+                --watching. Checked again as the banner stays up, since heroes
+                --can change hands.
+                data = { mayRoll = true },
+
+                refreshMayRoll = function(self)
+                    local mayRoll = MayRollInitiative(dmhub.loginUserid)
+                    if mayRoll == self.data.mayRoll then
+                        return
+                    end
+                    self.data.mayRoll = mayRoll
+                    self.interactable = mayRoll
+                    self:SetClass("watching", not mayRoll)
+                end,
+
+                create = function(self)
+                    self:FireEvent("refreshMayRoll")
+                end,
+
                 claim = function(self, userid)
                     if userid == nil then
                         self.selfStyle.bgcolor = "white"
@@ -814,6 +908,11 @@ local function createDrawSteelBanner(options)
 
                 thinkTime = 0.7,
                 think = function(self)
+                    self:FireEvent("refreshMayRoll")
+                    if not self.data.mayRoll then
+                        self:SetClass("pulse", false)
+                        return
+                    end
 
                     if self:HasClass("pulse")
                     then
@@ -835,6 +934,10 @@ local function createDrawSteelBanner(options)
                 click = function(self, isactuallydrag)
                     if self:HasClass("claimed") then
                         --this is already being dragged by someone else.
+                        return
+                    end
+
+                    if not MayRollInitiative(dmhub.loginUserid) then
                         return
                     end
 
@@ -913,6 +1016,14 @@ local function createDrawSteelBanner(options)
                         inversion = 1,
 
     
+                    },
+
+                    {
+                        --this user is only watching: no prompt to roll.
+                        selectors = {"watching"},
+                        opacity = 0.6,
+                        uiscale = 1,
+                        inversion = 0,
                     },
 
                     {
@@ -2871,6 +2982,27 @@ Commands.RegisterMacro{
     if isNewCombat then
         local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens, playerids, monsterids)
         chat.SendCustom(message)
+
+        --History's Draw Steel line. rolled is nil when no die decided it (a banner
+        --shown with its result already known).
+        local rolled = nil
+        local rollDoc = mod:GetDocumentSnapshot("drawsteel")
+        if rollDoc.data.finished == true and type(rollDoc.data.result) == "number" then
+            rolled = rollDoc.data.result
+        end
+        local mapid = nil
+        for _,tok in ipairs(tokens) do
+            if tok ~= nil and tok.valid then
+                mapid = tok.mapid
+                break
+            end
+        end
+        GameSystem.NotifyPlayObservers("combatbegan", {
+            queue = info.initiativeQueue,
+            mapid = mapid,
+            heroesFirst = info.initiativeQueue.playersGoFirst == true,
+            rolled = rolled,
+        })
     end
 
 

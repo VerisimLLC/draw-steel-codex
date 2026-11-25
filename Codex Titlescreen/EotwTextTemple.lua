@@ -114,6 +114,8 @@ text("temple.fallen.no_slot", [[You need a free hero slot to begin. Expand the G
 text("temple.fallen.fire", [[Fire destroyed this hero's body, so they will not awaken on their own.]])
 --A Hakaan who chose their death (doomed).
 text("temple.fallen.beyond", [[This hero met their doom. Nothing can bring them back.]])
+--A hero Lost in an encounter whose consequence is Lost.
+text("temple.fallen.lost", [[The hero's body is not recovered. They cannot be revived.]])
 --Undying heroes (Hakaan, Revenant, Vampire, or Back From the Grave) can awaken
 --at the Graveyard for free, or be raised sooner by a rite at half the cost.
 --{clock} is a time of day, like "9:40 PM".

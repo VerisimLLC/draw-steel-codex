@@ -29,6 +29,7 @@ end
 --- @field new fun(o?: table): InitiativeQueue
 --- @field priorityids? table<string, boolean> Initiative ids that must act before anyone else this round; cleared each round.
 --- @field _tmp_prestartInitiativeId? string Initiative id whose prestartturn trigger is firing; set only for that window.
+--- @field turnNumber integer Turns started in this combat so far. turn starts again at 1 each round; this does not.
 InitiativeQueue = RegisterGameType("InitiativeQueue")
 
 --- @class InitiativeQueueEntry: GameType
@@ -103,6 +104,8 @@ dmhub.TokensAreFriendly = function(a,b)
 
 	return playera == playerb
 end
+
+InitiativeQueue.turnNumber = 0
 
 --just some default InitiativeQueueEntry values.
 InitiativeQueueEntry.round = 0
@@ -380,6 +383,7 @@ function InitiativeQueue:SelectTurn(initiativeid)
 
 	entry.turn = self.turn
 	self.turn = self.turn + 1
+	self.turnNumber = self.turnNumber + 1
 	entry.startTurnTimestamp = ServerTimestamp()
 
 	self.currentTurn = initiativeid
@@ -415,6 +419,7 @@ function InitiativeQueue:CancelTurn(initiativeid)
 	end
 
 	self.turn = self.turn-1
+	self.turnNumber = self.turnNumber - 1
 	self.currentTurn = false
 end
 
@@ -642,7 +647,7 @@ function InitiativeQueue:DescribeEntry(initiativeid)
 		else
 			local token = dmhub.GetCharacterById(initiativeid)
 			if token ~= nil then
-				return token.description
+				return (token.isObject and creature.TokenDisplayName(token)) or token.description
 			end
 		end
 		return "Unknown, possibly deleted character"
@@ -666,7 +671,8 @@ function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 		if GameHud.instance and GameHud.instance:has_key("initiativeInterface") then
 			local tokens = self.GetTokensForInitiativeId(initiativeid)
 			if tokens ~= nil and #tokens > 0 then
-				entry.description = tokens[1].description
+				--A map object's token is named after its art; show the object's own Name field instead.
+				entry.description = (tokens[1].isObject and creature.TokenDisplayName(tokens[1])) or tokens[1].description
 
 				local turnsPerRound = tokens[1].properties:TurnsPerRound()
 				if turnsPerRound ~= InitiativeQueueEntry.turnsPerRound then
@@ -722,6 +728,15 @@ function InitiativeQueue:HasHadTurn(initiativeid)
 	return entry.round > self.round
 end
 
+--LocalUserIsWatching(): true for an observer of an Encounter of the Week game
+--(in control of no hero, and not the host), who runs no part of the combat.
+--- @return boolean
+function InitiativeQueue.LocalUserIsWatching()
+	local eotw = rawget(_G, "EncounterOfTheWeekGame")
+	local narrative = rawget(_G, "EncounterNarrative")
+	return eotw ~= nil and narrative ~= nil and eotw.IsEotwGame() and narrative.LocalUserIsObserver()
+end
+
 --Claim-turn helpers.
 --
 --Historically the whole "claim this entry's turn" sequence lived inline in the
@@ -757,6 +772,10 @@ function InitiativeQueue.CanClaimTurn(initiativeid, options)
 	end
 
 	if canControl == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[initiativeid]) or (not q:IsEntryPlayer(initiativeid))) then
+		return false
+	end
+
+	if canControl == false and InitiativeQueue.LocalUserIsWatching() then
 		return false
 	end
 

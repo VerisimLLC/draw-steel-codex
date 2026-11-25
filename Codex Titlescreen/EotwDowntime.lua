@@ -1289,12 +1289,17 @@ function EotwDowntime.TakeRespite(onDone, heroid)
         end
         return
     end
+    local respiteid = dmhub.GenerateGuid()
     SaveMine("eotw:pendingRespite", {
-        respiteid = dmhub.GenerateGuid(),
+        respiteid = respiteid,
         grants = grants,
         pushed = {},
         stage = "new",
     })
+    --the City opens a carouse for a respite that banks a Victory; show it now.
+    if victories > 0 then
+        EotwRoster.ExpectCarouse(respiteid)
+    end
     ContinueRespite(onDone)
 end
 
@@ -1440,6 +1445,11 @@ function EotwDowntime.ResumePending()
     end
     --a carouse whose dice landed but the City never heard about.
     EotwLeads.ResumePending()
+    --a respite activity (Sanctified Weapon...) cut off before it was pushed.
+    local activities = rawget(_G, "EotwRespiteActivities")
+    if activities ~= nil then
+        activities.ResumePending()
+    end
 end
 
 --The roll formula's bonus and a description of it, for a hero working on a
@@ -3322,7 +3332,8 @@ local function StoneBox(heading, subtitle, stone)
 end
 
 --One ranked builder: place, name and points; hovering lists their heroes.
-local function BuilderRow(rank, builder)
+---@param tagid string|nil the builder's Player Tag (list-project-builders' tags map)
+local function BuilderRow(rank, builder, tagid)
     local lines = { T("tribute.heroes_heading") }
     for _, hero in ipairs(builder.heroes or {}) do
         lines[#lines+1] = TP("tribute.hero_line", tonumber(hero.points) or 0, { hero = BuilderHeroName(hero.name) })
@@ -3344,7 +3355,14 @@ local function BuilderRow(rank, builder)
         vmargin = 2,
         hover = gui.Tooltip(table.concat(lines, "\n")),
         gui.Label{ text = string.format("#%d", rank), fontSize = 17, bold = true, color = cond(rank <= 3, GOLD, DIM), width = 54, height = "auto", valign = "center" },
-        gui.Label{ text = BuilderName(builder.name), fontSize = 17, bold = mine, color = TEXT, width = "100%-190", height = "auto", valign = "center" },
+        gui.Panel{
+            width = "100%-190",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            gui.Label{ text = BuilderName(builder.name), fontSize = 17, bold = mine, color = TEXT, width = "auto", maxWidth = 260, height = "auto", valign = "center", textWrap = false, textOverflow = "ellipsis" },
+            EotwPlayerTags.Badge(tagid, { fontSize = 12, maxWidth = 160 }) or gui.Panel{ classes = { "collapsed" }, width = 1, height = 1 },
+        },
         gui.Label{ text = TP("tribute.points", tonumber(builder.points) or 0), fontSize = 16, color = TEXT, width = 130, height = "auto", valign = "center", textAlignment = "right" },
     }
 end
@@ -3359,7 +3377,8 @@ end
 
 --One defender of a besieged project: name, the difficulties they won, and
 --the points those wins gave; hovering lists the heroes who fought.
-local function DefenderRow(defender)
+---@param tagid string|nil the defender's Player Tag (list-project-builders' tags map)
+local function DefenderRow(defender, tagid)
     local won = {}
     for _, w in ipairs(defender.wins or {}) do
         won[w.difficulty] = w
@@ -3389,7 +3408,14 @@ local function DefenderRow(defender)
         borderBox = true,
         vmargin = 2,
         hover = gui.Tooltip(table.concat(lines, "\n")),
-        gui.Label{ text = BuilderName(defender.name), fontSize = 17, bold = mine, color = TEXT, width = "45%", height = "auto", valign = "center" },
+        gui.Panel{
+            width = "45%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            gui.Label{ text = BuilderName(defender.name), fontSize = 17, bold = mine, color = TEXT, width = "auto", maxWidth = 180, height = "auto", valign = "center", textWrap = false, textOverflow = "ellipsis" },
+            EotwPlayerTags.Badge(tagid, { fontSize = 12, maxWidth = 130 }) or gui.Panel{ classes = { "collapsed" }, width = 1, height = 1 },
+        },
         gui.Label{ text = table.concat(names, ", "), fontSize = 15, italics = true, color = cond(defender.best == "deadly", RED, DIM), width = "55%-130", height = "auto", valign = "center" },
         gui.Label{ text = TP("tribute.points", tonumber(defender.points) or 0), fontSize = 16, color = TEXT, width = 130, height = "auto", valign = "center", textAlignment = "right" },
     }
@@ -3397,11 +3423,12 @@ end
 
 --The heading over a besieged project's Tribute: everyone who won its fight
 --on Deadly, by name, before anything else.
-local function DeadlyVictorsBox(defenders)
+---@param tags table<string, string> userid -> Player Tag (list-project-builders' tags map)
+local function DeadlyVictorsBox(defenders, tags)
     local names = {}
     for _, d in ipairs(defenders) do
         if d.best == "deadly" then
-            names[#names+1] = BuilderName(d.name)
+            names[#names+1] = BuilderName(d.name) .. EotwPlayerTags.Inline(tags[d.userid], 70)
         end
     end
     if #names == 0 then
@@ -3513,17 +3540,19 @@ function EotwDowntime.ShowTribute(host, projectid)
                 local subtitle = cond(result.capstone.siege ~= nil, T("tribute.capstone_siege_subtitle"), T("tribute.capstone_subtitle"))
                 stones[#stones+1] = StoneBox(T("tribute.capstone"), subtitle, result.capstone)
             end
+            --userid -> Player Tag, for everyone on this Tribute.
+            local tags = type(result.tags) == "table" and result.tags or {}
             ---@type Panel[]
             local rows = {}
             if #defenders > 0 then
                 rows[#rows+1] = gui.Label{ text = T("tribute.defenders_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", bmargin = 4 }
                 for _, defender in ipairs(defenders) do
-                    rows[#rows+1] = DefenderRow(defender)
+                    rows[#rows+1] = DefenderRow(defender, tags[defender.userid])
                 end
                 rows[#rows+1] = gui.Label{ text = T("tribute.ranked_heading"), fontSize = 18, bold = true, color = GOLD, width = "100%", height = "auto", tmargin = 12, bmargin = 4 }
             end
             for i, builder in ipairs(builders) do
-                rows[#rows+1] = BuilderRow(i, builder)
+                rows[#rows+1] = BuilderRow(i, builder, tags[builder.userid])
             end
             local more = (tonumber(result.builderCount) or #builders) - #builders
             if more > 0 then
@@ -3550,7 +3579,7 @@ function EotwDowntime.ShowTribute(host, projectid)
             end
             Show{
                 --(never nil in the list: a hole would cut it short.)
-                DeadlyVictorsBox(defenders) or gui.Panel{ classes = { "collapsed" }, width = 1, height = 1 },
+                DeadlyVictorsBox(defenders, tags) or gui.Panel{ classes = { "collapsed" }, width = 1, height = 1 },
                 gui.Panel{ width = "100%", height = "auto", flow = "horizontal", halign = "center", children = stones },
                 gui.Label{
                     text = table.concat(summaryLines, "\n"),
@@ -3915,9 +3944,16 @@ local function InnRow(entry, onChanged, onRespite)
         end,
     }
 
+    --what other heroes' respite activities gave this one (EotwRespiteActivities.lua).
+    local giftLine = nil
+    local activities = rawget(_G, "EotwRespiteActivities")
+    if activities ~= nil then
+        giftLine = activities.GiftLine(tok)
+    end
+
     return gui.Panel{
         width = "100%",
-        height = 68,
+        height = cond(giftLine ~= nil, 84, 68),
         flow = "horizontal",
         vmargin = 2,
         hpad = 8,
@@ -3967,6 +4003,15 @@ local function InnRow(entry, onChanged, onRespite)
                 width = "100%",
                 height = "auto",
             },
+            giftLine ~= nil and gui.Label{
+                text = giftLine,
+                fontSize = 13,
+                color = AMBER,
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                minFontSize = 10,
+            } or nil,
         },
         gains,
         heroRespiteButton,
@@ -4275,6 +4320,8 @@ function EotwDowntime.InnPanel(host, openLocation)
         --after a respite: carouse in the common room for leads, and start
         --the projects those leads open (EotwLeads.lua).
         EotwLeads.InnLeadsPanel(host),
+        --respite activities: Sanctified Weapon and the like (EotwRespiteActivities.lua).
+        rawget(_G, "EotwRespiteActivities") ~= nil and EotwRespiteActivities.InnPanel(host) or nil,
         gui.Panel{
             classes = { "collapsed" },
             width = "100%",

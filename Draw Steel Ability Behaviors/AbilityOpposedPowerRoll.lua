@@ -142,6 +142,7 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 		checks = checks,
 		silent = self.silent,
 		tokens = tokenInfo,
+		castid = options.symbols ~= nil and options.symbols.castid or "",
 	})
 	ActivatedAbility.TrackCastActionRequest(actionid)
 
@@ -154,7 +155,9 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 		coroutine.yield(0.1)
 	end
 
+	--The roll was called off, so the ability was not used and costs nothing.
 	if dcresult.result == false then
+		options.abort = true
 		return
 	end
 
@@ -163,12 +166,25 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 	local attackerRoll = dcaction.info.tokens[casterToken.charid].result
 
 	if attackerRoll == nil then
+		options.abort = true
 		return
 	end
+
+	--Having rolled, the ability pays its own cost when the cast ends. Paying there rather
+	--than here keeps "ability used" triggers after the result is applied.
+	options.payIfNotAborted = true
 
 	for _,target in ipairs(targets) do
 		if target.token ~= nil then
 			local defenderRoll = dcaction.info.tokens[target.token.charid].result
+			--History: how the two totals compared, for this target's place on the ability's row.
+			if defenderRoll ~= nil then
+				GameSystem.NotifyPlayObservers("opposed", target.token.properties, {
+					attacker = attackerRoll,
+					defender = defenderRoll,
+					cast = options.symbols ~= nil and options.symbols.cast or nil,
+				})
+			end
 			--State does not change on ties
 			if defenderRoll ~= nil and defenderRoll < attackerRoll then
 				self:RecordHitTarget(target.token, options)

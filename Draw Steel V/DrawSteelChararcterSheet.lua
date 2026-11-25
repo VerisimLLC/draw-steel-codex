@@ -1530,11 +1530,19 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
 
                 refreshToken = function(element, info)
-                    element.text = info.token.name
+                    element.text = creature.TokenDisplayName(info.token) or ""
                 end,
 
                 change = function(element)
                     local token = CharacterSheet.instance.data.info.token
+
+                    --A map object's token name comes from its art and can't be changed, so
+                    --rename the object itself; the initiative bar shows that name.
+                    if token.isObject and token.objectInstance ~= nil then
+                        token.objectInstance.name = element.text
+                        token.objectInstance:Upload()
+                        return
+                    end
 
                     token.name = element.text
                     token:UploadAppearance()
@@ -6507,7 +6515,7 @@ local function DSCharSheet()
 
                                         change = function(element)
                                             local creature = CharacterSheet.instance.data.info.token.properties
-                                            creature:SetTemporaryHitpoints(element.text)
+                                            GameSystem.HandEdit(function() creature:SetTemporaryHitpoints(element.text) end)
                                             element.data.previous_value = nil
                                             CharacterSheet.instance:FireEvent('refreshAll')
                                         end,
@@ -6607,7 +6615,7 @@ local function DSCharSheet()
 
                                     change = function(element)
                                         local creature = CharacterSheet.instance.data.info.token.properties
-                                        creature:SetStaminaDirect(element.text)
+                                        GameSystem.HandEdit(function() creature:SetStaminaDirect(element.text) end)
                                         element.data.previous_value = nil --don't flash green/red on an edit.
                                         CharacterSheet.instance:FireEvent('refreshAll')
                                     end,
@@ -6776,9 +6784,9 @@ local function DSCharSheet()
                                         local desiredTotal = n + used
                                         local diff = desiredTotal - current
                                         if diff > 0 then
-                                            token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, diff)
+                                            GameSystem.HandEdit(function() token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, diff) end)
                                         else
-                                            token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -diff)
+                                            GameSystem.HandEdit(function() token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -diff) end)
                                         end
                                     end
 
@@ -6973,9 +6981,9 @@ local function DSCharSheet()
                                     local creature = CharacterSheet.instance.data.info.token.properties
                                     local diff = n - creature:GetHeroicOrMaliceResources()
                                     if diff > 0 then
-                                        creature:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                                        GameSystem.HandEdit(function() creature:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff) end)
                                     else
-                                        creature:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                                        GameSystem.HandEdit(function() creature:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff) end)
                                     end
                                 end
 
@@ -7068,9 +7076,9 @@ local function DSCharSheet()
                                     local creature = CharacterSheet.instance.data.info.token.properties
                                     local diff = n - creature:GetAvailableSurges()
                                     if diff > 0 then
-                                        creature:RefreshResource(CharacterResource.surgeResourceId, "unbounded", diff)
+                                        GameSystem.HandEdit(function() creature:RefreshResource(CharacterResource.surgeResourceId, "unbounded", diff) end)
                                     else
-                                        creature:ConsumeResource(CharacterResource.surgeResourceId, "unbounded", -diff)
+                                        GameSystem.HandEdit(function() creature:ConsumeResource(CharacterResource.surgeResourceId, "unbounded", -diff) end)
                                     end
                                 end
 

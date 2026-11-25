@@ -336,6 +336,10 @@ function EncounterZones.RunEncounterSetup(beat)
                     --nothing to set up: the monster spawn reads it
                     --(EncounterOfTheWeekGame.LevelDelta).
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "herolevel", text = instruction.text }
+                elseif instruction.kind == "consequence" then
+                    --nothing to set up: the outcome reads it when the game is
+                    --decided (EncounterOfTheWeekGame.Consequence).
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "consequence", text = instruction.text }
                 else
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "unknown", text = instruction.text, error = "unrecognized instruction" }
                     printf("EotW zones: setup '%s' is not understood: %s", tostring(instruction.label), tostring(instruction.text))

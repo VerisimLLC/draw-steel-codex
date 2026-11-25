@@ -7,6 +7,169 @@ local mod = dmhub.GetModLoading()
 --- @field new fun(o?: table): GameSystem
 GameSystem = RegisterGameType("GameSystem")
 
+--Observers of play, by id, so a reload of the observing mod replaces its observer
+--instead of adding a second one.
+local g_playObservers = {}
+
+--- Registers functions told about things that happen in play, for code that keeps a
+--- record of it. handlers holds a function per moment, any of:
+---   began(ability, casterToken, targets, options): a cast has its castid and its
+---     symbols.cast, before anything is paid or resolved. A triggered ability whose steps
+---     are all instant reports began and finished together, after its steps have run.
+---   finished(ability, casterToken, options): a cast ended. options.abort means it
+---     was cancelled and options.atexit that it stopped with an error.
+---   damage(creature, info): Stamina or temporary Stamina was hit. info: landed, lost,
+---     raw, damagetype, source, cast, startofturn.
+---   heal(creature, regained, note, recovered): Stamina went up by regained. recovered is
+---     "winded" or "dying" if that ended it.
+---   resource(creature, key, before, after, refreshType, note): a resource a record of
+---     play follows changed on a creature.
+---   globalresource(resourceid, before, after, note): a shared resource changed.
+---   forcedmove(creature, info): another creature moved it. info: kind, distance, falling,
+---     collision, walls, path (a list of {x, y, floor, altitude}, start first), cast,
+---     collidewithobject (it hit an object or wall), collidedwith (the creatures it hit),
+---     stability (nil or {requested, stability, ignored}). A move that never happened has
+---     distance 0 and stopped = true, plus immune = true, or requested and stability (numbers)
+---     when stability took off the whole move.
+---   teleported(creature, info): an ability teleported it. info: distance, cast.
+---   fell(creature, info): it landed from a fall. info: distance, in squares. This comes a
+---     moment after the move that caused it, outside any cast.
+---   threshold(creature, state, info): the creature became "winded", "dying" or "killed".
+---     info: source, cast.
+---   minionsdied(creature, info): minion deaths were confirmed. info: squad, killed, left, cast,
+---     damage (all types together), each (one minion's Stamina).
+---   temporarystamina(creature, before, after, note): the pool grew.
+---   staminaset(creature, before, after, note): Stamina was set to a number, not dealt
+---     or healed (a sheet field, a Set Stamina step).
+---   wavedeployed(info): reinforcements arrived. info: name (the wave's), tokens (the
+---     tokens spawned). Only on the client that deployed them.
+---   spoilerrevealed(info): the Director revealed a spoilered roll modifier to players.
+---     info: key, name, description, tokenid (whose modifier, or nil).
+---   spoilervisibility(key, revealed): the Director's eye shows or hides such a modifier.
+---   turnreverted(info): Revert Turn or Turn Rewind restored the board, on the client that
+---     did it. info: since (server ms the checkpoint was taken), turnkey (Turn Rewind only:
+---     the turn, so stepping back and forward within it is one record), turn (Revert Turn
+---     only: {encounter, round, turn} of the turn undone), point (Turn Rewind only: the
+---     rewindpoint table it went back to).
+---   rewindpoint(point): Turn Rewind recorded a point it can go back to, on the client
+---     keeping the rewind. An observer may remember what it needs by the point table.
+---   effectstarted(creature, info): a condition or ongoing effect began. info: conditionid
+---     or ongoingeffectid, duration, source; renewed = true when the creature already had
+---     it and this application only renewed it; instanceid = an ongoing effect's instance.
+---   effectsended(creature, ended, cause): conditions and ongoing effects ended. ended is
+---     a list of {conditionid} or {ongoingeffectid}; cause is what EndingEffects was told.
+---   conditionimmune(creature, conditionid, source): an infliction was stopped by immunity. source:
+---     the name of the modifier granting it, or nil. A silent immunity is not reported.
+---   resisted(creature, text, stopped): a potency test was resisted. text and stopped are
+---     as in potency's info.
+---   captain(creature, info): the Director made a creature a squad's captain. info: squad.
+---   potency(creature, info): a potency test was made, resisted or not. info: attrid,
+---     letter (M, A, R, I, P), value (the creature's), gate, resisted, text (what it gates),
+---     stopped (gated text another behavior applies, after a "#").
+---   typedmessage(text): an ability step posted the note its author typed (its chatMessage),
+---     inside the cast that ran it.
+---   note(creature, title, detail): a note card was posted for a creature (an Action Log
+---     Note step, a bonus a modifier added), inside a cast or not.
+---   saved(creature, info): a saving throw landed. info: name, passed, total, target,
+---     atturnend, options (the options of the cast that rolled it), rollInfo and details
+---     (the finished roll, which say who may see it).
+---   tested(creature, info): a test was rolled. info: name, total, tier, dice, natural,
+---     edges, banes, characteristic ({name, value} or nil), sources, privacy, cause (cast id),
+---     overridden (nil or {by, dicetier} when someone chose the tier after the roll).
+---   opposed(creature, info): an opposed roll against this target. info: attacker,
+---     defender (the two totals), cast.
+---   tablerolled(roller, info): a roll on a table finished; roller may be nil. info: table,
+---     rolled, dice, result, overridden, cause, project, rollInfo, details.
+---   diceroll(rollInfo, kind): a free roll from chat (kind "chat") or the Dice panel
+---     ("power", "d3", "d6", "d10" or "custom"), on the client that rolled.
+---   awarded(creature, info): it was awarded something, on the client that gave it.
+---     info.kind: "victories", "renown" or "wealth" (with before, after), "item" (name,
+---     quantity) or "title" (name).
+---   persistenceended(creature, abilityname, reason): a persistent ability stopped. reason:
+---     "chose", "targetsgone" or "damage" (Persistent Magic's 5 times Reason in one turn).
+---   combatbegan(info): combat started. info: queue (the initiative queue), mapid,
+---     heroesFirst, rolled (the Draw Steel die, or nil when no die decided it).
+---   encounterended(creature): runs for each creature as combat ends.
+---   turnended(creature): a creature's turn ended.
+---   resting(creature), rested(creature): a long rest is about to start, and has ended.
+---   montage(info): info.kind: "counter" (the Director moved one: name, counter, before,
+---     after, limit), "test" (heroid, total, tier, entry, option), "threat" (name, applied)
+---     or "ended" (successes, failures, unvanquished, tests).
+---   downtime(info): points on a downtime project. info: kind ("roll" or "adjust"), project,
+---     ownerid, total, before, after, goal, milestone, completed; a roll adds rollerid,
+---     rollername, followerid, natural.
+---   negotiation(info): a moment in a negotiation. info: kind, npc, raw, interest, patience
+---     and bands (each {before, after}), plus what that kind adds (see NegotiationRun.Note).
+--- None may yield. Any may fail: a broken observer is logged and play carries on.
+--- @param id string Unique name for this observer.
+--- @param handlers table<string, function>
+function GameSystem.RegisterPlayObserver(id, handlers)
+	g_playObservers[id] = handlers
+end
+
+--How many GameSystem.HandEdit calls are running (they can nest).
+local g_handEditDepth = 0
+
+--- Runs a change a person made by hand (a sheet field, the Stamina bar, the condition
+--- menu) so play observers can tell it from one the rules made: while fn runs,
+--- GameSystem.IsHandEdit() is true. Wrap only the change itself; fn must not yield.
+--- @param fn function
+function GameSystem.HandEdit(fn)
+	g_handEditDepth = g_handEditDepth + 1
+	--xpcall with a traceback, so an error from fn still reaches the log with its stack.
+	local ok, err = xpcall(fn, debug.traceback)
+	g_handEditDepth = g_handEditDepth - 1
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- True while a change made by hand (GameSystem.HandEdit) is running.
+--- @return boolean
+function GameSystem.IsHandEdit()
+	return g_handEditDepth > 0
+end
+
+--The cast a GameSystem.ForCast call is running on behalf of, if any.
+local g_scopedCast = nil
+
+--- Runs fn as part of a cast from outside its coroutine, e.g. a roll dialog spending surges
+--- when its Roll button is clicked, so play observers can file the change under that cast
+--- (ActivatedAbility.CurrentCastInfo() only sees the cast's own coroutine). fn must not yield.
+--- @param cast table|nil The cast (symbols.cast); nil runs fn as is.
+--- @param fn function
+function GameSystem.ForCast(cast, fn)
+	local outer = g_scopedCast
+	g_scopedCast = cast or outer
+	--xpcall with a traceback, so an error from fn still reaches the log with its stack.
+	local ok, err = xpcall(fn, debug.traceback)
+	g_scopedCast = outer
+	if not ok then
+		error(err, 0)
+	end
+end
+
+--- The cast the running GameSystem.ForCast call names, or nil outside one.
+--- @return table|nil
+function GameSystem.ScopedCast()
+	return g_scopedCast
+end
+
+--- Tells every observer that something happened. Safe in hot code: it costs a table
+--- lookup per observer, and a failure in one stops nothing.
+--- @param moment string
+function GameSystem.NotifyPlayObservers(moment, ...)
+	for id,handlers in pairs(g_playObservers) do
+		local fn = handlers[moment]
+		if fn ~= nil then
+			local ok, err = pcall(fn, ...)
+			if not ok then
+				print("GameSystem:: play observer failed:", id, moment, err)
+			end
+		end
+	end
+end
+
 --- @class StatHistoryEntry
 --- @field note nil|string
 --- @field disposition nil|string
@@ -235,6 +398,7 @@ end
 --- @field eotwBaseLevel? integer Encounter of the Week: the Level this monster spawned at, before level balancing (ApplyLevelBoost).
 --- @field eotwBaseEV? number Encounter of the Week: this monster's EV when it spawned, for level balancing's strongest-first order.
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
+--- @field eotwPerished? table<string, boolean> Encounter of the Week town heroes: the games whose consumables have already perished.
 --- @field followers? table Characters: follower entries (legacy shape, migrated by validation).
 --- @field levelOverride? integer Characters: minimum character level (slow start / level picker).
 --- @field levelUpSeen? integer Heroes: Level up has shown pages up to this Level; it shows one for each Level above (set when a respite raises the Level; HeroBuildPools.lua).
@@ -662,6 +826,32 @@ function creature:PredictedFallDamage(fallDist, inWater)
     return damage
 end
 
+--- The damage the Collision global rule deals this creature when forced movement slams it
+--- into something with `speed` squares of the move left: 1 a square, 2 more against an object
+--- or wall plus the pusher's bonus for pushing into objects, less its forced movement damage
+--- reduction. Used by previews and the Monster AI; the damage itself is dealt by the rule.
+--- @param speed number Squares of the move left at the collision
+--- @param withObject boolean It hit an object or a wall rather than a creature
+--- @param pusher nil|creature Who made the move
+--- @param movementType nil|string "push", "pull", "slide"...; the pusher's bonus is only for "push"
+--- @return number
+function creature:PredictedCollisionDamage(speed, withObject, pusher, movementType)
+    if self:CalculateNamedCustomAttribute("No Damage From Forced Movement") >= 1 then
+        return 0
+    end
+    if withObject and self:CalculateNamedCustomAttribute("NoDamageFromForcedMovementWithObjects") >= 1 then
+        return 0
+    end
+    local damage = speed
+    if withObject then
+        damage = damage + 2
+        if pusher ~= nil and movementType == "push" then
+            damage = damage + pusher:CalculateNamedCustomAttribute("BonusPushDamageIntoObjects")
+        end
+    end
+    return math.max(0, damage - self:CalculateNamedCustomAttribute("Forced Movement Damage Reduction"))
+end
+
 --- Plays a single footstep sound matching the landing surface type.
 --- Called by the engine for on-feet landings on solid ground.
 --- @param surfaceType number The surface type ID from TileGameRules
@@ -887,6 +1077,27 @@ function creature.GetTokenDescription(token)
 	else
 		return '(unnamed token)'
 	end
+end
+
+--- The name to show for a token. A map object's token is named after its art piece,
+--- which can't be renamed, so for objects the object editor's own "Name:" field wins
+--- when it is set (e.g. a statue that takes turns in initiative).
+--- @param token CharacterToken|nil
+--- @return string|nil
+function creature.TokenDisplayName(token)
+	if token == nil then
+		return nil
+	end
+	local objectName = nil
+	pcall(function()
+		if token.isObject then
+			objectName = token.objectInstance.name
+		end
+	end)
+	if type(objectName) == "string" and objectName ~= "" then
+		return objectName
+	end
+	return token.name
 end
 
 dmhub.DescribeToken = function(token)
@@ -2280,7 +2491,7 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 	amount = math.floor(amount)
 	local originalAmount = amount
 
-    --continuesInstance = { raw = N, landed = N }: this damage is added onto a hit that
+    --continuesInstance = { raw = N, landed = N, sameTurn = bool }: this damage is added onto a hit that
     --already landed (e.g. Tactician's Mark "the ability deals extra damage"), so the
     --two count as ONE damage instance. If the hit landed anything, flat immunity and
     --weakness were fully applied to it already, so the extra goes on unmodified. If it
@@ -2337,8 +2548,15 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     end
 
 	local note = string.format('%d damage from %s', originalAmount, sourceDescription)
-    if skipResistance then
+    --sameTurn: the earlier part is this effect's own damage earlier this turn
+    --("One Damage Instance per Turn"), not a hit this damage was added to.
+    local sameTurn = continuesInstance ~= nil and continuesInstance.sameTurn
+    if skipResistance and sameTurn then
+        note = string.format('%s (same instance as its earlier damage this turn; immunity and weakness already applied)', note)
+    elseif skipResistance then
         note = string.format('%s (added to a hit; its immunity and weakness already applied)', note)
+    elseif sameTurn then
+        note = string.format('%s (same instance as its earlier damage this turn, which dealt none; resisted together as %d)', note, amount)
     elseif continuesInstance ~= nil then
         note = string.format('%s (added to a hit that dealt no damage; resisted together as %d)', note, amount)
     end
@@ -3035,6 +3253,7 @@ end
 --- @field multitargets? table[] Per-target state of a roll against several targets ({tokenid, boons, banes, surges, modifiersUsed, ...}); set by the roll dialog.
 --- @field castid? string Id of the ability cast this roll belongs to; set by the roll dialog.
 --- @field overrideMessage? string Why the result was overridden (e.g. "X overrode the result"); shown on the chat card.
+--- @field overrideBy? string Who overrode the result: "Director" or the player's name, for a record of play (History).
 --- @field overrideOutcome? table An outcome entry ({outcome = "Hit", value = 8, ...}) that GetOutcome returns instead of matching the roll.
 --- Properties attached to a dice roll result to control outcome display and resolution.
 RollProperties = RegisterGameType("RollProperties")
@@ -6162,9 +6381,11 @@ function creature:RefreshToken(token)
                 token:ModifyProperties{
                     description = "Remove expired inflicted conditions",
                     execute = function()
-                        for _,k in ipairs(removes) do
-                            self.inflictedConditions[k] = nil
-                        end
+                        self:EndingEffects(nil, function()
+                            for _,conditionid in ipairs(removes) do
+                                self.inflictedConditions[conditionid] = nil
+                            end
+                        end)
                     end,
                 }
             end
@@ -6197,7 +6418,9 @@ function creature:RefreshToken(token)
 				token:ModifyProperties{
 					description = "Remove expired ongoing effects",
 					execute = function()
-						self.ongoingEffects = ongoingEffects
+						self:EndingEffects(nil, function()
+							self.ongoingEffects = ongoingEffects
+						end)
 					end,
 				}
 			end
@@ -7837,7 +8060,7 @@ function creature:CaptureTeleportOpportunityAttackers(originLoc)
         if tok.valid and tok.charid ~= ourCharid then
             local p = tok.properties
             if p:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") > 0
-               and (not tok:IsFriend(ourToken))
+               and IsEnemyOf(tok, ourToken)
                and p._tmp_grabbedby ~= ourCharid
                and p:CanUseTriggeredAbilities()
                and p:CanMakeOpportunityAttacks()
@@ -7868,7 +8091,7 @@ function creature:DispatchTeleportOpportunityAttacks(observers)
         if tok.valid
            and tok.loc ~= nil
            and ourToken.loc:DistanceInTiles(tok.loc) > 1
-           and (not tok:IsFriend(ourToken))
+           and IsEnemyOf(tok, ourToken)
            and not tok.properties:HasBanesOnGenericFreeStrike(ourToken)
            and tok.properties:CanMakeOpportunityAttacks()
            and tok.properties:CanOpportunityAttack(tok, ourToken) then
@@ -8199,7 +8422,8 @@ function creature:OnMove(path)
                     local notImmuneForThisObserver = (not immuneFromOpportunityAttacks) or anyMovementObserver
                     local departureNotImmuneForThisObserver = (not immuneFromDeparture) or anyMovementObserver
 
-                    if withinVerticalReach and (not tok:IsFriend(ourToken)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:CanOpportunityAttack(tok, ourToken) then
+                    --Only a creature that regards the mover as an enemy gets a free strike (see ALLEGIANCE).
+                    if withinVerticalReach and IsEnemyOf(tok, ourToken) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:CanOpportunityAttack(tok, ourToken) then
                         if notImmuneForThisObserver and tok.properties:CanMakeOpportunityAttacks() then
                             tok.properties:DispatchEvent("leaveadjacent", MovementEventInfo{ movingcreature = self })
                             self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
@@ -8222,7 +8446,7 @@ function creature:OnMove(path)
                     --Gated only on the mover: the observer-side OA filters above
                     --(banes, opportunityattack target filter, CanMakeOpportunityAttacks)
                     --describe the enemy's reaction, not the mover's own trait.
-                    if willingDeparture and withinVerticalReach and (not tok:IsFriend(ourToken)) and self:CanUseTriggeredAbilities() then
+                    if willingDeparture and withinVerticalReach and IsEnemyOf(ourToken, tok) and self:CanUseTriggeredAbilities() then
                         self:DispatchEvent("departadjacent", MovementEventInfo{ departedcreature = tok.properties })
                     end
                 end
@@ -8942,31 +9166,104 @@ local function PropagateTargetingGroupEnd(key)
     g_propagatingTargetingGroupEnd = false
 end
 
+--Creatures an outer EndingEffects call is already watching, so a nested call only runs its change.
+local g_endingEffects = {}
+
+--What is on a creature that can end, by a key that is the same before and after.
+local function EffectsOn(self)
+    local result = {}
+    --instances saved before they had ids all read "deprecated": those are told apart by
+    --effect and count, so removing one of two still reports one ended.
+    local legacy = {}
+    for _,instance in ipairs(self:try_get("ongoingEffects", {})) do
+        local key = "effect:" .. tostring(instance.id)
+        if instance.id == "deprecated" then
+            local count = (legacy[instance.ongoingEffectid] or 0) + 1
+            legacy[instance.ongoingEffectid] = count
+            key = string.format("effect:deprecated:%s:%d", tostring(instance.ongoingEffectid), count)
+        end
+        result[key] = {ongoingeffectid = instance.ongoingEffectid}
+    end
+    for conditionid,_ in pairs(self:try_get("inflictedConditions", {})) do
+        result["condition:" .. conditionid] = {conditionid = conditionid}
+    end
+    return result
+end
+
+--- Runs fn, which may end conditions or ongoing effects on this creature, then tells play
+--- observers what ended. Any code that takes something off a creature goes through this,
+--- so what ended is worked out from what changed, not by each caller. A nested call joins
+--- the outer one, so the outer cause wins. fn must not yield.
+--- @param cause nil|string "endturn", "endround", "dying", "saved", "endofencounter", or words to show.
+--- @param fn function
+--- @return any ...
+function creature:EndingEffects(cause, fn)
+    if g_endingEffects[self] then
+        return fn()
+    end
+
+    --what ended is only news for play observers: if it can't be read, the change still runs.
+    local okBefore, before = pcall(EffectsOn, self)
+    if not okBefore then
+        return fn()
+    end
+    g_endingEffects[self] = true
+    local results = table.pack(xpcall(fn, debug.traceback))
+    g_endingEffects[self] = nil
+    if not results[1] then
+        error(results[2], 0)
+    end
+
+    local okAfter, after = pcall(EffectsOn, self)
+    if not okAfter then
+        return table.unpack(results, 2, results.n)
+    end
+    local ended = nil
+    for key,item in pairs(before) do
+        if after[key] == nil then
+            ended = ended or {}
+            ended[#ended+1] = item
+        end
+    end
+    if ended ~= nil then
+        GameSystem.NotifyPlayObservers("effectsended", self, ended, cause)
+    end
+    return table.unpack(results, 2, results.n)
+end
+
 local g_baseRemoveOngoingEffect = creature.RemoveOngoingEffect
 function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
     if g_propagatingTargetingGroupEnd or not g_targetingGroupEffectIds[ongoingEffectid] then
-        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+        return self:EndingEffects(nil, function()
+            return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+        end)
     end
     local key = self:CalculateNamedCustomAttribute("Targeting Group")
-    local r = g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    local result = self:EndingEffects(nil, function()
+        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    end)
     if not CreatureHasTargetingGroupEffect(self) then
         PropagateTargetingGroupEnd(key)
     end
-    return r
+    return result
 end
 
 local g_baseRemoveOngoingEffectBySeq = creature.RemoveOngoingEffectBySeq
 function creature:RemoveOngoingEffectBySeq(seq, numStacks)
     if g_propagatingTargetingGroupEnd then
-        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+        return self:EndingEffects(nil, function()
+            return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+        end)
     end
     local hadGroup = CreatureHasTargetingGroupEffect(self)
     local key = hadGroup and self:CalculateNamedCustomAttribute("Targeting Group") or 0
-    local r = g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    local result = self:EndingEffects(nil, function()
+        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    end)
     if hadGroup and not CreatureHasTargetingGroupEffect(self) then
         PropagateTargetingGroupEnd(key)
     end
-    return r
+    return result
 end
 
 --- @param excludeTemporary nil|boolean
@@ -9193,78 +9490,132 @@ function creature:GetCustomAttribute(attrInfo)
 	return result
 end
 
--- TRI-STATE: how casterToken views targetToken for TARGETING purposes.
---   true  = a friend (valid ally target)
---   false = an enemy (valid enemy target)
---   nil   = NEITHER -- not targetable as an ally, but not an enemy either
--- Callers must treat "enemy" as a strict == false check and "friend" as a strict
--- == true check; `not result` wrongly reads neutral (nil) as an enemy.
--- Mirrors casterToken:IsFriend, with three attribute-driven overrides: the target-side
--- "Count As Ally To Enemies" (Guise) forces friend and runs first since the target is
--- actively protecting itself; caster-side "Count Allies as Enemies" makes allies within
--- N squares read as enemies; caster-side "Count Allies as Neutral" (Memory Thief tier 1)
--- makes allies within N squares read as neither. Enemies wins over Neutral when a
--- creature somehow carries both.
+--[[ ALLEGIANCE: who counts as an ally or an enemy
+
+Allegiance(viewerToken, otherToken) says how viewerToken regards otherToken: "ally",
+"enemy" or "neither". Every rules check that asks "is that my ally / my enemy?" should
+go through it (or the wrappers below), so an effect that changes allegiance works the
+same for targeting, triggers and free strikes. Auras and flanking are the exceptions:
+both start from plain IsFriend (same side), so an effect can take a creature out of
+an Enemies aura or stop it flanking (e.g. Guise), but can never put an ally into an
+Enemies aura or make an ally a flanker.
+
+It starts from the engine's IsFriend (same side), then applies these custom attributes:
+
+  On the creature being looked at (otherToken):
+    "Count As Ally To Enemies"  > 0   everyone regards it as an ally.
+    "Not Treated As Enemy"      > 0   anyone not already its ally regards it as neither
+                                      (Guise).
+  On the creature doing the looking (viewerToken); the value is a range in squares:
+    "Count Allies as Enemies"   N     its allies within N squares are its enemies
+                                      (Memory Thief, tiers 2-3).
+    "Count Allies as Neutral"   N     its allies within N squares are neither
+                                      (Memory Thief, tier 1).
+
+A creature is always its own ally, and "as enemies" wins over "as neutral". New
+content gets these rules by giving a creature one of the attributes in data. Add any
+new kind of allegiance change here, not at a single call site.
+
+Which helper to call:
+  IsAllyOf(viewer, other)              ally-only checks ("ally" trigger subjects).
+  IsEnemyOf(viewer, other)             enemy-only checks ("enemy" trigger subjects,
+                                       free strikes, flanking, Enemies auras).
+  IsFriendForTargeting(caster, target) choosing targets: true / false / nil (neither).
+]]
+
+--- Value of a named custom attribute on a token's creature, 0 when it has none.
+--- @param token CharacterToken
+--- @param attributeName string
+--- @return number
+local function AllegianceAttribute(token, attributeName)
+    local props = token.properties
+    if props == nil then
+        return 0
+    end
+    return props:CalculateNamedCustomAttribute(attributeName) or 0
+end
+
+--- True when the viewer's range attribute (e.g. "Count Allies as Enemies") reaches otherToken.
+--- @param viewerToken CharacterToken
+--- @param otherToken CharacterToken
+--- @param attributeName string
+--- @return boolean
+local function WithinAllegianceRange(viewerToken, otherToken, attributeName)
+    local range = AllegianceAttribute(viewerToken, attributeName)
+    if range <= 0 then
+        return false
+    end
+    local viewerLoc = viewerToken.loc
+    local otherLoc = otherToken.loc
+    return viewerLoc ~= nil and otherLoc ~= nil and viewerLoc:DistanceInTiles(otherLoc) <= range
+end
+
+--- How viewerToken regards otherToken; see ALLEGIANCE above.
+--- @param viewerToken CharacterToken|nil
+--- @param otherToken CharacterToken|nil
+--- @return "ally"|"enemy"|"neither"
+function Allegiance(viewerToken, otherToken)
+    if viewerToken == nil or otherToken == nil then
+        return "neither"
+    end
+    if viewerToken.charid == otherToken.charid then
+        return "ally"
+    end
+
+    --Runs first: a creature protecting itself this way beats the viewer's own effects.
+    if AllegianceAttribute(otherToken, "Count As Ally To Enemies") > 0 then
+        return "ally"
+    end
+
+    if not viewerToken:IsFriend(otherToken) then
+        if AllegianceAttribute(otherToken, "Not Treated As Enemy") > 0 then
+            return "neither"
+        end
+        return "enemy"
+    end
+
+    if WithinAllegianceRange(viewerToken, otherToken, "Count Allies as Enemies") then
+        return "enemy"
+    end
+    if WithinAllegianceRange(viewerToken, otherToken, "Count Allies as Neutral") then
+        return "neither"
+    end
+    return "ally"
+end
+
+--- True when viewerToken regards otherToken as an ally (see ALLEGIANCE).
+--- @param viewerToken CharacterToken|nil
+--- @param otherToken CharacterToken|nil
+--- @return boolean
+function IsAllyOf(viewerToken, otherToken)
+    return Allegiance(viewerToken, otherToken) == "ally"
+end
+
+--- True when viewerToken regards otherToken as an enemy (see ALLEGIANCE).
+--- @param viewerToken CharacterToken|nil
+--- @param otherToken CharacterToken|nil
+--- @return boolean
+function IsEnemyOf(viewerToken, otherToken)
+    return Allegiance(viewerToken, otherToken) == "enemy"
+end
+
+--- Allegiance for choosing targets, as a tri-state: true = ally, false = enemy,
+--- nil = neither (not a valid ally target, not an enemy either). Compare strictly
+--- (== true / == false): `not result` would read "neither" as an enemy.
+--- @param casterToken CharacterToken|nil
+--- @param targetToken CharacterToken|nil
+--- @return boolean|nil
 function IsFriendForTargeting(casterToken, targetToken)
     if casterToken == nil or targetToken == nil then
         return false
     end
-
-    if targetToken.properties ~= nil then
-        local forcedFriend = targetToken.properties:CalculateNamedCustomAttribute("Count As Ally To Enemies")
-        if forcedFriend ~= nil and forcedFriend > 0 then
-            return true
-        end
-    end
-
-    local isFriend = casterToken:IsFriend(targetToken)
-    if not isFriend then
-        return false
-    end
-
-    -- Never treat self as an enemy or as neutral.
-    if casterToken.properties == targetToken.properties then
+    local allegiance = Allegiance(casterToken, targetToken)
+    if allegiance == "ally" then
         return true
-    end
-
-    local n = casterToken.properties:CalculateNamedCustomAttribute("Count Allies as Enemies")
-    if n ~= nil and n > 0 then
-        local casterLoc = casterToken.loc
-        local targetLoc = targetToken.loc
-        if casterLoc ~= nil and targetLoc ~= nil and casterLoc:DistanceInTiles(targetLoc) <= n then
-            return false -- nearby ally is treated as an enemy
-        end
-    end
-
-    if IsNeutralizedAlly(casterToken, targetToken) then
-        return nil -- an ally, but not treatable as one: neither friend nor enemy
-    end
-
-    return true
-end
-
--- True when casterToken's "Count Allies as Neutral" attribute (Memory Thief tier 1)
--- covers targetToken: within N squares (N = attribute value), casterToken cannot treat
--- targetToken as an ally -- but targetToken does not become an enemy either. Self is
--- never neutralized. IsFriendForTargeting returns nil off this. Targeting only for
--- now: trigger eligibility, flanking, and auras stay on raw IsFriend by design.
-function IsNeutralizedAlly(casterToken, targetToken)
-    if casterToken == nil or targetToken == nil
-            or casterToken.properties == nil or targetToken.properties == nil
-            or casterToken.properties == targetToken.properties then
+    elseif allegiance == "enemy" then
         return false
     end
-
-    local n = casterToken.properties:CalculateNamedCustomAttribute("Count Allies as Neutral")
-    if n ~= nil and n > 0 then
-        local casterLoc = casterToken.loc
-        local targetLoc = targetToken.loc
-        if casterLoc ~= nil and targetLoc ~= nil and casterLoc:DistanceInTiles(targetLoc) <= n then
-            return true
-        end
-    end
-
-    return false
+    return nil
 end
 
 --Derived states like "winded" that aren't conditions, but which we still want to be
@@ -10024,6 +10375,10 @@ local function NearbyTokenMatchesCriteria(token, nearby, criteria)
 
     return matches
 end
+
+--Public so the square versions of Count Nearby Friends (in MCDMMonster.lua)
+--filter creatures the same way the creature versions below do.
+creature.NearbyTokenMatchesCriteria = NearbyTokenMatchesCriteria
 
 local countriders = function(c, criteria)
     return function(distance, x, y, w, z, xx, yy, ww, zz)
@@ -11153,6 +11508,7 @@ function creature:BeginTurn(options)
                                 amount = damageInfo.damage,
                                 instances = 1,
                                 aura = auraInstance,
+                                startofturn = true,
                             })
                         end
                     end
@@ -11235,6 +11591,41 @@ end
 
 creature.AuraTokenOnlyAdjacent = AuraTokenOnlyAdjacent
 
+--An "Enemies" aura passes over a creature its caster doesn't regard as an enemy (see
+--ALLEGIANCE; e.g. Guise). Returns the auras that still apply, or nil when none do.
+local function WithoutEnemyAurasForNonEnemies(token, auras)
+    --Stays nil until an aura is dropped, so the usual case hands back the same list.
+    local kept = nil
+    for index,aura in ipairs(auras) do
+        local instance = aura.auraInstance
+        local casterToken = nil
+        if instance ~= nil and instance:GetApplyTo() == "enemies" then
+            --A map zone has no caster; an aura can outlive a caster who has left the map.
+            local casterid = instance:try_get("casterid")
+            if casterid ~= nil and casterid ~= "" then
+                casterToken = dmhub.GetTokenById(casterid) or dmhub.GetCharacterById(casterid)
+            end
+        end
+        if casterToken == nil or IsEnemyOf(casterToken, token) then
+            if kept ~= nil then
+                kept[#kept+1] = aura
+            end
+        elseif kept == nil then
+            kept = {}
+            for earlier = 1, index - 1 do
+                kept[earlier] = auras[earlier]
+            end
+        end
+    end
+    if kept == nil then
+        return auras
+    end
+    if #kept == 0 then
+        return nil
+    end
+    return kept
+end
+
 function creature:GetAurasAffecting(token, options)
     token = token or dmhub.LookupToken(self)
     if token == nil then
@@ -11272,6 +11663,11 @@ function creature:GetAurasAffecting(token, options)
             end
             auras = kept
         end
+    end
+
+    auras = WithoutEnemyAurasForNonEnemies(token, auras)
+    if auras == nil then
+        return nil
     end
 
     --Fast path: with no filters to run there is nothing to recurse through, so skip the
@@ -11446,7 +11842,9 @@ function creature:EndTurn(token)
 		token:ModifyProperties{
 			description = "Remove ongoing effects",
 			execute = function()
-				self.ongoingEffects = newOngoingEffects
+				self:EndingEffects("endturn", function()
+					self.ongoingEffects = newOngoingEffects
+				end)
 			end,
 		}
 	end
@@ -11456,6 +11854,7 @@ function creature:EndTurn(token)
 	--acted on, which for a summon is its summoner's.
 	Aura.ExpireOrphanedTurnScopedAurasOnTurn(InitiativeQueue.GetInitiativeId(token), "endturn")
 
+	GameSystem.NotifyPlayObservers("turnended", self)
 end
 
 function creature:EndRound(token)
@@ -11492,7 +11891,9 @@ function creature:EndRound(token)
                         end
                     end
 
-                    self.ongoingEffects = newOngoingEffects
+                    self:EndingEffects("endround", function()
+                        self.ongoingEffects = newOngoingEffects
+                    end)
                 end,
             }
         end
@@ -11629,9 +12030,11 @@ function creature:RemoveOngoingEffectsOnTrigger(eventName, info)
 					description = "Remove ongoing effects",
 					undoable = false,
 					execute = function()
-						for i=#removeIndexes,1,-1 do
-							table.remove(self.ongoingEffects, removeIndexes[i])
-						end
+						self:EndingEffects(eventName == "dying" and "dying" or nil, function()
+							for i=#removeIndexes,1,-1 do
+								table.remove(self.ongoingEffects, removeIndexes[i])
+							end
+						end)
 					end,
 				}
 			end
@@ -11708,7 +12111,25 @@ end
 
 --an event is triggered which could cause triggered abilities to go off.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
+--Marks an event with the cast it came out of, so a trigger it sets off can say what
+--caused it. A plain id, so it survives the event being sent to another machine.
+local function StampEventCause(info)
+    if type(info) ~= "table" or info.causecastid ~= nil then
+        return
+    end
+    local running = ActivatedAbility.CurrentCastInfo()
+    if running ~= nil and running.options ~= nil and running.options.symbols ~= nil then
+        info.causecastid = running.options.symbols.castid
+    end
+end
+
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
+    StampEventCause(info)
+    --every other creature hears this event too, with subject set; the copy with no subject
+    --is the creature that fell, so the fall is reported once.
+    if eventName == "fall" and info ~= nil and info.subject == nil then
+        GameSystem.NotifyPlayObservers("fell", self, {distance = info.speed})
+    end
 
     if (not alreadyTriggeredOnOthers) and (info == nil or info.subject == nil) then
         self:TriggerEventOnOthers(eventName, info)
@@ -12279,6 +12700,7 @@ function creature:GetAIReactionDeliveryStatus(activityId)
 end
 
 function creature:DispatchEvent(eventName, info)
+    StampEventCause(info)
 
     --Stamp the Monster AI's in-flight activity on the event so any prompt it
     --raises on a hero is tracked as a reaction the AI waits on. A mover's
@@ -12772,9 +13194,8 @@ end
 --The name of this hero's accepted trigger whose cast may still claim the turn,
 --or nil. The prompt card goes the moment it is accepted, but Hesitation Is
 --Weakness only moves initiative once its cast runs, so TriggeredAbility.lua
---leaves a "turn-claim" marker in the card's removal write. Anything that hands
---the turn on (the Monster AI's turn choice, the end-of-turn handoff) must wait
---on it, or its initiative write crosses the claim's (BR8M9Z2W, AH6SYXTP).
+--leaves a "turn-claim" marker in the card's removal write. The Monster AI's turn
+--choice must wait on it, or its initiative write crosses the claim's (BR8M9Z2W).
 --- @return string|nil
 function creature:TurnClaimResolving()
     --Completed markers hold a little longer: the claim's initiative write
@@ -12796,8 +13217,8 @@ end
 
 --How long a trigger prompt stays available before it ages out. This is a
 --garbage-collection backstop, not a gameplay timer: in combat the sustain
---coroutine in TriggeredAbility.lua ends a prompt ~6s after the owner's turn
---refresh id changes, long before this fires. The cases that actually reach this
+--coroutine in TriggeredAbility.lua ends a prompt as turns go by
+--(TriggeredAbility.PromptTurnWatch), normally long before this fires. The cases that actually reach this
 --clock are orphaned entries whose watcher coroutine died (with a reload or a
 --previous session), invocation prompt cards (which have no coroutine at all),
 --and prompts raised out of combat where the turn id never advances.
@@ -12943,10 +13364,18 @@ end
 --- Whether the user may dismiss this prompt without activating it. A hostile
 --- prompt is a harmful effect forced on the creature, so under "Strictly
 --- Enforce Action Economy and Resource Costs" a player (or a player host)
---- must accept it: the trigger panel withdraws its close button, its Dismiss
---- button, and skips it in Dismiss Triggers. The Director is never restricted.
+--- must accept it: the trigger panel withdraws its close button and its
+--- Dismiss button. The Director is never restricted.
 function ActiveTrigger:CanDismiss()
     return (not self.hostile) or (not StrictActionEconomyEnforced())
+end
+
+--- Whether the trigger panel's "Dismiss Triggers" button clears this prompt.
+--- Hostile prompts are always left alone, even where CanDismiss lets the player
+--- close them one at a time, so clearing optional reactions never throws away
+--- Bleeding damage or a saving throw.
+function ActiveTrigger:CanDismissInBulk()
+    return self:CanDismiss() and not self.hostile
 end
 
 function ActiveTrigger:GetText()
@@ -13755,6 +14184,11 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	local ignoredShiftEntry = enteredViaShift == true
 		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
 		and info.auraInstance.aura:try_get("powerRollShiftEntryMode", "normal") == "ignore"
+	--An enter-only roll skipped at the start of a turn must not use up this
+	--turn's entry, or walking in later in the turn would not roll.
+	local skippedBeginTurnRoll = fromBeginTurn == true
+		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
+		and info.auraInstance.aura:try_get("powerRollEnterOnly", false) == true
 
 	if not adjacentOnly then
 		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
@@ -13785,6 +14219,7 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger{
 		adjacentOnly = adjacentOnly == true,
 		enteredViaShift = enteredViaShift == true,
+		fromBeginTurn = fromBeginTurn == true,
 	}
 	if simplePowerRollTrigger ~= nil then
 		local auraCasterToken = info.token
@@ -13817,7 +14252,7 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	--track its stored trigger and synthesized roll. Preserve the old bookkeeping
 	--for every other kind of entry, including inert auras.
 	local turnid = self:GetTurnId()
-	local consumeEntry = result or not ignoredShiftEntry
+	local consumeEntry = result or not (ignoredShiftEntry or skippedBeginTurnRoll)
 	if consumeEntry and turnid ~= nil and info.token ~= nil and info.token.valid then
 		info.token:ModifyProperties{
 			description = "Enter Aura",
@@ -13845,15 +14280,18 @@ end
 --a respite begins, and also from Rest() for instant-respite flows.
 function creature:RemoveOngoingEffectsOnRest(restType)
 	if self:has_key("ongoingEffects") then
-		local newOngoingEffects = {}
-		for _,effectInstance in ipairs(self.ongoingEffects) do
-			local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
-			if not remove then
-				newOngoingEffects[#newOngoingEffects+1] = effectInstance
+		--EndingEffects tells play observers (History) what this took off, with the cause "rest".
+		self:EndingEffects("rest", function()
+			local newOngoingEffects = {}
+			for _,effectInstance in ipairs(self.ongoingEffects) do
+				local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
+				if not remove then
+					newOngoingEffects[#newOngoingEffects+1] = effectInstance
+				end
 			end
-		end
 
-		self.ongoingEffects = newOngoingEffects
+			self.ongoingEffects = newOngoingEffects
+		end)
 	end
 end
 
@@ -13865,6 +14303,12 @@ end
 --the Week levels a Hero at its Training Grounds instead (EotwRoster.LevelUpHero).
 function creature:Rest(restType, keepOngoingEffects, keepLevel)
 	local restid = dmhub.GenerateGuid()
+
+	--Play observers (History) note what the creature has before a long rest, and what
+	--changed once it is over ("rested", at the end of this function).
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("resting", self)
+	end
 
 	if restType == 'long' then
 		if self.damage_taken > 0 then
@@ -13912,6 +14356,9 @@ function creature:Rest(restType, keepOngoingEffects, keepLevel)
 		self:RemoveOngoingEffectsOnRest(restType)
 	end
 
+	if restType == 'long' then
+		GameSystem.NotifyPlayObservers("rested", self)
+	end
 end
 
 function creature:HasConcentration()

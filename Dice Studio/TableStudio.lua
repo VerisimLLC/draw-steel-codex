@@ -657,10 +657,12 @@ local function BuildStyles()
             borderBox = true,
             valign = "center",
         },
+        --the active choice: filled, underlined in the accent and its label bold, so it reads at a
+        --glance (Who Gets It is a live setting).
         {
             selectors = {"tsSegment", "on"},
             bgcolor = "@bgAlt",
-            border = {x1 = 0, x2 = 0, y1 = 2, y2 = 0},
+            border = {x1 = 0, x2 = 0, y1 = 3, y2 = 0},
             borderColor = "@accent",
         },
         {
@@ -674,6 +676,7 @@ local function BuildStyles()
         {
             selectors = {"tsSegmentLabel", "parent:on"},
             color = "@fgStrong",
+            bold = true,
         },
         {
             selectors = {"tsPickerRow"},
@@ -990,7 +993,7 @@ local function TextureRow(slot, textKey)
     }
 end
 
---A two-way switch, e.g. Preview As Draw Steel / DMHub.
+--A switch between a few choices, e.g. Preview As Draw Steel / DMHub, or Who Gets It.
 local function Segmented(options, getValue, setValue)
     local children = {}
     for _, option in ipairs(options) do
@@ -1096,6 +1099,175 @@ local function GuardUnsaved(action)
         { text = T("tablestudio.discard"), action = function() studio:Revert() action() end },
         { text = T("tablestudio.cancel") },
     })
+end
+
+----------------------------------------------------------------------
+--Going live (phase 1b): who gets each table, versions, Upload and Set Live.
+
+--An engine from before going live (phase 1a) has none of it; the panel then offers what 1a did.
+local g_canGoLive = pcall(function() return studio.liveVersion end)
+
+--The built-in tabletops as the players' menu has them (Tabletop.lua): {id, text, dice}, in order.
+local function BuiltinSurfaces()
+    local tabletop = rawget(_G, "Tabletop")
+    return (tabletop ~= nil and tabletop.surfaces) or {}
+end
+
+--A built-in's entry there and its place (1 to 9), or nil, 0.
+local function BuiltinInfo(id)
+    for i, entry in ipairs(BuiltinSurfaces()) do
+        if entry.id == id then
+            return entry, i
+        end
+    end
+    return nil, 0
+end
+
+--The tables put live (dmhub.GetLiveTables).
+local function LiveTables()
+    local ok, list = pcall(function() return dmhub.GetLiveTables() end)
+    return (ok and type(list) == "table") and list or {}
+end
+
+--Every dice set's name as players see it, by asset id: the display name where the engine gives
+--it (or this account owns the set), else the internal name. Sets with no name are left out.
+local function DiceNames()
+    local names = {}
+    for _, entry in ipairs(dice.GetAllDice()) do
+        local name = entry.displayName or entry.text
+        if name ~= nil and name ~= "" then
+            names[entry.id] = name
+        end
+    end
+    for _, entry in ipairs(dice.GetAvailableDice()) do
+        if entry.value ~= "Default" and entry.text ~= nil and entry.text ~= "" then
+            names[entry.value] = entry.text
+        end
+    end
+    return names
+end
+
+--A dice set's name, from its asset id.
+local function DiceName(assetid)
+    return DiceNames()[assetid] or assetid
+end
+
+--The tag showing who gets a table: "Free", "<set> dice" (a set named "Soulkiller Dice" gives
+--"Soulkiller dice", not "Soulkiller Dice dice") or "Unpublished".
+local function AccessTag(access, diceid)
+    if access == "nobody" then
+        return T("tablestudio.unpublished")
+    end
+    if access == "dice" and diceid ~= nil and diceid ~= "" then
+        local name = string.gsub(DiceName(diceid), "%s+[Dd][Ii][Cc][Ee]$", "")
+        return T("tablestudio.tag.dice", { dice = name })
+    end
+    return T("tablestudio.tag.free")
+end
+
+--Who gets a built-in tabletop without the studio: its dice link in the players' menu.
+local function BuiltinDefaultAccess(id)
+    local entry = BuiltinInfo(id)
+    if entry ~= nil and entry.dice ~= nil then
+        return "dice", entry.dice
+    end
+    return "everyone", ""
+end
+
+--Who gets a built-in tabletop now: its live version's rule, else its dice link.
+local function BuiltinAccess(id)
+    for _, live in ipairs(LiveTables()) do
+        if live.builtin == id then
+            return live.access, live.dice
+        end
+    end
+    return BuiltinDefaultAccess(id)
+end
+
+--Opens a built-in tabletop for editing, named and placed as the players' menu has it.
+local function OpenBuiltin(id)
+    local entry, index = BuiltinInfo(id)
+    local diceid = (entry ~= nil and entry.dice) or ""
+    return studio:EditBuiltin(id, T("tablestudio.preset." .. id), diceid, index > 0 and index or 10)
+end
+
+--Who gets a table made in the studio now, by its cloud id: its live version's rule, else nobody
+--(a table never set live is unpublished).
+local function StudioTableAccess(cloudid)
+    if cloudid ~= nil and cloudid ~= "" then
+        for _, live in ipairs(LiveTables()) do
+            if live.id == "table:" .. cloudid then
+                return live.access, live.dice or ""
+            end
+        end
+    end
+    return "nobody", ""
+end
+
+--Who gets the open table now (what Who Gets It shows): its live version's rule, else a
+--built-in's own, else nobody. Who gets a table belongs to the table, not to a version.
+local function PlayersAccess()
+    local live = studio:GetLiveAccess()
+    if live ~= nil then
+        return live.access, live.dice or ""
+    elseif studio.builtin ~= "" then
+        return BuiltinDefaultAccess(studio.builtin)
+    end
+    return "nobody", ""
+end
+
+--Whether the live version of the open table is unpublished (Who Gets It: Nobody).
+local function LiveUnpublished()
+    local live = studio:GetLiveAccess()
+    return live ~= nil and live.access == "nobody"
+end
+
+--Who would lose the table if players' access changed to (access, diceid): "unpublish" (all of
+--them: Nobody), a dice set's name (players without it), or nil (nobody).
+local function AccessLoss(access, diceid)
+    local oldAccess, oldDice = PlayersAccess()
+    if oldAccess == "nobody" then
+        return nil
+    end
+    if access == "nobody" then
+        return "unpublish"
+    end
+    if access ~= "dice" or diceid == "" then
+        return nil
+    end
+    if oldAccess == "dice" and oldDice == diceid then
+        return nil
+    end
+    return DiceName(diceid)
+end
+
+--The dice set to offer first when the open table goes to Dice Owners: the set it is linked to
+--now, its version's, its built-in's, else the first set by name.
+local function SuggestedDice(named)
+    local _, liveDice = PlayersAccess()
+    if liveDice ~= "" then
+        return liveDice
+    end
+    if studio.dice ~= "" then
+        return studio.dice
+    end
+    if studio.builtin ~= "" then
+        local _, builtinDice = BuiltinDefaultAccess(studio.builtin)
+        if builtinDice ~= "" then
+            return builtinDice
+        end
+    end
+    return named[1] ~= nil and named[1].id or ""
+end
+
+--Every named dice set as dropdown options, by name.
+local function DiceOptions()
+    local named = {}
+    for id, name in pairs(DiceNames()) do
+        named[#named + 1] = { id = id, text = name }
+    end
+    table.sort(named, function(a, b) return a.text < b.text end)
+    return named
 end
 
 ----------------------------------------------------------------------
@@ -1218,24 +1390,84 @@ local function CreateTableStudioPanel()
         end
         children[#children + 1] = Section("tablestudio.sec.logo", logoRows)
         children[#children + 1] = Section("tablestudio.sec.look", lookRows)
+
+        if g_canGoLive then
+            --(who gets the table is up top, by the table name: it goes live at once.)
+            children[#children + 1] = Section("tablestudio.sec.menu", {
+                gui.Panel{
+                    classes = {"tsRow"},
+                    Label({"tsName"}, T("tablestudio.menuname")),
+                    gui.Input{
+                        width = 180,
+                        height = 24,
+                        fontSize = 13,
+                        halign = "right",
+                        valign = "center",
+                        text = studio.menuName ~= "" and studio.menuName or studio.name,
+                        change = function(element)
+                            studio:SetMenu(element.text, studio.position)
+                        end,
+                    },
+                },
+                gui.Panel{ classes = {"tsSeam"} },
+                gui.Panel{
+                    classes = {"tsRow"},
+                    Label({"tsName"}, T("tablestudio.position")),
+                    gui.Input{
+                        width = 50,
+                        height = 24,
+                        fontSize = 13,
+                        halign = "right",
+                        valign = "center",
+                        text = tostring(studio.position),
+                        change = function(element)
+                            local n = tonumber(element.text)
+                            if n ~= nil then
+                                studio:SetMenu(studio.menuName, math.floor(n))
+                            end
+                            element.text = tostring(studio.position)
+                        end,
+                    },
+                },
+                gui.Panel{ classes = {"tsSeam"} },
+                gui.Panel{
+                    classes = {"tsRow"},
+                    Label({"tsName"}, T("tablestudio.viewasplayer")),
+                    gui.Check{
+                        halign = "right",
+                        valign = "center",
+                        text = "",
+                        value = studio.viewAsPlayer,
+                        change = function(element)
+                            studio.viewAsPlayer = element.value
+                        end,
+                    },
+                },
+            })
+        end
+
         sections.children = children
     end
 
-    --The table dropdown: the existing tabletops first ("builtin:<id>"; each opens as a copy that
-    --saves as a new table), then the tables saved here (by name; a folder name can't hold ':').
-    --A copy not saved yet shows as the tabletop it came from.
+    --The table dropdown: the built-in tabletops first ("builtin:<id>": picking one edits it),
+    --then the tables saved here (by name; a folder name can't hold ':'), then live tables made on
+    --another machine ("cloud:<id>"), each tagged with who gets it. A new table not saved yet
+    --shows as ":new".
     local function CurrentEntry()
         if not studio.hasTable then
             return ""
+        elseif g_canGoLive and studio.builtin ~= "" then
+            return "builtin:" .. studio.builtin
         elseif studio.name == "" then
-            return "builtin:" .. studio.preset
+            return g_canGoLive and ":new" or ("builtin:" .. studio.preset)
         end
         return studio.name
     end
 
     local tableDropdown = gui.Dropdown{
-        width = 230,
+        width = 260,
         height = 28,
+        fontSize = 14,
         options = {},
         idChosen = "",
         refreshFile = function(element)
@@ -1244,11 +1476,27 @@ local function CreateTableStudioPanel()
                 --blank while nothing is open.
                 options[#options + 1] = { id = "", text = "" }
             end
-            for _, preset in ipairs(studio:GetPresets()) do
-                options[#options + 1] = { id = "builtin:" .. preset.id, text = T("tablestudio.preset." .. preset.id) }
+            if CurrentEntry() == ":new" then
+                options[#options + 1] = { id = ":new", text = T("tablestudio.newtable") }
             end
-            for _, name in ipairs(studio:GetLocalTables()) do
-                options[#options + 1] = { id = name, text = name }
+            for _, preset in ipairs(studio:GetPresets()) do
+                local text = T("tablestudio.preset." .. preset.id)
+                if g_canGoLive then
+                    text = T("tablestudio.listentry", { name = text, tag = AccessTag(BuiltinAccess(preset.id)) })
+                end
+                options[#options + 1] = { id = "builtin:" .. preset.id, text = text }
+            end
+            if g_canGoLive then
+                for _, t in ipairs(studio:GetTableList()) do
+                    options[#options + 1] = { id = t.name, text = T("tablestudio.listentry", { name = t.name, tag = AccessTag(StudioTableAccess(t.id)) }) }
+                end
+                for _, t in ipairs(studio:GetCloudTables()) do
+                    options[#options + 1] = { id = "cloud:" .. t.id, text = T("tablestudio.listentry", { name = t.name, tag = AccessTag(t.access, t.dice) }) }
+                end
+            else
+                for _, name in ipairs(studio:GetLocalTables()) do
+                    options[#options + 1] = { id = name, text = name }
+                end
             end
             element.options = options
             element.idChosen = CurrentEntry()
@@ -1263,9 +1511,16 @@ local function CreateTableStudioPanel()
                 return
             end
             GuardUnsaved(function()
-                local presetId = string.match(id, "^builtin:(.+)$")
-                if presetId ~= nil then
-                    studio:NewTable(presetId)
+                local builtinId = string.match(id, "^builtin:(.+)$")
+                local cloudId = string.match(id, "^cloud:(.+)$")
+                if builtinId ~= nil then
+                    if g_canGoLive then
+                        OpenBuiltin(builtinId)
+                    else
+                        studio:NewTable(builtinId)
+                    end
+                elseif cloudId ~= nil then
+                    studio:OpenCloudTable(cloudId)
                 else
                     studio:Load(id)
                 end
@@ -1296,6 +1551,11 @@ local function CreateTableStudioPanel()
                     Label({"tsName"}, T("tablestudio.preset." .. id)),
                     Label({"tsSub"}, T(g_typeKeys[preset.type] or "tablestudio.sec.type")),
                 },
+                g_canGoLive and gui.Panel{
+                    classes = {"tsChip"},
+                    halign = "right",
+                    Label({"tsChipLabel"}, AccessTag(BuiltinAccess(id))),
+                } or nil,
                 press = function(element)
                     anchor.popup = nil
                     if studio:NewTable(id) then
@@ -1326,6 +1586,183 @@ local function CreateTableStudioPanel()
         end,
     }
 
+    --Asks, then changes who gets the open table at once (studio:SetLiveAccess): with a version
+    --live only its access changes; with none, the table is saved and set live. For Dice Owners
+    --the dialog picks the set. The lines under it say who loses the table and what is saved.
+    local function ConfirmAccess(access, diceid)
+        local function Confirm()
+            local chosenDice = diceid
+            local function LossText()
+                local loss = AccessLoss(access, chosenDice)
+                if loss == "unpublish" then
+                    return T("tablestudio.setlive.unpublish")
+                elseif loss ~= nil then
+                    return T("tablestudio.setlive.accessloss", { dice = loss })
+                end
+                return ""
+            end
+
+            local lossLabel = Label({"tsSub"}, LossText(), { width = "100%", tmargin = 8 })
+            lossLabel:SetClass("collapsed", lossLabel.text == "")
+            local extra = {}
+            if access == "dice" then
+                extra[#extra + 1] = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    tmargin = 4,
+                    Label({"tsName"}, T("tablestudio.diceset"), { valign = "center" }),
+                    gui.Dropdown{
+                        width = 220,
+                        height = 26,
+                        fontSize = 14,
+                        halign = "right",
+                        valign = "center",
+                        options = DiceOptions(),
+                        idChosen = chosenDice,
+                        change = function(element)
+                            chosenDice = tostring(element.idChosen or "")
+                            lossLabel.text = LossText()
+                            lossLabel:SetClass("collapsed", lossLabel.text == "")
+                        end,
+                    },
+                }
+            end
+            extra[#extra + 1] = lossLabel
+            if studio.liveVersion == 0 then
+                extra[#extra + 1] = Label({"tsSub"}, T("tablestudio.access.golive", { n = studio.version }), { width = "100%", tmargin = 8 })
+            end
+
+            Modal(T("tablestudio.access.confirm", { name = studio.name }), {
+                {
+                    text = T("tablestudio.setlive"),
+                    action = function()
+                        if access ~= "dice" or chosenDice ~= "" then
+                            studio:SetLiveAccess(access, chosenDice)
+                        end
+                        root:FireEvent("tableChanged")
+                    end,
+                },
+                { text = T("tablestudio.cancel") },
+            }, gui.Panel{ width = "100%", height = "auto", flow = "vertical", children = extra })
+        end
+
+        --going live for the first time saves the table, so one never saved needs a name.
+        if studio.liveVersion == 0 and studio.name == "" then
+            SaveAsDialog(Confirm)
+        else
+            Confirm()
+        end
+    end
+
+    --Who Gets It, under the table name: what players have now, with the active choice marked.
+    --Picking another asks, then goes live at once. Leather is everyone's fallback, so it shows
+    --Everyone only. The dice set row shows while Dice Owners is active.
+    local accessBlock
+    if not g_canGoLive then
+        --an empty stand-in: a nil in the middle of fileBlock's children would cut off the rest.
+        accessBlock = gui.Panel{ classes = {"collapsed"} }
+    else
+        local lastSignature = ""
+        local function Build(element)
+            local options = { { id = "everyone", text = T("tablestudio.access.everyone") } }
+            if studio.builtin ~= "leather" then
+                options[#options + 1] = { id = "dice", text = T("tablestudio.access.dice") }
+                options[#options + 1] = { id = "nobody", text = T("tablestudio.access.nobody") }
+            end
+            element.children = {
+                gui.Panel{
+                    width = "100%",
+                    height = 28,
+                    flow = "horizontal",
+                    bmargin = 8,
+                    Label({"tsName"}, T("tablestudio.sec.access"), { valign = "center" }),
+                    Segmented(options,
+                        function()
+                            local access = PlayersAccess()
+                            return access
+                        end,
+                        function(id)
+                            local access, diceid = PlayersAccess()
+                            if id == access then
+                                return
+                            end
+                            if id == "dice" then
+                                diceid = SuggestedDice(DiceOptions())
+                            elseif diceid == "" then
+                                --keep the table's dice link for when it goes back to Dice Owners.
+                                diceid = studio.dice
+                            end
+                            ConfirmAccess(id, diceid)
+                        end
+                    ),
+                },
+                gui.Panel{
+                    width = "100%",
+                    height = 28,
+                    flow = "horizontal",
+                    bmargin = 8,
+                    Label({"tsName"}, T("tablestudio.diceset"), { valign = "center" }),
+                    gui.Dropdown{
+                        width = 200,
+                        height = 26,
+                        fontSize = 14,
+                        halign = "right",
+                        valign = "center",
+                        options = DiceOptions(),
+                        idChosen = "",
+                        refreshAccess = function(element)
+                            local _, diceid = PlayersAccess()
+                            element.idChosen = diceid
+                        end,
+                        change = function(element)
+                            local id = tostring(element.idChosen or "")
+                            local _, diceid = PlayersAccess()
+                            element.idChosen = diceid
+                            if id ~= "" and id ~= diceid then
+                                ConfirmAccess("dice", id)
+                            end
+                        end,
+                    },
+                    refreshAccess = function(element)
+                        local access = PlayersAccess()
+                        element:SetClass("collapsed", access ~= "dice")
+                    end,
+                },
+            }
+            element:FireEventTree("refreshAccess")
+            local access, diceid = PlayersAccess()
+            lastSignature = access .. "|" .. diceid
+        end
+
+        accessBlock = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            refreshFile = function(element)
+                element:SetClass("collapsed", not studio.hasTable)
+                if studio.hasTable then
+                    Build(element)
+                end
+            end,
+            --(a Who Gets It change lands when the cloud write finishes; the list tags follow.)
+            thinkTime = 0.5,
+            think = function(element)
+                if not studio.hasTable then
+                    return
+                end
+                local access, diceid = PlayersAccess()
+                local signature = access .. "|" .. diceid
+                if signature ~= lastSignature then
+                    lastSignature = signature
+                    element:FireEventTree("refreshSegment")
+                    element:FireEventTree("refreshAccess")
+                    tableDropdown:FireEvent("refreshFile")
+                end
+            end,
+        }
+    end
+
     local fileBlock = gui.Panel{
         width = "100%",
         height = "auto",
@@ -1345,6 +1782,7 @@ local function CreateTableStudioPanel()
                 unsavedLabel:SetClass("hidden", not (studio.hasTable and studio.hasUnsavedChanges))
             end,
         },
+        accessBlock,
         gui.Panel{
             width = "100%",
             height = "auto",
@@ -1366,8 +1804,207 @@ local function CreateTableStudioPanel()
                     end
                 end,
             },
+            g_canGoLive and Button{
+                text = T("tablestudio.upload"),
+                click = function(element)
+                    if not studio.hasTable then
+                        return
+                    end
+                    --a table never saved needs a name first.
+                    if studio.name == "" then
+                        SaveAsDialog(function()
+                            studio:Upload()
+                            root:FireEvent("tableChanged")
+                        end)
+                    else
+                        studio:Upload()
+                        root:FireEventTree("refreshVersion")
+                    end
+                end,
+            } or nil,
         },
     }
+
+    --Set Live, after a confirmation. It changes the look players get, never who gets it (Who
+    --Gets It does that), so it only warns when nobody gets the table.
+    local function ConfirmSetLive()
+        local function Confirm()
+            local extra = nil
+            local access, diceid = PlayersAccess()
+            if access == "nobody" then
+                extra = Label({"tsSub"}, T("tablestudio.setlive.nobody"), { width = "100%", tmargin = 8 })
+            end
+            Modal(T("tablestudio.setlive.confirm", { n = studio.version }), {
+                {
+                    text = T("tablestudio.setlive"),
+                    action = function()
+                        if studio.liveVersion > 0 then
+                            studio:SetLive()
+                        else
+                            --nothing live yet: it goes live to whoever gets the table now.
+                            studio:SetLiveAccess(access, diceid ~= "" and diceid or studio.dice)
+                        end
+                        root:FireEvent("tableChanged")
+                    end,
+                },
+                { text = T("tablestudio.cancel") },
+            }, extra)
+        end
+
+        if studio.name == "" then
+            SaveAsDialog(Confirm)
+        else
+            Confirm()
+        end
+    end
+
+    --The versions (phase 1b): the version open with its status, the live one, Set Live, the
+    --live version's read-only note, a failed upload, and the version's notes. Refreshed when
+    --anything about them changes (an edit starting a version, an upload finishing).
+    local versionBlock = nil
+    if g_canGoLive then
+        local versionDropdown = gui.Dropdown{
+            width = 230,
+            height = 26,
+            fontSize = 14,
+            options = {},
+            idChosen = "",
+            refreshVersion = function(element)
+                local options = {}
+                local unpublished = LiveUnpublished()
+                for _, v in ipairs(studio:GetVersions()) do
+                    --the live version of an unpublished table says so, not "Live".
+                    local status = T("tablestudio.status." .. v.status)
+                    if v.status == "live" and unpublished then
+                        status = T("tablestudio.unpublished")
+                    end
+                    options[#options + 1] = {
+                        id = tostring(v.version),
+                        text = T("tablestudio.versionentry", {
+                            version = T("tablestudio.version", { n = v.version }),
+                            status = status,
+                        }),
+                    }
+                end
+                element.options = options
+                element.idChosen = tostring(studio.version)
+            end,
+            change = function(element)
+                local id = tostring(element.idChosen or "")
+                local current = tostring(studio.version)
+                element.idChosen = current
+                local n = tonumber(id)
+                if n == nil or id == current then
+                    return
+                end
+                GuardUnsaved(function()
+                    if studio:LoadVersion(n) then
+                        root:FireEvent("tableChanged")
+                    end
+                end)
+            end,
+        }
+
+        local lastSignature = ""
+        versionBlock = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hpad = 12,
+            bmargin = 10,
+            borderBox = true,
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                versionDropdown,
+                Label({"tsSub"}, "", {
+                    lmargin = 8,
+                    valign = "center",
+                    refreshVersion = function(element)
+                        local live = studio.liveVersion
+                        --an unpublished table has nothing live for players.
+                        local shown = live > 0 and not studio.isLiveVersion and not LiveUnpublished()
+                        element.text = shown and T("tablestudio.liveversion", { n = live }) or ""
+                    end,
+                }),
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    Button{
+                        text = T("tablestudio.setlive"),
+                        click = function(element)
+                            ConfirmSetLive()
+                        end,
+                    },
+                    refreshVersion = function(element)
+                        element:SetClass("collapsed", studio.isLiveVersion)
+                    end,
+                },
+            },
+            Label({"tsSub"}, "", {
+                tmargin = 4,
+                refreshVersion = function(element)
+                    element:SetClass("collapsed", not studio.isLiveVersion)
+                    local key = LiveUnpublished() and "tablestudio.unpublishedreadonly" or "tablestudio.livereadonly"
+                    element.text = T(key, { n = studio.nextVersion })
+                end,
+            }),
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                tmargin = 4,
+                Label({"tsSub", "warn"}, T("tablestudio.uploadfailed"), { valign = "center" }),
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    Button{
+                        text = T("tablestudio.retry"),
+                        click = function(element)
+                            studio:RetrySend()
+                            root:FireEventTree("refreshVersion")
+                        end,
+                    },
+                },
+                refreshVersion = function(element)
+                    element:SetClass("collapsed", studio.sendState ~= "failed")
+                end,
+            },
+            gui.Input{
+                width = "100%",
+                height = 24,
+                fontSize = 13,
+                tmargin = 6,
+                placeholderText = T("tablestudio.notes"),
+                text = "",
+                change = function(element)
+                    studio.notes = element.text
+                end,
+                refreshVersion = function(element)
+                    if element.text ~= studio.notes then
+                        element.text = studio.notes
+                    end
+                end,
+            },
+
+            --(the version open changes on a live version's first edit, and uploads finish later.)
+            thinkTime = 0.5,
+            think = function(element)
+                local signature = string.format("%d|%d|%s|%d", studio.version, studio.liveVersion, studio.sendState, studio.changeSeq)
+                if signature ~= lastSignature then
+                    lastSignature = signature
+                    element:FireEventTree("refreshVersion")
+                end
+            end,
+            refreshFile = function(element)
+                element:SetClass("collapsed", not studio.hasTable)
+                lastSignature = ""
+            end,
+        }
+    end
 
     --Peek / Compare (held), Pause, Play Now.
     local toolbar = gui.Panel{
@@ -1467,15 +2104,20 @@ local function CreateTableStudioPanel()
         bmargin = 14,
     }
 
+    --(a list, so a missing version block leaves no hole.)
+    local rootChildren = { banner, fileBlock }
+    if versionBlock ~= nil then
+        rootChildren[#rootChildren + 1] = versionBlock
+    end
+    rootChildren[#rootChildren + 1] = toolbar
+    rootChildren[#rootChildren + 1] = sections
+
     root = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "vertical",
         styles = ThemeEngine.MergeStyles(BuildStyles()),
-        banner,
-        fileBlock,
-        toolbar,
-        sections,
+        children = rootChildren,
 
         create = function(element)
             g_tableStudioRoot = element
@@ -1509,6 +2151,7 @@ local function CreateTableStudioPanel()
         tableChanged = function(element)
             BuildSections()
             element:FireEventTree("refreshFile")
+            element:FireEventTree("refreshVersion")
         end,
 
         --the unsaved changes go to the draft every few seconds.

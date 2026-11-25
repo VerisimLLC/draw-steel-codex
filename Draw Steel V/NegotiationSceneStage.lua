@@ -866,6 +866,9 @@ function NegotiationSceneStage.Create(args)
 
     local function Buttons(m)
         local buttons = {}
+        if not session:MayAct(dmhub.loginUserid, session:Heroes()) then
+            return buttons
+        end
         local function Add(text, fn, tooltip)
             buttons[#buttons + 1] = gui.Button{
                 width = 200, height = 44, lmargin = 8, text = text, click = fn,
@@ -875,7 +878,7 @@ function NegotiationSceneStage.Create(args)
                 end or nil,
             }
         end
-        if m.phase == "choosing" and m.interest >= 1 then
+        if session:CanTakeDeal(m) then
             Add(T("negscene.take_deal"), function() session:SendRequest("takeDeal") end, DealTooltip)
         elseif m.phase == "reply" or m.phase == "done" then
             Add(T("negscene.continue"), function() session:SendRequest("continue") end)
@@ -1018,6 +1021,7 @@ function NegotiationSceneStage.Create(args)
                     cond(#session:Voters(session:Heroes()) > 1, T("negscene.prompt_hero_party"), T("negscene.prompt_hero")))))
         readButton:SetClass("collapsed", m.phase ~= "choosing" or not m.canRead)
         clueButton:SetClass("collapsed", not session:CanSpendClue(m, beat)
+            or not session:MayAct(dmhub.loginUserid, session:Heroes())
             or (args.clueAffordable ~= nil and not args.clueAffordable()))
 
         local clues, learned, log = {}, {}, {}

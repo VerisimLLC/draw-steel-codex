@@ -553,9 +553,10 @@ if dmhub.inGame then
 	HeroModules.ServeOwnerRequests()
 end
 
---- True if this hero was built with a class or ancestry that is not in this
---- game (its Hero module was not installed here). The hero then has no class
---- -- 0 Stamina, no Recoveries -- or falls back to the default ancestry.
+--- True if this hero was built with a class, subclass or ancestry that is not
+--- in this game (its Hero module was not installed here). The hero then has no
+--- class -- 0 Stamina, no Recoveries -- no subclass features, or falls back to
+--- the default ancestry.
 --- @param token CharacterToken
 --- @return boolean
 function HeroModules.HeroIsMissingContent(token)
@@ -566,9 +567,25 @@ function HeroModules.HeroIsMissingContent(token)
 			return
 		end
 		local classesTable = GetTableCached("classes")
+		local subclassesTable = GetTableCached("subclasses")
+		local choices = props:GetLevelChoices()
 		for _, entry in ipairs(props:try_get("classes", {})) do
-			if entry.classid ~= nil and classesTable[entry.classid] == nil then
+			local classInfo = entry.classid ~= nil and classesTable[entry.classid] or nil
+			if entry.classid ~= nil and classInfo == nil then
 				missing = true
+			elseif classInfo ~= nil then
+				--A subclass picked from a module that isn't here: the hero keeps
+				--the class but silently loses the subclass (Class:GetSubclasses skips it).
+				local levels = {}
+				classInfo:FillLevelsUpTo(entry.level, props:ExtraLevelInfo(), false, levels)
+				for _, levelInfo in ipairs(levels) do
+					for _, feature in ipairs(levelInfo.features) do
+						local chosen = feature.typeName == "CharacterSubclassChoice" and choices[feature.guid] or nil
+						if chosen ~= nil and chosen[1] ~= nil and subclassesTable[chosen[1]] == nil then
+							missing = true
+						end
+					end
+				end
 			end
 		end
 		local raceid = props:try_get("raceid")
@@ -631,7 +648,7 @@ ShowMissingContentWarning = function(charids)
 
 	gui.ModalMessage{
 		title = "Hero Module Not Added",
-		message = string.format("%s %s missing content from a Hero module that could not be added to this game, so %s may have no class (0 Stamina) or the wrong ancestry.\n\n%s",
+		message = string.format("%s %s missing content from a Hero module that could not be added to this game, so %s may have no class (0 Stamina), no subclass, or the wrong ancestry.\n\n%s",
 			table.concat(heroNames, ", "),
 			#heroNames == 1 and "is" or "are",
 			#heroNames == 1 and "this hero" or "these heroes",

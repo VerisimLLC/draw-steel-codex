@@ -2763,6 +2763,9 @@ function g_tileIndicator.ZoneRulesFromFlags(kw)
     if kw:try_get("difficultTerrain", false) then
         lines[#lines+1] = "Difficult terrain."
     end
+    if kw:try_get("fastTerrain", false) then
+        lines[#lines+1] = "Each square entered costs half a square of movement."
+    end
     if kw:try_get("water", false) then
         lines[#lines+1] = "Water."
     end

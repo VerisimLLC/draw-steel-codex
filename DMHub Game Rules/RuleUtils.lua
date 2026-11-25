@@ -14,7 +14,8 @@ end
 function GameRules.TokenNearEnemies(token)
 	local nearbyTokens = token:GetNearbyTokens()
 	for i,nearby in ipairs(nearbyTokens) do
-		if nearby.properties ~= creature and (not nearby:IsFriend(token)) and (not GameRules.TokenIncapacitated(nearby)) then
+		--Allegiance, not just sides: a creature under Guise isn't an enemy here.
+		if nearby.properties ~= creature and IsEnemyOf(token, nearby) and (not GameRules.TokenIncapacitated(nearby)) then
 			return true
 		end
 	end

@@ -3497,7 +3497,7 @@ function TacPanel.HeroTokenBox()
                     local n = tonum(element.text, -1)
                     if n >= 0 then
                         local prev = token.properties:GetHeroTokens()
-                        token.properties:SetHeroTokens(n, "Set manually")
+                        GameSystem.HandEdit(function() token.properties:SetHeroTokens(n, "Set manually") end)
                         if n ~= prev then
                             local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
                             track("hero_token_change", {
@@ -3671,7 +3671,7 @@ function TacPanel.SurgesBox()
                         token:ModifyProperties{
                             description = "Change Surges",
                             execute = function()
-                                token.properties:ConsumeSurges(-diff, "Manually Set")
+                                token.properties:ConsumeSurges(-diff, creature.manualSurgeNote)
                             end,
                         }
                     end
@@ -3890,7 +3890,7 @@ function TacPanel.HeroicResourcesBox()
                     end
                     local creature = token.properties
                     if not creature:IsHero() and not creature:IsCompanion() then
-                        CharacterResource.SetMalice(math.max(0, n), "Manually set")
+                        GameSystem.HandEdit(function() CharacterResource.SetMalice(math.max(0, n), "Manually set") end)
                         return
                     end
                     local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
@@ -3901,9 +3901,9 @@ function TacPanel.HeroicResourcesBox()
                             description = "Change Heroic Resource",
                             execute = function()
                                 if diff > 0 then
-                                    token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                                    GameSystem.HandEdit(function() token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff) end)
                                 else
-                                    token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                                    GameSystem.HandEdit(function() token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff) end)
                                 end
                             end,
                         }
@@ -4901,9 +4901,9 @@ function TacPanel.RecoveriesBox()
                                 description = "Set Recoveries",
                                 execute = function()
                                     if delta > 0 then
-                                        token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Set Recoveries")
+                                        GameSystem.HandEdit(function() token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Set Recoveries") end)
                                     else
-                                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Set Recoveries")
+                                        GameSystem.HandEdit(function() token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Set Recoveries") end)
                                     end
                                 end,
                             }
@@ -5185,7 +5185,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                     description = "Apply Damage",
                     execute = function()
                         --A string, not the number: TakeDamage takes a formula.
-                        token.properties:TakeDamage(text)
+                        GameSystem.HandEdit(function() token.properties:TakeDamage(text) end)
                     end,
                 }
             elseif mode == "heal" then
@@ -5193,7 +5193,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Apply Healing",
                     execute = function()
-                        token.properties:Heal(n)
+                        GameSystem.HandEdit(function() token.properties:Heal(n) end)
                     end,
                 }
             elseif mode == "temp" then
@@ -5203,7 +5203,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Apply Temp Stamina",
                     execute = function()
-                        token.properties:SetTemporaryHitpoints(text)
+                        GameSystem.HandEdit(function() token.properties:SetTemporaryHitpoints(text) end)
                         token.properties:DispatchEvent("gaintempstamina", {})
                     end,
                 }
@@ -5215,7 +5215,7 @@ function TacPanel.BarAdjustControls(labelPanel)
                 token:ModifyProperties{
                     description = "Set Stamina",
                     execute = function()
-                        token.properties:SetStaminaDirect(value)
+                        GameSystem.HandEdit(function() token.properties:SetStaminaDirect(value) end)
                     end,
                 }
             end
@@ -8155,7 +8155,12 @@ local g_heroicResourceDisplays = {}
 ---
 --- `classic` opts the display into the pre-rework HEROIC RESOURCES section as
 --- well; without it a display only appears on the reworked panel.
---- @param entry {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean}
+---
+--- `card(token)` tells the hero card's back (HeroCardBack.lua) how to show it
+--- as a line in the card's own style: {name, resourceid, holder} for a hero it
+--- fits (holder: the token that keeps the resource), or nil. A display
+--- without `card` is shown there as its tac panel box.
+--- @param entry {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean, card: nil|fun(token: CharacterToken): {name: string, resourceid: string, holder: CharacterToken}|nil}
 function TacPanel.RegisterHeroicResourceDisplay(entry)
     g_heroicResourceDisplays[entry.id] = entry
 end
@@ -8590,9 +8595,9 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache, readOn
                         description = string.format("Change %s", displayName),
                         execute = function()
                             if diff > 0 then
-                                tok.properties:RefreshResource(resourceId, usageLimit, diff)
+                                GameSystem.HandEdit(function() tok.properties:RefreshResource(resourceId, usageLimit, diff) end)
                             else
-                                tok.properties:ConsumeResource(resourceId, usageLimit, -diff)
+                                GameSystem.HandEdit(function() tok.properties:ConsumeResource(resourceId, usageLimit, -diff) end)
                             end
                         end,
                     }
@@ -9347,7 +9352,7 @@ function TacPanel.MultiEdit()
                             tok:ModifyProperties{
                                 description = "Heal",
                                 execute = function()
-                                    tok.properties:Heal(element.text)
+                                    GameSystem.HandEdit(function() tok.properties:Heal(element.text) end)
                                 end,
                             }
                         end
@@ -9368,7 +9373,7 @@ function TacPanel.MultiEdit()
                             tok:ModifyProperties{
                                 description = "Damage",
                                 execute = function()
-                                    tok.properties:TakeDamage(element.text)
+                                    GameSystem.HandEdit(function() tok.properties:TakeDamage(element.text) end)
                                 end,
                             }
                         end
@@ -9568,7 +9573,7 @@ function TacPanel.EffectChip(args)
                 args.token:ModifyProperties{
                     description = args.removeDescription,
                     execute = function()
-                        args.onRemove(args.token)
+                        GameSystem.HandEdit(function() args.onRemove(args.token) end)
                     end,
                 }
             end,
@@ -10035,6 +10040,78 @@ local function FillAurasEmittingPanels(token, chips)
     end
 end
 
+--- Every chip the AURAS, CONDITIONS, & EFFECTS section shows for a token:
+--- its conditions, status effects and custom conditions, the auras touching
+--- it and the auras it emits, each with its own controls (remove, set
+--- caster, aura colour and visibility). The Hero card's back
+--- (HeroCardBack.lua) shows the same list. firstChild (the section's add
+--- button) leads the list; a "No conditions" line follows it when there is
+--- nothing else. Controls marked "editOnly" hide, and their handlers do
+--- nothing, under a "readonly" ancestor (TacPanel.IsReadOnly).
+--- @param token CharacterToken
+--- @param firstChild nil|Panel
+--- @return Panel[]
+function TacPanel.ConditionChipList(token, firstChild)
+    local children = {}
+    if firstChild ~= nil then
+        children[1] = firstChild
+    end
+    local empty = #children
+
+    local creature = token.properties
+    local conditions = creature:try_get("inflictedConditions", {})
+
+    -- Gather status effects (ongoing effects with statusEffect flag)
+    local ongoingTable = dmhub.GetTable("characterOngoingEffects")
+    local activeEffects = creature:ActiveOngoingEffects()
+    local statusEffects = {}
+    for _, entry in ipairs(activeEffects) do
+        local effectInfo = ongoingTable[entry.ongoingEffectid]
+        if effectInfo ~= nil and effectInfo.statusEffect then
+            statusEffects[#statusEffects + 1] = { entry = entry, info = effectInfo }
+        end
+    end
+
+    -- Condition chips
+    for condid, cond in pairs(conditions) do
+        children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
+    end
+
+    -- Status effect chips
+    for _, se in ipairs(statusEffects) do
+        children[#children + 1] = TacPanel.StatusEffectChip(se.entry, se.info, token)
+    end
+
+    -- Custom condition chips
+    local customConditions = creature:try_get("customConditions", {})
+    for key, entry in pairs(customConditions) do
+        children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
+    end
+
+    -- Aura chips
+    local aurasTouching = creature:GetAurasAffecting(token) or {}
+    local seenAuraKeys = {}
+    for _, auraInfo in ipairs(aurasTouching) do
+        local auraKey = auraInfo.auraInstance:ChipDedupeKey()
+        if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then --we'll see our own auras because we emit them.
+            if auraKey ~= nil then seenAuraKeys[auraKey] = true end
+            children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+        end
+    end
+
+    --auras emitting.
+    FillAurasEmittingPanels(token, children)
+
+    -- "No conditions" placeholder when nothing to show
+    if #children == empty then
+        children[#children + 1] = gui.Label{
+            classes = {"label", "cond-empty"},
+            text = "No conditions",
+        }
+    end
+    return children
+end
+
 --- Open the "Add Condition" pop-up (conditions, status effects, a custom
 --- condition input, and custom auras) on args.button, applied to args.tokens.
 --- @param args {tokens: CharacterToken[], button: Panel}
@@ -10111,10 +10188,12 @@ function TacPanel.AddConditionMenu(args)
                         tok:ModifyProperties{
                             description = "Apply Condition",
                             execute = function()
-                                tok.properties:InflictCondition(k, {
-                                    riders = {riderid},
-                                    duration = (durationOverride or "eot"),
-                                })
+                                GameSystem.HandEdit(function()
+                                    tok.properties:InflictCondition(k, {
+                                        riders = {riderid},
+                                        duration = (durationOverride or "eot"),
+                                    })
+                                end)
                             end,
                         }
                     end
@@ -10159,7 +10238,7 @@ function TacPanel.AddConditionMenu(args)
                         combine = true,
                         execute = function()
                             if tok == nil or not tok.valid then return end
-                            tok.properties:ApplyOngoingEffect(k)
+                            GameSystem.HandEdit(function() tok.properties:ApplyOngoingEffect(k) end)
                         end,
                     }
                 end
@@ -10688,7 +10767,7 @@ function TacPanel.PersistentAbilities()
                             classes = {"panel", "cond-remove", "editOnly"},
                             press = function(el)
                                 if TacPanel.IsReadOnly(el) then return end
-                                token.properties:EndPersistentAbilityById(guid)
+                                token.properties:EndPersistentAbilityById(guid, "chose")
                             end,
                             linger = function(el)
                                 gui.Tooltip("Stop")(el)
@@ -11069,7 +11148,7 @@ function CharacterPanel.AddConditionMenu(args)
                     end
                     for _,tok in ipairs(m_tokens) do
                         tok:BeginChanges()
-                        tok.properties:InflictCondition(k, { riders = {riderid}, duration = (durationOverride or "eot") })
+                        GameSystem.HandEdit(function() tok.properties:InflictCondition(k, { riders = {riderid}, duration = (durationOverride or "eot") }) end)
                         tok:CompleteChanges("Apply Condition")
                     end
                     m_button.popup = nil
@@ -11113,7 +11192,7 @@ function CharacterPanel.AddConditionMenu(args)
                                 if tok == nil or not tok.valid then
                                     return
                                 end
-                                tok.properties:ApplyOngoingEffect(k)
+                                GameSystem.HandEdit(function() tok.properties:ApplyOngoingEffect(k) end)
                             end,
                         }
                     end
@@ -11343,7 +11422,7 @@ function TacPanel.HarmBox()
                     element.data.token:ModifyProperties{
                         description = "Apply Damage",
                         execute = function()
-                            element.data.token.properties:TakeDamage(element.text)
+                            GameSystem.HandEdit(function() element.data.token.properties:TakeDamage(element.text) end)
                             element.text = ""
                         end,
                     }
@@ -11395,7 +11474,7 @@ function TacPanel.HealBox()
                     element.data.token:ModifyProperties{
                         description = "Apply Healing",
                         execute = function()
-                            element.data.token.properties:Heal(n)
+                            GameSystem.HandEdit(function() element.data.token.properties:Heal(n) end)
                             element.text = ""
                         end,
                     }
@@ -11451,7 +11530,7 @@ function TacPanel.TempStamBox()
                     element.data.token:ModifyProperties{
                         description = "Apply Temp Stamina",
                         execute = function()
-                            element.data.token.properties:SetTemporaryHitpoints(element.text)
+                            GameSystem.HandEdit(function() element.data.token.properties:SetTemporaryHitpoints(element.text) end)
                             element.data.token.properties:DispatchEvent("gaintempstamina", {})
                         end,
                     }
@@ -11535,7 +11614,7 @@ function TacPanel.StaminaBox()
                             token:ModifyProperties{
                                 description = "Set Stamina",
                                 execute = function()
-                                    token.properties:SetStaminaDirect(n)
+                                    GameSystem.HandEdit(function() token.properties:SetStaminaDirect(n) end)
                                 end,
                             }
                         end
@@ -13019,62 +13098,8 @@ function TacPanel.Conditions()
                 return
             end
 
-            local creature = token.properties
-            local conditions = creature:try_get("inflictedConditions", {})
-
-            -- Gather status effects (ongoing effects with statusEffect flag)
-            local ongoingTable = dmhub.GetTable("characterOngoingEffects")
-            local activeEffects = creature:ActiveOngoingEffects()
-            local statusEffects = {}
-            for _, entry in ipairs(activeEffects) do
-                local effectInfo = ongoingTable[entry.ongoingEffectid]
-                if effectInfo ~= nil and effectInfo.statusEffect then
-                    statusEffects[#statusEffects + 1] = { entry = entry, info = effectInfo }
-                end
-            end
-
             -- Rebuild chips each refresh (lists are small)
-            local children = {MakeAddButton()}
-
-            -- Condition chips
-            for condid, cond in pairs(conditions) do
-                children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
-            end
-
-            -- Status effect chips
-            for _, se in ipairs(statusEffects) do
-                children[#children + 1] = TacPanel.StatusEffectChip(se.entry, se.info, token)
-            end
-
-            -- Custom condition chips
-            local customConditions = creature:try_get("customConditions", {})
-            for key, entry in pairs(customConditions) do
-                children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
-            end
-
-            -- Aura chips (DISABLED FOR DIAGNOSTIC)
-            local aurasTouching = creature:GetAurasAffecting(token) or {}
-            local seenAuraKeys = {}
-            for _, auraInfo in ipairs(aurasTouching) do
-                local auraKey = auraInfo.auraInstance:ChipDedupeKey()
-                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid and not auraInfo.auraInstance:IsHiddenFromAuraLists() and (auraKey == nil or not seenAuraKeys[auraKey]) then --we'll see our own auras because we emit them.
-                    if auraKey ~= nil then seenAuraKeys[auraKey] = true end
-                    children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
-                end
-            end
-
-            --auras emitting.
-            FillAurasEmittingPanels(token, children)
-
-            -- "No conditions" placeholder when nothing to show
-            if #children == 1 then
-                children[#children + 1] = gui.Label{
-                    classes = {"label", "cond-empty"},
-                    text = "No conditions",
-                }
-            end
-
-            element:FireEventTree("setContent", children)
+            element:FireEventTree("setContent", TacPanel.ConditionChipList(token, MakeAddButton()))
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -13761,9 +13786,9 @@ function CharacterPanel.DecorateHitpointsPanel()
 
 					m_token:BeginChanges()
 					if delta > 0 then
-						m_token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Used Recovery")
+						GameSystem.HandEdit(function() m_token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Used Recovery") end)
 					else
-						m_token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Used Recovery")
+						GameSystem.HandEdit(function() m_token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Used Recovery") end)
 					end
 					m_token:CompleteChanges("Set Recoveries")
 				end,
@@ -13965,7 +13990,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
                         if n ~= nil and round(n) == n then
                             n = math.max(0, n)
                             local prev = m_token.properties:GetHeroTokens()
-                            m_token.properties:SetHeroTokens(n, "Set manually")
+                            GameSystem.HandEdit(function() m_token.properties:SetHeroTokens(n, "Set manually") end)
                             if n ~= prev then
                                 local classInfo = m_token.properties:IsHero() and m_token.properties:GetClass() or nil
                                 track("hero_token_change", {
@@ -14062,7 +14087,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
 
                         local creature = m_token.properties
                         if not creature:IsHero() and not creature:IsCompanion() then
-                            CharacterResource.SetMalice(math.max(0, amount), "Manually set")
+                            GameSystem.HandEdit(function() CharacterResource.SetMalice(math.max(0, amount), "Manually set") end)
                             return
                         end
 
@@ -14080,10 +14105,10 @@ function CharacterPanel.DecoratePortraitPanel(token)
                             execute = function()
                                 if diff > 0 then
                                     print("RESOURCE:: CALLING REFRESH...")
-                                    m_token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                                    GameSystem.HandEdit(function() m_token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff) end)
                                 else
                                     print("RESOURCE:: CALLING CONSUME...")
-                                    m_token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                                    GameSystem.HandEdit(function() m_token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff) end)
                                 end
                             end,
                         }
@@ -14158,7 +14183,7 @@ function CharacterPanel.DecoratePortraitPanel(token)
                         m_token:ModifyProperties{
                             description = "Change Surges",
                             execute = function()
-                                m_token.properties:ConsumeSurges(-diff, "Manually Set")
+                                m_token.properties:ConsumeSurges(-diff, creature.manualSurgeNote)
                             end,
                         }
 

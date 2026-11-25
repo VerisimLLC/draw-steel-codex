@@ -171,6 +171,7 @@ function creature:Invalidate()
     self._tmp_adjacentLocs = nil
     self._tmp_occupiedLocs = nil
     self._tmp_flankfromanydirection = nil
+    self._tmp_flankonlywithsummoner = nil
     self._tmp_grantsFlanking = nil
     self._tmp_highestCharacteristic = nil
     self._tmp_maxSurgeCount = nil
@@ -202,6 +203,25 @@ function creature:Potency()
     return self:HighestCharacteristic()
 end
 
+--- Returns the creature's summoner token, or nil if it has none.
+--- Also finds a summoner who is off the map: a summon that replaces its caster (such as
+--- Loverboy, from the Demon Lover complication) takes the caster off the map until it
+--- goes away, and the summon still belongs to them meanwhile.
+--- @param selfToken CharacterToken
+--- @return CharacterToken|nil
+local function FindSummonerToken(selfToken)
+    if not selfToken.summonerid then
+        return nil
+    end
+
+    local summonerToken = dmhub.GetTokenById(selfToken.summonerid) or dmhub.GetCharacterById(selfToken.summonerid)
+    if summonerToken ~= nil and summonerToken.valid then
+        return summonerToken
+    end
+
+    return nil
+end
+
 --- If this creature is a minion flagged to use its summoner's potency, returns the summoner token.
 --- Otherwise returns nil (the creature uses its own potency).
 --- @return CharacterToken|nil
@@ -211,12 +231,8 @@ function creature:GetPotencySummonerToken()
         return nil
     end
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then return nil end
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-    return nil
+    if selfToken == nil then return nil end
+    return FindSummonerToken(selfToken)
 end
 
 function creature:BaseNamedCustomAttribute(id)
@@ -386,16 +402,11 @@ function creature:GetSurgeSharingSummonerToken()
     end
 
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return nil
     end
 
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-
-    return nil
+    return FindSummonerToken(selfToken)
 end
 
 --- @return creature|nil mentor whose surge pool this retainer shares, else nil.
@@ -433,6 +444,10 @@ function creature:GetSurgePoolOwner()
     return self
 end
 
+-- History note for surge counts typed into the character sheet. ConsumeSurges skips
+-- the Use Resource trigger for this note, so pass it from any manual surge edit.
+creature.manualSurgeNote = "Manually Set"
+
 function creature:ConsumeSurges(ncount, note)
     local surgeid = CharacterResource.nameToId["Surges"]
     if surgeid == nil then
@@ -442,6 +457,7 @@ function creature:ConsumeSurges(ncount, note)
     -- Retainers spend from their mentor's pool, matching where Resource.lua sends their surge gains.
     local mentor = self:GetSurgeSharingMentor()
     local mentorToken = mentor ~= nil and dmhub.LookupToken(mentor) or nil
+    local summonerToken = self:GetSurgeSharingSummonerToken()
     if mentorToken ~= nil then
         mentorToken:ModifyProperties{
             description = "Consume Surges",
@@ -449,21 +465,26 @@ function creature:ConsumeSurges(ncount, note)
                 mentorToken.properties:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
             end,
         }
-        return
-    end
-
-    local summonerToken = self:GetSurgeSharingSummonerToken()
-    if summonerToken ~= nil then
+    elseif summonerToken ~= nil then
         summonerToken:ModifyProperties{
             description = "Consume Surges",
             execute = function()
                 summonerToken.properties:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
             end,
         }
-        return
+    else
+        self:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
     end
 
-    self:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
+    -- Fire the Use Resource trigger on the creature that spent the surges, even when
+    -- they came from a shared pool. Gaining surges or editing the count on the sheet doesn't count.
+    local resourceInfo = dmhub.GetTable(CharacterResource.tableName)[surgeid]
+    if ncount > 0 and note ~= creature.manualSurgeNote and resourceInfo ~= nil then
+        self:DispatchEvent("useresource", {
+            resource = string.lower(resourceInfo.name),
+            quantity = ncount,
+        })
+    end
 end
 
 function creature:GetAvailableSurges()
@@ -516,16 +537,11 @@ function creature:GetHeroicResourceSharingSummonerToken()
     end
 
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return nil
     end
 
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken ~= nil and summonerToken.valid then
-        return summonerToken
-    end
-
-    return nil
+    return FindSummonerToken(selfToken)
 end
 
 local g_baseMonsterGetHeroicOrMaliceResources = monster.GetHeroicOrMaliceResources
@@ -577,11 +593,11 @@ end
 --- should not surface villain/malice-cost abilities (malice is a GM resource).
 function creature:IsHeroSummon()
     local selfToken = dmhub.LookupToken(self)
-    if selfToken == nil or not selfToken.summonerid then
+    if selfToken == nil then
         return false
     end
-    local summonerToken = dmhub.GetTokenById(selfToken.summonerid)
-    if summonerToken == nil or not summonerToken.valid then
+    local summonerToken = FindSummonerToken(selfToken)
+    if summonerToken == nil then
         return false
     end
     return summonerToken.properties:IsHero()
@@ -1671,6 +1687,27 @@ function creature:FlankFromAnyDirection()
     return self._tmp_flankfromanydirection ~= 0
 end
 
+--Set to 1 on a creature that can flank only together with the creature that summoned
+--it, such as the Familiar perk's familiar. ComputeFlankingTokens enforces it.
+CustomAttribute.RegisterAttribute {
+    id = "flankonlywithsummoner",
+    text = "Flank Only With Summoner",
+    attributeType = "number",
+    category = "Basic Attributes",
+}
+
+--- True if this creature can only flank together with its summoner.
+--- @return boolean
+function creature:FlanksOnlyWithSummoner()
+    local result = self:try_get("_tmp_flankonlywithsummoner")
+    if result ~= nil then
+        return result ~= 0
+    end
+
+    self._tmp_flankonlywithsummoner = self:CalculateAttribute("flankonlywithsummoner", 0)
+    return self._tmp_flankonlywithsummoner ~= 0
+end
+
 creature.RegisterSymbol {
     symbol = "object",
     lookup = function(c)
@@ -2289,25 +2326,42 @@ creature.RegisterSymbol {
     }
 }
 
-creature.RegisterSymbol {
-    symbol = "saveendseffects",
-    lookup = function(c)
-        if c:has_key("inflictedConditions") then
-            local conditions = c.inflictedConditions
-            for _, cond in pairs(conditions) do
-                if cond.duration == "save" then
+--True if the creature has a condition or ongoing effect that ends on a save (options.save)
+--or at the end of its turn (options.eot). options.skipBuffs leaves out the ones marked as buffs.
+--- @param creature creature
+--- @param options {save?: boolean, eot?: boolean, skipBuffs?: boolean}
+--- @return boolean
+local function HasEffectsEnding(creature, options)
+    if creature:has_key("inflictedConditions") then
+        --The table is only needed to tell buffs apart.
+        local conditionsTable = options.skipBuffs and dmhub.GetTable(CharacterCondition.tableName) or {}
+        for condid, cond in pairs(creature.inflictedConditions) do
+            if (options.save and cond.duration == "save") or (options.eot and cond.duration == "eot") then
+                local info = conditionsTable[condid]
+                if (not options.skipBuffs) or info == nil or info.buffType ~= "buff" then
                     return true
                 end
             end
         end
+    end
 
-        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-            if effectInstance.removeOnSave then
+    local effectsTable = options.skipBuffs and dmhub.GetTable("characterOngoingEffects") or {}
+    for _, effectInstance in ipairs(creature:ActiveOngoingEffects()) do
+        if (options.save and effectInstance.removeOnSave) or (options.eot and effectInstance.removeAtNextTurnEnd) then
+            local info = effectsTable[effectInstance.ongoingEffectid]
+            if (not options.skipBuffs) or info == nil or info.buffType ~= "buff" then
                 return true
             end
         end
+    end
 
-        return false
+    return false
+end
+
+creature.RegisterSymbol {
+    symbol = "saveendseffects",
+    lookup = function(c)
+        return HasEffectsEnding(c, {save = true})
     end,
     help = {
         name = "Save Ends Effects",
@@ -2319,28 +2373,37 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "eoteffects",
     lookup = function(c)
-        if c:has_key("inflictedConditions") then
-            local conditions = c.inflictedConditions
-            for _, cond in pairs(conditions) do
-                if cond.duration == "eot" then
-                    return true
-                end
-            end
-        end
-
-        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
-            if effectInstance.removeAtNextTurnEnd then
-                return true
-            end
-        end
-
-        return false
+        return HasEffectsEnding(c, {eot = true})
     end,
     help = {
         name = "EoT Effects",
         type = "boolean",
         desc = "Does this creature have any end of turn effects?",
     }
+}
+
+--True if the creature has a save-ends or end-of-turn effect that is not a buff.
+--Used to stop Reorder prompting when there is nothing worth ending.
+--- @param creature creature
+--- @return boolean
+local function HasEndableEffects(creature)
+    return HasEffectsEnding(creature, {save = true, eot = true, skipBuffs = true})
+end
+
+creature.RegisterSymbol {
+    symbol = "endableeffects",
+    lookup = HasEndableEffects,
+    help = {
+        name = "Endable Effects",
+        type = "boolean",
+        desc = "Does this creature have a save ends or end of turn condition or effect that is not a buff?",
+    }
+}
+
+--Lets Count Nearby Creatures(range, "ally", "endable effects") filter on the same state.
+creature.RegisterMatchString {
+    name = "endable effects",
+    match = HasEndableEffects,
 }
 
 creature.RegisterSymbol {
@@ -2454,7 +2517,9 @@ local function GetEnemyCreaturesAtLoc(token, loc, result)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
             --GetLineOfSight returns nil when a token stands on a floor whose data has not loaded (RD3WUFCR).
-            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
+            --A flanker is on the other side and regards this creature as an enemy. Allegiance effects
+            --can only remove a flanker (Guise), never turn an ally into one (Poison Haze).
+            if token.charid ~= otherTok.charid and token:IsFriend(otherTok) == false and IsEnemyOf(otherTok, token) and (otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls(), "basic") or 0) > 0 and (not otherTok.properties:IsDead()) then
                 AddTokenOnce(result, otherTok)
             end
         end
@@ -2617,6 +2682,20 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut, 
         end
     end
 
+    --a creature that flanks only with its summoner (a familiar) can't flank here unless its
+    --summoner is one of the possible flankers too. This runs before the shortcuts below, so
+    --without its summoner it also gets nothing from "flank from any direction" or granted flanking.
+    local presentActors = {}
+    for _, enemy in ipairs(adjacentEnemies) do
+        presentActors[Actor(enemy).charid] = true
+    end
+    for i = #adjacentEnemies, 1, -1 do
+        local actor = Actor(adjacentEnemies[i])
+        if actor.properties:FlanksOnlyWithSummoner() and (actor.summonerid == nil or not presentActors[actor.summonerid]) then
+            table.remove(adjacentEnemies, i)
+        end
+    end
+
     if #adjacentEnemies <= 1 then
         return {}
     end
@@ -2660,13 +2739,25 @@ local function ComputeFlankingTokens(self, tokensOverride, writes, adjacentOut, 
     local result = {}
     local targetBox = GetTokenBounds(token)
     local enemyBoxes = {}
+    --actorIds[i]: id of whoever flanks from adjacentEnemies[i]'s square (usually that creature,
+    --or one using an ability from its space). pairsOnlyWith[i]: id of the summoner it must pair
+    --with, or nil if it can pair with anyone.
+    local actorIds = {}
+    local pairsOnlyWith = {}
     for i, enemy in ipairs(adjacentEnemies) do
         enemyBoxes[i] = GetTokenBounds(enemy)
+        local actor = Actor(enemy)
+        actorIds[i] = actor.charid
+        if actor.properties:FlanksOnlyWithSummoner() then
+            pairsOnlyWith[i] = actor.summonerid
+        end
     end
     for i = 1, #adjacentEnemies - 1 do
         for j = i + 1, #adjacentEnemies do
             local a, b = enemyBoxes[i], enemyBoxes[j]
-            if targetBox ~= nil and a ~= nil and b ~= nil and LineCrossesOppositeSides(a, b, targetBox) then
+            local canPair = (pairsOnlyWith[i] == nil or pairsOnlyWith[i] == actorIds[j])
+                and (pairsOnlyWith[j] == nil or pairsOnlyWith[j] == actorIds[i])
+            if canPair and targetBox ~= nil and a ~= nil and b ~= nil and LineCrossesOppositeSides(a, b, targetBox) then
                 AddTokenOnce(result, adjacentEnemies[i])
                 AddTokenOnce(result, adjacentEnemies[j])
             end
@@ -2975,6 +3066,12 @@ function creature:Stability()
     return math.floor(math.max(0, self:CalculateAttribute("forcedmoveresistance", self:BaseForcedMoveResistance())))
 end
 
+--- True if push, pull and slide can't move this creature or object.
+--- @return boolean
+function creature:CannotBeForceMoved()
+    return self:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0
+end
+
 --- If the creature can teleport. The engine asks this when a token drag begins to decide
 --- whether holding Ctrl may turn the move into a teleport for a non-Director, so it must
 --- count teleport granted by features (Cinder Step, Translation) as well as an innate speed.
@@ -2990,6 +3087,86 @@ end
 --- @return boolean
 function creature:CanFlyVertically()
     return self:CanFly() and self:CalculateNamedCustomAttribute("Horizontal Flight Only") <= 0
+end
+
+--- How many squares this creature's token is above the ground under it. In deep
+--- water the ground is the water surface, and a platform deck (a bridge) the
+--- creature is on or above counts as ground. 0 when standing, swimming at the
+--- surface, diving or burrowing.
+--- @return number
+function creature:HeightAboveGround()
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        return 0
+    end
+    local loc = token.loc
+    local ground = loc.withGroundAltitude.altitude
+    local platform = loc.platformAltitude
+    if platform ~= nil and platform > ground and platform <= loc.altitude then
+        ground = platform
+    end
+    return math.max(0, loc.altitude - ground)
+end
+
+--- The movement modes a player can pick in the Move drawer, in the order shown.
+creature.selectableMoveTypes = { "walk", "fly", "swim", "burrow", "climb" }
+
+--- Why this creature can't switch to the given movement mode right now, or nil if
+--- it can. The mode it is already in is always allowed. Walk and swim are not
+--- really chosen: CurrentMoveType picks between them from the ground under the
+--- token, so picking either one means "on the ground or in the water".
+--- @param moveType string one of creature.selectableMoveTypes
+--- @return nil|string reason player-facing text
+function creature:MoveTypeUnavailableReason(moveType)
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid or moveType == self:CurrentMoveType() then
+        return nil
+    end
+
+    local T = UIText.T
+    local inAir = self:HeightAboveGround() > 0
+    local inWater = token:GetGroundMoveType(false) == "swim"
+    local belowGround = token.distanceBelowGround > 0
+
+    if moveType == "walk" then
+        if self:GetSpeed("walk") <= 0 then
+            return T("movemode.reason.cannot_walk")
+        elseif inAir then
+            return T("movemode.reason.in_air")
+        elseif inWater then
+            return T("movemode.reason.in_deep_water")
+        elseif belowGround then
+            return T("movemode.reason.underground")
+        end
+    elseif moveType == "fly" then
+        if not self:CanFly() then
+            return T("movemode.reason.cannot_fly")
+        elseif belowGround then
+            return cond(inWater, T("movemode.reason.underwater"), T("movemode.reason.underground"))
+        end
+    elseif moveType == "swim" then
+        if inAir then
+            return T("movemode.reason.in_air")
+        elseif not inWater then
+            return T("movemode.reason.not_in_water")
+        end
+    elseif moveType == "burrow" then
+        if not self:CanBurrow() then
+            return T("movemode.reason.cannot_burrow")
+        elseif inAir then
+            return T("movemode.reason.in_air")
+        elseif inWater then
+            return T("movemode.reason.in_deep_water")
+        end
+    elseif moveType == "climb" then
+        if not self:CanClimb() then
+            return T("movemode.reason.prone")
+        elseif not token.canCurrentlyClimb and not self:IsClingingToCeiling() then
+            return T("movemode.reason.nothing_to_climb")
+        end
+    end
+
+    return nil
 end
 
 creature.stability = 0
@@ -4634,6 +4811,18 @@ local function ConditionImmunityIsSilent(c, conditionid)
     return false
 end
 
+--The name of the modifier that makes this creature immune to a condition (a feature such as
+--Fearless), so a record of play can say why. Nil when no modifier of its own grants it.
+local function ConditionImmunitySource(c, conditionid)
+    for _,mod in ipairs(c:GetActiveModifiers()) do
+        local m = mod.mod
+        if m.behavior == "conditionimmunity" and table.contains(m:try_get("conditions", {}), conditionid) then
+            return m.name
+        end
+    end
+    return nil
+end
+
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
 --- @param args {duration:string, fullNextTurn: nil|boolean, force: nil|boolean, purge: nil|boolean, silent: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
@@ -4843,6 +5032,61 @@ function creature:InflictCondition(conditionid, args)
     end
 
     self.inflictedConditions = inflictedConditions
+end
+
+--Where conditions start and are purged, for a record of play: this wraps the whole
+--function so each of its exits is covered.
+local g_creatureInflictCondition = creature.InflictCondition
+function creature:InflictCondition(conditionid, args)
+    if args.purge then
+        return self:EndingEffects(nil, function()
+            return g_creatureInflictCondition(self, conditionid, args)
+        end)
+    end
+
+    local inflicted = self:try_get("inflictedConditions", {})
+    local hadIt = inflicted[conditionid] ~= nil
+    local immune = self:GetConditionImmunities()[conditionid]
+    local result = g_creatureInflictCondition(self, conditionid, args)
+    if immune then
+        --a silent immunity (bookkeeping such as Hampering Roots') shows nothing at the table,
+        --so play observers aren't told of it either.
+        if not args.silent and not ConditionImmunityIsSilent(self, conditionid) then
+            GameSystem.NotifyPlayObservers("conditionimmune", self, conditionid, ConditionImmunitySource(self, conditionid))
+        end
+    else
+        local entry = self:try_get("inflictedConditions", {})[conditionid]
+        if entry ~= nil then
+            GameSystem.NotifyPlayObservers("effectstarted", self, {
+                conditionid = conditionid,
+                duration = entry.duration,
+                source = args.sourceDescription,
+                renewed = hadIt or nil,
+            })
+        end
+    end
+    return result
+end
+
+local g_creatureApplyOngoingEffect = creature.ApplyOngoingEffect
+function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options)
+    local hadIt = false
+    for _, instance in ipairs(self:try_get("ongoingEffects", {})) do
+        if instance.ongoingEffectid == ongoingEffectid and not instance:Expired() then
+            hadIt = true
+        end
+    end
+    local result = g_creatureApplyOngoingEffect(self, ongoingEffectid, duration, casterInfo, options)
+    if result ~= nil then
+        GameSystem.NotifyPlayObservers("effectstarted", self, {
+            ongoingeffectid = ongoingEffectid,
+            duration = duration,
+            source = options ~= nil and options.sourceDescription or nil,
+            renewed = hadIt or nil,
+            instanceid = result.id,
+        })
+    end
+    return result
 end
 
 function creature:GetInflictedConditionCasterTime(conditionid, casterid)
@@ -5309,6 +5553,13 @@ end
 --_tmp_ field on the creature, which survives reloads and would pin future clicks.
 local g_pendingQueuedRoll = {}
 
+local function NotifyTested(creature, attrInfo, rollInfo, details)
+    --runs before the test's own completion: History's notice must never stop that.
+    pcall(function()
+        RollUtils.NotifyTested(creature, attrInfo.description .. " test", rollInfo, details, attrInfo.description)
+    end)
+end
+
 --options (optional): { modifiers = { modifierEntry, ... } } -- extra
 --entries for the roll dialog's modifier list, in the same shape
 --GetModifiersForPowerRoll returns ({ modifier, hint, context }). The
@@ -5472,9 +5723,10 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
                 rollProperties = rollProperties,
                 PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
 
-                completeRoll = function(rollInfo)
+                completeRoll = function(rollInfo, details)
                     settled = true
                     HideCard()
+                    NotifyTested(self, attrInfo, rollInfo, details)
                     if onComplete ~= nil then
                         local tier = 1
                         pcall(function() tier = RollUtils.DiceResultToTier(rollInfo) end)
@@ -5566,7 +5818,7 @@ function creature:ShowCharacteristicRollDialog(attrid, options)
             rollProperties = rollProperties,
             PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
 
-            completeRoll = function(rollInfo)
+            completeRoll = function(rollInfo, details)
                 if displaying then
                     CharacterPanel.HideAbility(syntheticAbility)
                 end
@@ -5589,6 +5841,7 @@ function creature:ShowCharacteristicRollDialog(attrid, options)
                 if onComplete ~= nil then
                     pcall(onComplete, tier)
                 end
+                NotifyTested(self, attrInfo, rollInfo, details)
 
                 token.properties:DispatchEvent("rollpower", {
                     surges = 0,
@@ -5753,7 +6006,12 @@ end
 local g_creatureSetTemporaryHitpoints = creature.SetTemporaryHitpoints
 function creature.SetTemporaryHitpoints(self, amount, note, options)
     options = options or {}
+    local poolBefore = self:TemporaryHitpoints()
     g_creatureSetTemporaryHitpoints(self, amount, note, options)
+    local poolAfter = self:TemporaryHitpoints()
+    if poolAfter > poolBefore then
+        GameSystem.NotifyPlayObservers("temporarystamina", self, poolBefore, poolAfter, note)
+    end
 
 
     if mod.unloaded then
@@ -6269,33 +6527,67 @@ local function HeroicResourceBefore(c, key)
     return c:GetResources()[CharacterResource.heroicResourceId] or 0
 end
 
+--What a creature has left of a resource a record of play follows, nil for any other.
+--Actions, maneuvers and triggers are not among them: every turn spends those.
+--It runs inside every spend and refresh, so a failure here reads as "not followed".
+local function RecordedAmount(self, key)
+    if key ~= CharacterResource.heroicResourceId and key ~= CharacterResource.surgeResourceId
+        and key ~= CharacterResource.recoveryResourceId then
+        return nil
+    end
+    local ok, amount = pcall(function()
+        local info = dmhub.GetTable(CharacterResource.tableName)[key]
+        local usage = info ~= nil and self:GetResourceUsage(key, info.usageLimit) or 0
+        return (self:GetResources()[key] or 0) - (usage or 0)
+    end)
+    return ok and amount or nil
+end
+
+--Compares after the change: a spend can be routed to a mentor or a summoner, and a
+--refresh can be capped, so what was asked for is not always what happened.
+local function ReportResource(self, key, before, refreshType, note)
+    if before == nil then
+        return
+    end
+    local after = RecordedAmount(self, key)
+    if after ~= before then
+        GameSystem.NotifyPlayObservers("resource", self, key, before, after, refreshType, note)
+    end
+end
+
 local g_baseConsumeResource = creature.ConsumeResource
 function creature.ConsumeResource(self, key, refreshType, quantity, note)
     local before = HeroicResourceBefore(self, key)
+    local amountBefore = RecordedAmount(self, key)
     local result = g_baseConsumeResource(self, key, refreshType, quantity, note)
     if before ~= nil then
         TrackHeroicResourceDelta(self, before)
     end
+    ReportResource(self, key, amountBefore, refreshType, note)
     return result
 end
 
 local g_baseRefreshResource = creature.RefreshResource
 function creature.RefreshResource(self, key, refreshType, quantity, note)
     local before = HeroicResourceBefore(self, key)
+    local amountBefore = RecordedAmount(self, key)
     local result = g_baseRefreshResource(self, key, refreshType, quantity, note)
     if before ~= nil then
         TrackHeroicResourceDelta(self, before)
     end
+    ReportResource(self, key, amountBefore, refreshType, note)
     return result
 end
 
 local g_baseAddUnboundedResource = creature.AddUnboundedResource
 function creature.AddUnboundedResource(self, key, quantity, note)
     local before = HeroicResourceBefore(self, key)
+    local amountBefore = RecordedAmount(self, key)
     local result = g_baseAddUnboundedResource(self, key, quantity, note)
     if before ~= nil then
         TrackHeroicResourceDelta(self, before)
     end
+    ReportResource(self, key, amountBefore, "unbounded", note)
     return result
 end
 
@@ -6391,6 +6683,20 @@ local function CheckFlushSquadMinionDeathBatch(key, lastConfirmed)
     if victim == nil or dmhub.LookupToken(victim) == nil then
         return
     end
+
+    --the damage behind the deaths, all types together.
+    local batchDamage = 0
+    for _, group in pairs(batch.groups) do
+        batchDamage = batchDamage + (group.damage or 0)
+    end
+    GameSystem.NotifyPlayObservers("minionsdied", victim, {
+        squad = batch.squadName,
+        killed = batch.totalKills,
+        left = batch.expectedBands,
+        cast = batch.cast,
+        damage = batchDamage,
+        each = batch.singleHealth,
+    })
 
     for damagetype,group in pairs(batch.groups) do
         victim:DispatchEvent("squadminiondeaths", {
@@ -6582,6 +6888,36 @@ local function AccumulateDamageThisTurn(self, amount)
     return self.damageTakenThisTurn
 end
 
+--Damage taken from the most recent ability, shown to Take Damage triggers as Ability
+--Damage. Saved on the creature so hits that resolve on different clients still add up.
+--A hit from another ability starts a new total.
+creature.abilityDamageCastId = ""
+creature.abilityDamageTotal = 0
+
+--- Adds this hit to the total for the ability that dealt it.
+--- Collision damage carries the pushing cast's id (abilitydamagecastid, set by the
+--- damage behavior from the collide event), so it counts toward the ability that
+--- moved the creature. Any other ability damage is keyed by its own cast.
+--- @param self creature the creature taking the damage
+--- @param info table the TakeDamage info
+--- @param amount number damage this hit dealt, including any absorbed by temporary Stamina
+--- @return number total damage from that ability so far, or amount when no ability dealt it
+local function AccumulateAbilityDamage(self, info, amount)
+    local castid = info.abilitydamagecastid
+    if (castid == nil or castid == "") and info.cast ~= nil then
+        castid = info.cast:EnsureGuid()
+    end
+    if type(castid) ~= "string" or castid == "" then
+        return amount
+    end
+    if self.abilityDamageCastId ~= castid then
+        self.abilityDamageCastId = castid
+        self.abilityDamageTotal = 0
+    end
+    self.abilityDamageTotal = self.abilityDamageTotal + amount
+    return self.abilityDamageTotal
+end
+
 --True only on TargetableObject (a map object with a Targetable component). Lets the
 --damage path skip creature-only outcomes such as the hero "dying" branch.
 creature.isMapObject = false
@@ -6750,6 +7086,7 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.attacker = nil
         end
         eventArg.damage = amount
+        eventArg.abilitydamage = AccumulateAbilityDamage(self, info, amount)
         --the minion path never draws on temporary Stamina, so the two are equal.
         eventArg.fulldamage = amount
         eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, amount))
@@ -6768,7 +7105,9 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.banes = info.cast.banesApplied
             for _, target in ipairs(info.cast.targets or {}) do
                 if target.token ~= nil and target.token.properties == self then
-                    eventArg.numberofattackers = target.numAttackers or 1
+                    --Number of Attackers counts creatures. A creature with extra free strikes
+                    --(Sprite Dandeknight) lands several strikes but is still one attacker.
+                    eventArg.numberofattackers = target.numAttackingCreatures or target.numAttackers or 1
                 end
             end
         end
@@ -6945,6 +7284,9 @@ function creature.TakeDamage(self, amount, note, info)
     --damage is the Stamina actually lost; fulldamage also counts what temporary
     --Stamina absorbed (the damage the creature took, by the rules).
     eventArg.fulldamage = original_amount
+    --Counts the full damage, like Damage This Turn, so temporary Stamina does not
+    --hide part of a hit from "10+ damage from one ability" triggers.
+    eventArg.abilitydamage = AccumulateAbilityDamage(self, info, math.max(0, original_amount))
     eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, original_amount))
     --rawdamage is only set by InflictDamageInstance; a direct TakeDamage had no
     --immunity applied, so its raw damage is just the amount.
@@ -6961,10 +7303,22 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.banes = info.cast.banesApplied
         for _, target in ipairs(info.cast.targets or {}) do
             if target.token ~= nil and target.token.properties == self then
-                eventArg.numberofattackers = target.numAttackers or 1
+                --Number of Attackers counts creatures. A creature with extra free strikes
+                --(Sprite Dandeknight) lands several strikes but is still one attacker.
+                eventArg.numberofattackers = target.numAttackingCreatures or target.numAttackers or 1
             end
         end
     end
+
+    GameSystem.NotifyPlayObservers("damage", self, {
+        landed = original_amount,
+        lost = amount,
+        raw = eventArg.rawdamage,
+        damagetype = eventArg.damagetype,
+        source = info.sourcedescription or note,
+        cast = info.cast,
+        startofturn = info.startofturn,
+    })
 
     if (not info.doesNotTrigger) and original_amount > 0 then
         self:DispatchEvent("losehitpoints", eventArg)
@@ -7097,10 +7451,12 @@ function creature.TakeDamage(self, amount, note, info)
                 end
             end
 
+            GameSystem.NotifyPlayObservers("threshold", self, "dying", {source = info.sourcedescription or note, cast = info.cast})
             self:DispatchEvent("dying", eventArg)
             print("DYING:: FIRED")
         end
     elseif isWindedNow and not isWindedAtStart then
+        GameSystem.NotifyPlayObservers("threshold", self, "winded", {source = info.sourcedescription or note, cast = info.cast})
         self:DispatchEvent("winded", eventArg)
         audio.DispatchSoundEvent("Condition.Winded", soundArgs)
         print("DYING:: WINDED")
@@ -7154,6 +7510,7 @@ function creature.TakeDamage(self, amount, note, info)
         if info.cast ~= nil then
             info.cast:RecordKill(self, 1)
         end
+        GameSystem.NotifyPlayObservers("threshold", self, "killed", {source = info.sourcedescription or note, cast = info.cast})
 
         if self:IsDead() then
             self.killingDamageType = string.lower(tostring(eventArg.damagetype or "untyped"))
@@ -7358,23 +7715,50 @@ function creature.Heal(self, amount, note)
     end
 end
 
+--Every Stamina regain ends here, so this is where a record of play hears of it, with
+--what actually changed: the amount can be cut or capped on the way in.
+local g_creatureHeal = creature.Heal
+function creature.Heal(self, amount, note)
+    local before = self:CurrentHitpoints()
+    local wasWinded = self:IsWinded()
+    g_creatureHeal(self, amount, note)
+    local regained = self:CurrentHitpoints() - before
+    if regained > 0 then
+        local recovered = nil
+        if before <= 0 and self:CurrentHitpoints() > 0 then
+            recovered = "dying"
+        elseif wasWinded and not self:IsWinded() then
+            recovered = "winded"
+        end
+        GameSystem.NotifyPlayObservers("heal", self, regained, note, recovered)
+    end
+end
+
 function creature.SetStaminaDirect(self, amount, note)
     local isWindedAtStart = self:IsWinded()
     local isBelowZeroAtStart = self:CurrentHitpoints() <= 0
     local isDeadAtStart = self:IsDead()
 
+    local before = self:CurrentHitpoints()
     self:SetCurrentHitpoints(amount, note)
+    if self:CurrentHitpoints() ~= before then
+        GameSystem.NotifyPlayObservers("staminaset", self, before, self:CurrentHitpoints(), note)
+    end
 
     local isWindedNow = self:IsWinded()
     local isBelowZeroNow = self:CurrentHitpoints() <= 0
     local isDeadNow = self:IsDead()
 
     if isWindedNow and not isWindedAtStart then
+        GameSystem.NotifyPlayObservers("threshold", self, "winded", {source = "Set by hand"})
         self:DispatchEvent("winded", {})
         audio.DispatchSoundEvent("Condition.Winded", { tokenid = dmhub.LookupTokenId(self) })
     end
 
     if isBelowZeroNow and not isBelowZeroAtStart and not self.isMapObject then
+        if not isDeadNow then
+            GameSystem.NotifyPlayObservers("threshold", self, "dying", {source = "Set by hand"})
+        end
         audio.DispatchSoundEvent("Notify.Status_Dying_Hero", { tokenid = dmhub.LookupTokenId(self) })
         self:DispatchEvent("dying", {})
     end
@@ -7382,6 +7766,7 @@ function creature.SetStaminaDirect(self, amount, note)
     if (not isDeadAtStart) and isDeadNow then
         --set directly, not by a blow: never fire.
         self.killingDamageType = "untyped"
+        GameSystem.NotifyPlayObservers("threshold", self, "killed", {source = "Set by hand"})
         self:RemoveAurasOnDeath()
         if self:IsDead() then
             self:ResetDeathSavingThrowStatus()
@@ -7483,7 +7868,7 @@ function creature:CanNavigateDifficultTerrain(flags)
 end
 
 --- @param token CharacterToken
---- @param info {type: string, amount: number, instances: number, aura: AuraInstance}
+--- @param info {type: string, amount: number, instances: number, aura: AuraInstance, startofturn: nil|boolean}
 function creature:AuraDamage(token, info)
     --Credit the damage to the aura's caster (e.g. Wall of Fire's elementalist), so
     --their "deal damage" triggers and damage stats count it.
@@ -7501,10 +7886,20 @@ function creature:AuraDamage(token, info)
         description = info.aura.aura.name,
         execute = function()
             for i = 1, info.instances do
-                self:InflictDamageInstance(info.amount, info.type, keywords, info.aura.aura.name, { damagesound = "Attack.Enviro", attacker = attacker })
+                self:InflictDamageInstance(info.amount, info.type, keywords, info.aura.aura.name, { damagesound = "Attack.Enviro", attacker = attacker, startofturn = info.startofturn })
             end
         end,
     }
+
+    --A rider on the move damage (e.g. Poisonous Thorns: "bleeding (save ends)").
+    local riderAbility = info.amount > 0 and info.aura.aura:GetMoveDamageRuleAbility() or nil
+    if riderAbility ~= nil then
+        local riderCasterToken = casterToken
+        if riderCasterToken == nil or not riderCasterToken.valid or not riderCasterToken.uploadable then
+            riderCasterToken = token
+        end
+        info.aura:FireTriggeredAbility(riderAbility, self, riderCasterToken)
+    end
 end
 
 function creature:CanMoveThroughWalls()
@@ -7852,7 +8247,11 @@ function creature:MostRecentPersistentAbilityId()
     return persistentAbility.guid
 end
 
-function creature:EndPersistentAbilityById(guid)
+--- Stops maintaining a persistent ability.
+--- @param guid string
+--- @param reason nil|string Why, for a record of play: "chose" or "targetsgone". Nil when
+--- combat is ending, which says so itself.
+function creature:EndPersistentAbilityById(guid, reason)
     local token = dmhub.LookupToken(self)
     if token == nil then
         return false
@@ -7861,12 +8260,17 @@ function creature:EndPersistentAbilityById(guid)
     local persistentAbilities = self:try_get("persistentAbilities", {})
     local persistentIndex = nil
     local targets = {}
+    local persistentName = nil
     for i, entry in ipairs(persistentAbilities) do
         if entry.guid == guid then
             persistentIndex = i
             targets = entry.targets or {}
+            persistentName = entry.abilityName
             break
         end
+    end
+    if persistentName ~= nil and reason ~= nil then
+        GameSystem.NotifyPlayObservers("persistenceended", self, persistentName, reason)
     end
 
     for _, targetid in ipairs(targets) do
@@ -7887,9 +8291,11 @@ function creature:EndPersistentAbilityById(guid)
                     description = "End Persistent Ability Target",
                     undoable = false,
                     execute = function()
-                        for _, effectid in ipairs(removeIds) do
-                            target:RemoveOngoingEffect(effectid)
-                        end
+                        target:EndingEffects(persistentName, function()
+                            for _, effectid in ipairs(removeIds) do
+                                target:RemoveOngoingEffect(effectid)
+                            end
+                        end)
                     end,
                 }
             end
@@ -8031,7 +8437,7 @@ function creature:AutoEndPersistentAbilitiesWithDeadTargets()
                 name = rawget(entry, "abilityName")
             end
             ended[#ended + 1] = name or "Persistent Ability"
-            self:EndPersistentAbilityById(entry.guid)
+            self:EndPersistentAbilityById(entry.guid, "targetsgone")
         end
     end
     return ended
@@ -8469,10 +8875,11 @@ creature.RegisterSymbol {
 function creature:StartOnDying()
     self:RemoveMatchingOngoingEffects(function(ongoingEffect)
         return ongoingEffect.removeOnEoEOrDying
-    end)
+    end, "dying")
 end
 
 function creature:EndCombat()
+    GameSystem.NotifyPlayObservers("encounterended", self)
 
     local persistentAbilities = self:try_get("persistentAbilities", {})
     for i = #persistentAbilities, 1, -1 do
@@ -8481,11 +8888,11 @@ function creature:EndCombat()
 
     self:RemoveMatchingOngoingEffects(function(ongoingEffect)
         return ongoingEffect.removeOnEoEOrDying or ongoingEffect.removeOnEoE
-    end)
+    end, "endofencounter")
 
     self:RemoveMatchingCondition(function(condition)
         return condition.duration == "eoe"
-    end)
+    end, "endofencounter")
 
     if self:has_key("auras") then
         local expires = false
@@ -8545,7 +8952,9 @@ function creature:EndCombat()
     }
 end
 
-function creature:RemoveMatchingOngoingEffects(predicate)
+--- @param predicate fun(effect: CharacterOngoingEffectInstance): boolean
+--- @param cause nil|string Why they end, as for EndingEffects.
+function creature:RemoveMatchingOngoingEffects(predicate, cause)
     local removes = nil
     local ongoingEffects = self:try_get("ongoingEffects", {})
     for i = #ongoingEffects, 1, -1 do
@@ -8569,14 +8978,18 @@ function creature:RemoveMatchingOngoingEffects(predicate)
             token:ModifyProperties {
                 description = "End combat",
                 execute = function()
-                    self.ongoingEffects = newOngoingEffects
+                    self:EndingEffects(cause, function()
+                        self.ongoingEffects = newOngoingEffects
+                    end)
                 end,
             }
         end
     end
 end
 
-function creature:RemoveMatchingCondition(predicate)
+--- @param predicate fun(condition: table): boolean
+--- @param cause nil|string Why they end, as for EndingEffects.
+function creature:RemoveMatchingCondition(predicate, cause)
     local removes = nil
     local conditions = self:try_get("inflictedConditions", {})
     for condid, condition in pairs(conditions) do
@@ -8599,7 +9012,9 @@ function creature:RemoveMatchingCondition(predicate)
             token:ModifyProperties {
                 description = "Remove matching conditions",
                 execute = function()
-                    self.inflictedConditions = newConditions
+                    self:EndingEffects(cause, function()
+                        self.inflictedConditions = newConditions
+                    end)
                 end,
             }
         end

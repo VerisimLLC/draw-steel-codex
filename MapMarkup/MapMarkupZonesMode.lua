@@ -858,6 +858,7 @@ function MM.BuildZonesMode()
 
         press = function(element)
             local entries = {}
+            local paletteKeywords = {}
 
             for _,preset in ipairs(K.ZONE_PRESETS) do
                 local inPalette = false
@@ -869,6 +870,13 @@ function MM.BuildZonesMode()
                 end
 
                 if not inPalette then
+                    --the keyword this preset adopts (MaterializeZonePreset) is the same
+                    --zone type, so don't list it a second time below.
+                    local presetKeywordid = MM.FindKeywordIdByName(preset.name)
+                    if presetKeywordid ~= nil then
+                        paletteKeywords[presetKeywordid] = true
+                    end
+
                     entries[#entries+1] = {
                         text = preset.name,
                         click = function()
@@ -883,7 +891,6 @@ function MM.BuildZonesMode()
                 end
             end
 
-            local paletteKeywords = {}
             for _,entry in ipairs(m.zonePaletteEntries) do
                 if entry.keywordid ~= nil then
                     paletteKeywords[entry.keywordid] = true

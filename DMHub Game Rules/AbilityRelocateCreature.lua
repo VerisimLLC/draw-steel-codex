@@ -278,14 +278,7 @@ function ActivatedAbilityRelocateCreatureBehavior:HasChargeAttackTarget(casterTo
             local symbols = {caster = props}
             local range = attack:GetRange(props, symbols) + dmhub.unitsPerSquare
             for _, target in ipairs(dmhub.allTokens) do
-                local hiddenFromStrike = false
-                if target.valid and attack:HasKeyword("Strike") and target.properties:HasNamedCondition("Hidden") then
-                    local ignoreRange = props:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-                    hiddenFromStrike = (ignoreRange <= 0 or casterToken:Distance(target) > ignoreRange)
-                        and not RuleUtils.WallMeldSeesTarget(casterToken, target)
-                end
                 if target.valid and attack:TargetPassesFilter(casterToken, target, symbols)
-                    and not hiddenFromStrike
                     and casterToken:Distance(target) < range
                     and math.abs(casterToken.altitude - target.altitude) * dmhub.unitsPerSquare < range
                     and casterToken:GetLineOfSight(target, props:GetPierceWalls()) > 0 then
@@ -445,7 +438,20 @@ end
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
 
+    --Last check: stops a forced move that got past the checks made before the prompt.
+    local forcedMove = options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil
+    if forcedMove and casterToken.properties:CannotBeForceMoved() then
+        return
+    end
+
     casterToken.properties._tmp_freeMovement = true
+
+    --Sent with every collide event below, so the Collision damage counts toward
+    --this ability's Ability Damage even when another client resolves the collision.
+    local forcedMovementCastId = nil
+    if options.symbols ~= nil and options.symbols.cast ~= nil then
+        forcedMovementCastId = options.symbols.cast:EnsureGuid()
+    end
 
     if ability.targetType == 'line' and options.targetArea ~= nil then
 
@@ -604,6 +610,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
         	casterToken:Teleport(teleportLoc)
+            --History: observers decide whether this is worth a line (a creature's own
+            --teleport is not; one done to it by someone else's ability is).
+            if movementType == "teleport" and distance > 0 then
+                GameSystem.NotifyPlayObservers("teleported", casterToken.properties, {
+                    distance = distance,
+                    cast = options.symbols.cast,
+                })
+            end
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
             if countsAsMovement then
@@ -875,6 +889,36 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 --clone, which InvokeAbility populates with the parent ability's keywords.
                 forcemoveEvent.distance = math.floor((path ~= nil and path.numSteps) or 0)
                 forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
+                --pcall: this is only news for play observers and must not stop the move.
+                if path ~= nil then pcall(function()
+                    --copied as plain numbers, so observers can keep the route after this path object is gone.
+                    local savedPath = {}
+                    local steps = path.steps or {}
+                    for _,step in ipairs(steps) do
+                        savedPath[#savedPath+1] = {step.x, step.y, step.floor, step.altitude}
+                    end
+                    --a fall adds its landing as a last step straight down. That is no square the creature
+                    --was moved, so it comes off distance (path.fallDistance already reads 0 here).
+                    local last, previous = steps[#steps], steps[#steps-1]
+                    local falling = previous ~= nil and last.x == previous.x and last.y == previous.y
+                        and (last.floor ~= previous.floor or previous.altitude - last.altitude > 1)
+                    GameSystem.NotifyPlayObservers("forcedmove", casterToken.properties, {
+                        kind = forcemoveEvent.type,
+                        distance = forcemoveEvent.distance - (falling and 1 or 0),
+                        falling = falling,
+                        collision = forcemoveEvent.collision,
+                        --what it ran into: an object (a wall counts) or the creatures it hit.
+                        collidewithobject = forcemoveEvent.collidewithobject,
+                        collidedwith = collisionInfo ~= nil and collisionInfo.collideWith or nil,
+                        walls = path.wallBreaks ~= nil and #path.wallBreaks or 0,
+                        path = savedPath,
+                        cast = options.symbols.cast,
+                        --who made the move, for the collision damage it adds pushing into an object.
+                        pusher = options.symbols.invoker,
+                        --what stability took off, saved on this clone by the ability that set the move up.
+                        stability = ability:try_get("_tmp_forcedMoveStability"),
+                    })
+                end) end
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
             end
 
@@ -898,6 +942,10 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							--sees the creature it passed through.
 							tok.properties._tmp_forcedMovementCast = options.symbols.cast
 							tok.properties:TriggerEvent("collide", {
+								forcedmovementcastid = forcedMovementCastId,
+								--the creature being moved, sent on both sides of the collision, so a trigger
+								--can tell its own collision from being hit by a moved creature.
+								moverid = casterToken.charid,
 								speed = 1,
 								withobject = false,
 								withcreature = true,
@@ -911,6 +959,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							})
 							casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 							casterToken.properties:TriggerEvent("collide", {
+								forcedmovementcastid = forcedMovementCastId,
+								moverid = casterToken.charid,
 								speed = 1,
 								withobject = false,
 								withcreature = true,
@@ -985,6 +1035,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 if casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                     casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
                     casterToken.properties:TriggerEvent("collide", {
+                        forcedmovementcastid = forcedMovementCastId,
+                        moverid = casterToken.charid,
                         speed = collisionInfo.speed,
                         withobject = withobject,
                         withcreature = not withobject,
@@ -1012,6 +1064,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				for _,tok in ipairs(collisionInfo.collideWith or {}) do
                     tok.properties._tmp_forcedMovementCast = options.symbols.cast
 					tok.properties:TriggerEvent("collide", {
+						forcedmovementcastid = forcedMovementCastId,
+						moverid = casterToken.charid,
 						speed = collisionInfo.speed,
                         withobject = casterToken.isObject,
                         withcreature = not casterToken.isObject,
@@ -1070,6 +1124,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
 					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 					casterToken.properties:TriggerEvent("collide", {
+						forcedmovementcastid = forcedMovementCastId,
+						moverid = casterToken.charid,
 						speed = collision.speed,
 						withobject = withobject,
 						withcreature = not withobject,
@@ -1085,6 +1141,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					for _,tok in ipairs(collideWith) do
 						tok.properties._tmp_forcedMovementCast = options.symbols.cast
 						tok.properties:TriggerEvent("collide", {
+							forcedmovementcastid = forcedMovementCastId,
+							moverid = casterToken.charid,
 							speed = collision.speed,
 							withobject = withobject,
 							withcreature = not withobject,

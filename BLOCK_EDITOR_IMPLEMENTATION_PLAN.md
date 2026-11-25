@@ -197,3 +197,53 @@ Each phase keeps today's editor routed for everything not finished.
 2. **First host:** Feature (smallest, proves the slice) then Class (recommended), or Class first?
 3. **Compendium undo:** an editor-owned undo stack (recommended, as the prototype), or wait for an engine undo for table rows?
 4. **Who builds what:** the rules side (`Block.lua`, declarations beside types) and the UI module can proceed in parallel once phase 0 lands.
+
+## 10. Web prototype features to carry into Lua (checked 2026-11-25)
+
+The Lua mockups (`ui-mockup/lua-preview/`) draw one screen of each editor, so they leave out much
+of what the web prototypes do. Nearly all of it is still the design and can be built with `gui`;
+only the items in 10.1 change because of the toolkit. Each later row names where it is designed.
+
+### 10.1 Changed by the Lua toolkit
+
+| Web prototype | In Lua | Note |
+|---|---|---|
+| Typing in place: a line of the card, a block's text value, a label (e.g. "Strained") turns into a text box where it sits | A small `gui.Input` popup opened at the word (`element.popup`) | A sentence is one label with link regions, so nothing can sit inside the line. Feels nearly the same; needs the popup placed at the word, not the whole label (`popupPositioning` takes `{x, y}`). |
+| Keyboard: Tab to each clickable word, Enter opens its menu | **Needs checking.** Link regions inside a label have no focus of their own | Fallback: arrow keys move a "current word" kept by the editor, drawn as the hover style. Without it the editors are mouse-only. |
+| Chips with an x inside a sentence (keywords, skill groups) | `gui.Multiselect` chips on their own row after the sentence, or "Melee x" as link text | Chips are panels, so they can't sit inside a label. |
+| Drag ghost from the shelf | A floating copy moved in the `dragging` event | Engine ask E2 would make it built in. |
+| Combine bracket drawn as a curve | Three 1px panels and a button | Looks plainer; works the same. |
+| Shape shows type (round values, pointed tests; first prototype) | Colour, and slots that only accept what fits (`canDragOnto`) | The stack editor had already dropped shapes for pickers. A 9-slice image with notches is possible if wanted. |
+| Card in the Bitter font | The bundled `Book` font, tier marks in `DrawSteelGlyphs` | Book look kept; face differs slightly. |
+| Recipes and drafts kept in the browser | Need a home: a settings value per user, or a compendium table to share | Decide with the recipe shelf (CLASS_AND_MODIFIER_EDITOR_PROPOSAL.md). |
+
+### 10.2 Ability editor: designed, not drawn in the mockup
+
+| Feature | Designed in |
+|---|---|
+| Card: "+ Add paragraph", move paragraphs up/down, remove; reworded lines marked, flagged when the rules change ("Use new wording" / "Reset"); rename an effect label | ABILITY_BLOCKS_DESIGN.md 4j, 4q |
+| Hover a dotted formula to see its GoblinScript (`hoverLink` + tooltip) | 4i |
+| "Show GoblinScript" switch and the "Saved data" view | 4g |
+| Open an existing ability; Paste text dialog with a sample; "Try to turn this into blocks"; "Keep as card text" | 4l, 4u, 4v |
+| Scope line: "Open in full editor" / "Keep editing here", and "Edit in full editor" on grey blocks | 4s |
+| Triggered ability: the trigger card, "+ when...", trigger conditions, Test Trigger | 4h, 4q, 4r |
+| Choose one when used (options), each option its own steps | 4n |
+| Requirements ("Can only be used when") with tests | 4n |
+| Formula builder (fx) with the GoblinScript reference; the test picker with combining first | 4aa, 4ab, 4z |
+| Remember a value; hand-offs to a follow-up; potency checks | 4w, 4ad, 4e, 4f |
+| Quick fixes ("Fix: use your ...", "Fix: target's ...") | 4y |
+| Shelf: click to add at the insertion cursor ("Drag, or click to add at When it's used"), "/" to search, the all-categories grid, faded blocks that don't fit here, hover text for every block | 4x |
+| Undo | Decision 9.3 |
+
+### 10.3 Class builder: designed, not drawn in the mockup
+
+| Feature | Designed in |
+|---|---|
+| Basics: stamina, primary characteristics, characteristic arrays as chips, kits, Recoveries | CLASS_AND_MODIFIER_EDITOR_PROPOSAL.md |
+| Levels shown side by side with "Show levels" collapse; Move to... another level; Duplicate | Proposal |
+| Feature text vs blocks: "The text is still right" / "Use the blocks' wording" | Proposal |
+| Surges: keep or this roll only; "Save as recipe", "Share all", "Open pasted class" | Proposal 26-31 |
+| Subclass tabs: "+ subclass", Delete subclass, the subclass's own lanes | Proposal |
+| Grey advanced blocks, info cards, "Copy the engine record" | BLOCK_EDITOR_FRAMEWORK.md |
+| Each gain's "saves as" line under Show GoblinScript | Proposal |
+| Growing rows ("+ more from a level"), options with their own blocks ("+ add to this option") | Proposal |

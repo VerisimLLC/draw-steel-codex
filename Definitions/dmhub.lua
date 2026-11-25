@@ -1430,6 +1430,11 @@ function dmhub:DumpSteamRichPresence() end
 --- @return boolean
 function dmhub.IsSteamOverlayRunning() end
 
+--- Unlocks the Steam achievement with this API Name (as set up in Steamworks) for the local user. Returns true once Steam has it, including when it was already unlocked. Returns false, and does nothing, when not running under Steam, when Steam has not finished loading this user's stats yet, or when the name is not a known achievement; call it again later to retry.
+--- @param apiName? string
+--- @return boolean
+function dmhub.UnlockSteamAchievement(apiName) end
+
 --- Opens the Steam overlay's 'invite a friend' dialog so a Steam friend can be invited to join the given game. The friend sees a 'Join Game' button that drops them into the game (handled by SteamJoinHandler). No-op when not running under Steam (e.g. dev builds).
 --- @param gameid? string
 function dmhub.InviteToGameViaSteam(gameid) end

@@ -5,6 +5,24 @@
 --- @field auraInstance AuraInstance
 Aura = {}
 
+--- MovementDamageFor
+--- @param forced? boolean
+--- @return number
+function Aura:MovementDamageFor(forced) end
+
+--- EntersFromFront
+--- @param from? Loc
+--- @param to? Loc
+--- @return boolean
+function Aura:EntersFromFront(from, to) end
+
+--- StepEntryCounts
+--- @param from? Loc
+--- @param to? Loc
+--- @param carried? boolean
+--- @return boolean
+function Aura:StepEntryCounts(from, to, carried) end
+
 --- MovementDamageApplies
 --- @param movementType? any
 --- @param forced? boolean

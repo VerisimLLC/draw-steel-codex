@@ -47,13 +47,13 @@
 --- @field surface DiceMaterialHandleLua Handle for reading/setting any shader property on the die's surface-override material (the MatCap/PBR overlay). Has no visible effect when the set has no surface override.
 DiceInstanceLua = {}
 
---- Removes all sticky overrides set by the script, reverting the die to its authored appearance.
-function DiceInstanceLua:ClearOverrides() end
-
 --- Splits this die's outline/halo into two colours along a line across the die, or pass nil to go back to one colour. Sticky; call it again to move the line. args fields: axis (table {x=, y=, z=}, required -- a direction in the die's own space; it turns with the die), color (Color, required -- the colour on the far side of the line from axis; die.haloColor stays the colour on the axis side), offset (number, default 0 -- where the line sits: the dot product of a direction from the die's centre with axis, -1..1, so 0 halves the die), wobble (number, default 0 -- how far the line waves), wobbleScale (number, default 1.7 -- how tight the waves are), drift (number, default 0 -- how fast the waves move), softness (number, default 0.05 -- how wide the blend between the colours is). The line is computed exactly like the Dice of Duality surface's split, so passing that material's _SplitWobble / _SplitWobbleScale / _SplitDrift and the same axis and offset makes the two line up.
 --- @param args table|nil
 --- @return nil
 function DiceInstanceLua:SetHaloSplit(args) end
+
+--- Removes all sticky overrides set by the script, reverting the die to its authored appearance.
+function DiceInstanceLua:ClearOverrides() end
 
 --- Spawns a named library effect on this die and returns a handle for tweaking it (DiceEffectHandleLua), or nil if the effect name does not resolve. The effect names are the same ones shown in the Dice Studio particle picker. args fields: id (string, required -- the effect name; 'name' is also accepted), scale (number, default 1), speed (number, default 1, particle simulation-speed multiplier), hue (number 0..1, default 0), brightness (number, default 1), tint (Color, default white), rotate (number degrees about X, default 0), attach (boolean, default true -- the effect follows the die; false leaves it at the die's current spot), layer (string, default 'above' -- 'below' renders the effect beneath the dice instead), trail (boolean, default false -- leave the emitted particles behind in the playfield as the die moves, instead of having them travel with it). Call it once (e.g. guarded on a state change), NOT every frame, or you will spawn an effect per frame.
 --- @param args table

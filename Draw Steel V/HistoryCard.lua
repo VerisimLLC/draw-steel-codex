@@ -1104,17 +1104,17 @@ local function MovedSteps(moved)
     for i, step in ipairs(path) do
         steps[i] = {x = step[1], y = step[2], floor = step[3], altitude = step[4]}
     end
-    --A fall saves its landing as a last step straight down (the test AbilityRelocateCreature uses).
-    --Dropping it ends the path in the air, as the preview's does, so the side view draws the push
-    --then the fall instead of one line to the landing.
+    --A fall is saved with its landing as a last step straight down. Dropping it ends the path in
+    --the air, as the targeting preview's does, so the side view draws the push and then the drop
+    --instead of one diagonal line to the landing.
     local last, previous = steps[#steps], steps[#steps - 1]
     if #steps > 2 and last.x == previous.x and last.y == previous.y and last.floor == previous.floor
         and (previous.altitude or 0) - (last.altitude or 0) > 1 then
         steps[#steps] = nil
         return steps, true
     end
-    --A fall to a lower floor keeps its landing, flagged as a fall the way the engine flags it,
-    --so the side view draws the drop through the floors.
+    --A fall to a lower floor keeps its landing, with those steps marked as a fall, so the side
+    --view draws the drop through the floors.
     local fell = false
     for i = #steps, 2, -1 do
         local step, above = steps[i], steps[i - 1]
@@ -1200,8 +1200,16 @@ local function SideViewSquares(steps, size)
     return squares
 end
 
---- The creatures the side view draws for a recorded move, where they stood then, for its
---- others. One that has moved or died since also gets a ghost on the map there, so the map
+--- How many squares wide a creature is. tileSize reads 1 for a dead creature (it has no token),
+--- so this reads the size itself: "1M" is 1 square, "2" is 2.
+--- @param token CharacterToken
+--- @return integer
+local function SquaresWide(token)
+    return math.max(1, tonumber(string.match(token.creatureSize or "", "^%d+")) or 1)
+end
+
+--- The creatures the side view draws for a recorded move, at the squares they stood on then.
+--- One that has moved or died since also gets a ghost on the map there, so the map
 --- matches the side view (a dead one needs it to be drawn at all); ghosts go in shown, to be
 --- destroyed. nil for moves saved before History kept the creatures around them.
 --- @param mover HistoryMover
@@ -1212,7 +1220,7 @@ local function OthersThen(mover, shown)
     if moved.near == nil then
         return nil
     end
-    local squares = SideViewSquares(mover.steps, math.max(1, (mover.dead or mover.token).tileSize or 1))
+    local squares = SideViewSquares(mover.steps, SquaresWide(mover.dead or mover.token))
     local forPlayers = not dmhub.isDM
     local others = {}
     for _, near in ipairs(moved.near) do
@@ -1223,7 +1231,7 @@ local function OthersThen(mover, shown)
         end
         local drawn = false
         if token ~= nil then
-            local size = math.max(1, (dead or token).tileSize or 1)
+            local size = SquaresWide(dead or token)
             for dx = 0, size - 1 do
                 for dy = 0, size - 1 do
                     drawn = drawn or squares[string.format("%d,%d,%d", x + dx, y + dy, floor)] == true
@@ -1365,7 +1373,8 @@ local function SideViewButton(row, mapid)
                     collisionDamage = collision > 0 and collision or nil,
                     fallDamage = fall > 0 and fall or nil,
                     others = others,
-                    --what happened, not what it can do now: a creature that fell is drawn falling.
+                    --whether it could fly then, judged by whether it fell: a creature that has
+                    --since gained flight is still drawn falling.
                     canFly = not mover.fell,
                 }
             end

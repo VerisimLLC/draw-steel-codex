@@ -203,7 +203,12 @@ function CondemnedGear.Delivered(token)
     if token == nil or token.properties == nil then
         return nil
     end
-    return token.properties:try_get(MARKER)
+    local marker = token.properties:try_get(MARKER)
+    if type(marker) ~= "table" then
+        return nil
+    end
+    --saving drops an empty list, so a hero who took no grenades comes back without one.
+    return { gear = marker.gear or {}, grenades = marker.grenades or {} }
 end
 
 --- The heroes choosing gear: the Campaign panel's roster, less anyone blown up, and only
@@ -276,6 +281,10 @@ end
 
 --true from pressing Hand out until the server answers, so a second press sends nothing.
 local g_handingOut = false
+--counts presses of Hand out, so a late answer to an earlier press is ignored.
+local g_handOutRound = 0
+--seconds to wait for the server before checking the heroes themselves.
+local HAND_OUT_TIMEOUT = 10
 
 --- True while a hand out waits for the server's answer.
 --- @return boolean
@@ -299,7 +308,7 @@ local function GiveChoices(hero, choices)
     for itemid, count in pairs(choices.grenades) do
         hero:GiveItem(itemid, count)
     end
-    hero[MARKER] = dmhub.DeepCopy(choices)
+    hero[MARKER] = { gear = dmhub.DeepCopy(choices.gear), grenades = dmhub.DeepCopy(choices.grenades) }
 end
 
 --- Director only. Gives every hero who has not had their gear yet what they chose, as one
@@ -340,6 +349,18 @@ function CondemnedGear.HandOut(onDone)
     end
 
     g_handingOut = true
+    g_handOutRound = g_handOutRound + 1
+    local round = g_handOutRound
+    local function Succeeded()
+        if mod.unloaded or not g_handingOut or round ~= g_handOutRound then
+            return
+        end
+        g_handingOut = false
+        CondemnedGear.SetOpen(false)
+        if onDone ~= nil then
+            onDone(true, #pending)
+        end
+    end
     dmhub.AtomicChange{
         holders = holders,
         description = T("condemned.gear.hand_out"),
@@ -348,23 +369,14 @@ function CondemnedGear.HandOut(onDone)
                 GiveChoices(item.token.properties, item.choices)
             end
         end,
-        onSuccess = function()
-            if mod.unloaded or not g_handingOut then
-                return
-            end
-            g_handingOut = false
-            CondemnedGear.SetOpen(false)
-            if onDone ~= nil then
-                onDone(true, #pending)
-            end
-        end,
+        onSuccess = Succeeded,
         onFail = function(error, step)
             if mod.unloaded then
                 return
             end
             print(string.format("CONDEMNED GEAR:: hand out %s refused: %s", tostring(step), tostring(error)))
             --an undo or redo refused later has nothing waiting on it.
-            if step == "do" and g_handingOut then
+            if step == "do" and g_handingOut and round == g_handOutRound then
                 g_handingOut = false
                 if onDone ~= nil then
                     onDone(false, #pending)
@@ -372,6 +384,19 @@ function CondemnedGear.HandOut(onDone)
             end
         end,
     }
+    --A Firebase game saves without the server's check and may never answer. If every
+    --hero already has their marker after a while, the gear went out.
+    dmhub.Schedule(HAND_OUT_TIMEOUT, function()
+        if mod.unloaded or not g_handingOut or round ~= g_handOutRound then
+            return
+        end
+        for _, item in ipairs(pending) do
+            if CondemnedGear.Delivered(item.token) == nil then
+                return
+            end
+        end
+        Succeeded()
+    end)
     return true
 end
 
@@ -509,7 +534,6 @@ local function GearStyles()
         { selectors = { "cgChosen" }, borderColor = HeroSheetTheme.ToHex(HeroSheetTheme.WithAlpha(palette.rawSuccess, 0.7)), priority = 10 },
         --the shown item's edge wins over the chosen one.
         { selectors = { "cgChosen", "heroSheetRowPinned" }, borderColor = palette.cardStrong, priority = 11 },
-        { selectors = { "cgArt" }, bgcolor = palette.tile, borderColor = palette.tileBorder },
         { selectors = { "cgOverPill" }, borderColor = palette.warning, color = palette.warning },
         { selectors = { "cgSuccessIcon" }, bgcolor = palette.cardSuccess },
         --the window's own surface: the scheme's plate colour.
@@ -533,7 +557,6 @@ local function GearStyles()
 end
 
 --The window's buttons are a frame with a label inside; these change both at once.
-local DIM_OPACITY = 0.45
 
 --- Solid gold (the scheme's info colour), for a window's main action.
 --- @param button Panel a HeroSheetTheme.WindowButton
@@ -543,14 +566,13 @@ local function SetGold(button, gold)
     button.children[1]:SetClass("cgGold", gold)
 end
 
---- Dim a button that can't be used now. Opacity is not passed on to children, so the
---- label is dimmed too.
+--- Dim a button that can't be used now; pressing it plays the sheet's "refused" sound.
+--- Opacity is not passed on to children, so the label is dimmed too.
 --- @param button Panel a HeroSheetTheme.WindowButton
 --- @param dimmed boolean
 local function Dim(button, dimmed)
-    local opacity = dimmed and DIM_OPACITY or 1
-    button.selfStyle.opacity = opacity
-    button.children[1].selfStyle.opacity = opacity
+    button:SetClass("heroSheetDisabled", dimmed)
+    button.children[1]:SetClass("heroSheetDisabled", dimmed)
 end
 
 --- True when this user may change the hero's choices: the Director, or their own hero
@@ -586,7 +608,7 @@ end
 --- @return Panel
 local function ItemArt(item, size)
     return gui.Panel{
-        classes = { "cgArt" },
+        classes = { "heroSheetTile" },
         bgimage = "panels/square.png",
         border = 1,
         cornerRadius = 6,
@@ -1266,7 +1288,7 @@ local function BuildPane(repaint)
                 width = "100%",
                 height = "auto",
                 gui.Panel{
-                    classes = { "cgArt" },
+                    classes = { "heroSheetTile" },
                     bgimage = "panels/square.png",
                     border = 1,
                     cornerRadius = 8,

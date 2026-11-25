@@ -775,10 +775,10 @@ local function Stepper(get, set, max, options)
             refreshNumber = function(element)
                 element:SetClass("collapsed", not CanEdit())
                 --opacity is not passed on to children: dim the icon too.
-                local opacity = Blocked(delta) and 0.35 or 1
-                element.selfStyle.opacity = opacity
+                local blocked = Blocked(delta)
+                element:SetClass("heroSheetDisabled", blocked)
                 for _, child in ipairs(element.children) do
-                    child.selfStyle.opacity = opacity
+                    child:SetClass("heroSheetDisabled", blocked)
                 end
             end,
             gui.Panel{

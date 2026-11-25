@@ -2223,8 +2223,32 @@ local function GearingUpBlock()
     local openButton = Button(T("condemned.gear.open_button"), 170, function() gear.OpenForAll() end)
     local showButton = Button(T("condemned.gear.show_it"), 80, function() gear.ShowWindow() end)
     local seeButton = Button(T("condemned.gear.see_what_took"), 170, function() gear.ShowWindow() end)
-    local function Paint()
+    --Close for everyone asks first, inline: a modal would open behind this popup.
+    local confirming = false
+    local Paint
+    local closeButton = Button(T("condemned.gear.close_for_everyone"), 150, function()
+        confirming = true
+        Paint()
+    end, {
+        classes = { "sizeS", "ccDangerButton" },
+        lmargin = 8,
+        hover = gui.Tooltip(T("condemned.gear.close_for_everyone_tip")),
+    })
+    local confirmRow = Row({
+        Small(T("condemned.gear.reset_confirm"), { valign = "center", rmargin = 8 }),
+        Button(T("condemned.gear.confirm"), 80, function()
+            confirming = false
+            gear.Reset()
+            Paint()
+        end, { classes = { "sizeS", "ccDangerButton" } }),
+        Button(T("condemned.gear.cancel"), 80, function()
+            confirming = false
+            Paint()
+        end, { lmargin = 8 }),
+    }, { tmargin = 4 })
+    Paint = function()
         local open = gear.IsOpen()
+        confirming = confirming and open
         local handedOut = gear.AnyHandedOut()
         chip:SetClass("collapsed", not open and not handedOut)
         if open then
@@ -2245,6 +2269,8 @@ local function GearingUpBlock()
         openButton:SetClass("collapsed", open or handedOut)
         showButton:SetClass("collapsed", not open)
         seeButton:SetClass("collapsed", not handedOut)
+        closeButton:SetClass("collapsed", not open or confirming)
+        confirmRow:SetClass("collapsed", not confirming)
     end
     local block = gui.Panel {
         flow = "vertical",
@@ -2256,7 +2282,8 @@ local function GearingUpBlock()
         children = {
             Row({ Label(T("condemned.gear.gearing_up"), { classes = { "ccTitle" }, bold = true, valign = "center" }), chip }),
             body,
-            Row({ openButton, showButton, seeButton }, { tmargin = 4 }),
+            Row({ openButton, showButton, seeButton, closeButton }, { tmargin = 4 }),
+            confirmRow,
         },
     }
     Paint()

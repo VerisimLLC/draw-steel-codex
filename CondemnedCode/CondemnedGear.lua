@@ -109,6 +109,16 @@ function CondemnedGear.SetOpen(open)
     end)
 end
 
+--- Starts Gearing Up over: closes the window for everyone and clears every hero's choices.
+--- Leaves the allowance and anything already handed out alone (the delivered marker is
+--- what stops a hero being given their gear twice).
+function CondemnedGear.Reset()
+    ChangeDoc("Reset experimental gear", function(data)
+        data.open = nil
+        data.choices = nil
+    end)
+end
+
 --A hero's stored choices, or empty ones when nothing (or nothing readable) is stored.
 --- @param raw any
 --- @return CondemnedGearChoices

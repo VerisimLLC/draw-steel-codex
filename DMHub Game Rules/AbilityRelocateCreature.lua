@@ -950,8 +950,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							tok.properties._tmp_forcedMovementCast = options.symbols.cast
 							tok.properties:TriggerEvent("collide", {
 								forcedmovementcastid = forcedMovementCastId,
-								--the creature being moved, on both sides of the collision: History adds only
-								--its own collisions to its push.
+								--the creature being moved, sent on both sides of the collision, so a trigger
+								--can tell its own collision from being hit by a moved creature.
 								moverid = casterToken.charid,
 								speed = 1,
 								withobject = false,

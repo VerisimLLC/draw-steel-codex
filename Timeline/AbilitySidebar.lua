@@ -2818,7 +2818,9 @@ local g_acquiringRollDialogCoid = nil
 --Pop `frame` off the trigger roll stack, along with anything stacked above it,
 --and bring the interrupted card back exactly as it was. Safe to call twice.
 ---@param frame AbilityCardFrame
-local function PopCardFrame(frame)
+---@param force boolean|nil pop even while another cast still uses the slot; only for
+---restoring a backup, which cancels every roll and cannot wait.
+local function PopCardFrame(frame, force)
     local index = nil
     for i, candidate in ipairs(g_cardStack) do
         if candidate == frame then
@@ -2834,13 +2836,13 @@ local function PopCardFrame(frame)
     --cast was finishing. Removing the slot now would destroy that roll, or drop it
     --into the restored card, so wait for that cast; the slot's think pops later.
     local busy = nil
-    if g_acquiringRollDialogCoid ~= nil and g_acquiringRollDialogCoid ~= frame.coid
+    if not force and g_acquiringRollDialogCoid ~= nil and g_acquiringRollDialogCoid ~= frame.coid
         and coroutine.IsCoroutineWithIdStillRunning(g_acquiringRollDialogCoid) then
         busy = g_acquiringRollDialogCoid
     end
     for i = index, #g_cardStack do
         local slot = g_cardStack[i].slot
-        if busy == nil and slot.valid then
+        if busy == nil and not force and slot.valid then
             local dialog = slot:FindChildRecursive(function(p)
                 return p:HasClass("embeddedRollDialog")
             end)
@@ -2920,8 +2922,8 @@ local function PushCardFrame(coid, interrupted)
         flow = "vertical",
         interactable = false,
 
-        --Backstop for a stacked cast that errors or is stopped before it finishes:
-        --the interrupted card must not stay buried under an empty slot.
+        --Pops the frame once the cast it waits on has ended: either a pop that had to
+        --wait for another cast, or a stacked cast that errored or was stopped early.
         thinkTime = 0.25,
         think = function(element)
             if not coroutine.IsCoroutineWithIdStillRunning(frame.coid) then
@@ -3550,7 +3552,9 @@ dmhub.RegisterEventHandler("restoreFromBackup", function()
            and stacked.data.IsShown() then
             stacked.data.Cancel()
         end
-        PopCardFrame(top)
+        --Forced: the cancelled roll's cast is still alive until it next runs, and
+        --a pop that waited for it would leave this loop spinning forever.
+        PopCardFrame(top, true)
     end
 
     local dialog = CharacterPanel.FindEmbeddedRollDialog()

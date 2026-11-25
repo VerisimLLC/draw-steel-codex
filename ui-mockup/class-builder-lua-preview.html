@@ -168,8 +168,10 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .note .tagline { font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
 .notes-h { font: 700 20px var(--f-label); color: var(--fgStrong); margin: 10px 0 0; }
 
-@media (max-width: 1100px) { .cols { grid-template-columns: 200px minmax(0, 1fr); } .right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); } }
-@media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } .nav { border-right: 0; border-bottom: 1px solid var(--borderSolid); display: flex; overflow-x: auto; padding: 0; } .navrow { flex: none; border-left: 0; border-bottom: 3px solid transparent; } .navrow.selected { border-bottom-color: var(--accent); } .seam { display: none; } .detail { padding: 4px 10px 20px; max-height: none; } }
+/* narrower: the section list becomes a strip across the top, so the shelf keeps its place on the right */
+@media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr) 280px; } .nav { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--borderSolid); display: flex; overflow-x: auto; padding: 0; } .navrow { flex: none; border-left: 0; border-bottom: 3px solid transparent; } .navrow.selected { border-bottom-color: var(--accent); } .seam { display: none; } }
+@media (max-width: 700px) { .right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); } }
+@media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } .detail { padding: 4px 10px 20px; max-height: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 

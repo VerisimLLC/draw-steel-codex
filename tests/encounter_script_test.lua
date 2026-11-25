@@ -2353,7 +2353,8 @@ Consequence: nothing happens
 
     local nopart = EncounterScript.Parse("Track: Dread\n\n# Results\n\nFailure: Dread +1\n\n# Encounter\n\n[[encounter]]\n")
     check(has(nopart.warnings, "'# Results' only does anything in a series part"), "Results outside a part warns")
-    check(has(nopart.warnings, "only matters in a series part"), "Track outside a part warns")
+    --tracks may remember choices in any script now, so no warning.
+    check(not has(nopart.warnings, "only matters in a series part"), "Track outside a part is allowed")
 
     --Part 2: When lines, gated islands and reinforcements, story text
     local p2 = EncounterScript.Parse([==[
@@ -2974,7 +2975,8 @@ end
     check(EncounterScript.ParseGotoLine("go to:") == "", "go to line with no name")
     check(EncounterScript.ParseGotoLine("Going to the fork") == nil, "not a go to line")
 
-    --outside a narrative "go to" is prose, as it always was; a Go to line warns.
+    --outside a narrative "go to" in a roll is prose, as it always was; a
+    --"Go to:" line is where the whole montage leads.
     local montage = EncounterScript.Parse([==[
 # Montage
 
@@ -2991,8 +2993,9 @@ Go to: The Docks
 ]==])
     local haggle = montage.beats[1].rounds[1].entries[1].options[1]
     check(haggle.roll.effects[1][1].kind == "narrative", "montage: 'go to' stays prose")
-    check(has(montage.warnings, "'Go to: The Docks' only works in a narrative"), "montage: a Go to line warns")
-    check(haggle.routeId == nil and haggle.route == nil, "montage: no route recorded")
+    check(not has(montage.warnings, "only works in a narrative"), "montage: a Go to line does not warn")
+    check(montage.beats[1].exit ~= nil and montage.beats[1].exit.name == "The Docks", "montage: a Go to line is the beat's exit")
+    check(haggle.routeId == nil and haggle.route == nil, "montage: no option route recorded")
 
     --problems the parser reports.
     local function WarningsOf(text)
@@ -3018,10 +3021,12 @@ Go to: A
 |Fine
 |Better
 ]==])
-    check(has(unknown, "'Go to Nowhere' names no section"), "warn: an unknown target")
+    --a "go to" naming no section may name another beat, so it is checked
+    --against the beats too, and reported as a "Go to:" that matches nothing.
+    check(has(unknown, "Go to: 'Nowhere' does not match any beat."), "warn: an unknown target")
     local unknownCount = 0
     for _, w in ipairs(unknown) do
-        if string.find(w, "Go to Nowhere", 1, true) then
+        if string.find(w, "'Nowhere' does not match", 1, true) then
             unknownCount = unknownCount + 1
         end
     end
@@ -3434,6 +3439,365 @@ Arrive: round 3
     byTag["encounter:empty"] = byTag["encounter:full"]
     check(#EncounterScriptValidator.ReinforcementProblems(script, resolve) == 0, "every island with monsters: no problems")
     check(#EncounterScriptValidator.ReinforcementProblems(nil, resolve) == 0, "no script: no problems")
+end)()
+
+--Branching scripts, the parser: named beats, quoted names, the
+--remembered-choice conditions, "Only if:", journal headers, beat exits,
+--offer exits and the start-only clause.
+;(function()
+    local function has(list, needle)
+        for _, warning in ipairs(list or {}) do
+            if string.find(warning, needle, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+
+    --named beat headings
+    local named = EncounterScript.Parse("# Narrative: The Crossroads\n\n## The Camp\n\nSmoke.\n\n# Montage: The Ambush\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n\n# Encounter: The Fight\n\n[[encounter]]\n")
+    check(not has(named.warnings, "Montage: The Ambush"), "a named montage heading is not an unknown beat: " .. tostring(named.warnings[1]))
+    check(named.beats[1].kind == "narrative" and named.beats[1].name == "The Crossroads", "named narrative")
+    check(named.beats[2].kind == "montage" and named.beats[2].name == "The Ambush", "named montage")
+    check(named.beats[3].kind == "encounter" and named.beats[3].name == "The Fight", "named encounter")
+    local plain = EncounterScript.Parse("# Montage\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n")
+    check(plain.beats[1].kind == "montage" and plain.beats[1].name == nil, "an unnamed beat keeps no name")
+
+    --quoted names are one word
+    local tree, problems = EncounterScript.ParseCondition("the party chose \"Fight or flee\"")
+    check(#problems == 0 and tree.op == "remembered" and tree.who == "party" and tree.key == "fight or flee", "a quoted 'or' is part of the name")
+    tree = EncounterScript.ParseCondition("the party chose \"A\" or the party chose \"B\"")
+    check(tree.op == "or" and tree.a.key == "a" and tree.b.key == "b", "an 'or' between quoted names still splits")
+    tree = EncounterScript.ParseCondition("the party chose \u{201C}Let her go\u{201D}")
+    check(tree.op == "remembered" and tree.key == "let her go", "curly quotes work")
+    tree = EncounterScript.ParseCondition("the party chose \"Walk away\" at \"The Camp\"")
+    check(tree.op == "remembered" and tree.key == "walk away" and tree.atKey == "camp", "'at' names the section")
+
+    --every new atom parses to a story atom
+    local function Atom(text)
+        local tree, problems = EncounterScript.ParseCondition(text)
+        check(#problems == 0, "parses: " .. text .. " " .. tostring(problems[1]))
+        check(EncounterScript.IsStoryAtom(tree), "story atom: " .. text)
+        return tree
+    end
+    check(Atom("a hero chose \"Offer a coin\"").who == "any", "a hero chose")
+    check(Atom("every hero chose \"Offer a coin\"").who == "every", "every hero chose")
+    check(Atom("most heroes chose \"Offer a coin\"").who == "most", "most heroes chose")
+    check(Atom("the party went to \"The Parley\"").op == "wentto", "went to")
+    local result = Atom("\"The Ambush\" was a failure")
+    check(result.op == "beatresult" and result.key == "ambush" and result.outcome == "failure", "a montage's result")
+    local deal = Atom("the party took the \"Yes, but\" deal")
+    check(deal.op == "deal" and deal.interest == EncounterScript.NegotiationOfferInterest("Yes, but"), "a deal by its offer")
+    check(Atom("5 or more heroes").op == "heroes", "party size")
+    check(Atom("there was no fight").op == "nofight", "no fight")
+    local partNoFight = Atom("Part 1 ended without a fight")
+    check(partNoFight.op == "part" and partNoFight.what == "nofight", "an earlier part without a fight")
+    check(EncounterScript.ParseCondition("pc chose \"Look\"").op == "chose", "'PC chose' is still the current turn")
+
+    --evaluating them against a remembered story
+    local story = {
+        choices = {
+            { beat = "The Crossroads", section = "The Camp", mode = "together", option = "Walk in under a white flag",
+                picks = { ["Walk in under a white flag"] = 2, ["Circle round"] = 1 }, asked = 3 },
+            { beat = "The Shrine", section = "The Shrine", mode = "individual",
+                picks = { ["Offer a coin"] = 2, ["Walk past"] = 2 }, asked = 4 },
+        },
+        path = { "The Crossroads", "The Parley" },
+        beatResults = { ambush = "failure" },
+        deals = { { beat = "Skrag", offer = "Yes, but", interest = EncounterScript.NegotiationOfferInterest("Yes, but") } },
+        heroCount = 4,
+        fought = false,
+        parts = { [1] = { outcome = "total", fought = false } },
+    }
+    local function Eval(text)
+        local tree = EncounterScript.ParseCondition(text)
+        return EncounterScript.EvalCondition(tree, function(node) return EncounterScript.EvalStoryAtom(node, story) end)
+    end
+    check(Eval("the party chose \"Walk in under a white flag\""), "party chose: yes")
+    check(not Eval("the party chose \"Circle round\""), "party chose: the losing vote is not the party's choice")
+    check(Eval("a hero chose \"Circle round\""), "a hero chose: a single vote counts")
+    check(not Eval("the party chose \"Offer a coin\""), "an individual choice is not a party choice")
+    check(Eval("a hero chose \"Offer a coin\""), "a hero chose an individual option")
+    check(not Eval("every hero chose \"Offer a coin\""), "not every hero")
+    check(not Eval("most heroes chose \"Offer a coin\""), "a tie is not most")
+    check(Eval("most heroes chose \"Walk in under a white flag\""), "2 of 3 is most")
+    check(Eval("the party chose \"Walk in under a white flag\" at \"The Camp\""), "'at' the right section")
+    check(not Eval("the party chose \"Walk in under a white flag\" at \"The Shrine\""), "'at' the wrong section")
+    check(Eval("the party went to \"The Parley\"") and not Eval("the party went to \"The Ambush\""), "went to")
+    check(Eval("\"The Ambush\" was a failure") and not Eval("\"The Ambush\" was a total success"), "a montage's result")
+    check(Eval("the party took the \"Yes but\" deal") and not Eval("the party took the \"No, and\" deal"), "a deal, by its offer")
+    check(Eval("4 or more heroes") and not Eval("5 or more heroes"), "party size")
+    check(Eval("there was no fight"), "no fight yet")
+    check(Eval("Part 1 ended without a fight"), "Part 1 had no fight")
+    story.fought = true
+    check(not Eval("there was no fight"), "a fight happened")
+
+    --"Only if:" under a beat heading, and where it does not belong
+    local gated = EncounterScript.Parse("# Montage: The Ambush\n\nOnly if: the party chose \"Circle round\"\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n")
+    check(not has(gated.warnings, "Only if"), "Only if under a beat heading is clean: " .. tostring(gated.warnings[1]))
+    check(gated.beats[1].playIf ~= nil and gated.beats[1].playIf.op == "remembered", "the beat is gated")
+    local misplaced = EncounterScript.Parse("# Narrative\n\n## The Camp\n\nOnly if: there was no fight\n\nSmoke.\n")
+    check(has(misplaced.warnings, "only works directly under a beat heading"), "Only if inside a section warns")
+    check(misplaced.beats[1].playIf == nil, "and gates nothing")
+
+    --journals: a header gates every beat in the journal; a lone beat takes
+    --the journal's name; journal and beat conditions both hold.
+    local docs = {
+        root = { id = "root", name = "Mill Road", text = "[The Crossroads]\n\n[The Ambush]\n\n[The Fight]\n" },
+        ["The Crossroads"] = { id = "c", name = "The Crossroads", text = "# Narrative\n\n## The Camp\n\nChoose together: How?\n\n### Walk in under a white flag\n\nGo to: The Fight\n\n### Circle round\n\nGo to: The Ambush\n" },
+        ["The Ambush"] = { id = "a", name = "The Ambush", text = "Only if: the party chose \"Circle round\"\n\n# Montage\n\nOnly if: 3 or more heroes\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n\nGo to: The Fight\n" },
+        ["The Fight"] = { id = "f", name = "The Fight", text = "# Encounter\n\nWhen there was no fight: +1 malice\n\n[[encounter]]\n\nGo to: Conclusion\n" },
+    }
+    local expansion = EncounterScript.ExpandIncludes(docs.root, function(target) return docs[target] end)
+    check(#expansion.spans == 3, "three journal spans")
+    local branched = EncounterScript.ParseExpanded(expansion, "root")
+    check(#branched.beats == 3, "three beats: " .. #branched.beats)
+    local crossroads, ambush, fight = branched.beats[1], branched.beats[2], branched.beats[3]
+    check(crossroads.name == "The Crossroads" and ambush.name == "The Ambush" and fight.name == "The Fight", "lone beats take their journal's names")
+    check(ambush.playIf ~= nil and ambush.playIf.op == "and" and ambush.playIf.a.op == "remembered" and ambush.playIf.b.op == "heroes", "journal and beat conditions both hold")
+    check(#ambush.playIfParts == 2, "both conditions are listed")
+    check(crossroads.playIf == nil and fight.playIf == nil, "ungated beats play")
+    check(ambush.exit ~= nil and ambush.exit.name == "The Fight", "the montage's exit")
+    check(fight.exit ~= nil and fight.exit.name == "Conclusion", "the fight's exit")
+    check(not has(branched.warnings, "unknown setup") and not has(branched.warnings, "Go to"), "Go to lines read cleanly: " .. tostring(branched.warnings[1]))
+    local camp = crossroads.sections[1]
+    check(camp.options[1].route.name == "The Fight" and camp.options[2].route.name == "The Ambush", "options route to beats by name")
+
+    --a journal's header works with no blank line before its heading too.
+    local tight = {
+        root = { id = "root", name = "Root", text = "# Montage: A\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n\n[J]\n" },
+        J = { id = "j", name = "J", text = "Only if: 5 or more heroes\n# Montage: B\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n" },
+    }
+    local tightParse = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(tight.root, function(target) return tight[target] end), "root")
+    check(tightParse.beats[2].playIf ~= nil and tightParse.beats[1].playIf == nil, "a header right above the heading gates the journal's beat")
+    check(not has(tightParse.warnings, "only works directly under"), "and is not called misplaced")
+
+    --a journal of beats linked from inside a section warns; a journal of
+    --montage entries linked into a beat (the builder's sub-documents) does not.
+    local inside = {
+        root = { id = "root", name = "Root", text = "# Narrative\n\n## The Camp\n\nSmoke.\n[Branch]\n" },
+        Branch = { id = "b", name = "Branch", text = "# Montage\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n" },
+    }
+    local insideParse = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(inside.root, function(target) return inside[target] end), "root")
+    check(has(insideParse.warnings, "This journal link is inside the section 'The Camp'"), "a journal of beats inside a section")
+    local entries = {
+        root = { id = "root", name = "Root", text = "# Montage\n\n## Opportunity: X\n\n[Entry]\n" },
+        Entry = { id = "e", name = "Entry", text = "### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n" },
+    }
+    local entriesParse = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(entries.root, function(target) return entries[target] end), "root")
+    check(not has(entriesParse.warnings, "This journal link"), "a sub-document of entries is fine")
+    local headerOnly = {
+        root = { id = "root", name = "Root", text = "# Montage\n\n## Opportunity: X\n\n[Entry]\n" },
+        Entry = { id = "e", name = "Entry", text = "Only if: there was no fight\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n" },
+    }
+    local headerParse = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(headerOnly.root, function(target) return headerOnly[target] end), "root")
+    check(has(headerParse.warnings, "does nothing: that journal has no beat heading"), "a journal header with no beat warns")
+
+    --negotiation exits: a "|Go to:" under an offer, a plain "Go to:" for the beat
+    local negotiation = EncounterScript.Parse("# Negotiation: Skrag\n\nAttitude: Suspicious\n\n## Motivation: Greed\n\n## Pitfall: Justice\n\n## Argument: Cut\nAppeals: Greed\n|Test: Presence (Persuade)\n\n## Offer: Yes, but\nYou may cross.\n|Go to: Conclusion\n\n## Offer: No, and\nHe bars the bridge.\n|+3 malice\n\nGo to: The Fight\n\n# Encounter: The Fight\n\n[[encounter]]\n")
+    local skrag = negotiation.beats[1]
+    check(skrag.name == "Skrag", "a negotiation keeps its name")
+    check(skrag.offers[4] ~= nil and skrag.offers[4].exit ~= nil and skrag.offers[4].exit.name == "Conclusion", "an offer's exit")
+    check(#skrag.offers[4].effects == 0, "the Go to is not an effect")
+    check(skrag.exit ~= nil and skrag.exit.name == "The Fight", "the negotiation's own exit")
+    check(not has(negotiation.warnings, "Go to"), "negotiation Go to lines are clean: " .. tostring(negotiation.warnings[1]))
+
+    --an exit that names no beat is an error; Conclusion and Defeat are ends
+    local typo = EncounterScript.Parse("# Montage\n\nGo to: The Fihgt\n\n# Encounter: The Fight\n\n[[encounter]]\n\nGo to: Defeat\n")
+    check(has(typo.warnings, "Go to: 'The Fihgt' does not match any beat."), "for a typo")
+    check(not has(typo.warnings, "'Defeat' does not match"), "Defeat is an end, not a beat")
+
+    --the start-only clause replaces the Start zone; the old clause adds one
+    local only = EncounterScript.ParseEffects("the heroes start only in the Ridge zone")[1]
+    check(only.kind == "startzone" and only.only == true and only.zone == "ridge", "start only in a zone")
+    local only2 = EncounterScript.ParseEffects("the Ridge zone is the only starting area")[1]
+    check(only2.kind == "startzone" and only2.only == true, "the only starting area")
+    local also = EncounterScript.ParseEffects("the Start2 zone becomes a starting area")[1]
+    check(also.kind == "startzone" and not also.only, "the add clause is unchanged")
+end)()
+
+--Branching scripts: the beat graph (NextBeat, BeatPaths) and the checks
+--that run on it.
+;(function()
+    local function has(list, needle)
+        for _, warning in ipairs(list or {}) do
+            if string.find(warning, needle, 1, true) then
+                return true
+            end
+        end
+        return false
+    end
+    local MONTAGE_BODY = "## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n\n"
+    local NEGOTIATION_BODY = "Attitude: Suspicious\n\n## Motivation: Greed\n\n## Pitfall: Justice\n\n## Argument: Cut\nAppeals: Greed\n|Test: Presence (Persuade)\n\n## Offer: Yes, but\nYou may cross.\n|Go to: Conclusion\n\n## Offer: No, and\nHe bars the bridge.\n|+3 malice\n\n"
+    local CROSSROADS = "# Narrative: The Crossroads\n\n## The Camp\n\nChoose together: How?\n\n### Walk in under a white flag\n\nGo to: The Parley\n\n### Circle round\n\nGo to: The Ambush\n\n"
+    local function Script(parleyExit, ambushExit, tail)
+        return CROSSROADS
+            .. "# Negotiation: The Parley\n\n" .. NEGOTIATION_BODY .. (parleyExit or "")
+            .. "# Montage: The Ambush\n\n" .. MONTAGE_BODY .. (ambushExit or "")
+            .. "# Encounter: The Fight\n\n[[encounter]]\n\n" .. (tail or "")
+    end
+
+    --a vote between a parley and an ambush: three ways through, one peaceful
+    local example = EncounterScript.Parse(Script("Go to: The Fight\n\n", "Go to: The Fight\n\n"))
+    check(#example.errors == 0, "the example has no errors: " .. tostring(example.errors[1]))
+    check(EncounterScript.ScriptBranches(example), "it branches")
+    local CROSS, PARLEY, AMBUSH, FIGHT = 1, 2, 3, 4
+    check(EncounterScript.ResolveBeatTarget(example, "the ambush") == AMBUSH and EncounterScript.ResolveBeatTarget(example, "Conclusion") == "conclusion", "targets resolve")
+    check(EncounterScript.NextBeat(example, CROSS, { key = "ambush" }, {}) == AMBUSH, "a Go to lands on its beat")
+    check(EncounterScript.NextBeat(example, PARLEY, "Conclusion", {}) == "conclusion", "Go to: Conclusion ends the part")
+    check(EncounterScript.NextBeat(example, CROSS, nil, {}) == PARLEY, "no Go to runs on")
+    check(EncounterScript.NextBeat(example, FIGHT, nil, {}) == nil, "past the last beat: the script has run out")
+    check(EncounterScript.NextBeat(example, CROSS, "Nowhere", {}) == PARLEY, "a target naming nothing runs on")
+    local crossExits = EncounterScript.BeatExits(example, CROSS)
+    check(#crossExits.gotos == 2 and not crossExits.falls, "the vote leaves only by its two routes")
+    local parleyExits = EncounterScript.BeatExits(example, PARLEY)
+    check(#parleyExits.gotos == 2 and not parleyExits.falls, "the parley: a deal to Conclusion, else The Fight")
+    local walk = EncounterScript.BeatPaths(example)
+    check(#walk.paths == 3 and not walk.truncated and #walk.loops == 0, "three paths: " .. #walk.paths)
+    local described = {}
+    for _, path in ipairs(walk.paths) do
+        described[EncounterScript.DescribeBeatPath(example, path) .. " | " .. path.ending] = path
+    end
+    check(described["The Crossroads -> The Parley | conclusion"] ~= nil, "the peaceful path")
+    check(described["The Crossroads -> The Parley -> The Fight | end"] ~= nil, "the parley gone wrong")
+    check(described["The Crossroads -> The Ambush -> The Fight | end"] ~= nil, "the ambush")
+    check(has(example.warnings, "The path The Crossroads -> The Parley ends without a fight"), "the fightless path is pointed out")
+    check(not has(example.warnings, "runs on into") and not has(example.warnings, "No path reaches"), "no leak, nothing unreachable")
+
+    --"Only if:" skips a beat when its condition is false
+    local gated = EncounterScript.Parse("# Montage: A\n\n" .. MONTAGE_BODY .. "# Montage: B\n\nOnly if: the party chose \"Look\"\n\n" .. MONTAGE_BODY .. "# Encounter: C\n\n[[encounter]]\n")
+    local chose = { choices = { { section = "X", mode = "together", option = "Look", picks = { Look = 1 }, asked = 1 } } }
+    check(EncounterScript.NextBeat(gated, 1, nil, chose) == 2, "Only if true: B plays")
+    check(EncounterScript.NextBeat(gated, 1, nil, {}) == 3, "Only if false: B is skipped")
+    check(#EncounterScript.BeatPaths(gated).paths == 2, "a gated beat makes two paths")
+
+    --a forgotten Go to runs on into the other choice
+    local leak = EncounterScript.Parse(Script("", "Go to: The Fight\n\n"))
+    check(has(leak.warnings, "'The Parley' runs on into 'The Ambush', the other choice at 'The Crossroads'. Did you forget a Go to?"), "the leak")
+
+    --a Go to back to an earlier beat is an error
+    local loop = EncounterScript.Parse(Script("Go to: The Fight\n\n", "Go to: The Crossroads\n\n"))
+    check(has(loop.errors, "'The Ambush' goes back to 'The Crossroads': a script may only go forward."), "the loop is an error")
+
+    --two fights on one path (only checked in a branching script)
+    local twoFights = EncounterScript.Parse(Script("Go to: The Fight\n\n", "Go to: The Fight\n\n", "# Encounter: The Boss\n\n[[encounter]]\n"))
+    check(has(twoFights.errors, "Two fights on one path are not supported yet: 'The Fight' and 'The Boss'."), "two fights")
+    local linear = EncounterScript.Parse("# Montage\n\n" .. MONTAGE_BODY .. "# Encounter\n\n[[encounter]]\n\n# Encounter\n\n[[encounter]]\n")
+    check(#linear.errors == 0 and not has(linear.warnings, "Two fights"), "an old linear two-fight script plays as before")
+
+    --a beat no path reaches
+    local unreachable = EncounterScript.Parse(Script("Go to: The Fight\n\n", "Go to: The Fight\n\n", "Go to: Conclusion\n\n# Montage: Side Room\n\n" .. MONTAGE_BODY))
+    check(has(unreachable.warnings, "No path reaches 'Side Room'."), "unreachable")
+
+    --every version of a beat gated
+    local allGated = EncounterScript.Parse("# Montage: A\n\nOnly if: 5 or more heroes\n\n" .. MONTAGE_BODY .. "# Montage: B\n\nOnly if: 4 or fewer heroes\n\n" .. MONTAGE_BODY .. "# Encounter: C\n\n[[encounter]]\n")
+    check(has(allGated.warnings, "'A' and 'B' may both be skipped"), "all versions gated")
+    local lastOpen = EncounterScript.Parse("# Montage: A\n\nOnly if: 5 or more heroes\n\n" .. MONTAGE_BODY .. "# Montage: B\n\n" .. MONTAGE_BODY .. "# Encounter: C\n\n[[encounter]]\n")
+    check(not has(lastOpen.warnings, "may both be skipped"), "the last version open is fine")
+
+    --remembered choices must name an option, and name it once
+    local badOption = EncounterScript.Parse(CROSSROADS .. "# Montage: The Ambush\n\nOnly if: the party chose \"Nope\"\n\n" .. MONTAGE_BODY .. "# Montage: The Parley\n\n" .. MONTAGE_BODY)
+    check(has(badOption.errors, "\"Nope\" is not an option in this part."), "no such option")
+    local twice = EncounterScript.Parse("# Narrative: N\n\n## Camp\n\nChoose together: ?\n\n### Rest\n\n### Go\n\n## Shrine\n\nChoose together: ?\n\n### Rest\n\n### Pray\n\n# Montage: M\n\nOnly if: the party chose \"Rest\"\n\n" .. MONTAGE_BODY)
+    check(has(twice.warnings, "\"Rest\" is an option in 'Camp' and 'Shrine'. Add at \"<section>\" to say which."), "ambiguous option")
+    local qualified = EncounterScript.Parse("# Narrative: N\n\n## Camp\n\nChoose together: ?\n\n### Rest\n\n### Go\n\n## Shrine\n\nChoose together: ?\n\n### Rest\n\n### Pray\n\n# Montage: M\n\nOnly if: the party chose \"Rest\" at \"Shrine\"\n\n" .. MONTAGE_BODY)
+    check(not has(qualified.warnings, "is an option in") and #qualified.errors == 0, "'at' settles it")
+
+    --names used twice, and names kept for endings
+    local clash = EncounterScript.Parse(CROSSROADS .. "# Montage: The Camp\n\n" .. MONTAGE_BODY .. "# Montage: The Parley\n\n" .. MONTAGE_BODY .. "# Montage: The Ambush\n\n" .. MONTAGE_BODY)
+    check(has(clash.errors, "The name 'The Camp' is used twice (a beat, a section of 'The Crossroads')."), "a beat and a section share a name")
+    local dupBeats = EncounterScript.Parse("# Montage: Twin\n\n" .. MONTAGE_BODY .. "# Montage: Twin\n\n" .. MONTAGE_BODY)
+    check(has(dupBeats.errors, "The name 'Twin' is used twice (a beat, a beat)."), "two beats share a name")
+    local reserved = EncounterScript.Parse("# Montage: Conclusion\n\n" .. MONTAGE_BODY)
+    check(has(reserved.errors, "A beat cannot be named 'Conclusion'."), "a reserved name")
+
+    --Defeat after a won fight
+    local afterFight = EncounterScript.Parse("# Montage: A\n\nOnly if: 5 or more heroes\n\n" .. MONTAGE_BODY .. "# Encounter: F\n\n[[encounter]]\n\n# Montage: After\n\n" .. MONTAGE_BODY .. "Go to: Defeat\n")
+    check(has(afterFight.errors, "After the fight, Go to: Defeat cannot change how the part ended."), "Defeat after the fight")
+
+    --one fork mixing End with an ending
+    local mixed = EncounterScript.Parse("# Narrative: N\n\n## Gate\n\nChoose together: ?\n\n### Leave\n\nGo to: Conclusion\n\n### Stay\n\nGo to: End\n\n# Encounter: F\n\n[[encounter]]\n")
+    check(has(mixed.warnings, "'Gate' mixes Go to: End (carry on) with Go to: Conclusion (end the part). Is that meant?"), "End mixed with Conclusion")
+    check(#EncounterScript.BeatPaths(mixed).paths == 2, "leave ends the part, stay runs on to the fight")
+
+    --a narrative leaves for another beat by an option's route, a
+    --section's exit or a result's "go to"; routes inside it do not leave.
+    local leaving = EncounterScript.Parse("# Narrative: Road\n\n## Fork\n\nChoose together: ?\n\n### Talk\n\nGo to: Parley\n\n### Wait\n\nGo to: Camp\n\n### Run\n\nGo to: Conclusion\n\n## Camp\n\nA fire.\n\nGo to: The Fight\n\n## Ditch\n\n### Sneak\n\n|Sneak: Agility (Sneak)\n|go to The Fight\n|You stay hidden.\n|You stay hidden.\n\n# Montage: Parley\n\n" .. MONTAGE_BODY .. "Go to: The Fight\n\n# Encounter: The Fight\n\n[[encounter]]\n")
+    local road = leaving.beats[1]
+    local fork, camp, ditch = road.sections[1], road.sections[2], road.sections[3]
+    check(road.leavesTo ~= nil and road.leavesTo["parley"] and road.leavesTo["fight"] and road.leavesTo["conclusion"], "the beats a narrative leaves for")
+    check((EncounterScript.GauntletLeave(road, fork, fork.options[1], {}) or {}).key == "parley", "an option's route to a beat leaves")
+    check(EncounterScript.GauntletLeave(road, fork, fork.options[2], {}) == nil, "a route to a section stays")
+    check((EncounterScript.GauntletLeave(road, fork, fork.options[3], {}) or {}).key == "conclusion", "Go to: Conclusion leaves")
+    check((EncounterScript.GauntletLeave(road, camp, camp.options[1], {}) or {}).key == "fight", "a section's own exit to a beat leaves")
+    local sneak = ditch.options[1]
+    check((EncounterScript.GauntletLeave(road, ditch, sneak, sneak.roll.effects[1]) or {}).key == "fight", "a result's go to a beat leaves")
+    check(EncounterScript.GauntletLeave(road, ditch, sneak, sneak.roll.effects[2]) == nil, "another result runs on")
+    check(EncounterScript.NextBeat(leaving, 1, EncounterScript.GauntletLeave(road, fork, fork.options[1], {}), {}) == 2, "the host lands on the beat left for")
+
+    --a "Go to:" back to an earlier beat is blamed on the beat that has it,
+    --with or without a loop, and does not make the other beats unreachable.
+    local backward = EncounterScript.Parse("# Montage: A\n\n" .. MONTAGE_BODY .. "Go to: C\n\n# Montage: B\n\n" .. MONTAGE_BODY .. "Go to: Conclusion\n\n# Encounter: C\n\n[[encounter]]\n\nGo to: B\n")
+    check(has(backward.errors, "'C' goes back to 'B': a script may only go forward."), "the backward jump is on C")
+    check(not has(backward.errors, "'B' goes back"), "B is not blamed")
+    check(not has(backward.warnings, "No path reaches"), "a backward jump does not hide the other beats")
+
+    --a beat named after its journal is not checked as if the author named it
+    local journalNamed = {
+        root = { id = "root", name = "Root", text = "[The Shrine]\n\n# Encounter: F\n\n[[encounter]]\n" },
+        ["The Shrine"] = { id = "s", name = "The Shrine", text = "# Narrative\n\n## The Shrine\n\nA shrine.\n" },
+    }
+    local journalNamedParse = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(journalNamed.root, function(target) return journalNamed[target] end), "root")
+    check(journalNamedParse.beats[1].name == "The Shrine" and #journalNamedParse.errors == 0, "a journal named like its section is fine: " .. tostring(journalNamedParse.errors[1]))
+    local endingNamed = {
+        root = { id = "root", name = "Root", text = "[Conclusion]\n\n# Encounter: F\n\n[[encounter]]\n" },
+        Conclusion = { id = "c", name = "Conclusion", text = "# Narrative\n\n## Outro\n\nThe end.\n" },
+    }
+    local endingNamedParse = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(endingNamed.root, function(target) return endingNamed[target] end), "root")
+    check(endingNamedParse.beats[1].name == nil and #endingNamedParse.errors == 0, "a journal named after an ending gives its beat no name")
+
+    --running on into the fight is how branches meet again: no warning
+    local rejoin = EncounterScript.Parse("# Narrative: Cross\n\n## Fork\n\nChoose together: ?\n\n### Flag\n\nGo to: The Fight\n\n### Circle\n\nGo to: The Ambush\n\n# Montage: The Ambush\n\n" .. MONTAGE_BODY .. "# Encounter: The Fight\n\n[[encounter]]\n")
+    check(not has(rejoin.warnings, "runs on into"), "a detour that runs on into the fight is fine")
+
+    --"went to" and "was a failure" must name a beat, and a montage
+    local badBeat = EncounterScript.Parse("# Montage: A\n\n" .. MONTAGE_BODY .. "# Encounter: F\n\nOnly if: the party went to \"Aa\" or \"F\" was a failure\n\n[[encounter]]\n")
+    check(has(badBeat.errors, "No beat is named 'Aa'."), "went to a beat that does not exist")
+    check(has(badBeat.errors, "'F' is not a montage, so it has no result."), "a result of a beat that is not a montage")
+
+    --"Only if:" under a round heading is not the beat's, and lines after an
+    --"Only if:" keep their own line numbers
+    local roundGate = EncounterScript.Parse("# Montage: A\n\n## Round 1\n\nOnly if: 5 or more heroes\n\n## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n")
+    check(roundGate.beats[1].playIf == nil and has(roundGate.warnings, "only works directly under a beat heading"), "Only if under a round is misplaced")
+    local numbered = EncounterScript.Parse("# Montage: A\n\nOnly if: 5 or more heroes\nGo to: Nowhere\n\n" .. MONTAGE_BODY)
+    check(has(numbered.errors, "line 4: Go to: 'Nowhere'"), "the Go to keeps its own line number: " .. tostring(numbered.errors[1]))
+
+    --errors keep their document names through ParseExpanded
+    local docs = {
+        root = { id = "root", name = "Root", text = "[Loop]\n" },
+        Loop = { id = "l", name = "Loop", text = "# Montage: A\n\n" .. MONTAGE_BODY .. "# Montage: B\n\n" .. MONTAGE_BODY .. "Go to: A\n" },
+    }
+    local expanded = EncounterScript.ParseExpanded(EncounterScript.ExpandIncludes(docs.root, function(target) return docs[target] end), "root")
+    check(#expanded.errors == 1 and string.find(expanded.errors[1], "^'Loop' line") ~= nil, "an error names its journal: " .. tostring(expanded.errors[1]))
+end)()
+
+--Branching scripts: the validator's path list (the validator was loaded above).
+;(function()
+    local body = "## Opportunity: X\n\n### Look\n\n|Look: Reason (Search)\n|a\n|b\n|c\n\n"
+    local branching = EncounterScript.Parse("# Narrative: Road\n\n## Fork\n\nChoose together: ?\n\n### Talk\n\nGo to: Conclusion\n\n### Fight\n\nGo to: The Fight\n\n### Flee\n\nGo to: Defeat\n\n# Encounter: The Fight\n\n[[encounter]]\n")
+    local rows = EncounterScriptValidator.BeatPathRows(branching)
+    local texts = {}
+    for _, row in ipairs(rows) do
+        texts[#texts + 1] = row.text
+    end
+    local all = table.concat(texts, "\n")
+    check(rows[1] ~= nil and rows[1].text == "Paths", "the path list has its heading")
+    check(#rows == 4, "a heading and three paths: " .. all)
+    check(string.find(all, "Road (no fight)", 1, true) ~= nil, "the talk path is tagged (no fight)")
+    check(string.find(all, "Road (defeat)", 1, true) ~= nil, "the flee path is tagged (defeat)")
+    check(string.find(all, "Road -> The Fight\n", 1, true) ~= nil or string.find(all, "Road -> The Fight$") ~= nil, "the fight path is untagged")
+    local linear = EncounterScript.Parse("# Montage\n\n" .. body .. "# Encounter\n\n[[encounter]]\n")
+    check(#EncounterScriptValidator.BeatPathRows(linear) == 0, "a linear script lists no paths")
 end)()
 
 print(string.format("encounter_script_test: %d checks passed", passed))

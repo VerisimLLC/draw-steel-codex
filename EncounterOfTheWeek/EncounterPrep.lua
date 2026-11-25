@@ -771,13 +771,7 @@ function EncounterPrep.StartDevDriver()
     dmhub.Coroutine(function()
         while driver.running and not mod.unloaded do
             local script = EncounterMontage.FindMapScript()
-            local beat, index = nil, nil
-            for i, b in ipairs(script.parse.beats) do
-                if b.kind == "encounter" then
-                    beat, index = b, i
-                    break
-                end
-            end
+            local beat, index = EncounterOfTheWeekGame.FightBeat(script)
             if beat == nil then
                 print("EotW preparation: this map's script has no encounter beat")
                 break

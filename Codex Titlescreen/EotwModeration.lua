@@ -882,6 +882,7 @@ function EotwModeration.ShowAchievementsDialog(args)
     local listPanel = nil
     local statusLabel = nil
     local idInput = nil
+    local suggestPanel = nil
 
     local function SetStatus(text, isError)
         if statusLabel ~= nil and statusLabel.valid then
@@ -891,6 +892,100 @@ function EotwModeration.ShowAchievementsDialog(args)
     end
 
     local Load
+
+    --Players the name search can find: everyone in town now, plus anyone
+    --with a line in town chat (Discord lines have no account here).
+    local function KnownPlayers()
+        local byId = {}
+        local conn = EotwRoster.Connection()
+        if conn == nil then
+            return {}
+        end
+        for _, entry in pairs(conn:GetPath("/chat") or {}) do
+            if type(entry) == "table" and type(entry.userid) == "string" and entry.source ~= "discord" then
+                byId[entry.userid] = { userid = entry.userid, name = tostring(entry.name or "?"), here = false }
+            end
+        end
+        for id, entry in pairs(conn:GetPath("/presence") or {}) do
+            byId[id] = { userid = id, name = tostring(entry.name or "?"), here = true }
+        end
+        local people = {}
+        for _, person in pairs(byId) do
+            people[#people + 1] = person
+        end
+        table.sort(people, function(a, b) return a.name:lower() < b.name:lower() end)
+        return people
+    end
+
+    --Known players whose name or user id contains `query` (lower-cased).
+    local function MatchPlayers(query)
+        local matches = {}
+        for _, person in ipairs(KnownPlayers()) do
+            if person.name:lower():find(query, 1, true) ~= nil or person.userid:lower():find(query, 1, true) ~= nil then
+                matches[#matches + 1] = person
+            end
+        end
+        return matches
+    end
+
+    local function ClearSuggestions()
+        if suggestPanel ~= nil and suggestPanel.valid then
+            suggestPanel.children = {}
+        end
+    end
+
+    local function LookUpPerson(person)
+        userid = person.userid
+        name = person.name
+        if idInput ~= nil and idInput.valid then
+            idInput.text = person.name
+        end
+        ClearSuggestions()
+        Load()
+    end
+
+    --The clickable matches under the search box, refreshed as the admin types.
+    local function RefreshSuggestions(query)
+        if suggestPanel == nil or not suggestPanel.valid then
+            return
+        end
+        if query:len() < 2 then
+            suggestPanel.children = {}
+            return
+        end
+        local matches = MatchPlayers(query)
+        local rows = {}
+        for i, person in ipairs(matches) do
+            if i > 8 then
+                rows[#rows + 1] = Text(string.format("...and %d more; keep typing.", #matches - 8), 14, "#b8ad96")
+                break
+            end
+            rows[#rows + 1] = gui.Panel{
+                classes = { "eotwFoundPlayer" },
+                width = "100%",
+                height = "auto",
+                pad = 6,
+                borderBox = true,
+                vmargin = 1,
+                bgimage = "panels/square.png",
+                cornerRadius = 6,
+                styles = {
+                    { selectors = { "eotwFoundPlayer" }, bgcolor = "#ffffff0a" },
+                    { selectors = { "eotwFoundPlayer", "hover" }, bgcolor = "#ffffff1a" },
+                },
+                click = function()
+                    if not busy then
+                        LookUpPerson(person)
+                    end
+                end,
+                Text(string.format("<b>%s</b>%s  <color=#8c8270><size=80%%>%s</size></color>", Plain(person.name), cond(person.here, "  <color=#b8ad96>(in town)</color>", ""), Plain(person.userid)), 16, nil, { vmargin = 0, interactable = false }),
+            }
+        end
+        if #rows == 0 then
+            rows[1] = Text("Nobody in town or town chat matches. Players elsewhere need their user id.", 14, "#b8ad96")
+        end
+        suggestPanel.children = rows
+    end
 
     --One achievement: its badge, how it is earned, where the player stands,
     --and the button that changes it.
@@ -983,7 +1078,7 @@ function EotwModeration.ShowAchievementsDialog(args)
     --Ask the city for the player's achievements and counters, and list them.
     Load = function()
         if userid == nil or userid == "" then
-            SetStatus("Enter the player's user id.", true)
+            SetStatus("Enter the player's name or user id.", true)
             return
         end
         busy = true
@@ -1006,7 +1101,7 @@ function EotwModeration.ShowAchievementsDialog(args)
                 counts[#counts + 1] = string.format("%s %d", counter.text, tonumber((result.counters or {})[counter.id]) or 0)
             end
             local rows = {
-                Text("Account: " .. Plain(userid), 15, "#b8ad96"),
+                Text("Account: " .. cond(name ~= nil and name ~= "", Plain(name or "") .. "  ", "") .. Plain(userid), 15, "#b8ad96"),
                 Text(table.concat(counts, "  -  "), 15, "#b8ad96"),
             }
             for _, def in ipairs(EotwPlayerTags.Defs()) do
@@ -1039,9 +1134,12 @@ function EotwModeration.ShowAchievementsDialog(args)
                     width = "100%-260",
                     height = 36,
                     fontSize = 17,
-                    placeholderText = "Player's user id (right-click their chat line > Copy User Id)",
+                    placeholderText = "Player's name or user id",
                     create = function(element)
                         idInput = element
+                    end,
+                    edit = function(element)
+                        RefreshSuggestions(string.trim(element.text or ""):lower())
                     end,
                 },
                 gui.Button{
@@ -1054,7 +1152,22 @@ function EotwModeration.ShowAchievementsDialog(args)
                         if busy or idInput == nil or not idInput.valid then
                             return
                         end
-                        userid = string.trim(idInput.text or "")
+                        local typed = string.trim(idInput.text or "")
+                        --a name that matches exactly one known player looks them up;
+                        --anything else is taken as a user id.
+                        local exact = {}
+                        for _, person in ipairs(KnownPlayers()) do
+                            if person.name:lower() == typed:lower() then
+                                exact[#exact + 1] = person
+                            end
+                        end
+                        if #exact == 1 then
+                            LookUpPerson(exact[1])
+                            return
+                        end
+                        userid = typed
+                        name = nil
+                        ClearSuggestions()
                         Load()
                     end,
                 },
@@ -1070,12 +1183,22 @@ function EotwModeration.ShowAchievementsDialog(args)
                             return
                         end
                         userid = dmhub.loginUserid
+                        name = nil
                         if idInput ~= nil and idInput.valid then
                             idInput.text = userid
                         end
+                        ClearSuggestions()
                         Load()
                     end,
                 },
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                create = function(element)
+                    suggestPanel = element
+                end,
             },
             gui.Panel{
                 width = "100%",

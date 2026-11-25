@@ -34,14 +34,15 @@ Everything is case-insensitive unless noted. A journal soft break
 
 ## Top-level sections
 
-`#` headings divide the script. Beats run in document order:
+`#` headings divide the script. Beats run in document order, unless the
+script branches (see "Branching between beats"):
 
 | Heading | What it is |
 |---|---|
-| `# Narrative` | a story beat on the stage: sections, choices, votes |
-| `# Montage` | a montage of rounds: opportunities and threats, tests |
+| `# Narrative` / `# Narrative: <Name>` | a story beat on the stage: sections, choices, votes |
+| `# Montage` / `# Montage: <Name>` | a montage of rounds: opportunities and threats, tests |
 | `# Negotiation: <NPC>` | a negotiation on the stage: arguments, clues, a deal |
-| `# Encounter` | the fight: setup instructions (traps, bystanders, an extra `Victory:`, `Mark:`, `Parallax:`, `Level:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
+| `# Encounter` / `# Encounter: <Name>` | the fight: setup instructions (traps, bystanders, an extra `Victory:`, `Mark:`, `Parallax:`, `Level:`), then the `[[encounter]]` island, then any `## Reinforcements: <Name>` sections |
 
 Not beats (can sit anywhere, including in a sub-document):
 
@@ -58,7 +59,9 @@ Beats after the `# Encounter` (an "Aftermath" narrative, say) play once the
 fight is **won**: after the victory screen's Proceed, the stage comes back
 with them, and the `# Conclusion` screen (or, in a test, the end of the test)
 follows when the last one is done. A defeat skips them and goes straight to
-`# Defeat`. Only one fight is played: a second `# Encounter` ends the script.
+`# Defeat`. Only one fight is played on any path: a second `# Encounter` in
+a straight-line script ends the script, and a branching script may hold
+several fights as long as no path reaches two (see "Branching between beats").
 Their rewards and story effects apply as before the fight, but a series part
 has already decided its `# Results` at the victory, so they do not change it.
 
@@ -1022,6 +1025,148 @@ real game every later part starts as if the earlier parts were "not recorded"
 and every track is 0. Until that lands, only Test Encounter's Story so far
 exercises the branches; write the `Otherwise` / "not recorded" text so a part
 still reads well from a fresh start.
+
+## Branching between beats
+
+A script can fork: a choice, a montage's result or a deal decides which
+Narrative, Montage, Negotiation or fight comes next, and a choice made earlier
+can pay off later. A script that uses none of this plays top to bottom as
+always. Design: `EncounterOfTheWeek/BRANCHING_DESIGN.md`.
+
+### Naming beats
+
+A beat that a `Go to:` points at needs a name: `# Montage: The Ambush`,
+`# Narrative: The Crossroads`, `# Encounter: The Fight`, `# Negotiation: Skrag`.
+A beat that sits alone in its own journal (a sub-document) with no name in
+its heading takes the journal's name. Names match loosely (case, a leading
+"the" and trailing punctuation do not matter). A name used twice -- two beats,
+or a beat and a narrative section or delve -- is an error, and so is a beat
+named End, Conclusion or Defeat.
+
+### Go to: where a beat leads
+
+`Go to: <beat>` sends play to that beat; `Go to: Conclusion` ends the part as
+a victory and `Go to: Defeat` as a defeat. `Go to: End` keeps its old meaning
+inside a narrative: the end of THIS narrative, and play runs on.
+
+| Where | What it does |
+|---|---|
+| under a narrative option, or as a section's own exit | the narrative ends and play goes to that beat |
+| `go to <beat>` in a narrative test's tier line | the same, for that result |
+| the last line of a montage, encounter or negotiation | where that beat leads once it is over |
+| `\|Go to: <beat>` under a negotiation `## Offer:` | where taking that deal leads |
+
+A beat with no `Go to:` runs on to the next beat written. A negotiation with
+no deal (refused, walked away), or a deal with no `Go to:`, leaves by the
+negotiation's own `Go to:` line.
+
+```markdown
+# Narrative: The Crossroads
+## The Camp
+Choose together: How do you approach?
+### Walk in under a white flag
+Go to: The Parley
+### Circle round and strike first
+Go to: The Ambush
+
+# Negotiation: The Parley
+...
+## Offer: Yes, but
+You may pass.
+|Go to: Conclusion
+## Offer: No, and
+|+2 malice
+
+Go to: The Fight
+
+# Montage: The Ambush
+...
+Go to: The Fight
+
+# Encounter: The Fight
+When the party went to "The Parley":
+[[encounter]]
+[[encounter]]
+```
+
+**Forgetting a `Go to:` is the common mistake.** Above, without
+`Go to: The Fight` at the end of The Parley, play would run on into The
+Ambush and the party would play both branches. The validator warns: "'The
+Parley' runs on into 'The Ambush', the other choice at 'The Crossroads'. Did
+you forget a Go to?"
+
+### Only if: skipping a beat
+
+`Only if: <condition>` directly under a beat heading plays that beat only when
+the condition holds; otherwise it is skipped and play runs on to the next beat
+written (the same happens when a `Go to:` lands on it). At the top of a
+journal (before its first heading) it covers every beat in that journal, and
+then the journal's and the beat's conditions must both hold. Do not use
+`When` for this: `When <condition>: <clauses>` under a beat heading applies
+clauses, it does not skip the beat.
+
+When several versions of a beat sit in a row, leave the LAST one without an
+`Only if:`, as with gated `[[encounter]]` islands; otherwise every version can
+be skipped and the validator warns.
+
+### Conditions that remember the part
+
+These work in `Only if:`, `When` lines, island gates, scenes (`if ... end`)
+and story text. Quote names; a quoted name may contain "or" / "and".
+
+| Condition | True when |
+|---|---|
+| `the party chose "Walk away"` | a together vote picked it (in this part) |
+| `the party chose "Walk away" at "The Camp"` | the same, in that section (needed when two sections share option text) |
+| `a hero chose "Offer a coin"` / `every hero chose ...` / `most heroes chose ...` | in an individual choice (or the votes of a together one); a tie is not "most" |
+| `the party went to "The Parley"` | that beat was played |
+| `"The Ambush" was a failure` / `a partial success` / `a total success` | that montage's own result, against the part's outcome bars |
+| `the party took the "Yes, but" deal` | a negotiation ended on that offer |
+| `5 or more heroes` | party size (any comparison) |
+| `there was no fight` | no fight has begun in this part |
+| `Part 1 ended without a fight` | an earlier series part was won with `Go to: Conclusion` |
+
+`PC chose "X"` still means the current hero's option in a scene, not a
+remembered choice. Choices are remembered for the rest of the part only; to
+carry one to a later part, raise a `Track:` (now allowed in any script, not
+only series parts) and read the track there.
+
+### Fights on a path
+
+- Any one path may reach **one** fight. Two fights on one path are an error
+  ("not supported yet"); use a series for skirmish-then-boss.
+- The fight played is the encounter beat the path reached: its own islands,
+  `When` lines, reinforcements, bystanders and AI lines. With several
+  fights, each fight's island may be in its own region of the map.
+- `the heroes start only in the Ridge zone` (or `the Ridge zone is the only
+  starting area`) in a fight's `When` line makes that zone THE start area,
+  instead of the Start zone and the encounter's own start tiles; heroes are
+  moved into it before combat.
+- `Go to: Conclusion` before any fight is a **victory without a fight**: the
+  Conclusion story, the town's Victories and treasure, `# Results` for a
+  series part. The validator points such a path out so it is never an
+  accident. `Go to: Defeat` before the fight is a defeat in which nobody
+  dies. After a won fight `Go to: Conclusion` just ends the beats after it;
+  `Go to: Defeat` there is an error (the part is already won).
+
+### Writing good branches
+
+- **Name the choice in the branch.** Players never see the branching itself
+  (no recap, no "1 of 3 paths"), so open each branch with a line that shows
+  their choice mattered: "Skrag lowers his axe at the sight of the white flag."
+- Give every fork's branches their own `Go to:` back to where they meet.
+- Test each branch with `/eotwstartat` (below) instead of playing the others.
+
+### Testing a branch
+
+`/eotwstartat <beat>; chose <option> [at <section>]; track <name> <value>`
+resets the test (as `/eotwmontage reset`), remembers each `chose` as the
+party's vote, sets each track, and starts the script at `<beat>`. Example:
+`/eotwstartat The Ambush; chose Circle round and strike first`.
+
+The validator (`/eotwvalidate`) lists every way through a branching script
+under **Paths**, one line each, tagged `(no fight)` or `(defeat)`, and shows
+the branching errors first among its problems.
 
 ## Full worked example (master + one sub-document)
 

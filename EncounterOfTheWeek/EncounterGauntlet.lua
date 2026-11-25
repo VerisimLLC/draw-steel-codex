@@ -715,26 +715,40 @@ local function VoteRoute(section, vote)
     return option, PartyScoped((option ~= nil and option.free or {}).effects)
 end
 
+--The section and option a route is read from: the section itself, except a
+--custom event, which leaves by its point's exit (its options never route).
+local function RouteFrom(beat, m, section, option)
+    if section ~= nil and section.gauntletEvent then
+        local gauntlet = m.gauntlet or {}
+        return EncounterScript.FindGauntletSection(beat, section.eventPoint or gauntlet.eventPoint), nil
+    end
+    return section, option
+end
+
 --The section the party goes to after `section` resolved with `option` (nil:
 --nothing taken), whose landed effects were `effects`; nil is the end. A
 --custom event point may come back here: it is only settled on arrival.
+--The second value is the "Go to:" another beat (or ending) that ends the
+--narrative here, as { key, name }, or nil.
 local function NextAfter(beat, m, section, option, effects, partySize)
-    local g = m.gauntlet or {}
-    local from = section
-    local routeOption = option
-    if section ~= nil and section.gauntletEvent then
-        --an event leaves by its point's exit; its own options never route.
-        from = EncounterScript.FindGauntletSection(beat, section.eventPoint or g.eventPoint)
-        routeOption = nil
-    end
+    local from, routeOption = RouteFrom(beat, m, section, option)
     if from == nil then
-        return nil
+        return nil, nil
     end
-    return EncounterScript.GauntletNext(beat, from, routeOption, EncounterScript.GotoTarget(effects), partySize)
+    local leave = EncounterScript.GauntletLeave(beat, from, routeOption, effects)
+    if leave ~= nil then
+        return nil, leave
+    end
+    return EncounterScript.GauntletNext(beat, from, routeOption, EncounterScript.GotoTarget(effects), partySize), nil
 end
 
 local function MoveOn(m, doc, beat, heroes, section, option, effects)
-    EnterSection(m, doc, beat, NextAfter(beat, m, section, option, effects, #heroes), heroes)
+    local nextSection, leave = NextAfter(beat, m, section, option, effects, #heroes)
+    --where the whole beat goes once it ends; the host reads it then.
+    if leave ~= nil then
+        m.exitTarget = leave
+    end
+    EnterSection(m, doc, beat, nextSection, heroes)
 end
 
 --For the stage: where the party is about to go, once the section on the
@@ -769,12 +783,29 @@ function EncounterGauntlet.UpcomingSection(beat, m)
 end
 
 --Does a fight come straight after the narrative at beatIndex? Then its end
---screen says "Draw Steel!" and waits for a click (HoldDone).
-function EncounterGauntlet.FightFollows(script, beatIndex)
+--screen says "Draw Steel!" and waits for a click (HoldDone). Reads the beat
+--that will really play next (its route out, skipped beats), the same way on
+--every client, since it reads only the shared script document. While the
+--narrative is still running, pass its `beat`, the current `section` and its
+--state `m`: that section's Proceed may lead to another beat.
+function EncounterGauntlet.FightFollows(script, beatIndex, beat, section, m)
     if script == nil or script.parse == nil or beatIndex == nil then
         return false
     end
-    local nextBeat = script.parse.beats[beatIndex + 1]
+    local nextIndex = nil
+    local ok = pcall(function()
+        if section ~= nil then
+            local from, routeOption = RouteFrom(beat, m or {}, section, section.options[1])
+            local leave = EncounterScript.GauntletLeave(beat, from, routeOption, {})
+            nextIndex = EncounterScript.NextBeat(script.parse, beatIndex, leave, EncounterMontage.Story())
+        else
+            nextIndex = EncounterOfTheWeekGame.NextBeatAfter(script, beatIndex)
+        end
+    end)
+    if not ok then
+        nextIndex = beatIndex + 1
+    end
+    local nextBeat = type(nextIndex) == "number" and script.parse.beats[nextIndex] or nil
     return nextBeat ~= nil and nextBeat.kind == "encounter"
 end
 
@@ -899,6 +930,13 @@ local function ResolveIndividual(m, doc, section, heroes)
         groups[#groups + 1] = { optionIndex = index, optionName = group.optionName, heroNames = group.heroNames, applied = applied }
     end
     g.vote.result = { groups = groups, applied = {}, at = Now() }
+    --remembered for later "a hero chose ..." conditions.
+    local picks = {}
+    for _, group in ipairs(groups) do
+        picks[group.optionName] = #group.heroNames
+    end
+    EncounterMontage.RememberChoice(doc, { beat = m.beatName, section = section.name, mode = "individual",
+        picks = picks, asked = #heroes })
     m.log = m.log or {}
     m.log[#m.log + 1] = {
         round = 1,
@@ -962,6 +1000,25 @@ local function ResolveVote(m, doc, section, heroes, optionIndex, decidedBy)
         applied = applied,
         at = Now(),
     }
+    --remembered for later "the party chose ..." conditions. Each player's
+    --vote is a pick, so "most heroes chose" reads the votes.
+    local picks, voted = {}, 0
+    for _, choice in pairs(g.vote.choices or {}) do
+        local picked = type(choice) == "table" and section.options[tonumber(choice.optionIndex) or 0] or nil
+        if picked ~= nil then
+            picks[picked.name] = (picks[picked.name] or 0) + 1
+            voted = voted + 1
+        end
+    end
+    local asked = voted
+    pcall(function()
+        asked = math.max(voted, #EncounterNarrative.Voters(section, heroes))
+    end)
+    --a section with only the implicit "Proceed" offered no real choice.
+    if not section.implicitOption then
+        EncounterMontage.RememberChoice(doc, { beat = m.beatName, section = section.name, mode = "together",
+            option = option.name, picks = picks, asked = asked })
+    end
     g.vote.decision = g.vote.decision
     m.log = m.log or {}
     m.log[#m.log + 1] = {

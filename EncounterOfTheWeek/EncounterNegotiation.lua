@@ -106,6 +106,8 @@ local function Finish(m, outcome, offer, beat)
         return {}
     end
     local doc = m_changingDoc or EncounterNegotiation.GetDoc()
+    --remembered for later "the party took the ... deal" conditions.
+    EncounterMontage.RememberDeal(doc, beat, offer)
     local heroes = EncounterMontage.Heroes()
     local anchor = heroes[1]
     local applied, newAllies = EncounterMontage.ApplyEffects(PartyScoped(offer.effects), {
@@ -312,6 +314,15 @@ function EncounterNegotiation.Begin(script, beat, beatIndex, rehearsal)
         clues = doc.data.negotiationClues or {},
         extra = { beatIndex = beatIndex },
     }
+    --the negotiation is on the part's path ("the party went to ...").
+    if not rehearsal then
+        doc:BeginChange()
+        local noted, noteErr = pcall(EncounterMontage.NotePathBeat, doc, beat, beatIndex)
+        doc:CompleteChange("Negotiation started", { undoable = false })
+        if not noted then
+            printf("EotW negotiation: noting the beat on the path failed: %s", tostring(noteErr))
+        end
+    end
     EncounterMontage.Present(beatIndex)
 end
 

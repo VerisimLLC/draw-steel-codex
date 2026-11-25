@@ -542,6 +542,12 @@ local function ParseClause(clause)
 
     --"the Start2 zone becomes a starting area": the heroes may also start
     --the encounter in that zone type.
+    --"the heroes start only in the Ridge zone": that zone REPLACES the
+    --Start zone for this fight (an alternative fight somewhere else).
+    local onlyZone = EncounterScript.ParseStartZoneOnlyClause(lower(clause))
+    if onlyZone ~= nil then
+        return { kind = "startzone", zone = onlyZone, only = true, text = clause }
+    end
     local startZone = EncounterScript.ParseStartZoneClause(lower(clause))
     if startZone ~= nil then
         return { kind = "startzone", zone = startZone, text = clause }
@@ -1228,6 +1234,27 @@ function EncounterScript.ParseLoseConsumableClause(lc)
     n = EncounterScript.ParseQuantity(string.match(lc, "^each party members? loses? (%S+) consumable$"))
     if n ~= nil then
         return n, "party"
+    end
+    return nil
+end
+
+--"The heroes start only in the Ridge zone" / "the Ridge zone is the only
+--starting area" (lowered). Returns the zone keyword name, or nil.
+function EncounterScript.ParseStartZoneOnlyClause(lc)
+    lc = trim(lc)
+    --"start zone" / "start area" / "starting zone" all mean a starting area.
+    lc = string.gsub(lc, "start zone$", "starting area")
+    lc = string.gsub(lc, "start area$", "starting area")
+    lc = string.gsub(lc, "starting zone$", "starting area")
+    for _, pattern in ipairs({
+        "^the heroes start only in the (%S+) zones?$",
+        "^the party starts only in the (%S+) zones?$",
+        "^the (%S+) zones? is the only starting area$",
+    }) do
+        local zone = string.match(lc, pattern)
+        if zone ~= nil then
+            return SingularKeyword(zone)
+        end
     end
     return nil
 end
@@ -2571,7 +2598,14 @@ function EncounterScript.ReadNegotiationParagraph(beat, target, text, firstLine,
         local label, rest = string.match(l, "^([%a][%a ]*):%s*(.*)$")
         local key = label ~= nil and lower(trim(label)) or nil
         local read = false
-        if target == nil then
+        local gotoTarget = EncounterScript.ParseGotoLine(l)
+        if gotoTarget ~= nil then
+            --"Go to: The Fight" as plain text (not a "|" rule) is where the whole
+            --negotiation leads, even inside an Offer section; one offer's own
+            --exit needs "|Go to:".
+            EncounterScript.SetGotoTarget(beat, "exit", gotoTarget, index, warn)
+            read = true
+        elseif target == nil then
             read = key ~= nil and ReadNegotiationBeatField(beat, key, trim(rest), index, warn)
             if read and key ~= nil then
                 beat.fieldLines[key] = index
@@ -2587,7 +2621,7 @@ function EncounterScript.ReadNegotiationParagraph(beat, target, text, firstLine,
         else
             read = key ~= nil and ReadNegotiationArgumentField(target, key, trim(rest))
         end
-        if read and target ~= nil and target.fieldLines ~= nil then
+        if read and gotoTarget == nil and target ~= nil and target.fieldLines ~= nil then
             target.fieldLines[cond(key == "fails", "backfires", key)] = index
         end
         if not read and l ~= "" then
@@ -2604,6 +2638,12 @@ function EncounterScript.ReadNegotiationRuleLine(target, line, index, warn)
     local body = trim(string.gsub(string.match(line, "^|(.*)$") or "", "|%s*$", ""))
     if target ~= nil and target.interest ~= nil then
         target.ruleLines[#target.ruleLines + 1] = index
+        --"|Go to: Conclusion" under an offer: where taking that deal leads.
+        local gotoTarget = EncounterScript.ParseGotoLine(body)
+        if gotoTarget ~= nil then
+            EncounterScript.SetGotoTarget(target, "exit", gotoTarget, index, warn)
+            return
+        end
         if body ~= "" then
             for _, effect in ipairs(EncounterScript.ParseEffects(body)) do
                 if effect.unrecognized then
@@ -3031,6 +3071,18 @@ function EncounterScript.ParseGotoLine(line)
     return (string.gsub(rest, "%.$", ""))
 end
 
+--Record a "Go to:" target on holder[field] (a beat's, offer's or section's
+--exit, or an option's route). The first one counts; warn reports the rest.
+function EncounterScript.SetGotoTarget(holder, field, target, lineIndex, warn)
+    if target == "" then
+        warn(lineIndex, "%s", T("author.script.narrative.goto_empty"))
+    elseif holder[field] ~= nil then
+        warn(lineIndex, "%s", T("author.script.narrative.goto_twice", { section = holder.name or holder.title or "?" }))
+    else
+        holder[field] = { name = target, key = EncounterScript.MatchKey(target), line = lineIndex }
+    end
+end
+
 --The sections of a Gauntlet beat, in document order.
 ---@return table[]
 function EncounterScript.GauntletSections(beat)
@@ -3385,18 +3437,21 @@ function EncounterScript.FinishNarrative(beat, warn)
         end
     end
     --an automatic critical repeats tier 3's clauses, so the same unknown
-    --name can come round twice for one line: warn once.
-    local warnedUnknown = {}
+    --name can come round twice for one line: record it once.
+    local recordedOutside = {}
     local function Resolve(key, name, line)
         if key == endKey then
             return EncounterScript.GAUNTLET_END
         end
         local s = byKey[key]
         if s == nil then
+            --not a section here: it may name another beat; Parse checks
+            --that once every beat is read.
             local seen = string.format("%s|%s", tostring(line), key)
-            if not warnedUnknown[seen] then
-                warnedUnknown[seen] = true
-                warn(line, "%s", T("author.script.narrative.goto_unknown", { target = name }))
+            if not recordedOutside[seen] then
+                recordedOutside[seen] = true
+                beat.outsideTargets = beat.outsideTargets or {}
+                beat.outsideTargets[#beat.outsideTargets + 1] = { key = key, name = name, line = line }
             end
             return nil
         end
@@ -3653,6 +3708,42 @@ function EncounterScript.GauntletNext(beat, section, option, tierTarget, partySi
         target = GauntletFallthrough(beat, section)
     end
     return GauntletLanding(beat, target, partySize)
+end
+
+--Does the party leave the narrative after `section` resolved with `option`
+--(nil: nothing taken) and the landed `effects`? Checks the same steps as
+--GauntletNext, in the same order; a step naming another beat, Conclusion or
+--Defeat ends the narrative there. Returns that "Go to:" as { key, name },
+--or nil when play stays inside the narrative.
+function EncounterScript.GauntletLeave(beat, section, option, effects)
+    if beat == nil or section == nil or beat.leavesTo == nil then
+        return nil
+    end
+    local lastGoto = nil
+    for _, effect in ipairs(effects or {}) do
+        if effect.kind == "goto" and (effect.targetId ~= nil or beat.leavesTo[effect.key]) then
+            lastGoto = effect
+        end
+    end
+    if lastGoto ~= nil then
+        if lastGoto.targetId ~= nil then
+            return nil
+        end
+        return { key = lastGoto.key, name = lastGoto.name }
+    end
+    if option ~= nil and option.routeId ~= nil then
+        return nil
+    end
+    if option ~= nil and option.route ~= nil and beat.leavesTo[option.route.key] then
+        return { key = option.route.key, name = option.route.name }
+    end
+    if section.exitId ~= nil then
+        return nil
+    end
+    if section.exit ~= nil and beat.leavesTo[section.exit.key] then
+        return { key = section.exit.key, name = section.exit.name }
+    end
+    return nil
 end
 
 --The entry ids of a montage beat that some "Edge on <option>" result points
@@ -4039,8 +4130,115 @@ local OUTCOME_WORDS = {
     ["failure"] = "failure", ["a failure"] = "failure",
 }
 
+--A name as an author wrote it in a condition, without its quotes.
+local function Unquote(text)
+    local trimmed = trim(text or "")
+    local inner = string.match(trimmed, "^\"(.*)\"$")
+    return trim(inner or trimmed)
+end
+
+--Conditions about what the party did earlier in this part (lower-cased,
+--except quoted names). EvalStoryAtom answers them.
+--  { op = "remembered", who = "party"|"any"|"every"|"most", option, key, at, atKey }
+--      "the party chose "X"", "a hero chose "X"", "every hero chose ...",
+--      "most heroes chose ..."; ' at "<section>"' says which section's X.
+--  { op = "wentto", beat, key }                 "the party went to "X""
+--  { op = "beatresult", beat, key, outcome }    ""The Ambush" was a failure"
+--  { op = "deal", offer, interest }             "the party took the "Yes, but" deal"
+--  { op = "heroes", comparison }                "5 or more heroes"
+--  { op = "nofight" }                           "there was no fight"
+local function ParseBranchAtom(text)
+    local who = nil
+    local rest = string.match(text, "^the party chose (.+)$")
+    if rest ~= nil then
+        who = "party"
+    else
+        rest = string.match(text, "^a hero chose (.+)$") or string.match(text, "^any hero chose (.+)$")
+        if rest ~= nil then
+            who = "any"
+        else
+            rest = string.match(text, "^every hero chose (.+)$")
+            if rest ~= nil then
+                who = "every"
+            else
+                rest = string.match(text, "^most heroes chose (.+)$") or string.match(text, "^most of the heroes chose (.+)$")
+                if rest ~= nil then
+                    who = "most"
+                end
+            end
+        end
+    end
+    if who ~= nil and rest ~= nil then
+        local option, at = string.match(rest, "^(\".-\") at (.+)$")
+        option = Unquote(option or rest)
+        if option == "" then
+            return nil
+        end
+        local node = { op = "remembered", who = who, option = option, key = EncounterScript.MatchKey(option) }
+        if at ~= nil then
+            node.at = Unquote(at)
+            node.atKey = EncounterScript.MatchKey(node.at)
+        end
+        return node
+    end
+    local beatName = string.match(text, "^the party went to (.+)$")
+    if beatName ~= nil then
+        beatName = Unquote(beatName)
+        return { op = "wentto", beat = beatName, key = EncounterScript.MatchKey(beatName) }
+    end
+    local quotedBeat, outcomeText = string.match(text, "^(\".-\") was (.+)$")
+    if quotedBeat ~= nil and OUTCOME_WORDS[outcomeText] ~= nil then
+        quotedBeat = Unquote(quotedBeat)
+        return { op = "beatresult", beat = quotedBeat, key = EncounterScript.MatchKey(quotedBeat), outcome = OUTCOME_WORDS[outcomeText] }
+    end
+    local offer = string.match(text, "^the party took the (.-) deal$")
+    if offer ~= nil then
+        offer = Unquote(offer)
+        return { op = "deal", offer = offer, interest = EncounterScript.NegotiationOfferInterest(offer) }
+    end
+    if text == "there was no fight" then
+        return { op = "nofight" }
+    end
+    local countText = string.match(text, "^(.-) heroes$")
+    local comparison = countText ~= nil and EncounterScript.ParseComparison(countText) or nil
+    if comparison ~= nil then
+        return { op = "heroes", comparison = comparison }
+    end
+    return nil
+end
+
+--Does a remembered choice match a "the party chose" style atom?
+--`choice` = { beat, section, mode = "together"|"individual", option, picks, asked }:
+--`option` is a together vote's decision, `picks` maps each option name to
+--how many heroes picked it, `asked` is how many heroes were asked.
+local function ChoiceMatches(node, choice)
+    if type(choice) ~= "table" then
+        return false
+    end
+    if node.atKey ~= nil and EncounterScript.MatchKey(choice.section) ~= node.atKey
+        and EncounterScript.MatchKey(choice.beat) ~= node.atKey then
+        return false
+    end
+    if node.who == "party" then
+        return choice.mode == "together" and EncounterScript.MatchKey(choice.option) == node.key
+    end
+    local picked = 0
+    for name, count in pairs(choice.picks or {}) do
+        if EncounterScript.MatchKey(name) == node.key then
+            picked = picked + (tonumber(count) or 0)
+        end
+    end
+    local asked = tonumber(choice.asked) or 0
+    if node.who == "any" then
+        return picked >= 1
+    elseif node.who == "every" then
+        return asked > 0 and picked >= asked
+    end
+    return picked * 2 > asked
+end
+
 --A condition atom about the story (lowered text), or nil:
---  { op = "part", part = n|"previous", what = "notrecorded"|"outcome"|"score"|"rounds"|"retreats", outcome, comparison }
+--  { op = "part", part = n|"previous", what = "notrecorded"|"nofight"|"outcome"|"score"|"rounds"|"retreats", outcome, comparison }
 --  { op = "this", what = "outcome"|"score"|"rounds"|"retreats", outcome, comparison }  ("# Results" only)
 --  { op = "track", name, key, comparison }
 function EncounterScript.ParseStoryAtom(s)
@@ -4058,6 +4256,9 @@ function EncounterScript.ParseStoryAtom(s)
         rest = trim(rest)
         if rest == "was not recorded" or rest == "is not recorded" or rest == "was not played" then
             return { op = "part", part = part, what = "notrecorded" }
+        end
+        if rest == "ended without a fight" then
+            return { op = "part", part = part, what = "nofight" }
         end
         local outcomeText = string.match(rest, "^was (.+)$")
         if outcomeText ~= nil and OUTCOME_WORDS[outcomeText] ~= nil then
@@ -4081,6 +4282,10 @@ function EncounterScript.ParseStoryAtom(s)
             return { op = "part", part = part, what = "retreats", comparison = comparison }
         end
         return nil
+    end
+    local branchAtom = ParseBranchAtom(s)
+    if branchAtom ~= nil then
+        return branchAtom
     end
     if OUTCOME_WORDS[s] ~= nil then
         return { op = "this", what = "outcome", outcome = OUTCOME_WORDS[s] }
@@ -4108,16 +4313,28 @@ function EncounterScript.ParseStoryAtom(s)
     return nil
 end
 
+--Condition ops answered from the story, not the hero or the roll.
+local STORY_OPS = {
+    part = true, this = true, track = true,
+    remembered = true, wentto = true, beatresult = true, deal = true, heroes = true, nofight = true,
+}
+
 --Is this condition atom about the story (rather than the hero or the roll)?
 function EncounterScript.IsStoryAtom(node)
-    return node ~= nil and (node.op == "part" or node.op == "this" or node.op == "track")
+    return node ~= nil and STORY_OPS[node.op] == true
 end
 
 --Answer a story atom. `story` = {
 --  part = this part's number,
---  parts = { [k] = { outcome, score, rounds, retreats } | anything else = not recorded },
+--  parts = { [k] = { outcome, score, rounds, retreats, fought } | anything else = not recorded },
 --  tracks = { [track key] = value },
---  this = nil | { outcome, score, rounds, retreats }   (only while "# Results" runs) }.
+--  this = nil | { outcome, score, rounds, retreats }   (only while "# Results" runs),
+--  and what this part has remembered so far (see ParseBranchAtom):
+--  choices = { { beat, section, mode, option, picks, asked }, ... },
+--  path = { beat name, ... } (the beats played, in order),
+--  beatResults = { [MatchKey of a montage beat's name] = "total"|"partial"|"failure" },
+--  deals = { { beat, offer, interest }, ... },
+--  heroCount = number, fought = true once this part's fight began }.
 --Returns nil for an atom that is not about the story.
 function EncounterScript.EvalStoryAtom(node, story)
     if not EncounterScript.IsStoryAtom(node) then
@@ -4127,6 +4344,37 @@ function EncounterScript.EvalStoryAtom(node, story)
     if node.op == "track" then
         local value = (story.tracks or {})[node.key] or 0
         return EncounterScript.Compare(value, node.comparison)
+    elseif node.op == "remembered" then
+        for _, choice in ipairs(story.choices or {}) do
+            if ChoiceMatches(node, choice) then
+                return true
+            end
+        end
+        return false
+    elseif node.op == "wentto" then
+        for _, name in ipairs(story.path or {}) do
+            if EncounterScript.MatchKey(name) == node.key then
+                return true
+            end
+        end
+        return false
+    elseif node.op == "beatresult" then
+        return (story.beatResults or {})[node.key] == node.outcome
+    elseif node.op == "deal" then
+        for _, deal in ipairs(story.deals or {}) do
+            if type(deal) == "table" then
+                if node.interest ~= nil and deal.interest == node.interest then
+                    return true
+                elseif node.interest == nil and EncounterScript.MatchKey(deal.offer) == EncounterScript.MatchKey(node.offer) then
+                    return true
+                end
+            end
+        end
+        return false
+    elseif node.op == "heroes" then
+        return EncounterScript.Compare(tonumber(story.heroCount), node.comparison)
+    elseif node.op == "nofight" then
+        return not story.fought
     end
     local result = nil
     if node.op == "this" then
@@ -4147,7 +4395,9 @@ function EncounterScript.EvalStoryAtom(node, story)
     if type(result) ~= "table" then
         return false
     end
-    if node.what == "outcome" then
+    if node.what == "nofight" then
+        return result.fought == false
+    elseif node.what == "outcome" then
         return result.outcome == node.outcome
     elseif node.what == "score" then
         return EncounterScript.Compare(result.score, node.comparison)
@@ -4225,8 +4475,22 @@ end
 --"or". Returns the condition tree and a list of problems (strings).
 function EncounterScript.ParseCondition(text)
     local problems = {}
-    local src = lower(trim(text or ""))
-    src = string.gsub(src, "%s+then$", "")
+    local src = trim(text or "")
+    src = string.gsub(src, "%s+[Tt][Hh][Ee][Nn]$", "")
+    --A quoted name ("Fight or flee") is one word: swap each for a marker
+    --before splitting, so its "or" / "and" / brackets are not operators.
+    --Quoted names keep the author's capitals for messages; the rest is lowered.
+    src = string.gsub(src, "\u{201C}", "\"")
+    src = string.gsub(src, "\u{201D}", "\"")
+    local quoted = {}
+    src = string.gsub(src, "\"([^\"]*)\"", function(inner)
+        quoted[#quoted + 1] = inner
+        return " \1" .. #quoted .. "\1 "
+    end)
+    src = lower(src)
+    local function Unmark(marked)
+        return (string.gsub(marked, "\1(%d+)\1", function(index) return "\"" .. (quoted[tonumber(index)] or "") .. "\"" end))
+    end
     src = string.gsub(src, "%(", " ( ")
     src = string.gsub(src, "%)", " ) ")
     local tokens = {}
@@ -4269,7 +4533,7 @@ function EncounterScript.ParseCondition(text)
             problems[#problems + 1] = T("author.script.condition.missing")
             return { op = "unknown", text = "" }
         end
-        local atom = ParseConditionAtom(table.concat(words, " "))
+        local atom = ParseConditionAtom(Unmark(table.concat(words, " ")))
         if atom.op == "unknown" then
             problems[#problems + 1] = T("author.script.condition.unknown", { condition = atom.text })
         end
@@ -4294,7 +4558,7 @@ function EncounterScript.ParseCondition(text)
 
     local tree = ParseOr()
     if tokens[pos] ~= nil then
-        problems[#problems + 1] = T("author.script.condition.unexpected", { word = tokens[pos] })
+        problems[#problems + 1] = T("author.script.condition.unexpected", { word = Unmark(tokens[pos]) })
     end
     return tree, problems
 end
@@ -4786,10 +5050,13 @@ end
 --  sources = { [expandedLine] = { docid, name, line } } -- where each line of
 --      the expanded text came from (line is 1-based within that document)
 --  included = { [docid] = { id, name } } -- every document spliced in
+--  spans = { { first, last, docid, name }, ... }: the expanded lines each
+--      spliced document filled, so the parser can tell where a journal
+--      begins (its "Only if:" header) and name a beat after its journal
 --  warnings = { "...", ... },
 --}
 function EncounterScript.ExpandIncludes(root, resolve)
-    local out, sources, warnings, included = {}, {}, {}, {}
+    local out, sources, warnings, included, spans = {}, {}, {}, {}, {}
     local function Warn(src, fmt, ...)
         warnings[#warnings + 1] = EncounterScript.DescribeSource(src, root.id) .. ": " .. string.format(fmt, ...)
     end
@@ -4816,7 +5083,10 @@ function EncounterScript.ExpandIncludes(root, resolve)
                     --below the link never runs into the included text.
                     out[#out + 1] = ""
                     sources[#out] = src
+                    local span = { first = #out + 1, docid = child.id, name = child.name }
+                    spans[#spans + 1] = span
                     Expand(child, depth + 1)
+                    span.last = #out
                     out[#out + 1] = ""
                     sources[#out] = src
                     spliced = true
@@ -4830,7 +5100,7 @@ function EncounterScript.ExpandIncludes(root, resolve)
         stack[doc.id] = nil
     end
     Expand(root, 0)
-    return { text = table.concat(out, "\n"), sources = sources, included = included, warnings = warnings }
+    return { text = table.concat(out, "\n"), sources = sources, included = included, spans = spans, warnings = warnings }
 end
 
 --Where a line of a parsed script came from, for a message. Plain "line N"
@@ -4846,7 +5116,7 @@ end
 --and `included`; its warnings name the document each line came from, and
 --the include problems come first.
 function EncounterScript.ParseExpanded(expansion, rootId)
-    local parse = EncounterScript.Parse(expansion.text)
+    local parse = EncounterScript.Parse(expansion.text, { spans = expansion.spans })
     parse.sources = expansion.sources
     parse.rootId = rootId
     parse.included = expansion.included
@@ -4854,14 +5124,24 @@ function EncounterScript.ParseExpanded(expansion, rootId)
     for _, w in ipairs(expansion.warnings) do
         warnings[#warnings + 1] = w
     end
+    local isError = {}
+    for _, errorText in ipairs(parse.errors or {}) do
+        isError[errorText] = true
+    end
+    local errors = {}
     for _, w in ipairs(parse.warnings) do
+        local original = w
         local n, rest = string.match(w, "^line (%d+): (.*)$")
         if n ~= nil then
             w = EncounterScript.LineLabel(parse, tonumber(n)) .. ": " .. rest
         end
         warnings[#warnings + 1] = w
+        if isError[original] then
+            errors[#errors + 1] = w
+        end
     end
     parse.warnings = warnings
+    parse.errors = errors
     return parse
 end
 
@@ -4916,8 +5196,45 @@ EncounterScript.STORY_SECTIONS = {
     ["defeat"] = "defeat",
 }
 
-function EncounterScript.Parse(text)
+--Beat kinds whose heading may carry a name ("# Montage: The Ambush").
+--Negotiations and delves read their own names separately.
+local NAMED_BEAT_KINDS = { montage = true, narrative = true, encounter = true }
+
+--Beat kinds that play in order and can be routed to with "Go to:" or
+--skipped with "Only if:".
+local BRANCHING_BEAT_KINDS = { montage = true, narrative = true, encounter = true, negotiation = true }
+
+--`opts.spans` (from ExpandIncludes) marks the lines each linked journal
+--filled; without it the whole text is one document.
+function EncounterScript.Parse(text, opts)
     local lines = SplitLines(text)
+    --Journal state per span: `sawHeading` once a "#" heading appears inside
+    --it, `onlyIf` the journal's own "Only if:" header.
+    local journalSpans = {}
+    for _, span in ipairs((opts and opts.spans) or {}) do
+        journalSpans[#journalSpans + 1] = { first = span.first, last = span.last or span.first, docid = span.docid, name = span.name }
+    end
+    --The innermost linked journal holding expanded line `lineNumber`, or nil
+    --for the script's own document.
+    local function JournalAt(lineNumber)
+        local best = nil
+        for _, span in ipairs(journalSpans) do
+            if lineNumber >= span.first and lineNumber <= span.last and (best == nil or span.first >= best.first) then
+                best = span
+            end
+        end
+        return best
+    end
+    --Does a linked journal hold a beat heading of its own? (A journal of
+    --montage entries linked into a beat does not, and is fine anywhere.)
+    local function JournalHasBeat(span)
+        for lineNumber = span.first, span.last do
+            if string.match(trim(lines[lineNumber] or ""), "^#%s") then
+                return true
+            end
+        end
+        return false
+    end
     --`delves`: the "# Delve: <Name>" sections, by EncounterScript.MatchKey
     --of their name. They are not beats -- nothing plays them in order -- an
     --option enters one with a "Delve: <Name>" line (see "Delves" below).
@@ -4928,6 +5245,13 @@ function EncounterScript.Parse(text)
 
     local function Warn(lineIndex, fmt, ...)
         result.warnings[#result.warnings + 1] = string.format("line %d: " .. fmt, lineIndex, ...)
+    end
+    --Branching mistakes that break play go in `errors` as well as
+    --`warnings`, so the validator can show them as errors.
+    result.errors = {}
+    local function Error(lineIndex, text)
+        Warn(lineIndex, "%s", text)
+        result.errors[#result.errors + 1] = result.warnings[#result.warnings]
     end
 
     local beat = nil      --current beat
@@ -5118,6 +5442,52 @@ function EncounterScript.Parse(text)
         return trim(table.concat(rest, "\n"))
     end
 
+    --"Only if: <condition>" lines: at the top of a linked journal (before
+    --its first "#" heading) they gate every beat in that journal; in a beat's
+    --opening text (before any "##" heading) they gate that beat. A gated
+    --beat whose condition is false is skipped. Returns the other lines, and
+    --how many lines were taken off the top (so later lines keep their numbers).
+    local function TakeOnlyIfLines(text, firstLine)
+        local rest = {}
+        local takenFromTop = 0
+        local lineIndex = firstLine
+        for _, rawLine in ipairs(SplitLines(text)) do
+            local condText = string.match(trim(rawLine), "^[Oo]nly [Ii][Ff]%s*:%s*(.-)%s*$")
+            if condText == nil then
+                rest[#rest + 1] = rawLine
+            else
+                if #rest == 0 then
+                    takenFromTop = takenFromTop + 1
+                end
+                local tree, problems = EncounterScript.ParseCondition(condText)
+                local journal = JournalAt(lineIndex)
+                local holder = nil
+                if journal ~= nil and not journal.sawHeading then
+                    holder = journal
+                elseif beat ~= nil and BRANCHING_BEAT_KINDS[beat.kind] and entry == nil and option == nil
+                    and section == nil and reinforcement == nil and round == nil then
+                    holder = beat
+                end
+                if condText == "" or #problems > 0 then
+                    for _, problem in ipairs(problems) do
+                        Warn(lineIndex, "%s", T("author.script.branch.only_if_problem", { condition = condText, problem = problem }))
+                    end
+                    if condText == "" then
+                        Warn(lineIndex, "%s", T("author.script.branch.only_if_empty"))
+                    end
+                elseif holder == nil then
+                    Warn(lineIndex, "%s", T("author.script.branch.only_if_misplaced", { condition = condText }))
+                elseif holder.onlyIf ~= nil then
+                    Warn(lineIndex, "%s", T("author.script.branch.only_if_twice"))
+                else
+                    holder.onlyIf = { cond = tree, text = condText, line = lineIndex }
+                end
+            end
+            lineIndex = lineIndex + 1
+        end
+        return trim(table.concat(rest, "\n")), takenFromTop
+    end
+
     --"# Results": "Outcome: total success at 1, partial at 0" and
     --"<condition>: <clauses>" lines. Other lines are notes.
     local function ReadResultsParagraph(text, firstLine)
@@ -5277,13 +5647,7 @@ function EncounterScript.Parse(text)
     --Record a "Go to:" line on `holder` (a section's own exit or an option's
     --route). The first one counts.
     local function SetGoto(holder, field, target, lineIndex)
-        if target == "" then
-            Warn(lineIndex, "%s", T("author.script.narrative.goto_empty"))
-        elseif holder[field] ~= nil then
-            Warn(lineIndex, "%s", T("author.script.narrative.goto_twice", { section = holder.name or "?" }))
-        else
-            holder[field] = { name = target, key = EncounterScript.MatchKey(target), line = lineIndex }
-        end
+        EncounterScript.SetGotoTarget(holder, field, target, lineIndex, Warn)
     end
 
     --Where a paragraph sat: holder[key] collects {first, last} line spans so
@@ -5306,6 +5670,14 @@ function EncounterScript.Parse(text)
             return
         end
         g_parseLine = spanFirst
+        local takenFromTop
+        text, takenFromTop = TakeOnlyIfLines(text, spanFirst)
+        if text == "" then
+            return
+        end
+        --the rest of the paragraph starts lower down by the lines taken.
+        spanFirst = spanFirst + takenFromTop
+        paragraphLine = paragraphLine + takenFromTop
         --"Track:" declarations sit above the first heading or under "# Part N".
         if beat == nil or beat.kind == "part" then
             text = TakePartLines(text, spanFirst)
@@ -5367,6 +5739,15 @@ function EncounterScript.Parse(text)
             end
             --everything else is read as sections, options and the beat's
             --intro by the montage-shaped branches below.
+        end
+        if beat.kind == "encounter" then
+            --"Go to:" anywhere in the fight's beat is where play goes after it.
+            text = TakeGotoLines(text, spanFirst, function(target, lineIndex)
+                SetGoto(beat, "exit", target, lineIndex)
+            end)
+            if text == "" then
+                return
+            end
         end
         if beat.kind == "encounter" and reinforcement ~= nil then
             --inside "## Reinforcements: <Name>": when they arrive, where they
@@ -5533,14 +5914,13 @@ function EncounterScript.Parse(text)
                 return
             end
         elseif beat.kind == "montage" and not beat.gauntlet then
-            --a montage has no routes: say so, and keep the line as prose.
-            local lineIndex = spanFirst
-            for _, l in ipairs(SplitLines(text)) do
-                local target = EncounterScript.ParseGotoLine(l)
-                if target ~= nil then
-                    Warn(lineIndex, "%s", T("author.script.narrative.goto_outside", { target = target }))
-                end
-                lineIndex = lineIndex + 1
+            --a montage has no routes inside it: a "Go to:" line is where the
+            --whole montage leads once it ends (authors write it last).
+            text = TakeGotoLines(text, spanFirst, function(target, lineIndex)
+                SetGoto(beat, "exit", target, lineIndex)
+            end)
+            if text == "" then
+                return
             end
         end
         if knack ~= nil then
@@ -5670,6 +6050,17 @@ function EncounterScript.Parse(text)
         --a longer heading matches the shorter patterns too; disambiguate.
         if h3 ~= nil then h2 = nil; h1 = nil end
         if h2 ~= nil then h1 = nil end
+        --Warn when a journal with its own beats is linked inside an open
+        --section: every line after the link would fall into that journal's
+        --last beat.
+        for _, span in ipairs(journalSpans) do
+            if span.first == i and beat ~= nil then
+                local open = entry or section
+                if open ~= nil and open.line ~= nil and JournalAt(open.line) == JournalAt(i - 1) and JournalHasBeat(span) then
+                    Warn(i - 1, "%s", T("author.script.branch.link_in_section", { section = tostring(open.name or open.title or "?") }))
+                end
+            end
+        end
         if h1 == nil and h2 == nil and h3 == nil and string.match(line, "^####") then
             --deeper headings are prose
             h1, h2, h3 = nil, nil, nil
@@ -5707,6 +6098,13 @@ function EncounterScript.Parse(text)
             end
         elseif h1 ~= nil then
             FlushParagraph()
+            --mark the heading after flushing, so an "Only if:" right above it
+            --still counts as the journal's header.
+            for _, span in ipairs(journalSpans) do
+                if i >= span.first and i <= span.last then
+                    span.sawHeading = true
+                end
+            end
             DropPendingGate()
             local title = trim(h1)
             local kind = lower(title)
@@ -5714,6 +6112,13 @@ function EncounterScript.Parse(text)
             local negotiationName = string.match(title, "^[Nn]egotiation:%s*(.+)$")
             local storyKey = EncounterScript.STORY_SECTIONS[kind]
             local partNumber, partTitle = EncounterScript.ParsePartHeading(title)
+            --"# Montage: The Ambush" names the beat, so a "Go to:" can reach it.
+            local beatName = nil
+            local namedKind, namedRest = string.match(title, "^(%a+):%s*(.-)%s*$")
+            if namedKind ~= nil and NAMED_BEAT_KINDS[lower(namedKind)] and namedRest ~= "" then
+                kind = lower(namedKind)
+                beatName = namedRest
+            end
             if delveName ~= nil then
                 kind = "delve"
             elseif negotiationName ~= nil then
@@ -5729,6 +6134,9 @@ function EncounterScript.Parse(text)
                 kind = "unknown"
             end
             beat = { kind = kind, title = title, line = i, tags = {} }
+            if beatName ~= nil then
+                beat.name = beatName
+            end
             --"go to <Section>" is a clause only where there are sections to go to.
             g_gauntletClauses = kind == "narrative"
             if kind == "montage" then
@@ -6661,6 +7069,101 @@ function EncounterScript.Parse(text)
             Warn(i, "'Secret result:' goes above the first heading or under '# Part N'; here it is shown as text")
         end
     end
+    --The journals that hold a beat, outermost first.
+    local function EnclosingJournals(beat)
+        local enclosing = {}
+        for _, span in ipairs(journalSpans) do
+            if beat.line >= span.first and beat.line <= span.last then
+                enclosing[#enclosing + 1] = span
+            end
+        end
+        table.sort(enclosing, function(left, right) return left.first < right.first end)
+        return enclosing
+    end
+    --Each beat's "play only if" condition: every enclosing journal's header
+    --and the beat's own line must all hold (`playIf`, nil = always plays).
+    for _, beat in ipairs(result.beats) do
+        if BRANCHING_BEAT_KINDS[beat.kind] and beat.line ~= nil then
+            local parts = {}
+            for _, span in ipairs(EnclosingJournals(beat)) do
+                if span.onlyIf ~= nil then
+                    parts[#parts + 1] = span.onlyIf
+                end
+            end
+            if beat.onlyIf ~= nil then
+                parts[#parts + 1] = beat.onlyIf
+            end
+            if #parts > 0 then
+                local tree = parts[1].cond
+                for i = 2, #parts do
+                    tree = { op = "and", a = tree, b = parts[i].cond }
+                end
+                beat.playIf = tree
+                beat.playIfParts = parts
+            end
+        end
+    end
+    --A beat alone in its journal with no name of its own takes the journal's.
+    for _, beat in ipairs(result.beats) do
+        if BRANCHING_BEAT_KINDS[beat.kind] and beat.line ~= nil and beat.name == nil then
+            local enclosing = EnclosingJournals(beat)
+            local own = enclosing[#enclosing]
+            if own ~= nil and own.name ~= nil then
+                local count = 0
+                for _, other in ipairs(result.beats) do
+                    if BRANCHING_BEAT_KINDS[other.kind] and other.line ~= nil and other.line >= own.first and other.line <= own.last then
+                        count = count + 1
+                    end
+                end
+                --a journal named after an ending would turn the beat into one.
+                local key = EncounterScript.MatchKey(own.name)
+                if count == 1 and key ~= "end" and EncounterScript.BEAT_ENDS[key] == nil then
+                    beat.name = own.name
+                    beat.nameFromJournal = true
+                end
+            end
+        end
+    end
+    for _, span in ipairs(journalSpans) do
+        if span.onlyIf ~= nil and not span.sawHeading then
+            Warn(span.onlyIf.line, "%s", T("author.script.branch.only_if_no_beat", { journal = tostring(span.name or "?") }))
+        end
+    end
+    --Every "Go to:" that leaves its beat must name a beat, Conclusion or
+    --Defeat; one naming nothing is an error. Narrative routes that matched
+    --no section were saved for this check.
+    local beatKeys = { conclusion = true, defeat = true }
+    for _, beat in ipairs(result.beats) do
+        if BRANCHING_BEAT_KINDS[beat.kind] and beat.name ~= nil and beat.name ~= "" then
+            beatKeys[EncounterScript.MatchKey(beat.name)] = true
+        end
+    end
+    for _, beat in ipairs(result.beats) do
+        for _, target in ipairs(beat.outsideTargets or {}) do
+            if not beatKeys[target.key] then
+                Error(target.line, T("author.script.branch.goto_no_beat", { name = target.name }))
+            else
+                --taking this route ends the narrative (GauntletLeave reads it).
+                beat.leavesTo = beat.leavesTo or {}
+                beat.leavesTo[target.key] = true
+            end
+        end
+        local exits = {}
+        if beat.exit ~= nil then
+            exits[#exits + 1] = beat.exit
+        end
+        for _, offer in pairs(beat.offers or {}) do
+            if type(offer) == "table" and offer.exit ~= nil then
+                exits[#exits + 1] = offer.exit
+            end
+        end
+        for _, exit in ipairs(exits) do
+            if not beatKeys[exit.key] then
+                Error(exit.line, T("author.script.branch.goto_no_beat", { name = exit.name }))
+            end
+        end
+    end
+    EncounterScript.CheckBranches(result, Warn, Error)
     EncounterScript.CheckStory(result, Warn)
 
     --implicit encounter: no beats at all, but an [[encounter]] island
@@ -6810,7 +7313,7 @@ function EncounterScript.EvalStoryCondition(tree, story)
 end
 
 --Call fn(tree, line, where) for every condition in a parse: scenes
---("scene"), When lines ("when"), island and reinforcement gates ("gate"),
+--("scene"), "Only if:" lines ("onlyif"), When lines ("when"), island and reinforcement gates ("gate"),
 --"# Results" lines ("results") and story text ("text").
 function EncounterScript.ForEachCondition(parse, fn)
     local function Steps(steps)
@@ -6848,6 +7351,9 @@ function EncounterScript.ForEachCondition(parse, fn)
         end
     end
     for _, b in ipairs(parse.beats or {}) do
+        for _, part in ipairs(b.playIfParts or {}) do
+            fn(part.cond, part.line, "onlyif")
+        end
         for _, w in ipairs(b.when or {}) do
             fn(w.cond, w.line, "when")
         end
@@ -6881,6 +7387,593 @@ function EncounterScript.ForEachCondition(parse, fn)
     end
     for _, line in ipairs(((parse.results or {}).lines) or {}) do
         fn(line.cond, line.line, "results")
+    end
+end
+
+--- branching between beats --------------------------------------------------
+--A script plays its beats in written order unless a "Go to:" sends play to
+--another beat, or a beat's "Only if:" is false and it is skipped. These
+--helpers only read the parse, so play, the validator and the tests all pick
+--the next beat the same way.
+
+--The two "Go to:" targets that end the part instead of naming a beat.
+EncounterScript.BEAT_ENDS = { conclusion = "conclusion", defeat = "defeat" }
+
+--A beat's name for a message: its own name, else its heading.
+function EncounterScript.BeatLabel(beat)
+    if beat == nil then
+        return "?"
+    end
+    if beat.name ~= nil and beat.name ~= "" then
+        return beat.name
+    end
+    return beat.title or beat.kind or "?"
+end
+
+--MatchKey of a beat name -> its index in parse.beats (the first one wins).
+--Built once per parse and kept on it.
+function EncounterScript.BeatIndexByKey(parse)
+    if parse.beatIndexByKey == nil then
+        local map = {}
+        for i, beat in ipairs(parse.beats or {}) do
+            if BRANCHING_BEAT_KINDS[beat.kind] and beat.name ~= nil and beat.name ~= "" then
+                local key = EncounterScript.MatchKey(beat.name)
+                if map[key] == nil then
+                    map[key] = i
+                end
+            end
+        end
+        parse.beatIndexByKey = map
+    end
+    return parse.beatIndexByKey
+end
+
+--Where a "Go to:" target leads: a beat index, "conclusion" / "defeat", or
+--nil when it names nothing. `target` is a name, or a { key } / { name }.
+function EncounterScript.ResolveBeatTarget(parse, target)
+    if target == nil then
+        return nil
+    end
+    local key
+    if type(target) == "table" then
+        key = target.key or EncounterScript.MatchKey(target.name)
+    else
+        key = EncounterScript.MatchKey(target)
+    end
+    if EncounterScript.BEAT_ENDS[key] ~= nil then
+        return EncounterScript.BEAT_ENDS[key]
+    end
+    return EncounterScript.BeatIndexByKey(parse)[key]
+end
+
+--The beat that plays when play arrives at index `beatIndex` (by a "Go to:" or by
+--running on): `beatIndex` itself, or the next written beat whose "Only if:" holds
+--for `story` (see EvalStoryAtom). nil once past the last beat.
+function EncounterScript.LandOnBeat(parse, beatIndex, story)
+    local beats = parse.beats or {}
+    while beatIndex ~= nil and beatIndex <= #beats do
+        local beat = beats[beatIndex]
+        if beat.playIf == nil or EncounterScript.EvalStoryCondition(beat.playIf, story) then
+            return beatIndex
+        end
+        beatIndex = beatIndex + 1
+    end
+    return nil
+end
+
+--What plays after beat `fromIndex`: `exitTarget` is the "Go to:" the beat
+--left by (a name or { key }), or nil to run on to the next written beat.
+--Returns a beat index, "conclusion" / "defeat" (the part ends), or nil (the
+--script has run out). A target that names nothing runs on.
+function EncounterScript.NextBeat(parse, fromIndex, exitTarget, story)
+    local resolved = EncounterScript.ResolveBeatTarget(parse, exitTarget)
+    if type(resolved) == "string" then
+        return resolved
+    end
+    if type(resolved) == "number" then
+        return EncounterScript.LandOnBeat(parse, resolved, story)
+    end
+    return EncounterScript.LandOnBeat(parse, (fromIndex or 0) + 1, story)
+end
+
+--Where a narrative beat can leave to. Walks its sections the way
+--GauntletNext routes (a roll's "go to", the option's route, the section's
+--exit, the next section). Returns `targets` = the keys of every route that
+--names something other than one of its own sections, and `endsNormally` =
+--true when some route reaches 'End' or runs off the last section.
+local function NarrativeExits(beat)
+    local sections = EncounterScript.GauntletSections(beat)
+    local indexById = {}
+    for index, section in ipairs(sections) do
+        indexById[section.id] = index
+    end
+    local targets, seenTarget = {}, {}
+    local endsNormally = false
+    local function Outside(key, name, line)
+        if key ~= nil and not seenTarget[key] then
+            seenTarget[key] = true
+            targets[#targets + 1] = { key = key, name = name, line = line }
+        end
+    end
+    local visited = {}
+    local queue = {}
+    local function Push(index)
+        if index == nil or index > #sections then
+            endsNormally = true
+        elseif not visited[index] then
+            visited[index] = true
+            queue[#queue + 1] = index
+        end
+    end
+    --Follow one route: to a section of this beat, to End, or out of the
+    --beat (`holder` names another beat); with neither, to the next section.
+    local function Follow(id, holder, index)
+        if id == EncounterScript.GAUNTLET_END then
+            endsNormally = true
+        elseif id ~= nil and indexById[id] ~= nil then
+            Push(indexById[id])
+        elseif holder ~= nil then
+            Outside(holder.key, holder.name, holder.line)
+        else
+            Push(index + 1)
+        end
+    end
+    --the section's own way out when an option names none
+    local function SectionDefault(section, index)
+        if section.exitId ~= nil then
+            Follow(section.exitId, nil, index)
+        elseif section.exit ~= nil then
+            Follow(nil, section.exit, index)
+        else
+            Push(index + 1)
+        end
+    end
+    if #sections == 0 then
+        return targets, true
+    end
+    Push(1)
+    local head = 1
+    while head <= #queue do
+        local index = queue[head]
+        head = head + 1
+        local section = sections[index]
+        local options = section.options or {}
+        if #options == 0 or section.mode == "individual" then
+            SectionDefault(section, index)
+        end
+        for _, option in ipairs(options) do
+            for _, effects in ipairs(EncounterScript.OptionEffectLists(option, true, true)) do
+                for _, effect in ipairs(effects) do
+                    if effect.kind == "goto" then
+                        if effect.targetId ~= nil then
+                            Follow(effect.targetId, nil, index)
+                        elseif effect.key ~= nil then
+                            Outside(effect.key, effect.name, option.line)
+                        end
+                    end
+                end
+            end
+            if section.mode ~= "individual" then
+                if option.routeId ~= nil then
+                    Follow(option.routeId, nil, index)
+                elseif option.route ~= nil then
+                    Follow(nil, option.route, index)
+                else
+                    SectionDefault(section, index)
+                end
+            end
+        end
+    end
+    return targets, endsNormally
+end
+
+--Every way out of beat `beatIndex`: { gotos = { { target = index|"conclusion"|"defeat", name, line } },
+--falls = true when it can run on to the next written beat }. A "Go to:"
+--that names nothing runs on, as play does.
+function EncounterScript.BeatExits(parse, beatIndex)
+    parse.beatExitsCache = parse.beatExitsCache or {}
+    if parse.beatExitsCache[beatIndex] ~= nil then
+        return parse.beatExitsCache[beatIndex]
+    end
+    local beat = (parse.beats or {})[beatIndex]
+    local result = { gotos = {}, falls = false }
+    local seen = {}
+    local function Add(holder)
+        local target = EncounterScript.ResolveBeatTarget(parse, holder)
+        if target == nil then
+            result.falls = true
+        elseif not seen[target] then
+            seen[target] = true
+            result.gotos[#result.gotos + 1] = { target = target, name = holder.name, line = holder.line }
+        end
+    end
+    if beat == nil then
+        return result
+    end
+    if beat.kind == "narrative" then
+        local targets, endsNormally = NarrativeExits(beat)
+        for _, target in ipairs(targets) do
+            Add(target)
+        end
+        if endsNormally then
+            result.falls = true
+        end
+    elseif beat.kind == "negotiation" then
+        --each deal may lead somewhere; no deal (refused, left) or a deal
+        --with no "Go to:" leaves by the negotiation's own exit.
+        for _, offer in pairs(beat.offers or {}) do
+            if type(offer) == "table" and offer.exit ~= nil then
+                Add(offer.exit)
+            end
+        end
+        if beat.exit ~= nil then
+            Add(beat.exit)
+        else
+            result.falls = true
+        end
+    elseif beat.exit ~= nil then
+        Add(beat.exit)
+    else
+        result.falls = true
+    end
+    parse.beatExitsCache[beatIndex] = result
+    return result
+end
+
+--Does the script branch at all? A script with no "Go to:" between beats
+--and no "Only if:" plays in written order and skips the path checks.
+function EncounterScript.ScriptBranches(parse)
+    for i, beat in ipairs(parse.beats or {}) do
+        if beat.playIf ~= nil then
+            return true
+        end
+        if #EncounterScript.BeatExits(parse, i).gotos > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+EncounterScript.MAX_BEAT_PATHS = 50
+
+--Every way through the script from its first beat, treating each "Only if:"
+--as unknown (the beat may play or be skipped). Returns
+--  paths = { { steps = { { index, fell, from } }, ending = "conclusion"|"defeat"|"end", fights }, ... },
+--  truncated = true when there were more than `cap` (default 50),
+--  loops = { { from, to } } (a "Go to:" back to a beat already played on that path),
+--  reached = { [beat index] = true } for every beat some path plays.
+--`fell` marks a beat reached by running on from beat `from`, not by a "Go to:".
+function EncounterScript.BeatPaths(parse, cap)
+    cap = cap or EncounterScript.MAX_BEAT_PATHS
+    local beats = parse.beats or {}
+    local paths, loops, seenLoop, reached = {}, {}, {}, {}
+    local truncated = false
+    local Arrive
+    local function Finish(steps, ending, fights)
+        if #paths >= cap then
+            truncated = true
+            return
+        end
+        paths[#paths + 1] = { steps = steps, ending = ending, fights = fights }
+    end
+    local function Play(index, steps, fell, from, fights)
+        for _, step in ipairs(steps) do
+            if step.index == index then
+                local last = steps[#steps]
+                local loopKey = string.format("%d>%d", last and last.index or 0, index)
+                if not seenLoop[loopKey] then
+                    seenLoop[loopKey] = true
+                    loops[#loops + 1] = { from = last and last.index or 0, to = index }
+                end
+                return
+            end
+        end
+        reached[index] = true
+        local copy = {}
+        for i, step in ipairs(steps) do
+            copy[i] = step
+        end
+        copy[#copy + 1] = { index = index, fell = fell, from = from }
+        if beats[index].kind == "encounter" then
+            fights = fights + 1
+        end
+        local exits = EncounterScript.BeatExits(parse, index)
+        for _, exit in ipairs(exits.gotos) do
+            Arrive(exit.target, copy, false, nil, fights)
+        end
+        if exits.falls then
+            Arrive(index + 1, copy, true, index, fights)
+        end
+    end
+    Arrive = function(index, steps, fell, from, fights)
+        if #paths >= cap then
+            truncated = true
+            return
+        end
+        if type(index) == "string" then
+            Finish(steps, index, fights)
+            return
+        end
+        if index > #beats then
+            Finish(steps, "end", fights)
+            return
+        end
+        --an "Only if:" beat may be skipped, so walk the path that skips it
+        --as well as the one that plays it.
+        if beats[index].playIf ~= nil then
+            Arrive(index + 1, steps, fell, from, fights)
+        end
+        Play(index, steps, fell, from, fights)
+    end
+    if #beats > 0 then
+        Arrive(1, {}, false, nil, 0)
+    end
+    return { paths = paths, truncated = truncated, loops = loops, reached = reached }
+end
+
+--One path as words: "The Crossroads -> The Parley -> The Fight".
+function EncounterScript.DescribeBeatPath(parse, path)
+    local names = {}
+    for _, step in ipairs(path.steps) do
+        names[#names + 1] = EncounterScript.BeatLabel(parse.beats[step.index])
+    end
+    return table.concat(names, " -> ")
+end
+
+--The branching checks, run at the end of Parse. warn(line, fmt, ...) and
+--err(line, text) report problems; an error is something that breaks play.
+function EncounterScript.CheckBranches(parse, warn, err)
+    local beats = parse.beats or {}
+
+    --a beat may not be named End, Conclusion or Defeat, and a name may not
+    --be used by two beats, or by a beat and a section or delve.
+    local named = {}
+    local function Claim(name, where, line, id)
+        if name == nil or name == "" then
+            return
+        end
+        local key = EncounterScript.MatchKey(name)
+        local first = named[key]
+        if first == nil then
+            named[key] = { where = where, line = line, id = id }
+        elseif first.id ~= id then
+            err(line, T("author.script.branch.name_twice", { name = name, first = first.where, second = where }))
+        end
+    end
+    --(a name taken from a beat's journal is not checked: the author did not
+    --type it on the beat, and naming a journal after its scene is normal.)
+    for i, beat in ipairs(beats) do
+        if BRANCHING_BEAT_KINDS[beat.kind] and beat.name ~= nil and beat.name ~= "" and not beat.nameFromJournal then
+            local key = EncounterScript.MatchKey(beat.name)
+            if key == "end" or EncounterScript.BEAT_ENDS[key] ~= nil then
+                err(beat.line, T("author.script.branch.reserved_name", { name = beat.name }))
+            end
+            Claim(beat.name, T("author.script.branch.where_beat"), beat.line, "b" .. i)
+        end
+    end
+    for i, beat in ipairs(beats) do
+        for _, section in ipairs(EncounterScript.GauntletSections(beat)) do
+            if named[EncounterScript.MatchKey(section.name)] ~= nil then
+                Claim(section.name, T("author.script.branch.where_section", { beat = EncounterScript.BeatLabel(beat) }),
+                    section.line, "s" .. i .. "|" .. tostring(section.id))
+            end
+        end
+    end
+    for _, delve in pairs(parse.delves or {}) do
+        if named[EncounterScript.MatchKey(delve.name)] ~= nil then
+            Claim(delve.name, T("author.script.branch.where_delve"), delve.line, "d|" .. tostring(delve.name))
+        end
+    end
+
+    --a remembered choice must name an option, and a name that is an option
+    --in two sections needs 'at "<section>"'; a deal must name an offer.
+    local optionsByKey = {}
+    for _, beat in ipairs(beats) do
+        for _, section in ipairs(EncounterScript.GauntletSections(beat)) do
+            for _, option in ipairs(section.options or {}) do
+                local key = EncounterScript.MatchKey(option.name)
+                optionsByKey[key] = optionsByKey[key] or {}
+                table.insert(optionsByKey[key], { section = section.name, sectionKey = EncounterScript.MatchKey(section.name),
+                    beatKey = EncounterScript.MatchKey(beat.name or "") })
+            end
+        end
+    end
+    local warnedAtom = {}
+    local function CheckAtoms(tree, line)
+        if type(tree) ~= "table" then
+            return
+        end
+        if tree.op == "and" or tree.op == "or" then
+            CheckAtoms(tree.a, line)
+            CheckAtoms(tree.b, line)
+            return
+        elseif tree.op == "not" then
+            CheckAtoms(tree.a, line)
+            return
+        end
+        local seenKey = string.format("%s|%s|%s|%s", tostring(line), tostring(tree.op), tostring(tree.key), tostring(tree.atKey))
+        if warnedAtom[seenKey] then
+            return
+        end
+        warnedAtom[seenKey] = true
+        if tree.op == "remembered" then
+            local matches = {}
+            for _, match in ipairs(optionsByKey[tree.key] or {}) do
+                if tree.atKey == nil or match.sectionKey == tree.atKey or match.beatKey == tree.atKey then
+                    matches[#matches + 1] = match
+                end
+            end
+            if #matches == 0 then
+                err(line, T("author.script.branch.no_such_option", { option = tree.option }))
+            elseif tree.atKey == nil then
+                local distinct, sections = {}, {}
+                for _, match in ipairs(matches) do
+                    if not distinct[match.sectionKey] then
+                        distinct[match.sectionKey] = true
+                        sections[#sections + 1] = match.section
+                    end
+                end
+                if #sections >= 2 then
+                    warn(line, "%s", T("author.script.branch.ambiguous_option", { option = tree.option, a = sections[1], b = sections[2] }))
+                end
+            end
+        elseif tree.op == "deal" and tree.interest == nil then
+            err(line, T("author.script.branch.no_such_option", { option = tree.offer }))
+        elseif tree.op == "wentto" or tree.op == "beatresult" then
+            local index = EncounterScript.BeatIndexByKey(parse)[tree.key]
+            if index == nil then
+                err(line, T("author.script.branch.no_such_beat", { name = tree.beat }))
+            elseif tree.op == "beatresult" and beats[index].kind ~= "montage" then
+                err(line, T("author.script.branch.not_a_montage", { name = tree.beat }))
+            end
+        end
+    end
+    EncounterScript.ForEachCondition(parse, function(tree, line)
+        CheckAtoms(tree, line)
+    end)
+
+    --A fork where one option says "Go to: End" (carry on) and another ends
+    --the part (Conclusion / Defeat) is probably a slip.
+    for _, beat in ipairs(beats) do
+        for _, section in ipairs(EncounterScript.GauntletSections(beat)) do
+            local carriesOn, ending = false, nil
+            local function Note(key)
+                if key == EncounterScript.GAUNTLET_END then
+                    carriesOn = true
+                elseif key ~= nil and EncounterScript.BEAT_ENDS[key] ~= nil then
+                    ending = ending or EncounterScript.BEAT_ENDS[key]
+                end
+            end
+            for _, option in ipairs(section.options or {}) do
+                if option.route ~= nil then
+                    Note(option.route.key)
+                end
+                for _, effects in ipairs(EncounterScript.OptionEffectLists(option, true, true)) do
+                    for _, effect in ipairs(effects) do
+                        if effect.kind == "goto" then
+                            Note(effect.key)
+                        end
+                    end
+                end
+            end
+            if carriesOn and ending ~= nil then
+                warn(section.line, "%s", T("author.script.branch.end_mixed", { fork = section.name,
+                    ending = ending == "defeat" and "Defeat" or "Conclusion" }))
+            end
+        end
+    end
+
+    if not EncounterScript.ScriptBranches(parse) then
+        return
+    end
+
+    --several versions of one beat in a row, each with an "Only if:": play
+    --can skip them all. The fix is to leave the last one without one.
+    local run = {}
+    local function FlushRun()
+        if #run >= 2 then
+            local names = {}
+            for i = 1, #run - 1 do
+                names[#names + 1] = "'" .. EncounterScript.BeatLabel(run[i]) .. "'"
+            end
+            warn(run[1].line, "%s", T("author.script.branch.all_skippable", {
+                a = table.concat(names, ", "), b = "'" .. EncounterScript.BeatLabel(run[#run]) .. "'" }))
+        end
+        run = {}
+    end
+    for _, beat in ipairs(beats) do
+        if BRANCHING_BEAT_KINDS[beat.kind] and beat.playIf ~= nil then
+            run[#run + 1] = beat
+        else
+            FlushRun()
+        end
+    end
+    FlushRun()
+
+    --which beats send play to which: target index -> { [source index] = true }
+    local sourcesOf = {}
+    for i = 1, #beats do
+        for _, exit in ipairs(EncounterScript.BeatExits(parse, i).gotos) do
+            if type(exit.target) == "number" then
+                sourcesOf[exit.target] = sourcesOf[exit.target] or {}
+                sourcesOf[exit.target][i] = true
+            end
+        end
+    end
+
+    local walk = EncounterScript.BeatPaths(parse)
+    parse.beatPaths = walk
+
+    --a "Go to:" may only send play forward: to a later beat, or an ending.
+    for i, beat in ipairs(beats) do
+        for _, exit in ipairs(EncounterScript.BeatExits(parse, i).gotos) do
+            if type(exit.target) == "number" and exit.target <= i then
+                err(exit.line or beat.line, T("author.script.branch.goes_back", {
+                    beat = EncounterScript.BeatLabel(beat), earlier = EncounterScript.BeatLabel(beats[exit.target]) }))
+            end
+        end
+    end
+
+    local warned = {}
+    local function Once(key)
+        if warned[key] then
+            return false
+        end
+        warned[key] = true
+        return true
+    end
+    for _, path in ipairs(walk.paths) do
+        local fights = {}
+        for _, step in ipairs(path.steps) do
+            local beat = beats[step.index]
+            if beat.kind == "encounter" then
+                fights[#fights + 1] = step.index
+            end
+            --a beat that ran on (no "Go to:") into a beat meant for another
+            --choice of the same fork: usually a forgotten "Go to:". Running on
+            --into the fight is the usual way branches meet again, so not that.
+            if step.fell and step.from ~= nil and beat.kind ~= "encounter"
+                and sourcesOf[step.index] ~= nil and sourcesOf[step.from] ~= nil then
+                for fork in pairs(sourcesOf[step.from]) do
+                    if sourcesOf[step.index][fork] and Once(string.format("leak|%d|%d", step.from, step.index)) then
+                        warn(beats[step.from].line, "%s", T("author.script.branch.runs_on", {
+                            beat = EncounterScript.BeatLabel(beats[step.from]),
+                            other = EncounterScript.BeatLabel(beat),
+                            fork = EncounterScript.BeatLabel(beats[fork]) }))
+                        break
+                    end
+                end
+            end
+        end
+        --only one fight per path is supported.
+        if #fights >= 2 and Once(string.format("fights|%d|%d", fights[1], fights[2])) then
+            err(beats[fights[2]].line, T("author.script.branch.two_fights", {
+                a = EncounterScript.BeatLabel(beats[fights[1]]), b = EncounterScript.BeatLabel(beats[fights[2]]) }))
+        end
+        --after a won fight the part is decided: "Go to: Defeat" cannot undo it.
+        if path.ending == "defeat" and #fights > 0 then
+            local last = path.steps[#path.steps]
+            if last ~= nil and Once(string.format("afterfight|%d", last.index)) then
+                err(beats[last.index].line, T("author.script.branch.ending_after_fight", { ending = "Defeat" }))
+            end
+        end
+        --a victory with no fight: often meant, so a warning, never an error.
+        if path.ending ~= "defeat" and #fights == 0 then
+            local described = EncounterScript.DescribeBeatPath(parse, path)
+            if Once("nofight|" .. described) then
+                local first = path.steps[1]
+                warn(first ~= nil and beats[first.index].line or 0, "%s", T("author.script.branch.no_fight", { path = described }))
+            end
+        end
+    end
+
+    --beats no path reaches (only when every path was walked)
+    if not walk.truncated then
+        for i, beat in ipairs(beats) do
+            if BRANCHING_BEAT_KINDS[beat.kind] and not walk.reached[i] then
+                warn(beat.line, "%s", T("author.script.branch.unreachable", { beat = EncounterScript.BeatLabel(beat) }))
+            end
+        end
     end
 end
 
@@ -6960,10 +8053,6 @@ function EncounterScript.CheckStory(result, Warn)
         end
     end
     g_trackEffects = nil
-
-    if #result.tracks > 0 and result.part == nil then
-        Warn(result.tracks[1].line or 0, "'Track: %s' only matters in a series part (a document with a '# Part N' heading)", result.tracks[1].name)
-    end
 
     --"# Results"
     local results = result.results

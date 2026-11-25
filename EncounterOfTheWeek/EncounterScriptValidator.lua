@@ -497,12 +497,20 @@ local function Report(parse)
     --real week raised were prose, and they buried the two that mattered.
     --They are still listed, because a typo'd rule looks exactly like them.
     local textOnly = {}
+    --the parser's errors (a branching mistake that breaks play) come first.
+    local isError = {}
+    for _, errorText in ipairs(parse.errors or {}) do
+        isError[errorText] = true
+        Problem("%s", errorText)
+    end
     for _, w in ipairs(parse.warnings or {}) do
-        if string.find(w, "unrecognized effect", 1, true) ~= nil
-            or string.find(w, "unrecognized consequence", 1, true) ~= nil then
-            textOnly[#textOnly + 1] = w
-        else
-            Problem("%s", w)
+        if not isError[w] then
+            if string.find(w, "unrecognized effect", 1, true) ~= nil
+                or string.find(w, "unrecognized consequence", 1, true) ~= nil then
+                textOnly[#textOnly + 1] = w
+            else
+                Problem("%s", w)
+            end
         end
     end
     return rows, problems, counts, textOnly
@@ -819,6 +827,33 @@ function GauntletRouteRows(parse)
     return rows
 end
 
+--- branching paths ---------------------------------------------------------------
+
+--Rows for a script that branches between beats: every way through it, one
+--line each, tagged when it ends without a fight or in a defeat. Nothing for
+--a script that plays in written order.
+function EncounterScriptValidator.BeatPathRows(parse)
+    local rows = {}
+    if parse == nil or not EncounterScript.ScriptBranches(parse) then
+        return rows
+    end
+    local walk = parse.beatPaths or EncounterScript.BeatPaths(parse)
+    rows[#rows + 1] = { depth = 0, class = "beat", text = T("author.validator.paths.heading") }
+    if walk.truncated then
+        rows[#rows + 1] = { depth = 1, class = "note", text = T("author.validator.paths.truncated", { count = EncounterScript.MAX_BEAT_PATHS }) }
+    end
+    for _, path in ipairs(walk.paths) do
+        local text = EncounterScript.DescribeBeatPath(parse, path)
+        if path.ending == "defeat" then
+            text = text .. " " .. T("author.validator.paths.defeat")
+        elseif path.fights == 0 then
+            text = text .. " " .. T("author.validator.paths.no_fight")
+        end
+        rows[#rows + 1] = { depth = 1, class = "rule", text = text }
+    end
+    return rows
+end
+
 --- the panel -----------------------------------------------------------------
 
 --Plain style tables, the way the stage declares its own, so they can go
@@ -907,6 +942,39 @@ local function EncounterMonsterTotal(encounter)
     return total
 end
 
+--A fight with a "start only in" line whose encounter also draws its own
+--hero start tiles: the line wins, so the tiles are ignored. One problem
+--line per such fight. `script` is { doc, parse }, as for ReinforcementProblems.
+---@param script table
+---@return string[]
+function EncounterScriptValidator.StartOnlyConflicts(script)
+    local problems = {}
+    pcall(function()
+        for _, beat in ipairs(script.parse.beats or {}) do
+            if beat.kind == "encounter" then
+                local only = false
+                for _, line in ipairs(beat.when or {}) do
+                    for _, effect in ipairs(line.effects or {}) do
+                        if effect.kind == "startzone" and effect.only then
+                            only = true
+                        end
+                    end
+                end
+                if only then
+                    for _, island in ipairs(beat.islands or {}) do
+                        local encounter = EncounterReinforcements.IslandEncounter(script, island)
+                        if encounter ~= nil and #(encounter:GetHeroStartLocs() or {}) > 0 then
+                            problems[#problems + 1] = T("author.script.branch.start_tiles_conflict", { fight = EncounterScript.BeatLabel(beat) })
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return problems
+end
+
 --Every "## Reinforcements:" island that would bring nobody: one whose
 --encounter annotation is missing (or not an encounter), or whose
 --encounter has no monsters. The runtime just logs "0 monsters" each round
@@ -970,6 +1038,18 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     local reinforcementScript = { docid = docid, doc = (dmhub.GetTable("documents") or {})[docid], parse = parse }
     for _, p in ipairs(EncounterScriptValidator.ReinforcementProblems(reinforcementScript)) do
         problems[#problems + 1] = p
+    end
+    for _, problem in ipairs(EncounterScriptValidator.StartOnlyConflicts(reinforcementScript)) do
+        problems[#problems + 1] = problem
+    end
+    --Only one script in a map's folder ever plays: warn about the others.
+    if docMap ~= nil then
+        pcall(function()
+            local played, ignored = EncounterMontage.IgnoredScripts(docMap)
+            if played ~= nil and #ignored > 0 then
+                problems[#problems + 1] = T("author.validator.report.two_scripts", { a = played, b = ignored[1] })
+            end
+        end)
     end
 
     children[#children + 1] = gui.Label{
@@ -1094,6 +1174,10 @@ function EncounterScriptValidator.BuildReport(docid, partyid)
     --sees: how many routes, how many tests along them, and what that means
     --for Weary banes.
     for _, row in ipairs(GauntletRouteRows(parse)) do
+        children[#children + 1] = RowLabel(row)
+    end
+    --every way through a script that branches between beats.
+    for _, row in ipairs(EncounterScriptValidator.BeatPathRows(parse)) do
         children[#children + 1] = RowLabel(row)
     end
 

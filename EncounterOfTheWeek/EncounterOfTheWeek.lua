@@ -1483,7 +1483,8 @@ end
 --A montage clause can open further zone types to start in ("the Start2 zone
 --becomes a starting area", EncounterZones.UnlockedStartZones): their tiles
 --join the result, so the confinement and its outline grow to cover them.
---Pass baseOnly = true for the Start zone alone (where heroes are placed).
+--Pass baseOnly = true for the Start zone alone (where heroes are placed),
+--or the zone a "start only in" line chose instead of it.
 --
 --The encounter's own play area comes first (EncounterOfTheWeekGame.PlayArea):
 --hero start tiles drawn in the encounter builder replace the Start zone, and
@@ -1504,15 +1505,26 @@ local function StartZoneLocs(baseOnly)
 
     local startNames = { start = true }
     local result = {}
-    if area ~= nil and #area.startLocs > 0 then
+    --"the heroes start only in the Ridge zone": that zone is the start area,
+    --instead of the Start zone and the builder's start tiles.
+    local onlyNames = {}
+    local zones = rawget(_G, "EncounterZones")
+    if zones ~= nil and zones.OnlyStartZones ~= nil then
+        onlyNames = zones.OnlyStartZones()
+    end
+    if #onlyNames > 0 then
+        startNames = {}
+        for _, name in ipairs(onlyNames) do
+            startNames[string.lower(name)] = true
+        end
+    elseif area ~= nil and #area.startLocs > 0 then
         --the builder's start tiles stand in for the Start zone.
         startNames = {}
         for _, l in ipairs(area.startLocs) do
             result[#result+1] = l
         end
     end
-    if not baseOnly then
-        local zones = rawget(_G, "EncounterZones")
+    if not baseOnly and #onlyNames == 0 then
         if zones ~= nil and zones.UnlockedStartZones ~= nil then
             for _, name in ipairs(zones.UnlockedStartZones()) do
                 startNames[string.lower(name)] = true
@@ -3534,6 +3546,21 @@ local function UpdateEncounterConclusion()
         return
     end
 
+    --The script ended this part without a fight, so there is no victory
+    --screen to Proceed from: go straight to the Conclusion or Defeat story.
+    --A test does the same, and a resumed game reads the same record.
+    if not m_outcomeSeen then
+        local ending = nil
+        pcall(function() ending = EncounterMontage.GetDoc().data.scriptEnding end)
+        if type(ending) == "table" and ending.handled and not ending.fought
+            and (ending.outcome == "victory" or ending.outcome == "defeat") then
+            printf("EotW: the part ended without a fight (%s); on to its story", ending.outcome)
+            m_outcomeSeen = true
+            m_outcomeKind = ending.outcome
+            m_localProceeded = true
+        end
+    end
+
     --a resumed game whose fight was decided before this client left: the
     --outcome and this player's Proceed were only in memory, so take them
     --back from the state doc and carry on to the conclusion (J8N2HK6N).
@@ -4358,15 +4385,12 @@ end)
 local m_findingMapEncounter = false
 
 --A fight with variants: the first [[encounter]] island whose "When" line
---holds for the story so far. nil when no island has a "When" line.
+--holds for the story so far, under the fight beat the party reached. nil
+--when no island has a "When" line and the script has only one fight (the
+--map's first island is then the fight, as it always was).
 function Series.GatedIslandEntry(script)
-    local beat = nil
-    for _, b in ipairs(script.parse.beats or {}) do
-        if b.kind == "encounter" then
-            beat = b
-            break
-        end
-    end
+    local beat = EncounterOfTheWeekGame.FightBeat(script)
+    local fights = EncounterOfTheWeekGame.FightCount(script)
     local gated = false
     for _, island in ipairs((beat ~= nil and beat.islands) or {}) do
         if island.gate ~= nil then
@@ -4374,10 +4398,14 @@ function Series.GatedIslandEntry(script)
         end
     end
     local reinforcements = rawget(_G, "EncounterReinforcements")
-    if not gated or reinforcements == nil then
+    if reinforcements == nil or beat == nil or #(beat.islands or {}) == 0 then
         return nil
     end
-    ---@cast beat -nil
+    --a branching script's fights each sit under their own beat, so the
+    --island must come from the beat reached even when none is gated.
+    if not gated and fights < 2 then
+        return nil
+    end
     local story = EncounterMontage.Story()
     local chosen = nil
     for _, island in ipairs(beat.islands) do
@@ -5466,13 +5494,13 @@ local function BystanderNames()
         if montage == nil then
             return
         end
-        for _, beat in ipairs(montage.FindMapScript().parse.beats or {}) do
-            if beat.kind == "encounter" then
-                for _, instruction in ipairs(beat.setup or {}) do
-                    if instruction.kind == "bystanders" then
-                        for _, name in ipairs(instruction.names or {}) do
-                            names[#names + 1] = string.lower(name)
-                        end
+        --only the fight being played: another version may name others.
+        local beat = EncounterOfTheWeekGame.FightBeat(montage.FindMapScript())
+        if beat ~= nil and beat.kind == "encounter" then
+            for _, instruction in ipairs(beat.setup or {}) do
+                if instruction.kind == "bystanders" then
+                    for _, name in ipairs(instruction.names or {}) do
+                        names[#names + 1] = string.lower(name)
                     end
                 end
             end
@@ -5519,19 +5547,19 @@ do
             if montage == nil then
                 return
             end
-            for _, beat in ipairs(montage.FindMapScript().parse.beats or {}) do
-                if beat.kind == "encounter" then
-                    for _, instruction in ipairs(beat.setup or {}) do
-                        if instruction.kind == "aibehavior" then
-                            local names = nil
-                            if instruction.names ~= nil then
-                                names = {}
-                                for _, name in ipairs(instruction.names) do
-                                    names[#names + 1] = string.lower(name)
-                                end
+            --only the fight being played: another version may set others.
+            local beat = EncounterOfTheWeekGame.FightBeat(montage.FindMapScript())
+            if beat ~= nil and beat.kind == "encounter" then
+                for _, instruction in ipairs(beat.setup or {}) do
+                    if instruction.kind == "aibehavior" then
+                        local names = nil
+                        if instruction.names ~= nil then
+                            names = {}
+                            for _, name in ipairs(instruction.names) do
+                                names[#names + 1] = string.lower(name)
                             end
-                            lines[#lines + 1] = { behavior = instruction.behavior, enabled = instruction.enabled, names = names }
                         end
+                        lines[#lines + 1] = { behavior = instruction.behavior, enabled = instruction.enabled, names = names }
                     end
                 end
             end
@@ -5910,13 +5938,7 @@ local function DevEncounterStart()
         return
     end
     local script = montage.FindMapScript(true)
-    local beat = nil
-    for _, b in ipairs(script.parse.beats or {}) do
-        if b.kind == "encounter" then
-            beat = b
-            break
-        end
-    end
+    local beat = EncounterOfTheWeekGame.FightBeat(script)
     if beat == nil then
         print("EotW encounter: this map's script has no # Encounter beat")
         return
@@ -6422,32 +6444,212 @@ local function SetBeatIndex(index)
     doc:CompleteChange("Encounter of the Week: script beat", { undoable = false })
 end
 
---- after the fight ----------------------------------------------------------
---Narratives, montages and negotiations placed after the "# Encounter" beat
---play once the fight is WON (NQPHXEAE): the victory screen's Proceed tears
---combat down, the host tick moves the script on to them (stage "aftermath",
---MapScriptHostThink), and every client holds its Conclusion screen -- and in
---a test, the end of the test -- until they are done. A defeat skips them.
---They stop at a second "# Encounter": only one fight is played.
+--- branching: which beat plays next ------------------------------------------
+--A beat may leave by a "Go to:" (another beat, Conclusion or Defeat), and a
+--beat whose "Only if:" is false is skipped. These read only the shared
+--script document, so the host and every client agree.
 
---The index of the first stage beat after the script's first encounter, or
---nil when the encounter is the last stage beat (or there is none).
+--Where beat `index` was told to go next ({ key, name }), or nil to carry on
+--to the next beat: a narrative's last route, a negotiation deal's own
+--"Go to:" else the negotiation's, any other beat's own "Go to:".
+function EncounterOfTheWeekGame.BeatExitTaken(script, index)
+    local beat = script.parse.beats[index]
+    if beat == nil then
+        return nil
+    end
+    if beat.kind == "narrative" then
+        local state = EncounterMontage.GetState()
+        if state ~= nil and state.beatIndex == index and type(state.exitTarget) == "table" then
+            return state.exitTarget
+        end
+        return nil
+    elseif beat.kind == "negotiation" then
+        local negotiation = rawget(_G, "EncounterNegotiation")
+        local state = negotiation ~= nil and negotiation.GetState() or nil
+        local result = (state ~= nil and state.beatIndex == index) and state.result or nil
+        if type(result) == "table" and (result.outcome == "deal" or result.outcome == "nodeal") then
+            local offer = (beat.offers or {})[(tonumber(result.interest) or -1) + 1]
+            if offer ~= nil and offer.exit ~= nil then
+                return offer.exit
+            end
+        end
+    end
+    return beat.exit
+end
+
+--What plays after beat `index`: a beat index, "conclusion" / "defeat", or
+--nil when the script has run out.
+function EncounterOfTheWeekGame.NextBeatAfter(script, index)
+    return EncounterScript.NextBeat(script.parse, index, EncounterOfTheWeekGame.BeatExitTaken(script, index), EncounterMontage.Story())
+end
+
+--Host: a "Go to: Conclusion" / "Go to: Defeat" ends the part. It is noted in
+--the script document (`scriptEnding`) and the beat index moves past the
+--last beat, so the script stops. The ending itself plays on the next host tick.
+function EncounterOfTheWeekGame.RequestScriptEnding(script, kind)
+    local pastEnd = #script.parse.beats + 1
+    local doc = EncounterMontage.GetDoc()
+    doc:BeginChange()
+    if doc.data.scriptEnding == nil then
+        doc.data.scriptEnding = { kind = kind, fought = doc.data.fought == true }
+    end
+    doc.data.beat = pastEnd
+    doc:CompleteChange("Encounter of the Week: the part ends", { undoable = false })
+    printf("EotW: the script sends the party to its %s", tostring(kind))
+end
+
+--Host, every tick while a "Go to: Conclusion" / "Go to: Defeat" has ended
+--the part before any fight. The first call decides it as the end of a fight
+--would: the series result (no rounds) and "# Results" for a victory. Then the
+--stage dissolves over the next ticks; once it is gone the ending is marked
+--handled, which is what every client waits for before showing the Conclusion
+--or Defeat story. Returns nil when the script has not ended the part,
+--"waiting" while the stage is still dissolving, and "done" once it is over.
+function EncounterOfTheWeekGame.HostFinishScriptEnding(script)
+    local doc = EncounterMontage.GetDoc()
+    local ending = doc.data.scriptEnding
+    if type(ending) ~= "table" then
+        return nil
+    end
+    if ending.handled then
+        return "done"
+    end
+    local victory = ending.kind == "conclusion"
+    --after a won fight the part is already decided; nothing more to do.
+    if ending.fought then
+        doc:BeginChange()
+        doc.data.scriptEnding.handled = true
+        doc:CompleteChange("Encounter of the Week: the part has ended", { undoable = false })
+        return "done"
+    end
+    if not ending.decided then
+        if victory then
+            local ok, err = pcall(function()
+                local numHeroes = tonumber(dmhub.GetSettingValue("numheroes")) or 5
+                EncounterMontage.DecideSeriesResult(script, true, numHeroes, nil, false)
+            end)
+            if not ok then
+                printf("EotW: the series result for a part won without a fight failed: %s", tostring(err))
+            end
+        end
+        printf("EotW: the part ends without a fight: %s", cond(victory, "victory", "defeat"))
+        EncounterOfTheWeekGame.AnalyticsPhase(cond(victory, "victory", "defeat"), nil, { fought = false })
+        doc:BeginChange()
+        doc.data.scriptEnding.decided = true
+        doc:CompleteChange("Encounter of the Week: the part is decided", { undoable = false })
+    end
+    --the stage has to dissolve on every screen first; DismissStage takes it
+    --down over several ticks and says when it is gone.
+    local gone = true
+    local dismissed, result = pcall(EncounterMontage.DismissStage)
+    if dismissed then
+        gone = result == true
+    end
+    if not gone then
+        return "waiting"
+    end
+    doc:BeginChange()
+    doc.data.scriptEnding.handled = true
+    doc.data.scriptEnding.outcome = cond(victory, "victory", "defeat")
+    doc:CompleteChange("Encounter of the Week: the part has ended", { undoable = false })
+    return "done"
+end
+
+--Host: move on from beat `index` without playing it (no runtime for it, or
+--an unknown kind): the next beat that would play, as if it ran on.
+function EncounterOfTheWeekGame.SkipBeat(script, index)
+    local nextIndex = EncounterScript.NextBeat(script.parse, index, nil, EncounterMontage.Story())
+    SetBeatIndex(nextIndex or (#script.parse.beats + 1))
+end
+
+--- after the fight ----------------------------------------------------------
+--The beats that follow the fight on the party's path play once the fight is
+--WON: the victory screen's Proceed tears combat down, the host tick moves
+--the script on to them (stage "aftermath"), and every client holds its
+--Conclusion screen (in a test, the end of the test) until they are done. A
+--defeat skips them. Only one fight is played on any path.
+
+--Has beat `index` begun (it is on the part's path)? A beat's "Only if:" is
+--only checked before it begins: the beat may change what it reads.
+function EncounterOfTheWeekGame.BeatBegun(index)
+    local begun = false
+    pcall(function()
+        begun = EncounterMontage.PathHasBeat(EncounterMontage.GetDoc(), index)
+    end)
+    return begun
+end
+
+--How many "# Encounter" beats the script has (a branching script may have
+--several, one per path).
+function EncounterOfTheWeekGame.FightCount(script)
+    local count = 0
+    for _, beat in ipairs((script ~= nil and script.parse ~= nil and script.parse.beats) or {}) do
+        if beat.kind == "encounter" then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+--The part's fight beat index: the last fight on the path, else the current
+--beat if it is a fight, else the first fight written; nil when there is none.
+function EncounterOfTheWeekGame.FightBeatIndex(script)
+    local beats = (script ~= nil and script.parse ~= nil and script.parse.beats) or {}
+    local found = nil
+    pcall(function()
+        for _, rec in ipairs(EncounterMontage.GetDoc().data.path or {}) do
+            local beat = type(rec) == "table" and beats[rec.index] or nil
+            if beat ~= nil and beat.kind == "encounter" then
+                found = rec.index
+            end
+        end
+    end)
+    if found ~= nil then
+        return found
+    end
+    --play is on a fight beat it has not noted yet (its setup is starting).
+    local current = beats[GetBeatIndex()]
+    if current ~= nil and current.kind == "encounter" then
+        return GetBeatIndex()
+    end
+    for i, beat in ipairs(beats) do
+        if beat.kind == "encounter" then
+            return i
+        end
+    end
+    return nil
+end
+
+--The part's fight beat (see FightBeatIndex) and its index, or nil.
+function EncounterOfTheWeekGame.FightBeat(script)
+    script = script or EncounterMontage.FindMapScript()
+    local index = EncounterOfTheWeekGame.FightBeatIndex(script)
+    if index == nil then
+        return nil, nil
+    end
+    return script.parse.beats[index], index
+end
+
+--The index of the first stage beat played after the part's fight, or nil
+--when nothing follows it (it leaves by Conclusion, or the script ends).
 function EncounterOfTheWeekGame.AfterEncounterBeat(script)
     --a combat-only game ends with its fight.
     if EncounterOfTheWeekGame.IsCombatOnly() then
         return nil
     end
-    local beats = (script ~= nil and script.parse ~= nil and script.parse.beats) or {}
-    for i, b in ipairs(beats) do
-        if b.kind == "encounter" then
-            local nextBeat = beats[i + 1]
-            if nextBeat ~= nil and nextBeat.kind ~= "encounter" then
-                return i + 1
-            end
-            return nil
-        end
+    local fight = EncounterOfTheWeekGame.FightBeatIndex(script)
+    if fight == nil then
+        return nil
     end
-    return nil
+    local target = EncounterOfTheWeekGame.NextBeatAfter(script, fight)
+    if type(target) ~= "number" then
+        return nil
+    end
+    local nextBeat = script.parse.beats[target]
+    if nextBeat == nil or nextBeat.kind == "encounter" then
+        return nil
+    end
+    return target
 end
 
 --This client: after a won fight, are the beats after it still to play (or
@@ -6457,6 +6659,12 @@ end
 --file is near Lua's 200-local ceiling.)
 function EncounterOfTheWeekGame.AfterEncounterPending()
     if m_outcomeKind ~= "victory" then
+        return false
+    end
+    --a part the script ended without a fight has no beats after a fight.
+    local ending = nil
+    pcall(function() ending = EncounterMontage.GetDoc().data.scriptEnding end)
+    if type(ending) == "table" and not ending.fought then
         return false
     end
     local pending = false
@@ -6473,7 +6681,7 @@ function EncounterOfTheWeekGame.AfterEncounterPending()
         end
         local index = GetBeatIndex()
         local beat = script.parse.beats[index]
-        if index < first then
+        if index == EncounterOfTheWeekGame.FightBeatIndex(script) then
             --the host has not moved the script on yet.
             pending = true
             notStarted = true
@@ -6526,8 +6734,16 @@ end
 --sitting in "arriving" until the next tick. Only a beat that hands back to
 --the map -- the encounter, or the end of the script -- hides the stage.
 local function AdvanceFromStageBeat(script, index, montage)
-    local nextBeat = script.parse.beats[index + 1]
-    local narrative = EncounterOfTheWeekGame.NarrativeRuntime(index + 1)
+    --the beat that really plays next: this beat's "Go to:", else the next
+    --written beat, skipping any whose "Only if:" is false.
+    local target = EncounterOfTheWeekGame.NextBeatAfter(script, index)
+    if type(target) == "string" then
+        EncounterOfTheWeekGame.RequestScriptEnding(script, target)
+        return
+    end
+    local nextIndex = target or (#script.parse.beats + 1)
+    local nextBeat = script.parse.beats[nextIndex]
+    local narrative = EncounterOfTheWeekGame.NarrativeRuntime(nextIndex)
 
     --Order matters: SEED the next beat's state first, and only then stamp the
     --beat index. The stage picks its body from the beat index, so stamping it
@@ -6536,22 +6752,22 @@ local function AdvanceFromStageBeat(script, index, montage)
     --the old body draws its own (finished) state for one more refresh, which
     --is what is already on screen.
     if nextBeat ~= nil and nextBeat.kind == "montage" then
-        montage.Begin(script, nextBeat, index + 1)
-        SetBeatIndex(index + 1)
-        pcall(montage.HostTick, script, nextBeat, index + 1)
+        montage.Begin(script, nextBeat, nextIndex)
+        SetBeatIndex(nextIndex)
+        pcall(montage.HostTick, script, nextBeat, nextIndex)
         return
     end
     if nextBeat ~= nil and nextBeat.kind == "narrative" and narrative ~= nil then
-        narrative.Begin(script, nextBeat, index + 1)
-        SetBeatIndex(index + 1)
-        pcall(narrative.HostTick, script, nextBeat, index + 1)
+        narrative.Begin(script, nextBeat, nextIndex)
+        SetBeatIndex(nextIndex)
+        pcall(narrative.HostTick, script, nextBeat, nextIndex)
         return
     end
     local negotiation = rawget(_G, "EncounterNegotiation")
     if nextBeat ~= nil and nextBeat.kind == "negotiation" and negotiation ~= nil then
-        negotiation.Begin(script, nextBeat, index + 1)
-        SetBeatIndex(index + 1)
-        pcall(negotiation.HostTick, script, nextBeat, index + 1)
+        negotiation.Begin(script, nextBeat, nextIndex)
+        SetBeatIndex(nextIndex)
+        pcall(negotiation.HostTick, script, nextBeat, nextIndex)
         return
     end
 
@@ -6560,7 +6776,7 @@ local function AdvanceFromStageBeat(script, index, montage)
     --behind the scene and the dissolve reveals a battlefield that is already
     --set; a script that simply ends dismisses it from the "no such beat"
     --branch of RunScriptBeat. Hiding here would snap it away instead.
-    SetBeatIndex(index + 1)
+    SetBeatIndex(nextIndex)
 end
 
 local m_reportedBeat = nil
@@ -6663,6 +6879,17 @@ local function RunScriptBeat(ctx)
         end
         return
     end
+    --a beat whose "Only if:" is false is skipped before it begins. The beat
+    --before it normally skips past it already; this catches a beat play
+    --starts on (the first beat, a test, /eotwstartat).
+    if beat.playIf ~= nil and not EncounterOfTheWeekGame.BeatBegun(index) then
+        local landed = EncounterScript.LandOnBeat(script.parse, index, montage.Story())
+        if landed ~= index then
+            printf("EotW: skipping beat %d (%s): its 'Only if' is false", index, EncounterScript.BeatLabel(beat))
+            SetBeatIndex(landed or (#beats + 1))
+            return
+        end
+    end
 
     if beat.kind == "montage" then
         EncounterOfTheWeekGame.AnalyticsPhase("montage", index, { title = beat.title })
@@ -6682,7 +6909,7 @@ local function RunScriptBeat(ctx)
             --an older module without the narrative runtime: skip the beat
             --rather than stalling the script forever.
             printf("EotW: skipping narrative beat %d (this client has no narrative runtime)", index)
-            SetBeatIndex(index + 1)
+            EncounterOfTheWeekGame.SkipBeat(script, index)
             return
         end
         EncounterOfTheWeekGame.AnalyticsPhase("narrative", index, { title = beat.title })
@@ -6699,7 +6926,7 @@ local function RunScriptBeat(ctx)
         local negotiation = rawget(_G, "EncounterNegotiation")
         if negotiation == nil then
             printf("EotW: skipping negotiation beat %d (this client has no negotiation runtime)", index)
-            SetBeatIndex(index + 1)
+            EncounterOfTheWeekGame.SkipBeat(script, index)
             return
         end
         EncounterOfTheWeekGame.AnalyticsPhase("negotiation", index, { title = beat.title })
@@ -6714,7 +6941,7 @@ local function RunScriptBeat(ctx)
 
     if beat.kind ~= "encounter" then
         printf("EotW: skipping unknown script beat %d (%s)", index, tostring(beat.title))
-        SetBeatIndex(index + 1)
+        EncounterOfTheWeekGame.SkipBeat(script, index)
         return
     end
 
@@ -6731,6 +6958,29 @@ local function RunScriptBeat(ctx)
     --and the spawn. All idempotent, so every tick may call it; the spawn
     --runs one group per frame (async) and reports SPAWNING until it is done.
     local function ReadyBattlefield()
+        --note the fight on the path, once, so "the party went to" and
+        --"there was no fight" see it.
+        local okPath, errPath = pcall(function()
+            local doc = montage.GetDoc()
+            if doc.data.fought ~= true then
+                doc:BeginChange()
+                local noted, noteErr = pcall(montage.NotePathBeat, doc, beat, index)
+                doc:CompleteChange("Encounter of the Week: fight begins", { undoable = false })
+                if not noted then
+                    error(noteErr)
+                end
+                --with several fights the arrival bounded the map to the first
+                --one written; bound it (and share it) for this one instead,
+                --after dropping the play area cached for that first fight.
+                if EncounterOfTheWeekGame.FightCount(script) > 1 then
+                    m_playArea = nil
+                    ApplyPlayRegion()
+                end
+            end
+        end)
+        if not okPath then
+            printf("EotW: noting the fight on the path failed: %s", tostring(errPath))
+        end
         --a series part's "When <condition>:" lines (more Malice for a rite
         --gone further), once, before anything is set up.
         if beat.when ~= nil and #beat.when > 0 then
@@ -6834,14 +7084,31 @@ local function SkipToCombatTarget()
     end
     local target = nil
     pcall(function()
-        local beats = montage.FindMapScript().parse.beats
+        local script = montage.FindMapScript()
+        local beats = script.parse.beats
         local index = GetBeatIndex()
         local beat = beats[index]
         if beat == nil or (beat.kind ~= "montage" and beat.kind ~= "narrative" and beat.kind ~= "negotiation") then
             return
         end
+        --follow the path from here with the story so far, each beat by its
+        --own "Go to:"; if a later choice still decides it, take the first
+        --fight written after this beat.
+        local at = index
+        for _ = 1, #beats do
+            local nextIndex = EncounterOfTheWeekGame.NextBeatAfter(script, at)
+            if type(nextIndex) ~= "number" then
+                break
+            end
+            if beats[nextIndex].kind == "encounter" then
+                target = nextIndex
+                return
+            end
+            at = nextIndex
+        end
         for i = index + 1, #beats do
             if beats[i].kind == "encounter" then
+                printf("EotW: skip to combat: no fight on the path from here yet; taking the first written one, %s", EncounterScript.BeatLabel(beats[i]))
                 target = i
                 return
             end
@@ -7167,6 +7434,21 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         return
     end
 
+    --the script ended the part with "Go to: Conclusion" / "Defeat": no more
+    --beats play, and every client goes on to the Conclusion or Defeat story.
+    local ending = nil
+    local okEnding, errEnding = pcall(function()
+        ending = EncounterOfTheWeekGame.HostFinishScriptEnding(EncounterMontage.FindMapScript())
+    end)
+    if not okEnding then
+        printf("EotW: ending the part failed: %s", tostring(errEnding))
+    elseif ending == "done" then
+        ctx:ModifyShared(function(s) s.stage = "complete" end)
+        return
+    elseif ending == "waiting" then
+        return
+    end
+
     --what every hero carries before the script hands anything out, so the
     --end of the game knows what treasure they won.
     pcall(EnsureArrivalItems)
@@ -7176,7 +7458,16 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     --Once per part, a few seconds after the last player arrived (so their own
     --placement repairs have settled): any hero still off the start tiles is
     --moved onto them. The host's arrival-time repair ran before members landed.
+    --A branching fight elsewhere on the map, or a "start only in" zone, gives
+    --a new start area; the key changes and the heroes are moved again.
     local strayKey = tostring(dmhub.gameid) .. "|" .. tostring(EncounterOfTheWeekGame.ActivePart())
+    pcall(function()
+        strayKey = strayKey .. "|" .. tostring(EncounterOfTheWeekGame.FightBeatIndex(EncounterMontage.FindMapScript()))
+        local zones = rawget(_G, "EncounterZones")
+        if zones ~= nil and zones.OnlyStartZones ~= nil then
+            strayKey = strayKey .. "|" .. table.concat(zones.OnlyStartZones(), ",")
+        end
+    end)
     if Series.strayRepairKey ~= strayKey then
         Series.strayRepairAt = Series.strayRepairAt or dmhub.Time()
         if dmhub.Time() - Series.strayRepairAt >= 5 then
@@ -7985,6 +8276,11 @@ local function BeginOpeningMontage()
         local script = montage.FindMapScript(true)
         local beat = script.parse.beats[1]
         if beat == nil then
+            return
+        end
+        --a first beat with an "Only if:" waits for the host tick, which
+        --checks it once the story is ready (RunScriptBeat).
+        if beat.playIf ~= nil then
             return
         end
         if beat.kind == "montage" then

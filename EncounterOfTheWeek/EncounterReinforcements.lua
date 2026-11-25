@@ -44,9 +44,17 @@ local function lower(s)
     return string.lower(tostring(s or ""))
 end
 
---The map script's encounter beat (the first "# Encounter"), and the script.
+--The map script's encounter beat (the fight the party reached, else the
+--first "# Encounter"), and the script.
 function EncounterReinforcements.EncounterBeat(script)
     script = script or EncounterMontage.FindMapScript()
+    if script ~= nil and script.parse ~= nil then
+        local fight = nil
+        pcall(function() fight = EncounterOfTheWeekGame.FightBeat(script) end)
+        if fight ~= nil then
+            return fight, script
+        end
+    end
     for _, b in ipairs((script and script.parse and script.parse.beats) or {}) do
         if b.kind == "encounter" then
             return b, script

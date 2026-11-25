@@ -130,7 +130,8 @@
 --  data.surprisedHeroes = nil | { [heroCharid] = { entryName, at } }
 --                  -- "PC is surprised": these heroes alone begin the
 --                     encounter Surprised. Cleared by a fair roll.
---  data.startZones = nil | { [zone keyword, lower-cased] = { entryName, at } }
+--  data.startZones = nil | { [zone keyword, lower-cased] = { entryName, at, only } }
+--                    (only = true when a "start only in" line chose the zone)
 --                  -- "the Start2 zone becomes a starting area": extra zone
 --                     types the heroes may stand in before combat (the
 --                     start-zone confinement reads it).
@@ -260,7 +261,7 @@ function EncounterMontage.Story(doc)
                 local n = tonumber(string.match(tostring(k), "^p(%d+)$"))
                 if n ~= nil and type(v) == "table" then
                     result.parts[n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats),
-                        retreated = EncounterMontage.CopyRetreated(v.retreated) }
+                        retreated = EncounterMontage.CopyRetreated(v.retreated), fought = v.fought }
                 end
             end
             for _, rec in pairs(story.tracks or {}) do
@@ -272,8 +273,36 @@ function EncounterMontage.Story(doc)
         local r = doc.data.seriesResult
         if type(r) == "table" then
             result.this = { outcome = r.outcome, score = tonumber(r.perHero), rounds = tonumber(r.rounds), retreats = tonumber(r.retreats),
+                fought = r.fought,
                 retreated = EncounterMontage.CopyRetreated(r.retreated) }
         end
+        --what this part has done so far (see "what this part remembers").
+        result.path = {}
+        for _, rec in ipairs(doc.data.path or {}) do
+            if type(rec) == "table" and rec.name ~= nil then
+                result.path[#result.path + 1] = rec.name
+            end
+        end
+        result.choices = {}
+        for _, rec in ipairs(doc.data.choices or {}) do
+            if type(rec) == "table" then
+                result.choices[#result.choices + 1] = rec
+            end
+        end
+        result.beatResults = {}
+        for key, outcome in pairs(doc.data.beatResults or {}) do
+            result.beatResults[key] = outcome
+        end
+        result.deals = {}
+        for _, rec in ipairs(doc.data.deals or {}) do
+            if type(rec) == "table" then
+                result.deals[#result.deals + 1] = rec
+            end
+        end
+        result.fought = doc.data.fought == true
+    end)
+    pcall(function()
+        result.heroCount = #EncounterMontage.Heroes()
     end)
     return result
 end
@@ -303,6 +332,68 @@ function EncounterMontage.ChangeTrack(doc, key, delta)
     return rec.value
 end
 
+--- what this part remembers, for branching ----------------------------------
+--Branching conditions ("the party chose ...", "the party went to ...",
+--""The Ambush" was a failure", "the party took the ... deal", "there was no
+--fight") read these script-document fields through Story():
+--  data.path        = { { index, name }, ... } the beats begun, in order
+--  data.choices     = { { beat, section, mode, option, picks, asked }, ... }
+--  data.beatResults = { [MatchKey of a beat name] = "total"|"partial"|"failure" }
+--  data.deals       = { { beat, offer, interest }, ... }
+--  data.fought      = true once the part's fight beat began
+--  data.scriptEnding = { kind, fought, decided, handled, outcome } a "Go to:
+--                     Conclusion / Defeat" that ended the part
+--All are host-written, inside an open change of `doc`, and cleared by ResetTest.
+
+--Is beat `beatIndex` on the part's path (has it begun)?
+function EncounterMontage.PathHasBeat(doc, beatIndex)
+    for _, rec in ipairs(doc.data.path or {}) do
+        if type(rec) == "table" and rec.index == beatIndex then
+            return true
+        end
+    end
+    return false
+end
+
+--A beat has begun: add it to the path (once, so a resumed beat is not added
+--twice). A fight beat also marks the part as fought.
+function EncounterMontage.NotePathBeat(doc, beat, beatIndex)
+    if beat == nil or beatIndex == nil or EncounterMontage.PathHasBeat(doc, beatIndex) then
+        return
+    end
+    doc.data.path = doc.data.path or {}
+    doc.data.path[#doc.data.path + 1] = { index = beatIndex, name = EncounterScript.BeatLabel(beat) }
+    if beat.kind == "encounter" then
+        doc.data.fought = true
+    end
+end
+
+--A narrative section's vote or individual choices have resolved. `rec` =
+--{ beat, section, mode = "together"|"individual", option (the party's pick,
+--together only), picks = { [option name] = count }, asked = count }.
+function EncounterMontage.RememberChoice(doc, rec)
+    doc.data.choices = doc.data.choices or {}
+    doc.data.choices[#doc.data.choices + 1] = rec
+end
+
+--A named montage beat has ended with this outcome (OutcomeFor).
+function EncounterMontage.RememberBeatResult(doc, beat, outcome)
+    if beat == nil or beat.name == nil or beat.name == "" or outcome == nil then
+        return
+    end
+    doc.data.beatResults = doc.data.beatResults or {}
+    doc.data.beatResults[EncounterScript.MatchKey(beat.name)] = outcome
+end
+
+--A negotiation ended in a deal on `offer` (an "## Offer:" of the beat).
+function EncounterMontage.RememberDeal(doc, beat, offer)
+    if beat == nil or offer == nil then
+        return
+    end
+    doc.data.deals = doc.data.deals or {}
+    doc.data.deals[#doc.data.deals + 1] = { beat = EncounterScript.BeatLabel(beat), offer = offer.name, interest = offer.interest }
+end
+
 --Host, inside an open change: start this part's story from what earlier
 --parts left. `carried` is the City's story ({ parts = { [k] = {...} |
 --"not recorded" }, tracks = { [name] = value } }, keys as strings or
@@ -320,7 +411,7 @@ function EncounterMontage.SeedStory(doc, part, carried)
             if n ~= nil and n < part then
                 if type(v) == "table" then
                     story.parts["p" .. n] = { outcome = v.outcome, score = tonumber(v.score), rounds = tonumber(v.rounds), retreats = tonumber(v.retreats),
-                        retreated = EncounterMontage.CopyRetreated(v.retreated) }
+                        retreated = EncounterMontage.CopyRetreated(v.retreated), fought = v.fought }
                 else
                     story.parts["p" .. n] = "not recorded"
                 end
@@ -467,7 +558,9 @@ end
 --Host, once, when the fight is won: work out this part's result (montage
 --score per hero, outcome, winning round), run "# Results", and save it.
 --A defeat saves nothing. Returns the saved result, or nil.
-function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
+--`fought` = false for a part won without a fight ("Go to: Conclusion"
+--before the fight), so a later part can read "Part 1 ended without a fight".
+function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds, fought)
     if not victory or script == nil or script.parse == nil or script.parse.part == nil then
         return nil
     end
@@ -511,6 +604,7 @@ function EncounterMontage.DecideSeriesResult(script, victory, heroCount, rounds)
         failures = totals.failures,
         unvanquished = totals.unvanquished,
         rounds = tonumber(rounds),
+        fought = fought ~= false,
         at = dmhub.serverTime,
     }
     --"# Results" reads this part's own result as "total success",
@@ -1171,6 +1265,28 @@ local function ChooseMapScript(candidates, mapid, part)
         end
     end
     return best, allIncluded, parts
+end
+
+--A map folder that is not a series plays one script: the name of the one
+--played, and the names of every other playable script there, which never
+--play (only one script per folder is chosen). nil, {} when there is no script or
+--the map is a series (its documents are parts, not rivals).
+function EncounterMontage.IgnoredScripts(mapid)
+    local candidates = MapScriptCandidates(mapid)
+    local best, allIncluded, parts = ChooseMapScript(candidates, mapid, nil)
+    if best == nil or #parts > 0 then
+        return nil, {}
+    end
+    local ignored = {}
+    for _, candidate in ipairs(candidates) do
+        if candidate.docid ~= best.docid and not allIncluded[candidate.docid] then
+            local other = EncounterMontage.LoadScript(candidate.docid, mapid)
+            if other ~= nil and HasPlayableBeat(other.parse) then
+                ignored[#ignored + 1] = tostring(other.doc.description or candidate.docid)
+            end
+        end
+    end
+    return tostring(best.doc.description or best.docid), ignored
 end
 
 --{ {number, title}, ... } for a series' part scripts (see ChooseMapScript).
@@ -3610,7 +3726,7 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                 --beat reveals the zone to the players.
                 if ctx.doc ~= nil then
                     ctx.doc.data.startZones = ctx.doc.data.startZones or {}
-                    ctx.doc.data.startZones[effect.zone] = { entryName = ctx.entryName, at = dmhub.serverTime }
+                    ctx.doc.data.startZones[effect.zone] = { entryName = ctx.entryName, at = dmhub.serverTime, only = effect.only == true or nil }
                     local zones = rawget(_G, "EncounterZones")
                     if zones ~= nil then
                         zones.BankReveal(ctx.doc, effect.zone, ctx.entryName)
@@ -6965,6 +7081,8 @@ function EncounterMontage.Begin(script, beat, beatIndex)
     doc:BeginChange()
     doc.data.montage = {
         beatIndex = beatIndex,
+        --the beat's name, kept with each choice the part remembers.
+        beatName = EncounterScript.BeatLabel(beat),
         round = 1,
         phase = "arriving",
         acted = {},
@@ -6979,6 +7097,10 @@ function EncounterMontage.Begin(script, beat, beatIndex)
     --scene ids restart with m.seq, so a cursor left over from an earlier
     --run could otherwise skip the new run's first scene.
     doc.data.montageScene = nil
+    local noted, noteErr = pcall(EncounterMontage.NotePathBeat, doc, beat, beatIndex)
+    if not noted then
+        printf("EotW montage: noting the beat on the path failed: %s", tostring(noteErr))
+    end
     --a series part's "When <condition>:" lines, against the story so far.
     local whenOk, whenErr = pcall(EncounterMontage.ApplyWhenLines, doc, beat, beatIndex, doc.data.montage)
     if not whenOk then
@@ -7338,7 +7460,20 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
         doc.data.montageTotals = doc.data.montageTotals or {}
         local totalsKey = "b" .. tostring(beatIndex)
         if doc.data.montageTotals[totalsKey] == nil then
-            doc.data.montageTotals[totalsKey] = EncounterMontage.TotalsFromLog(m)
+            local totals = EncounterMontage.TotalsFromLog(m)
+            doc.data.montageTotals[totalsKey] = totals
+            --this montage's own result, for '"The Ambush" was a failure':
+            --its score per hero against the part's outcome bars.
+            local outcomeOk, outcomeErr = pcall(function()
+                local score = (tonumber(totals.successes) or 0) - (tonumber(totals.failures) or 0) - (tonumber(totals.unvanquished) or 0)
+                local perHero = score / math.max(1, #heroes)
+                local results = script ~= nil and script.parse ~= nil and script.parse.results or nil
+                local bars = results ~= nil and results.bars or nil
+                EncounterMontage.RememberBeatResult(doc, beat, EncounterMontage.OutcomeFor(perHero, bars))
+            end)
+            if not outcomeOk then
+                printf("EotW montage: beat result failed: %s", tostring(outcomeErr))
+            end
         end
     end
 
@@ -8225,6 +8360,14 @@ function EncounterMontage.ResetTest(options)
     doc.data.montageTotals = nil
     doc.data.whenApplied = nil
     doc.data.seriesResult = nil
+    --forget what this part remembered for branching (path, choices,
+    --results, deals, ending).
+    doc.data.path = nil
+    doc.data.choices = nil
+    doc.data.beatResults = nil
+    doc.data.deals = nil
+    doc.data.fought = nil
+    doc.data.scriptEnding = nil
     doc:CompleteChange("Montage test reset", { undoable = false })
 
     --EotW game: the combat flags and the map script's run-once state.
@@ -8288,6 +8431,70 @@ pcall(function()
             local text = table.concat(lines, "\n")
             print(text)
             pcall(function() chat.Send(text) end)
+        end,
+    }
+
+    --"/eotwstartat": test one branch of a branching script without playing
+    --the others.
+    Commands.RegisterMacro{
+        name = "eotwstartat",
+        summary = "reset the Encounter of the Week test and start it at a named beat",
+        doc = "Usage: /eotwstartat <beat>; chose <option> [at <section>]; track <name> <value>; ...\nResets the test (as /eotwmontage reset), remembers each 'chose' as the party's vote and sets each track, then points the script at <beat>. In an EotW test the map script plays on from there; in the authoring game run /eotwmontage start.",
+        command = function(str)
+            local parts = {}
+            for piece in string.gmatch(str or "", "[^;]+") do
+                local trimmed = string.trim(piece)
+                if trimmed ~= "" then
+                    parts[#parts + 1] = trimmed
+                end
+            end
+            local script = EncounterMontage.FindMapScript(true)
+            if script == nil or script.parse == nil then
+                print("EotW start at: this map has no script")
+                return
+            end
+            local target = parts[1] ~= nil and EncounterScript.ResolveBeatTarget(script.parse, parts[1]) or nil
+            if type(target) ~= "number" then
+                print("EotW start at: no beat named '" .. tostring(parts[1]) .. "' in this map's script")
+                return
+            end
+            local choices, tracks = {}, {}
+            for i = 2, #parts do
+                local option, section = string.match(parts[i], "^[Cc]hose%s+(.-)%s+at%s+(.+)$")
+                option = option or string.match(parts[i], "^[Cc]hose%s+(.+)$")
+                local trackName, value = string.match(parts[i], "^[Tt]rack%s+(.-)%s+(%-?%d+)$")
+                if option ~= nil then
+                    option = string.gsub(option, "^\"(.*)\"$", "%1")
+                    section = section ~= nil and string.gsub(section, "^\"(.*)\"$", "%1") or "?"
+                    choices[#choices + 1] = { beat = "?", section = section, mode = "together", option = option,
+                        picks = { [option] = 1 }, asked = 1 }
+                elseif trackName ~= nil then
+                    tracks[#tracks + 1] = { key = EncounterScript.MatchKey(trackName), value = tonumber(value) }
+                else
+                    print("EotW start at: not understood: '" .. parts[i] .. "'")
+                    return
+                end
+            end
+            if not EncounterMontage.ResetTest() then
+                return
+            end
+            local doc = EncounterMontage.GetDoc()
+            doc:BeginChange()
+            doc.data.choices = choices
+            for _, track in ipairs(tracks) do
+                EncounterMontage.ChangeTrack(doc, track.key, track.value)
+            end
+            doc.data.beat = target
+            doc:CompleteChange("Montage test: start at a beat", { undoable = false })
+            printf("EotW start at: the script starts at beat %d (%s), %d choice(s), %d track(s) preset",
+                target, EncounterScript.BeatLabel(script.parse.beats[target]), #choices, #tracks)
+            --a beat whose "Only if:" is false with these choices is skipped
+            --as soon as play reaches it; say so, or the start looks wrong.
+            local landed = EncounterScript.LandOnBeat(script.parse, target, EncounterMontage.Story(doc))
+            if landed ~= target then
+                printf("EotW start at: its 'Only if' is false with these choices, so play goes on to %s",
+                    landed ~= nil and EncounterScript.BeatLabel(script.parse.beats[landed]) or "the end of the script")
+            end
         end,
     }
 

@@ -7809,7 +7809,7 @@ local function GauntletBoardChildren(beat, m, heroes, prose)
         if vote.result == nil and next(vote.choices or {}) == nil and not EncounterNarrative.LocalUserIsObserver() then
             local label = T("stage.gauntlet.proceed_button")
             local _, script = EncounterMontage.CurrentBeat()
-            local drawSteel = EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex)
+            local drawSteel = EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex, beat, section, m)
             if drawSteel then
                 label = T("stage.gauntlet.draw_steel_button")
             end
@@ -8408,7 +8408,7 @@ local function CreateGauntletStage(args)
         local section = EncounterGauntlet.CurrentSection(beat, m)
         local vote = (m.gauntlet or {}).vote or {}
         return m.phase == "rounds" and section ~= nil and section.implicitOption and next(vote.choices or {}) ~= nil
-            and EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex)
+            and EncounterGauntlet.ProceedEnds(beat, m, section) and EncounterGauntlet.FightFollows(script, m.beatIndex, beat, section, m)
     end
 
     local function Refresh(element)

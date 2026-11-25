@@ -580,19 +580,28 @@ end
 
 --The extra zone types a montage clause opened for the heroes to start in
 --("the Start2 zone becomes a starting area"), lower-cased. Read by every
---client's start-zone confinement.
-function EncounterZones.UnlockedStartZones()
+--client's start-zone confinement. `onlyOnes` = true lists just the zones a
+--"start only in" clause chose.
+function EncounterZones.UnlockedStartZones(onlyOnes)
     local result = {}
     pcall(function()
         local zones = Doc().data.startZones
         if type(zones) == "table" then
-            for zone, _ in pairs(zones) do
-                result[#result + 1] = zone
+            for zone, info in pairs(zones) do
+                if not onlyOnes or (type(info) == "table" and info.only) then
+                    result[#result + 1] = zone
+                end
             end
         end
     end)
     table.sort(result)
     return result
+end
+
+--The zone types a "start only in" clause made THE starting area (the Start
+--zone no longer counts), lower-cased; {} when none did.
+function EncounterZones.OnlyStartZones()
+    return EncounterZones.UnlockedStartZones(true)
 end
 
 --- every client: the overlay --------------------------------------------------
@@ -781,13 +790,7 @@ pcall(function()
             local doc = Doc()
             if arg == "setup" then
                 local script = EncounterMontage.FindMapScript(true)
-                local beat = nil
-                for _, b in ipairs(script.parse.beats) do
-                    if b.kind == "encounter" then
-                        beat = b
-                        break
-                    end
-                end
+                local beat = EncounterOfTheWeekGame.FightBeat(script)
                 if beat == nil then
                     print("EotW zones: this map's script has no encounter beat")
                     return

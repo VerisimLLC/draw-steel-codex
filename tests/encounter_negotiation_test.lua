@@ -57,6 +57,8 @@ local HEROES = {
 }
 local speakers = { brunna = true }
 local applied = {}
+--what the negotiation tells the part to remember (branching).
+local pathNoted, dealsNoted = {}, {}
 local intelligenceOn, intelligenceHeld = false, 0
 
 EncounterMontage = {
@@ -69,6 +71,12 @@ EncounterMontage = {
         return effects, {}
     end,
     RecordAlly = function() end,
+    NotePathBeat = function(_, beat, beatIndex)
+        pathNoted[#pathNoted + 1] = { name = beat.name, index = beatIndex }
+    end,
+    RememberDeal = function(_, _, offer)
+        dealsNoted[#dealsNoted + 1] = offer.name
+    end,
     IsPresented = function() return true end,
     FeatureUnlocked = function() return intelligenceOn end,
     SpendIntelligence = function(doc, heroids, qty)
@@ -317,6 +325,8 @@ Send("david", "vote", { choice = "deal" })
 m = N.GetState()
 check(m.phase == "done" and m.result.outcome == "deal", "an agreed deal stands")
 check(#applied == 1 and applied[1].kind == "malice", "the offer's rules apply")
+check(dealsNoted[#dealsNoted] == "Yes, but", "the deal is remembered for branching")
+check(#pathNoted >= 1 and pathNoted[1].name == "Hask", "the negotiation is on the part's path")
 server = server + 7
 check(Tick() == "done", "the beat ends after its linger")
 
@@ -390,6 +400,7 @@ check(N.GetState().phase == "reply", "the new controller's roll resolves it")
 HEROES[3].ownerId, HEROES[4].ownerId = "david", "david"
 
 --a rehearsal plays the same, and its deal applies nothing
+local dealsBeforeRehearsal = #dealsNoted
 documents.data = {}
 applied = {}
 N.Begin({}, beat, 1, true)
@@ -400,6 +411,7 @@ Send("lisa", "takeDeal")
 Send("david", "vote", { choice = "deal" })
 m = N.GetState()
 check(m.result.outcome == "deal" and #applied == 0, "a rehearsed deal applies nothing")
+check(#dealsNoted == dealsBeforeRehearsal, "a rehearsed deal is not remembered")
 
 --interest 0 ends it with the "No, and"
 m = Fresh()

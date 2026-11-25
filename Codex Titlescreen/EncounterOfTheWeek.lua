@@ -7939,6 +7939,22 @@ CreateScreen = function(args)
             if badge ~= nil then
                 lineText = body .. edited
             end
+            --admins: right-click a player's name or line to warn or ban them
+            --(not lines bridged in from Discord, which have no account here).
+            local ShowLineMenu = function(element)
+                if msg.source == "discord" then
+                    return
+                end
+                local entries = EotwModeration.ChatLineMenu(msg.userid, msg.name)
+                if #entries == 0 then
+                    return
+                end
+                element.popup = gui.ContextMenu{
+                    width = 260,
+                    entries = entries,
+                    click = function() element.popup = nil end,
+                }
+            end
             local line = gui.Label{
                 text = lineText,
                 fontSize = 16,
@@ -7960,22 +7976,7 @@ CreateScreen = function(args)
                     end
                     dmhub.OpenURL(url)
                 end,
-                --admins: right-click a player's line to warn or ban them
-                --(not lines bridged in from Discord, which have no account here).
-                rightClick = function(element)
-                    if msg.source == "discord" then
-                        return
-                    end
-                    local entries = EotwModeration.ChatLineMenu(msg.userid, msg.name)
-                    if #entries == 0 then
-                        return
-                    end
-                    element.popup = gui.ContextMenu{
-                        width = 260,
-                        entries = entries,
-                        click = function() element.popup = nil end,
-                    }
-                end,
+                rightClick = ShowLineMenu,
             }
             if badge ~= nil then
                 children[#children+1] = gui.Panel{
@@ -7998,6 +7999,7 @@ CreateScreen = function(args)
                             valign = "center",
                             textWrap = false,
                             rmargin = 6,
+                            rightClick = ShowLineMenu,
                         },
                         badge,
                     },

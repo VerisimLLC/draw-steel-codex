@@ -72,6 +72,15 @@ City is NOT built (waits on David's series City source), so real games start
 every later part with an empty story. See "Encounter series" -> "Carrying
 the story forward".
 
+**Branching scripts, phase 1 (2026-11-24):** a script can fork between
+beats -- `Go to: <beat>` / `Conclusion` / `Defeat`, `Only if:` on a beat or
+a journal, conditions that remember the part's choices, montage results and
+deals, one fight per path, start-only zones, victories without a fight --
+with validator errors and a Paths list, and `/eotwstartat` to test a branch.
+Parser and graph unit-tested (script 1382, edit 1006, negotiation 59); type
+check clean; NOTHING run in the app yet; UNCOMMITTED. See "Branching
+scripts".
+
 **Encounter Rules (2026-10-20):** an optional `Encounter Rules` journal
 document in the map's folder, shown read-only from a book button above
 Journal once combat begins. Verified live 2026-10-20 in an authoring test
@@ -7115,6 +7124,44 @@ to it is `EOTW_MONTAGE_KNACKS.md` at the dmhub repo root. Decisions:
 - The host fixes the version a hero takes at `choose` (`t.knackIndex`);
   `EncounterMontage.TurnOption` is the one way runtime code reads the turn's
   option. A free version resolves as tier 0.
+
+## Branching scripts (phase 1 BUILT 2026-11-24, not run in the app)
+
+The design is `BRANCHING_DESIGN.md` in this folder (LOCKED; decisions B1-B24),
+and the build `BRANCHING_PHASE1_PLAN.md` (work packages WP1-WP8, each with
+what was built). The authoring grammar is in the /eotw skill's
+`script-reference.md`, "Branching between beats". In short:
+
+- **Parser** (`EncounterScript.lua`): named beat headings, `Only if:` (beat
+  and journal header, using include spans from `ExpandIncludes`), beat and
+  offer exits, quoted names in conditions, the remembered-part conditions,
+  the start-only clause; `NextBeat`, `BeatExits`, `BeatPaths`,
+  `CheckBranches` (V1-V16; `parse.errors`).
+- **Memory** (`EncounterMontage.lua`): `data.path`, `choices`,
+  `beatResults`, `deals`, `fought` in the script document, through
+  `Story()`; cleared by `ResetTest`.
+- **Sequencing** (`EncounterOfTheWeek.lua`, `EncounterGauntlet.lua`): the
+  host follows `NextBeatAfter` (the exit a beat took, skipped beats); a
+  narrative route to another beat ends the narrative (`GauntletLeave`);
+  "Draw Steel!", the after-fight beats and Skip to Combat follow the path.
+- **The fight** is the encounter beat reached (`FightBeatIndex`): its
+  islands, reinforcements, bystanders, AI lines, play area; a start-only
+  zone replaces the Start zone and heroes are moved into it.
+- **Endings without a fight**: `scriptEnding` in the script document,
+  `HostFinishScriptEnding`, and every client's Conclusion watcher; a full
+  victory in town (B23).
+- **Authoring**: validator errors first and a Paths list; `/eotwstartat`.
+
+Not built (phase 2-3): the builder's "leads to" lines, Paths tab, goes-to
+picker, + Branch; path feedback for creators (City). Gaps: the City must keep
+a part's `fought` for `Part N ended without a fight` across games; the
+character sheet's Victory count is not raised by a fightless victory.
+
+To test (after a restart): Goblin Ambush still plays as before; a two-branch
+fixture reaches the right beat and fight on both votes, with "Draw Steel!" on
+both; a peaceful `Go to: Conclusion` from an offer shows the Conclusion and
+records a victory; a failed montage routing to `Go to: Defeat`; a start-only
+clause moves heroes; resume mid-branch; a second client sees the same stage.
 
 ## The document, discovery and sub-documents
 

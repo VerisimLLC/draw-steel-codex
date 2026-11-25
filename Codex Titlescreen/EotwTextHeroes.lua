@@ -554,6 +554,11 @@ text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
 --After the numbers while a hero is between 0 and their death value.
 text("herocard.back.stamina.dying", [[Dying]])
 
+--Under the condition chips while something ends on a save. {threshold} is the
+--number to reach (already formatted, with its +); {roll} is the dice, e.g.
+--1d10 or 1d10 + 1.
+text("herocard.back.save.line", [[Save ends on {threshold} ({roll}) at the end of your turn]])
+
 --After the Surges count in Stats: the damage each surge adds. {damage} is a number.
 text("herocard.back.surges.damage", [[(+{damage} each)]])
 

@@ -989,6 +989,44 @@ local function ManagedEffects(tok)
     }
 end
 
+--- Under the chips while a condition or effect on the creature ends on a
+--- save: what the save needs, worked out as the save itself does it
+--- (MCDMAbilitySaveBehavior: 1d10 + Save Bonus against the Save Ends
+--- threshold, 6 unless something changes it). nil when nothing saves.
+local function SaveLine(c)
+    local saving = false
+    for _, entry in pairs(Try(function() return c:try_get("inflictedConditions", {}) end, {})) do
+        if entry.duration == "save" then
+            saving = true
+        end
+    end
+    for _, entry in ipairs(Try(function() return c:ActiveOngoingEffects() end, {})) do
+        if Try(function() return entry.removeOnSave end, false) == true then
+            saving = true
+        end
+    end
+    if not saving then
+        return nil
+    end
+    local threshold = tonumber(Try(function()
+        return ExecuteGoblinScript("Save Ends", c:LookupSymbol({}), 6, "Save Ends threshold")
+    end, 6)) or 6
+    local bonus = tonumber(Try(function() return c:CalculateNamedCustomAttribute("Save Bonus") end, 0)) or 0
+    local roll = "1d10"
+    if bonus ~= 0 then
+        roll = string.format("1d10 %s %d", cond(bonus > 0, "+", "-"), math.abs(bonus))
+    end
+    return Text{
+        text = T("herocard.back.save.line", {
+            threshold = string.format("<b><color=%s>%d+</color></b>", COLOR_TEXT, threshold),
+            roll = roll,
+        }),
+        fontSize = 11.5,
+        color = COLOR_MUTED,
+        bmargin = 3,
+    }
+end
+
 local function Effects(c, tok)
     local chips = {}
     ---@type Panel|nil
@@ -1091,6 +1129,10 @@ local function Effects(c, tok)
             interactable = false,
             children = chips,
         }
+    end
+    local okSave, saveLine = pcall(SaveLine, c)
+    if okSave and saveLine ~= nil then
+        children[#children+1] = saveLine
     end
     children[#children+1] = Text{ text = defenseText, fontSize = 11.5 }
 

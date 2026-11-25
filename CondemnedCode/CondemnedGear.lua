@@ -50,6 +50,7 @@ CondemnedGear.GRENADES = {
 --- @class CondemnedGearChoices
 --- @field gear string[] the chosen gear's itemids
 --- @field grenades table<string, integer> grenade itemid -> how many
+--- @field done nil|boolean the hero's player pressed Done; any later change clears it
 
 --- @class CondemnedGearHero
 --- @field charid string
@@ -141,6 +142,7 @@ local function DecodeChoices(raw)
             result.grenades[itemid] = count
         end
     end
+    result.done = value.done == true or nil
     return result
 end
 
@@ -155,9 +157,25 @@ end
 --- @param charid string
 --- @param choices nil|CondemnedGearChoices
 function CondemnedGear.SetChoices(charid, choices)
+    if choices ~= nil then
+        --a change to what was chosen means the hero is not done with it any more.
+        choices.done = nil
+    end
     ChangeDoc("Choose experimental gear", function(data)
         data.choices = data.choices or {}
         data.choices[charid] = choices ~= nil and dmhub.ToRawJson(choices) or nil
+    end)
+end
+
+--- Mark a hero's choices as finished (the Done button). They may be fewer than the
+--- allowance; changing them afterwards (SetChoices) sets the hero back to choosing.
+--- @param charid string
+function CondemnedGear.SetDone(charid)
+    local choices = CondemnedGear.Choices(charid)
+    choices.done = true
+    ChangeDoc("Done choosing experimental gear", function(data)
+        data.choices = data.choices or {}
+        data.choices[charid] = dmhub.ToRawJson(choices)
     end)
 end
 
@@ -237,7 +255,7 @@ function CondemnedGear.Status(entry)
     if gear > allow.gear or grenades > allow.grenades then
         return "over"
     end
-    if gear == allow.gear and grenades == allow.grenades then
+    if choices.done then
         return "done"
     end
     if gear == 0 and grenades == 0 then
@@ -425,6 +443,8 @@ local g_rows = false
 local BODY_HEIGHT = WINDOW_HEIGHT - BAND_HEIGHT
 local BODY_HPAD = 14
 local BODY_VPAD = 11
+--the picker's footer under both columns, which holds Done (its rule included).
+local DONE_FOOT = 56
 local PANE_WIDTH = 357
 local COLUMN_GAP = 14
 local LIST_WIDTH = WINDOW_WIDTH - 2 * BODY_HPAD - COLUMN_GAP - PANE_WIDTH
@@ -1187,7 +1207,7 @@ local function BuildPane(repaint)
 
     local body = gui.Panel{
         width = PANE_WIDTH,
-        height = BODY_HEIGHT - 2 * BODY_VPAD - FOOT_HEIGHT,
+        height = BODY_HEIGHT - 2 * BODY_VPAD - FOOT_HEIGHT - DONE_FOOT,
         vscroll = true,
         gui.Panel{
             flow = "vertical",
@@ -2197,28 +2217,76 @@ local function BuildWindow()
         end
     end
 
-    --The picker: the list, and the preview pane (chunk 4) beside it.
+    --Done: the hero's choices are finished. A player's window closes (the floating tab
+    --brings it back); the Director, or a player with several heroes, goes back to the list.
+    local done = HeroSheetTheme.WindowButton(T("condemned.gear.done"), function()
+        local hero = g_charid ~= nil and FindHero(g_charid) or nil
+        if hero == nil or not CanChooseFor(hero) or CondemnedGear.Status(hero) == "over" then
+            return
+        end
+        CondemnedGear.SetDone(hero.charid)
+        if dmhub.isDM or #CondemnedGear.MyHeroes() > 1 then
+            g_charid = nil
+            Repaint()
+        else
+            CondemnedGear.CloseWindow()
+        end
+    end, true)
+    done.selfStyle.halign = "right"
+    done:SetClass("cgGold", true)
+    done.children[1]:SetClass("cgGold", true)
+
+    --The picker: the list, and the preview pane (chunk 4) beside it, over the Done footer.
     local picker = gui.Panel{
-        flow = "horizontal",
+        flow = "vertical",
         width = "100%",
         height = "100%",
         hpad = BODY_HPAD,
         vpad = BODY_VPAD,
         borderBox = true,
         paint = function(element)
-            element:SetClass("collapsed", g_charid == nil)
+            local hero = g_charid ~= nil and FindHero(g_charid) or nil
+            element:SetClass("collapsed", hero == nil)
+            if hero == nil then
+                return
+            end
+            local status = CondemnedGear.Status(hero)
+            done:SetClass("collapsed", status == "given" or not CanChooseFor(hero))
+            local over = status == "over"
+            done.data.tip = over and T("condemned.gear.over_limit_tip") or (not dmhub.isDM and T("condemned.gear.done_tip") or nil)
+            --opacity is not passed on to children: dim the label too.
+            done.selfStyle.opacity = over and 0.45 or 1
+            done.children[1].selfStyle.opacity = over and 0.45 or 1
         end,
-        BuildList(Repaint),
-        --the line between the list and the pane, in the gap's middle.
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = BODY_HEIGHT - 2 * BODY_VPAD - DONE_FOOT,
+            BuildList(Repaint),
+            --the line between the list and the pane, in the gap's middle.
+            gui.Panel{
+                classes = { "heroSheetDialogRule" },
+                bgimage = "panels/square.png",
+                width = 1,
+                height = "100%",
+                lmargin = math.floor(COLUMN_GAP / 2) - 1,
+                opacity = 0.6,
+            },
+            BuildPane(Repaint),
+        },
         gui.Panel{
             classes = { "heroSheetDialogRule" },
             bgimage = "panels/square.png",
-            width = 1,
-            height = "100%",
-            lmargin = math.floor(COLUMN_GAP / 2) - 1,
+            width = "100%",
+            height = 1,
             opacity = 0.6,
         },
-        BuildPane(Repaint),
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = DONE_FOOT - 1,
+            done,
+        },
     }
 
     local body = gui.Panel{

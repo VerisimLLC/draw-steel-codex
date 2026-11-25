@@ -66,6 +66,9 @@ text("condemned.gear.gear_full_tip", [[You have {n} of {max} gear. Put one back 
 text("condemned.gear.choose_one", [[Choose one]])
 text("condemned.gear.n_chosen", [[{n} chosen]])
 text("condemned.gear.handed_out", [[Handed out]])
+--The picker's footer: the hero's choices are finished (they may still change them).
+text("condemned.gear.done", [[Done]])
+text("condemned.gear.done_tip", [[Tells the Director you're done. You can still change your choices until they hand out.]])
 
 ----------------------------------------------------------------------------
 -- THE PARTY TABLE (the Director, and a player with several heroes)

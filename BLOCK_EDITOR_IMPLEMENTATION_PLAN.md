@@ -35,34 +35,63 @@ What we avoid (both are THC-builder habits the newer builder dropped):
   modifier, behaviour or choice id; a CI grep enforces it (coding plan section 4).
 - Writing straight to records without one save path. Every change goes through the host's `save`.
 
-## 2. The module
+## 2. The module, organised like THC's builder
 
 A new mod, **`Block Editor/`** (decided: framework ledger), loaded after Draw Steel Core Rules and
-Draw Steel UI. Rules-side code (declarations, readers) is **not** in it: it lives in
-`DMHub Utils/Block.lua` and beside each type's registration, so it loads before
-`CharacterModifier.lua` and has no `gui` dependency (coding plan, load order).
+Draw Steel UI. It follows the file organisation of `Draw Steel Character Builder/`:
+
+**THC's conventions, kept exactly:**
+- **One core file** (`CharacterBuilder.lua` there, `BlockEditor.lua` here): the global, a long
+  design-doc comment at the top (overall design, events, state, helpers, optimisation notes, as
+  CharacterBuilder.lua:1-76), constants and enums, the shared `_helpers`, and the registry.
+- **Every other file defines one prefixed global** with `RegisterGameType` and a `@class`
+  annotation, under a short `--[[ purpose ]]` header. THC uses `CB` (`CBAncestryDetail`,
+  `CBSelectors`, `CBStyles`); we use **`BE`** (`BEShelf`, `BEFeatureDetail`, `BEStyles`).
+- **Helpers are aliased as locals** at the top of each file that uses them
+  (`local _fireControllerEvent = BlockEditor._fireControllerEvent`), never re-implemented.
+- **Public entry points** are `X.CreatePanel()` (UI) or `X.CreateNew(...)` (objects); private
+  functions start with `_` (`BEFeatureDetail._navPanel`).
+- **Split by role**: the controller, state, one `*Detail.lua` per area of the editor, shared widget
+  files, a right-hand panel, styles. Registration lives in its own file, loaded after what it
+  registers (as Selectors.lua is loaded after the `*Detail.lua` files).
+
+**The files** (left: THC's file it mirrors):
+
+| THC builder | Block editor | Global | Role |
+|---|---|---|---|
+| `CharacterBuilder.lua` | `BlockEditor.lua` | `BlockEditor` | Design doc, constants (`BlockEditor.AREA` enum like `SELECTOR`), shared `_helpers` (`_fireControllerEvent`, `_getController`, `_getState`, `_getHost`, `_getRecord`, `_confirmDialog`), `RegisterHost` / `RegisterArea` registries |
+| `State.lua` | `State.lua` | `BlockEditorState` | Dotted-key store (`record`, `view`, `area.active`, `feature.openId`, `drag`, `issues`); `CreateNew`, `Get`, `Set` (a copy of CharacterBuilderState, renamed) |
+| `MainPanel.lua` | `MainPanel.lua` | (on `BlockEditor`) | The controller panel: columns, state, controller events (`openFeature`, `addBlock`, `moveBlock`, `combine`, `showView`, `save`), fires `refreshEditorState`; the `Open` / `Routes` entry points |
+| `Selectors.lua` | `Areas.lua` | `BEAreas` | The editor's areas in one place and their `RegisterArea{ id, ord, panel }` calls (class: Basics, Heroic resource, Levels; the subclass tabs). Loaded after the `*Detail.lua` files |
+| `AncestryDetail.lua`, `ClassDetail.lua`... | `BasicsDetail.lua`, `ResourceDetail.lua`, `LevelsDetail.lua`, `FeatureDetail.lua`, `SubclassDetail.lua` | `BEBasicsDetail`... | One centre-column panel per area: the class's basics rows; how you gain the resource (gain blocks); the level lanes; an open feature (name, text, its stack); a subclass page |
+| `FeatureSelector.lua` (generic choice UI) | `BlockPanel.lua` | `BEBlockPanel` | Generic block UI: any registered block draws through it (grip, sentence, slots, the ... menu, wrapper bodies). Its file-top comment lists what a block must declare, as FeatureSelector.lua:1-27 lists what a choice must implement |
+| (part of FeatureSelector) | `Slots.lua` | `BESlots` | The slot widgets: Text, Number, Choice, Many, Formula (fx picker), Test (test picker), Ref (compendium search), Who, Blocks; `RegisterSlotType` |
+| (new) | `Stack.lua` | `BEStack` | A list of blocks: rows, insert points, drop slots, combine brackets |
+| `Selectors.lua` (left rail) | `Shelf.lua` | `BEShelf` | The shelf: groups, search, recipes, drag sources, built from the registry |
+| `FeatureCache.lua` | `RecordCache.lua` | `BERecordCache` | The open record read into blocks, and written back (calls the rules-side reader and writer); keeps the kept-record marks |
+| `SelectionStatus.lua` | `IssueStatus.lua` | `BEIssueStatus` | Things to finish / worth checking, per area and in total |
+| `CharacterPanel.lua` (right column) | `StatusPanel.lua` | `BEStatusPanel` | The right column: status, book text preview, saved data |
+| `Styles.lua` | `Styles.lua` | `BEStyles` | `BEStyles.SIZES`, `GetStyles()`; theme tokens only (no hard-coded colours, unlike CBStyles.COLORS); merged with `ThemeEngine.MergeStyles` and re-applied on theme change, as MainPanel.lua:55 / 820-825 |
+| `HeroBuilderText.lua` | `BlockEditorText.lua` | (UIText) | Every string, `UIText.Define("BlockEditorText")`; added to `tests/uitext_check.lua` |
+| (HeroBuilder's host) | `Hosts.lua` | `BEHosts` | The host interface and its `RegisterHost` calls: class (with subclass tabs), feature, title, perk; later ability |
+
+**Load order** (registered in the mod's cloud file list in this order, as the builder's is):
+`BlockEditor.lua` -> `State.lua` -> `BlockEditorText.lua` -> `Styles.lua` -> `RecordCache.lua` ->
+`IssueStatus.lua` -> `Slots.lua` -> `BlockPanel.lua` -> `Stack.lua` -> `Shelf.lua` ->
+`*Detail.lua` -> `Areas.lua` -> `StatusPanel.lua` -> `Hosts.lua` -> `MainPanel.lua`.
+
+**Where THC's layout is not copied** (and why): the builder's step enum and per-step controller
+handlers (`SELECTOR`, `selectX`, `applyCurrentX`, MainPanel.lua:770) know every step by name. Our
+areas are registered the same way (`RegisterArea`), but the controller knows **no** block,
+modifier, behaviour or choice id: those come only from the registry (CI grep, coding plan
+section 4).
+
+**Rules side** (outside the module, so it loads before `CharacterModifier.lua` and has no `gui`):
 
 | File | Role | Built from (prototype) |
 |---|---|---|
-| `BlockEditor.lua` | The global `BlockEditor`: design-doc header (like CharacterBuilder.lua:1-76), registries (`RegisterHost`, `RegisterSlotType`), shared helpers (`_fireControllerEvent`, `_getState`, `_getHost`), constants | `app.js` helpers |
-| `State.lua` | `BlockEditorState`: dotted keys (`record`, `view` (class or subclass id), `openFeature`, `drag`, `issues`...) with `Get`/`Set` | `cls`, `openId`, `drag` |
-| `MainPanel.lua` | The controller: builds the columns, owns the state, handles controller events (`openFeature`, `addBlock`, `moveBlock`, `combine`, `showView`), fires `refreshEditorState` | `render`, `change`, `renderBoard` |
-| `Shelf.lua` | The block shelf: groups, search, recipes, drag sources; built from the registry | `renderShelf`, `shelfEntries` |
-| `Stack.lua` | A block list: rows, insert points, drop slots, combine brackets | `renderSentenceList`, drag code |
-| `BlockPanel.lua` | One block: grip, sentence with slots, ⋯ menu, wrappers' bodies | `renderSentence` |
-| `Slots/*.lua` | One file per slot type: Text, Number, Choice, Many, Formula (fx picker), Test (test picker), Ref (compendium search), Who, Blocks | `textTok`, `pickTok`, `fxTok`, `renderTest`, `effectTok` |
-| `Status.lua` | The Status column: things to finish, worth checking, fixes | `classIssues`, `featureIssues` |
-| `Preview.lua` | Book text and ability cards | `sentenceProse`, `cardFor` |
-| `Styles.lua` | Theme-token styles merged with `ThemeEngine.MergeStyles`, re-applied on theme change (as Styles.lua / MainPanel.lua:55) | `index.html` CSS |
-| `BlockEditorText.lua` | Every string, `UIText.Define("BlockEditorText")`; added to `tests/uitext_check.lua` | wording in `app.js` |
-| `Hosts/*.lua` | One per editor: Class (with subclass tabs), Feature, Title, Perk, later Ability. Each is a `RegisterHost{...}` call | `blankClass`, `compileClass`, `compileSubclass` |
-
-Rules side (outside the module):
-
-| File | Role | Built from |
-|---|---|---|
-| `DMHub Utils/Block.lua` | `Block.Choice{}`, `Block.Formula{}`...; claims; the reader (record -> blocks, claims rule, defaults, condition matching); write-back (kept records, merge by claims, saved spellings) | `importer.js`, `mergeSrc`, `keptRecords` |
-| Beside each type | `block = {...}` / `blocks = {...}` inside `CharacterModifier.TypeInfo.<id>`, on `ActivatedAbility.RegisterType`, on each registered choice | `SENT` entries |
+| `DMHub Utils/Block.lua` | `Block.Choice{}`, `Block.Formula{}`...; claims; the reader (record -> blocks: claims rule, engine defaults, condition matching); write-back (kept records, merge by claims, saved spellings) | `importer.js`, `mergeSrc`, `keptRecords` |
+| Beside each type | `block = {...}` / `blocks = {...}` inside `CharacterModifier.TypeInfo.<id>`, on `ActivatedAbility.RegisterType`, on each registered choice | `SENT` entries in `app.js` |
 
 ## 3. How the app chooses (routing)
 

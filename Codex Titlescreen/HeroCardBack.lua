@@ -6,8 +6,8 @@ local TP = UIText.Plural
 --PROTOTYPE: the back of the hero card (EotwHeroCard.lua), for heroes and
 --monsters alike: the tac panel's information (MCDMCharacterPanel.lua) laid
 --out on the card's own face, turned over by a hover button. A hero's back is
---split into tabs by what the hero is doing (Combat, Montage, Negotiation,
---Downtime); a monster's is one scrolling list.
+--one scroll in the hero sheet's order (Stats, Abilities, Features, Gear) under
+--a jump row; a monster's is one scrolling list.
 --Every read is pcall-guarded: one missing rule must not blank the back.
 
 --the design width the back is laid out at before it is scaled onto the card;
@@ -1619,48 +1619,58 @@ local function BuildSections(tok)
     return result, info
 end
 
---- Hero tabs -------------------------------------------------------------------
+--- Hero scroll -----------------------------------------------------------------
 
---A hero's back keeps its header and tab rows in place and scrolls the tab's
---content under them. Combat opens a second row: Basics, Abilities, Triggers
---and the class's heroic resource. The card turns over onto the tab for the
---current scene.
+--A hero's back is one scroll in the hero sheet's order: Stats, Abilities,
+--Features, Gear. The header and a jump row stay in place above it; the jump
+--row only scrolls to a section's heading.
 
 local HERO_HEADER_HEIGHT = 66
-local TAB_ROW_HEIGHT = 38
-local SUB_ROW_HEIGHT = 26
+local JUMP_ROW_HEIGHT = 28
 local TOP_GAP = 6
 
-local HERO_TABS = {
-    { id = "combat", icon = "phosphor/sword-fill.png" },
-    { id = "montage", icon = "phosphor/mountains.png" },
-    { id = "negotiation", icon = "phosphor/handshake.png" },
-    { id = "downtime", icon = "phosphor/campfire-bold.png" },
-}
-local COMBAT_SUBS = { "basics", "abilities", "triggers", "resource" }
+local HERO_SECTIONS = { "stats", "abilities", "features", "gear" }
 
---ability buckets on the Abilities tab, in order; only Signature starts open.
-local HERO_BUCKETS = { "signature", "heroic", "main", "maneuver", "other", "freestrike", "standard" }
+--ability buckets, in the sheet's order. These start open; the rest folded.
+local HERO_BUCKETS = { "freestrike", "signature", "heroic", "triggered", "main", "maneuver", "other", "standard" }
+local OPEN_BUCKETS = { freestrike = true, signature = true, heroic = true, triggered = true }
 
 --reading a hero's abilities builds the feature index, so a card reuses the
 --list this long while game updates rebuild its back.
 local ABILITY_CACHE_SECONDS = 5
 
---charid -> the Combat sub-tab last picked on that hero's card. Cards are
---rebuilt as screens change, so the choice lives here for the session.
-local g_lastSubTab = {}
-
 --- @param id string
 --- @return string
-local function TabLabel(id)
-    if id == "combat" then
-        return T("herocard.back.tab.combat")
-    elseif id == "montage" then
-        return T("herocard.back.tab.montage")
-    elseif id == "negotiation" then
-        return T("herocard.back.tab.negotiation")
+local function SectionTitle(id)
+    if id == "stats" then
+        return T("herocard.back.section.stats")
+    elseif id == "abilities" then
+        return T("herocard.back.section.abilities")
+    elseif id == "features" then
+        return T("herocard.back.section.features")
     end
-    return T("herocard.back.tab.downtime")
+    return T("herocard.back.section.gear")
+end
+
+--- A section's big heading in the scroll: the place the jump row scrolls to.
+--- @param id string
+--- @return Panel
+local function SectionHeading(id)
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 4,
+        interactable = false,
+        Text{
+            text = string.upper(SectionTitle(id)),
+            fontSize = 17,
+            bold = true,
+            color = COLOR_GOLD,
+            bmargin = 2,
+        },
+        Divider(),
+    }
 end
 
 --- @param id string
@@ -1678,61 +1688,10 @@ local function BucketLabel(id)
         return T("herocard.back.bucket.freestrike")
     elseif id == "standard" then
         return T("herocard.back.bucket.standard")
+    elseif id == "triggered" then
+        return T("herocard.back.bucket.triggered")
     end
     return T("herocard.back.bucket.other")
-end
-
---- A running scene's state from its module, or nil when none is running.
---- @param moduleName string
---- @return table|nil
-local function SceneState(moduleName)
-    local m = rawget(_G, moduleName)
-    if m == nil or m.GetState == nil then
-        return nil
-    end
-    local state = Try(function() return m.GetState() end)
-    if type(state) ~= "table" or state.phase == "done" then
-        return nil
-    end
-    return state
-end
-
---- The tab that fits what the party is doing now, or nil when nothing is
---- running: the card then opens on Combat with no current-scene dot.
---- @return string|nil
-local function CurrentMode()
-    local q = dmhub.initiativeQueue
-    if q ~= nil and not q.hidden then
-        return "combat"
-    end
-    if SceneState("EncounterNegotiation") ~= nil then
-        return "negotiation"
-    end
-    if SceneState("EncounterMontage") ~= nil or SceneState("EncounterGauntlet") ~= nil then
-        return "montage"
-    end
-    local respite = rawget(_G, "RSPShell")
-    if respite ~= nil and Try(function() return respite.IsOpen() end, false) then
-        return "downtime"
-    end
-    if q ~= nil and Try(function() return q.gameMode end) == "respite" then
-        return "downtime"
-    end
-    local analytics = rawget(_G, "EotwAnalytics")
-    if analytics ~= nil then
-        if Try(function() return analytics.IsTownOpen() end, false) then
-            return "downtime"
-        end
-        local phase = Try(function() return analytics.CurrentPhase() end)
-        if phase == "negotiation" then
-            return "negotiation"
-        elseif phase == "montage" or phase == "narrative" then
-            return "montage"
-        elseif phase == "gathering" then
-            return "downtime"
-        end
-    end
-    return nil
 end
 
 local function InCombat()
@@ -1740,91 +1699,38 @@ local function InCombat()
     return q ~= nil and not q.hidden
 end
 
---- One tab: a word with an optional icon above it, a bar under it while
---- selected, and a green dot while it is the current scene's tab. A click
---- picks the tab instead of turning the card.
---- @param args {text: string, icon: string|nil, fontSize: number, width: number, height: number, selected: boolean, live: boolean|nil, barColor: string, selectedFill: string, click: fun()}
+--- One button in the jump row: a word that lights on hover. A click scrolls
+--- to its section instead of turning the card.
+--- @param args {text: string, width: number, height: number, click: fun()}
 --- @return Panel
-local function TabButton(args)
-    local color = cond(args.selected, COLOR_TEXT, COLOR_MUTED)
-    local inner = {}
-    if args.icon ~= nil then
-        inner[#inner+1] = gui.Panel{
-            width = 13,
-            height = 13,
-            halign = "center",
-            bmargin = 2,
-            bgimage = args.icon,
-            bgcolor = color,
-            interactable = false,
-        }
-    end
-    inner[#inner+1] = gui.Label{
-        text = args.text,
-        width = "auto",
-        height = "auto",
-        halign = "center",
-        fontSize = args.fontSize,
-        bold = true,
-        color = color,
-        textWrap = false,
-        interactable = false,
-    }
-    local children = {
-        gui.Panel{
-            width = "auto",
-            height = "auto",
-            halign = "center",
-            valign = "center",
-            flow = "vertical",
-            interactable = false,
-            children = inner,
-        },
-        gui.Panel{
-            floating = true,
-            width = "100%",
-            height = 2,
-            valign = "bottom",
-            bgimage = "panels/square.png",
-            bgcolor = cond(args.selected, args.barColor, "#00000000"),
-            interactable = false,
-        },
-    }
-    if args.live then
-        children[#children+1] = gui.Panel{
-            floating = true,
-            width = 6,
-            height = 6,
-            halign = "right",
-            valign = "top",
-            x = -6,
-            y = 5,
-            --a dot is the shape itself, not a theme corner.
-            cornerRadius = 3,
-            bgimage = "panels/square.png",
-            bgcolor = COLOR_STAMINA,
-            interactable = false,
-        }
-    end
+local function JumpButton(args)
     return gui.Panel{
-        classes = {"heroCardTab"},
+        classes = {"heroCardJump"},
         styles = {
-            { selectors = {"heroCardTab"}, bgcolor = cond(args.selected, args.selectedFill, "#00000000") },
-            { selectors = {"heroCardTab", "hover"}, bgcolor = COLOR_PLATE },
+            { selectors = {"heroCardJump"}, bgcolor = "#00000000" },
+            { selectors = {"heroCardJump", "hover"}, bgcolor = COLOR_PLATE },
+            { selectors = {"heroCardJumpLabel"}, color = COLOR_MUTED },
+            { selectors = {"heroCardJumpLabel", "parent:hover"}, color = COLOR_TEXT },
         },
         width = args.width,
         height = args.height,
         bgimage = "panels/square.png",
-        hover = function(element)
-            if args.live then
-                element.tooltip = TipFrame(T("herocard.back.tab.current"))
-            end
-        end,
         click = function(element)
             audio.FireSoundEvent("Mouse.Click")
             args.click()
         end,
-        children = children,
+        gui.Label{
+            classes = {"heroCardJumpLabel"},
+            text = args.text,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            fontSize = 12,
+            bold = true,
+            textWrap = false,
+            interactable = false,
+        },
     }
 end
 
@@ -1837,75 +1743,18 @@ local function HeroResource(c)
     return name, tonumber(value) or 0
 end
 
---- The main tab row, and under Combat the second row.
---- @param state {tab: string, sub: string}
---- @param pick fun(tab: string, sub: string|nil)
+--- The jump row: one button per section, each scrolling to its heading.
+--- @param jump fun(section: string)
 --- @return Panel
-local function HeroTabs(state, c, pick)
-    local live = CurrentMode()
-    local tabWidth = math.floor(INNER_WIDTH / #HERO_TABS)
-    local mainTabs = {}
-    for _, tab in ipairs(HERO_TABS) do
-        mainTabs[#mainTabs+1] = TabButton{
-            text = TabLabel(tab.id),
-            icon = tab.icon,
-            fontSize = 11,
-            width = tabWidth,
-            height = TAB_ROW_HEIGHT,
-            selected = state.tab == tab.id,
-            live = live == tab.id,
-            barColor = COLOR_GOLD,
-            selectedFill = "#00000000",
-            click = function() pick(tab.id, nil) end,
-        }
-    end
-    local rows = {
-        gui.Panel{
-            width = INNER_WIDTH,
-            height = TAB_ROW_HEIGHT,
-            flow = "horizontal",
-            interactable = false,
-            children = mainTabs,
-        },
-        Divider(),
-    }
-    if state.tab == "combat" then
-        local resourceName, resourceValue = HeroResource(c)
-        local subWidth = math.floor(INNER_WIDTH / #COMBAT_SUBS)
-        local subTabs = {}
-        for _, sub in ipairs(COMBAT_SUBS) do
-            local text
-            if sub == "basics" then
-                text = T("herocard.back.sub.basics")
-            elseif sub == "abilities" then
-                text = T("herocard.back.sub.abilities")
-            elseif sub == "triggers" then
-                text = T("herocard.back.sub.triggers")
-            else
-                text = T("herocard.back.sub.resource", {
-                    resource = resourceName,
-                    value = string.format("<color=%s>%d</color>", COLOR_RESOURCE, resourceValue),
-                })
-            end
-            subTabs[#subTabs+1] = TabButton{
-                text = text,
-                fontSize = 11.5,
-                width = subWidth,
-                height = SUB_ROW_HEIGHT,
-                selected = state.sub == sub,
-                barColor = COLOR_BLUE,
-                selectedFill = COLOR_PLATE,
-                click = function() pick("combat", sub) end,
-            }
-        end
-        rows[#rows+1] = gui.Panel{
-            width = INNER_WIDTH,
-            height = SUB_ROW_HEIGHT,
-            flow = "horizontal",
-            bgimage = "panels/square.png",
-            bgcolor = "#0b0d10",
-            interactable = false,
-            children = subTabs,
+local function JumpRow(jump)
+    local width = math.floor(INNER_WIDTH / #HERO_SECTIONS)
+    local buttons = {}
+    for _, id in ipairs(HERO_SECTIONS) do
+        buttons[#buttons+1] = JumpButton{
+            text = SectionTitle(id),
+            width = width,
+            height = JUMP_ROW_HEIGHT,
+            click = function() jump(id) end,
         }
     end
     return gui.Panel{
@@ -1913,7 +1762,14 @@ local function HeroTabs(state, c, pick)
         height = "auto",
         flow = "vertical",
         interactable = false,
-        children = rows,
+        gui.Panel{
+            width = INNER_WIDTH,
+            height = JUMP_ROW_HEIGHT,
+            flow = "horizontal",
+            interactable = false,
+            children = buttons,
+        },
+        Divider(),
     }
 end
 
@@ -2064,11 +1920,12 @@ local function AbilityItemRow(item, tok, spendable, usable)
 end
 
 --- Adds a folding bucket of rows: its heading, then the rows.
-local function AppendBucket(result, info, title, rows, foldedByDefault)
+--- @param count? number what the folded heading counts, when not every row
+local function AppendBucket(result, info, title, rows, foldedByDefault, count)
     if #rows == 0 then
         return
     end
-    result[#result+1] = BucketHeading(title, #rows, COLOR_GOLD)
+    result[#result+1] = BucketHeading(title, count or #rows, COLOR_GOLD)
     info[#info+1] = { heading = true, bucket = title, foldedByDefault = foldedByDefault }
     for _, row in ipairs(rows) do
         row.selfStyle.bmargin = 1
@@ -2095,26 +1952,6 @@ local function Lines(lines)
     }
 end
 
---- Combat > Abilities: every ability in folding buckets.
-local function AbilitiesTab(tok, c, state)
-    local buckets = SortAbilities(HeroAbilityGroups(tok, state))
-    local spendable = SpendableResource(c)
-    local result, info = {}, {}
-    for _, id in ipairs(HERO_BUCKETS) do
-        local rows = {}
-        for _, item in ipairs(buckets[id]) do
-            local ok, row = pcall(AbilityItemRow, item, tok, spendable, true)
-            if ok and row ~= nil then
-                rows[#rows+1] = row
-            end
-        end
-        AppendBucket(result, info, BucketLabel(id), rows, id ~= "signature")
-    end
-    if #result == 0 then
-        return { EmptyLine(T("herocard.back.abilities.none")) }, { { heading = false } }
-    end
-    return result, info
-end
 
 --- One triggered action: its row, then what sets it off.
 local function TriggerEntry(item, tok, c)
@@ -2140,63 +1977,148 @@ local function TriggerEntry(item, tok, c)
     }
 end
 
---- Combat > Triggers: whether the triggered action is spent this round, then
---- every triggered action.
-local function TriggersTab(tok, c, state)
-    local _, triggers = SortAbilities(HeroAbilityGroups(tok, state))
-    local builders = {}
-    if InCombat() then
-        builders[#builders+1] = function()
-            local id = CharacterResource.triggerResourceId
-            local max = tonumber(Try(function() return c:GetResources()[id] end, 0)) or 0
-            local used = tonumber(Try(function() return c:GetResourceUsage(id, "round") end, 0)) or 0
-            if max <= 0 then
-                return nil
-            end
-            if used < max then
-                return Text{ text = T("herocard.back.triggers.ready"), fontSize = 12, bold = true, color = COLOR_STAMINA }
-            end
-            return Text{ text = T("herocard.back.triggers.used"), fontSize = 12, color = COLOR_MUTED }
-        end
+--- In combat: whether the triggered action is spent this round. Nil outside
+--- combat, or for a hero with no triggered action to spend.
+local function TriggerReadyLine(c)
+    if not InCombat() then
+        return nil
     end
-    if #triggers == 0 then
-        builders[#builders+1] = function() return EmptyLine(T("herocard.back.triggers.none")) end
+    local id = CharacterResource.triggerResourceId
+    local max = tonumber(Try(function() return c:GetResources()[id] end, 0)) or 0
+    local used = tonumber(Try(function() return c:GetResourceUsage(id, "round") end, 0)) or 0
+    if max <= 0 then
+        return nil
     end
-    for _, item in ipairs(triggers) do
-        builders[#builders+1] = function() return TriggerEntry(item, tok, c) end
+    if used < max then
+        return Text{ text = T("herocard.back.triggers.ready"), fontSize = 12, bold = true, color = COLOR_STAMINA, bmargin = 2 }
     end
-    return Collect(builders)
+    return Text{ text = T("herocard.back.triggers.used"), fontSize = 12, color = COLOR_MUTED, bmargin = 2 }
 end
 
---- The resource's name beside the hero's amount, large.
---- @param tok CharacterToken hover: the resource's history, as the tac panel's box shows it
-local function ResourceHeadline(c, tok)
-    local name, value = HeroResource(c)
-    local charid = tok.charid
-    local valueLabel = Text{ text = tostring(value), width = "auto", fontSize = 40, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 12 }
-    local children = { valueLabel }
-    --edited where it stands, as on the card's front (who may edit is decided
-    --there).
+--- Abilities: every ability in folding buckets in the sheet's order, the
+--- triggered actions in their own bucket with what sets each off.
+--- Appended to result/info.
+local function AppendAbilities(result, info, tok, c, state)
+    local buckets, triggers = SortAbilities(HeroAbilityGroups(tok, state))
+    buckets.triggered = triggers
+    local spendable = SpendableResource(c)
+    local before = #result
+    for _, id in ipairs(HERO_BUCKETS) do
+        local rows = {}
+        if id == "triggered" and #triggers > 0 then
+            local ok, ready = pcall(TriggerReadyLine, c)
+            if ok and ready ~= nil then
+                rows[#rows+1] = ready
+            end
+        end
+        for _, item in ipairs(buckets[id] or {}) do
+            local ok, row
+            if id == "triggered" then
+                ok, row = pcall(TriggerEntry, item, tok, c)
+            else
+                ok, row = pcall(AbilityItemRow, item, tok, spendable, true)
+            end
+            if ok and row ~= nil then
+                rows[#rows+1] = row
+            end
+        end
+        AppendBucket(result, info, BucketLabel(id), rows, not OPEN_BUCKETS[id], #(buckets[id] or {}))
+    end
+    if #result == before then
+        result[#result+1] = EmptyLine(T("herocard.back.abilities.none"))
+        info[#info+1] = { heading = false }
+    end
+end
+
+--the heroic resource's amount: a little larger than the stamina numbers.
+local RESOURCE_FONT_SIZE = 18
+
+--- A resource on one line in Stats: the amount, then its name. Edited where it
+--- stands while current() gives a number; hover shows its history.
+--- @param args {name: string, value: number, holder: CharacterToken, resourceid: string, current: (fun(): number|nil)|nil, apply: fun(amount: integer)|nil}
+--- @return Panel
+local function ResourceLine(args)
+    local valueLabel = Text{ text = tostring(args.value), width = "auto", fontSize = RESOURCE_FONT_SIZE, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 6 }
     local card = rawget(_G, "EotwHeroCard")
-    if card ~= nil and card.HeroResourceCurrent(charid) ~= nil then
-        --room for the highlight's left edge inside the tab's clip.
+    if card ~= nil and args.current ~= nil and args.current() ~= nil then
+        --room for the highlight's left edge inside the scroll's clip.
         valueLabel.selfStyle.lmargin = 4
         g_resourceEntries[#g_resourceEntries+1] = card.CreateNumberEntry{
             label = valueLabel,
-            fontSize = 40,
+            fontSize = RESOURCE_FONT_SIZE,
             color = COLOR_RESOURCE,
-            current = function() return card.HeroResourceCurrent(charid) end,
-            apply = function(amount) card.SetHeroResource(charid, amount) end,
+            current = args.current,
+            apply = args.apply,
         }
     end
-    children[#children+1] = Text{ text = name, width = "auto", fontSize = 20, bold = true, color = COLOR_TEXT, textWrap = false, valign = "center" }
+    local holder, resourceid, name = args.holder, args.resourceid, args.name
     return WithHover(gui.Panel{
         width = "auto",
         height = "auto",
         flow = "horizontal",
+        bmargin = 2,
         interactable = false,
-        children = children,
-    }, function() return HistoryTip(tok, CharacterResource.heroicResourceId, name) end)
+        valueLabel,
+        Text{ text = name, width = "auto", fontSize = 13, bold = true, color = COLOR_SOFT, textWrap = false, valign = "center" },
+    }, function() return HistoryTip(holder, resourceid, name) end)
+end
+
+--- The hero's heroic resource (who may edit it is decided on the card's front).
+local function ResourceHeadline(c, tok)
+    local name, value = HeroResource(c)
+    local charid = tok.charid
+    local card = rawget(_G, "EotwHeroCard")
+    return ResourceLine{
+        name = name,
+        value = value,
+        holder = tok,
+        resourceid = CharacterResource.heroicResourceId,
+        current = card ~= nil and function() return card.HeroResourceCurrent(charid) end or nil,
+        apply = card ~= nil and function(amount) card.SetHeroResource(charid, amount) end or nil,
+    }
+end
+
+--- A class's own resource (Rampage, Patron's Gaze), from its tac panel
+--- display's card entry, as a line like the heroic resource's. Editable by
+--- whoever may edit the heroic resource.
+--- @param info {name: string, resourceid: string, holder: CharacterToken}
+local function ClassResourceLine(tok, info)
+    local holder, resourceid = info.holder, info.resourceid
+    local value = Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)
+    local charid = tok.charid
+    local card = rawget(_G, "EotwHeroCard")
+    local current = nil
+    if card ~= nil then
+        current = function()
+            if card.HeroResourceCurrent(charid) == nil or not holder.valid then
+                return nil
+            end
+            return Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)
+        end
+    end
+    return ResourceLine{
+        name = info.name,
+        value = tonumber(value) or 0,
+        holder = holder,
+        resourceid = resourceid,
+        current = current,
+        apply = function(amount)
+            if not holder.valid then
+                return
+            end
+            local n = math.max(0, amount)
+            local have = tonumber(Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)) or 0
+            if n == have then
+                return
+            end
+            holder:ModifyProperties{
+                description = "Set " .. info.name,
+                execute = function()
+                    holder.properties:AddUnboundedResource(resourceid, n - have, info.name)
+                end,
+            }
+        end,
+    }
 end
 
 --- Level 10: the class's epic resource and how much the hero has.
@@ -2215,25 +2137,6 @@ local function EpicResource(tok)
     return WithHover(TwoColumnRow(T("herocard.back.resource.epic", { resource = name }), tostring(epic.value or 0), COLOR_RESOURCE), function()
         return HistoryTip(tok, CharacterResource.epicResourceId, name)
     end)
-end
-
---- The heroic abilities the resource pays for, cheapest first.
-local function SpendList(tok, c, state)
-    local buckets = SortAbilities(HeroAbilityGroups(tok, state))
-    if #buckets.heroic == 0 then
-        return nil
-    end
-    local name = HeroResource(c)
-    local spendable = SpendableResource(c)
-    local rows = { SectionLabel(T("herocard.back.resource.spend", { resource = name }), COLOR_RESOURCE) }
-    for _, item in ipairs(buckets.heroic) do
-        local ok, row = pcall(AbilityItemRow, item, tok, spendable)
-        if ok and row ~= nil then
-            row.selfStyle.bmargin = 1
-            rows[#rows+1] = row
-        end
-    end
-    return Lines(rows)
 end
 
 --- One threshold of a growing resources table: the amount it needs, then
@@ -2315,8 +2218,30 @@ end
 --the tac panel's own resource boxes; the card shows these itself.
 local CORE_RESOURCE_DISPLAYS = { victories = true, heroic = true, recoveries = true, herotokens = true, surges = true }
 
---- The class's own pieces of the tac panel, in its styles: the boxes classes
---- register (the Beastheart's Rampage, the Acolyte's Patron's Gaze) and the
+--- The class resources registered with the tac panel that say how the card
+--- shows them (entry.card): one line each, like the heroic resource's.
+local function ClassResourceLines(tok)
+    local tac = rawget(_G, "TacPanel")
+    if tac == nil or tac.GetHeroicResourceDisplays == nil then
+        return nil
+    end
+    local lines = {}
+    for _, entry in ipairs(tac.GetHeroicResourceDisplays()) do
+        if not CORE_RESOURCE_DISPLAYS[entry.id] and entry.card ~= nil then
+            local ok, info = pcall(entry.card, tok)
+            if ok and info ~= nil and info.holder ~= nil and info.holder.valid then
+                local okLine, line = pcall(ClassResourceLine, tok, info)
+                if okLine and line ~= nil then
+                    lines[#lines+1] = line
+                end
+            end
+        end
+    end
+    return Lines(lines)
+end
+
+--- The class's own pieces of the tac panel that have no card form yet, in the
+--- tac panel's styles: boxes a class registers without entry.card, and the
 --- Summoner's minion squads. Each hides itself on a hero it doesn't fit.
 --- TacPanel is game-side: in town there is none. Kept on the card's state and
 --- refreshed, so the boxes keep their state.
@@ -2330,7 +2255,7 @@ local function ClassPanel(tok, c, state)
         if tac.GetHeroicResourceDisplays ~= nil then
             local boxes = {}
             for _, entry in ipairs(tac.GetHeroicResourceDisplays()) do
-                if not CORE_RESOURCE_DISPLAYS[entry.id] then
+                if not CORE_RESOURCE_DISPLAYS[entry.id] and entry.card == nil then
                     local ok, box = pcall(entry.create)
                     if ok and box ~= nil then
                         boxes[#boxes+1] = box
@@ -2363,19 +2288,6 @@ local function ClassPanel(tok, c, state)
     end
     state.classPanel:FireEventTree("refreshToken", tok)
     return state.classPanel
-end
-
---- Combat > the heroic resource: how much, how to gain it, what to spend it
---- on, what having it unlocks, and the class's own panel.
-local function ResourceTab(tok, c, state)
-    return Collect{
-        function() return ResourceHeadline(c, tok) end,
-        function() return EpicResource(tok) end,
-        function() return ResourceGains(c) end,
-        function() return SpendList(tok, c, state) end,
-        function() return GrowthTables(c) end,
-        function() return ClassPanel(tok, c, state) end,
-    }
 end
 
 --- Rolls a test with a skill: the skill's own characteristic (or the hero's
@@ -2464,11 +2376,6 @@ local function SkillsByGroup(c, tok)
     return Lines(lines)
 end
 
-local function HeroTokensLine(c)
-    local tokens = Try(function() return c:GetHeroTokens() end, 0)
-    return LabelledLine(T("herocard.back.label.hero_tokens"), string.format("<b><color=%s>%d</color></b>", COLOR_TEXT, tonumber(tokens) or 0))
-end
-
 local function PerksLine(c)
     local perks = PerksText(c)
     if perks == "" then
@@ -2485,84 +2392,53 @@ local function NotesLine(c)
     return LabelledLine(T("herocard.back.label.notes"), string.format("<i>%s</i>", notes))
 end
 
---- Montage: what a test leans on.
-local function MontageTab(tok, c)
-    return Collect{
-        function() return Characteristics(c, tok) end,
-        function() return HeroTokensLine(c) end,
-        function() return SkillsByGroup(c, tok) end,
-        function() return MovementLine(c, tok) end,
-        function() return PerksLine(c) end,
-    }
+local function LanguagesLine(c)
+    local languages = LanguagesText(c)
+    if languages == "" then
+        return nil
+    end
+    return LabelledLine(T("herocard.back.label.languages"), languages)
 end
 
---- The interpersonal skills, trained ones first, the rest muted; each hovers
---- and rolls a test, as on the Montage tab.
-local function InterpersonalSkills(c, tok)
-    local trained, untrained = {}, {}
-    pcall(function()
-        for _, skill in ipairs(Skill.SkillsInfo) do
-            if skill.category == "interpersonal" then
-                if c:ProficientInSkill(skill) then
-                    trained[#trained+1] = skill
-                else
-                    untrained[#untrained+1] = skill
-                end
-            end
-        end
-    end)
-    local function ByName(a, b) return a.name < b.name end
-    table.sort(trained, ByName)
-    table.sort(untrained, ByName)
-    local function Line(label, skills, style)
-        local pieces = {
-            Text{ text = string.format("<b><color=%s>%s</color></b>", COLOR_MUTED, string.upper(label)), width = "auto", fontSize = 12, rmargin = 8, textWrap = false },
-        }
-        for i, skill in ipairs(skills) do
-            pieces[#pieces+1] = SkillPiece(tok, skill, i == #skills, style)
-        end
-        return gui.Panel{
-            width = CONTENT_WIDTH,
-            height = "auto",
-            flow = "horizontal",
-            wrap = true,
-            bmargin = 3,
-            interactable = false,
-            children = pieces,
-        }
-    end
+--- XP, Wealth, Renown and banked downtime. Victories and hero tokens are on
+--- the stamina strip.
+local function ProgressLines(c, charid)
     local lines = {}
-    if #trained > 0 then
-        lines[#lines+1] = Line(T("herocard.back.negotiation.trained"), trained, { color = COLOR_TEXT, bold = true })
-    end
-    if #untrained > 0 then
-        lines[#lines+1] = Line(T("herocard.back.negotiation.untrained"), untrained, { color = COLOR_MUTED })
-    end
-    return Lines(lines)
-end
-
---- Negotiation: what talking leans on.
-local function NegotiationTab(tok, c)
-    return Collect{
-        function() return Characteristics(c, tok) end,
-        function()
-            local renown = Try(function() return c:CalculateNamedCustomAttribute("Renown") end, 0)
-            return Lines{
-                LabelledLine(T("herocard.back.label.renown"), string.format("<b><color=%s>%s</color></b>", COLOR_TEXT, tostring(renown))),
-                HeroTokensLine(c),
-            }
-        end,
-        function() return InterpersonalSkills(c, tok) end,
-        function()
-            local languages = LanguagesText(c)
-            if languages == "" then
+    local sheet = rawget(_G, "EotwHeroSheet")
+    local xp = sheet ~= nil and Try(function() return sheet.XpProgress(c) end) or nil
+    if xp ~= nil then
+        local xpText = tostring(xp.xp)
+        if not xp.maxLevel then
+            xpText = string.format("%d / %d", xp.xpIntoLevel, xp.xpPerLevel)
+        end
+        --hover: the hero sheet's own words for XP.
+        lines[#lines+1] = WithHover(LabelledLine(T("herocard.back.label.xp"), xpText), function()
+            if xp.maxLevel then
                 return nil
             end
-            return LabelledLine(T("herocard.back.label.languages"), languages)
-        end,
-        function() return PerksLine(c) end,
-        function() return NotesLine(c) end,
-    }
+            local args = { xp = string.format("%d", xp.xpIntoLevel), per = string.format("%d", xp.xpPerLevel), level = string.format("%d", xp.level + 1) }
+            if xp.readyToLevel then
+                return T("herosheet.card.xp_ready_tip", args)
+            end
+            return T("herosheet.card.xp_tip", args)
+        end)
+    end
+    local wealth = Try(function() return c:CalculateNamedCustomAttribute("Wealth") end)
+    if wealth ~= nil then
+        lines[#lines+1] = LabelledLine(T("herocard.back.label.wealth"), tostring(wealth))
+    end
+    local renown = Try(function() return c:CalculateNamedCustomAttribute("Renown") end)
+    if renown ~= nil then
+        lines[#lines+1] = LabelledLine(T("herocard.back.label.renown"), tostring(renown))
+    end
+    local roster = rawget(_G, "EotwRoster")
+    if roster ~= nil then
+        local downtime = Try(function() return roster.GetDowntime(charid) end, 0)
+        if (tonumber(downtime) or 0) > 0 then
+            lines[#lines+1] = LabelledLine(T("herocard.back.label.downtime"), tostring(downtime))
+        end
+    end
+    return Lines(lines)
 end
 
 --- The hero's own downtime projects with their progress.
@@ -2581,94 +2457,55 @@ local function ProjectsList(c)
     return Lines(rows)
 end
 
---- Downtime: progress, what there is to spend, and projects.
-local function DowntimeTab(tok, charid, c)
-    return Collect{
-        function()
-            local lines = {}
-            local victories = Try(function() return c:GetVictories() end, 0)
-            --hovers: the hero sheet's own words for victories and XP.
-            lines[#lines+1] = WithHover(LabelledLine(T("herocard.back.label.victories"), tostring(victories)), function()
-                local resource = Try(function() return c:GetHeroicResourceName() end) or T("herosheet.card.resource_fallback")
-                return T("herosheet.card.victories_tip", { victories = string.format("%d", victories), resource = resource })
-            end)
-            local sheet = rawget(_G, "EotwHeroSheet")
-            local xp = sheet ~= nil and Try(function() return sheet.XpProgress(c) end) or nil
-            if xp ~= nil then
-                local xpText = tostring(xp.xp)
-                if not xp.maxLevel then
-                    xpText = string.format("%d / %d", xp.xpIntoLevel, xp.xpPerLevel)
-                end
-                lines[#lines+1] = WithHover(LabelledLine(T("herocard.back.label.xp"), xpText), function()
-                    if xp.maxLevel then
-                        return nil
-                    end
-                    local args = { xp = string.format("%d", xp.xpIntoLevel), per = string.format("%d", xp.xpPerLevel), level = string.format("%d", xp.level + 1) }
-                    if xp.readyToLevel then
-                        return T("herosheet.card.xp_ready_tip", args)
-                    end
-                    return T("herosheet.card.xp_tip", args)
-                end)
-            end
-            local wealth = Try(function() return c:CalculateNamedCustomAttribute("Wealth") end)
-            if wealth ~= nil then
-                lines[#lines+1] = LabelledLine(T("herocard.back.label.wealth"), tostring(wealth))
-            end
-            local renown = Try(function() return c:CalculateNamedCustomAttribute("Renown") end)
-            if renown ~= nil then
-                lines[#lines+1] = LabelledLine(T("herocard.back.label.renown"), tostring(renown))
-            end
-            local roster = rawget(_G, "EotwRoster")
-            if roster ~= nil then
-                local downtime = Try(function() return roster.GetDowntime(charid) end, 0)
-                if (tonumber(downtime) or 0) > 0 then
-                    lines[#lines+1] = LabelledLine(T("herocard.back.label.downtime"), tostring(downtime))
-                end
-            end
-            return Lines(lines)
-        end,
-        function() return ProjectsList(c) end,
-        function()
-            local id = CharacterResource.recoveryResourceId
-            local max = tonumber(Try(function() return c:GetResources()[id] end, 0)) or 0
-            local used = tonumber(Try(function() return c:GetResourceUsage(id, "long") end, 0)) or 0
-            return LabelledLine(T("herocard.back.label.recoveries"), string.format("%d / %d", math.max(0, max - used), max))
-        end,
-        function() return NotesLine(c) end,
-    }
+--- Appends one section of the scroll: its big heading, then what its builders
+--- make. The heading is marked so the jump row can find it.
+local function AppendSection(result, info, id, builders)
+    result[#result+1] = SectionHeading(id)
+    info[#info+1] = { heading = false, section = id }
+    local sections, sectionInfo = Collect(builders)
+    for i, section in ipairs(sections) do
+        result[#result+1] = section
+        info[#info+1] = sectionInfo[i]
+    end
 end
 
---- A hero's back for the chosen tab (and, under Combat, the chosen sub-tab).
---- @param state {tab: string, sub: string}
+--- A hero's back: one scroll in the hero sheet's order.
 --- @return Panel[] sections
 --- @return HeroCardSectionInfo[] info
-local function BuildHeroTab(tok, charid, state)
+local function BuildHeroScroll(tok, charid, state)
     local c = tok.properties
-    local result, info
-    if state.tab == "montage" then
-        result, info = MontageTab(tok, c)
-    elseif state.tab == "negotiation" then
-        result, info = NegotiationTab(tok, c)
-    elseif state.tab == "downtime" then
-        result, info = DowntimeTab(tok, charid, c)
-    elseif state.sub == "abilities" then
-        result, info = AbilitiesTab(tok, c, state)
-    elseif state.sub == "triggers" then
-        result, info = TriggersTab(tok, c, state)
-    elseif state.sub == "resource" then
-        result, info = ResourceTab(tok, c, state)
-    else
-        result, info = Collect{
-            function() return StaminaStrip(c, tok) end,
-            function() return Characteristics(c, tok) end,
-            function() return MovementLine(c, tok) end,
-            function() return Effects(c, tok) end,
-            function() return PersistentAbilities(c, tok) end,
-        }
-    end
-    if #result == 0 then
-        return { EmptyLine(T("herocard.back.empty")) }, { { heading = false } }
-    end
+    local result, info = {}, {}
+    AppendSection(result, info, "stats", {
+        function() return StaminaStrip(c, tok) end,
+        function() return ResourceHeadline(c, tok) end,
+        function() return EpicResource(tok) end,
+        function() return ClassResourceLines(tok) end,
+        function() return ClassPanel(tok, c, state) end,
+        function() return Characteristics(c, tok) end,
+        function() return MovementLine(c, tok) end,
+        function() return Effects(c, tok) end,
+        function() return PersistentAbilities(c, tok) end,
+    })
+
+    result[#result+1] = SectionHeading("abilities")
+    info[#info+1] = { heading = false, section = "abilities" }
+    AppendAbilities(result, info, tok, c, state)
+
+    AppendSection(result, info, "features", {
+        function() return ResourceGains(c) end,
+        function() return GrowthTables(c) end,
+        function()
+            return Lines{ SectionLabel(T("herocard.back.label.skills")), SkillsByGroup(c, tok) }
+        end,
+        function() return LanguagesLine(c) end,
+        function() return PerksLine(c) end,
+        function() return ProgressLines(c, charid) end,
+        function() return NotesLine(c) end,
+    })
+
+    AppendSection(result, info, "gear", {
+        function() return ProjectsList(c) or EmptyLine(T("herocard.back.gear.none")) end,
+    })
     return result, info
 end
 
@@ -2955,8 +2792,8 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
     local foldDefaults = {}
     local sections, info = {}, {}
 
-    --a hero's tab and Combat sub-tab, the cached ability list and class panel.
-    local state = { tab = "combat", sub = "basics", abilities = nil, classPanel = nil }
+    --a hero's cached ability list and class panel.
+    local state = { abilities = nil, classPanel = nil }
 
     local function IsFolded(bucket)
         local f = folded[bucket]
@@ -2990,7 +2827,7 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         end,
     }
 
-    --a hero's header and tab rows: they stay put while the tab scrolls.
+    --a hero's header and jump row: they stay put while the back scrolls.
     local heroTop = gui.Panel{
         width = "100%",
         height = "auto",
@@ -2999,16 +2836,38 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         interactable = false,
     }
 
-    local content
-    local function Pick(tab, sub)
-        state.tab = tab
-        if sub ~= nil then
-            state.sub = sub
-            g_lastSubTab[charid] = sub
+    --Scrolls so a section's heading sits at the top. There is no engine
+    --scroll-into-view: the offset is summed from the rendered heights (and
+    --bottom margins) of the shown rows above it, as ActionLogPanel does.
+    local function JumpTo(id)
+        local target = nil
+        for i, entry in ipairs(info) do
+            if entry.section == id then
+                target = i
+                break
+            end
         end
-        scroller.vscrollPosition = 1
-        content:FireEvent("refreshBack")
+        if target == nil then
+            return
+        end
+        local offset, total = 0, 0
+        for i, section in ipairs(sections) do
+            if section.valid and not section:HasClass("collapsed") then
+                local h = Try(function() return section.renderedHeight end, 0) + (tonumber(section.selfStyle.bmargin) or 0)
+                if i < target then
+                    offset = offset + h
+                end
+                total = total + h
+            end
+        end
+        local range = total - Try(function() return scroller.renderedHeight end, 0)
+        if range <= 0 then
+            return
+        end
+        scroller.vscrollPosition = 1 - math.max(0, math.min(range, offset)) / range
     end
+
+    local content
 
     --laid out at design size and shrunk around its centre (scale, not
     --uiscale: purely visual, so it lands exactly on the card's face).
@@ -3046,19 +2905,16 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
                         header,
                     }
                 end
-                local okTabs, tabs = pcall(HeroTabs, state, c, Pick)
-                if okTabs then
-                    top[#top+1] = tabs
+                local okJump, jumpRow = pcall(JumpRow, JumpTo)
+                if okJump then
+                    top[#top+1] = jumpRow
                 else
-                    print("HeroCardBack: tabs failed:", tabs)
+                    print("HeroCardBack: jump row failed:", jumpRow)
                 end
                 heroTop.children = top
                 heroTop:SetClass("collapsed", false)
-                scrollHeight = scrollHeight - HERO_HEADER_HEIGHT - TOP_GAP * 2 - TAB_ROW_HEIGHT - 1
-                if state.tab == "combat" then
-                    scrollHeight = scrollHeight - SUB_ROW_HEIGHT
-                end
-                sections, info = BuildHeroTab(tok, charid, state)
+                scrollHeight = scrollHeight - HERO_HEADER_HEIGHT - TOP_GAP * 2 - JUMP_ROW_HEIGHT - 1
+                sections, info = BuildHeroScroll(tok, charid, state)
             else
                 heroTop.children = {}
                 heroTop:SetClass("collapsed", true)
@@ -3138,8 +2994,6 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         showBack = function(element, show)
             element:SetClass("turned", show)
             if show then
-                state.tab = CurrentMode() or "combat"
-                state.sub = g_lastSubTab[charid] or "basics"
                 state.abilities = nil
                 scroller.vscrollPosition = 1
                 content:FireEvent("refreshBack")

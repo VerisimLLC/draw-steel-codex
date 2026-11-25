@@ -2727,12 +2727,16 @@ DockablePanel = {
         if rawget(_G, "gamehud") == nil or rawget(gamehud,"leftDock") == nil then
             return nil
         end
+		--a HUD torn down while changing games leaves gamehud pointing at
+		--destroyed docks, whose data is nil: those hold nothing to find.
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
-			if dock ~= nil and dock.valid then
+			if dock ~= nil and dock.valid and dock.data ~= nil then
 				for _,child in ipairs(dock.data.GetChildren()) do
-					for _,instance in ipairs(child.data.GetPanelInstances()) do
-						if instance.data.identifier == identifier then
-							return instance
+					if child.valid and child.data ~= nil then
+						for _,instance in ipairs(child.data.GetPanelInstances()) do
+							if instance.valid and instance.data ~= nil and instance.data.identifier == identifier then
+								return instance
+							end
 						end
 					end
 				end

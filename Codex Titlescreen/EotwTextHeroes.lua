@@ -523,24 +523,17 @@ Click to jump to {hero}.]])
 text("herocard.dismiss.tooltip", [[Dismiss]])
 
 --THE BACK OF THE HERO CARD
---The tabs along the top of a turned-over hero card.
-text("herocard.back.tab.combat", [[Tactical]])
-text("herocard.back.tab.montage", [[Montage]])
-text("herocard.back.tab.negotiation", [[Negotiation]])
-text("herocard.back.tab.downtime", [[Downtime]])
---The tooltip on the green dot that marks the tab for what the party is doing now.
-text("herocard.back.tab.current", [[The current scene]])
+--The section headings in the one scroll of a turned-over hero card, which
+--are also the buttons in the jump row above it.
+text("herocard.back.section.stats", [[Stats]])
+text("herocard.back.section.abilities", [[Abilities]])
+text("herocard.back.section.features", [[Features]])
+text("herocard.back.section.gear", [[Gear]])
 
---The second row of tabs under Combat. {resource} is the class's heroic
---resource (Ferocity, Wrath, ...) and {value} how much the hero has.
-text("herocard.back.sub.basics", [[Basics]])
-text("herocard.back.sub.abilities", [[Abilities]])
-text("herocard.back.sub.triggers", [[Triggers]])
-text("herocard.back.sub.resource", [[{resource} {value}]])
-
---The folding groups on the Abilities tab.
+--The folding groups in the Abilities section.
 text("herocard.back.bucket.signature", [[Signature]])
 text("herocard.back.bucket.heroic", [[Heroic]])
+text("herocard.back.bucket.triggered", [[Triggered]])
 text("herocard.back.bucket.main", [[Main actions]])
 text("herocard.back.bucket.maneuver", [[Maneuvers]])
 text("herocard.back.bucket.other", [[Other]])
@@ -548,32 +541,27 @@ text("herocard.back.bucket.freestrike", [[Free strikes]])
 text("herocard.back.bucket.standard", [[Standard actions]])
 text("herocard.back.abilities.none", [[No abilities]])
 
---The Triggers tab. {trigger} is what sets the triggered action off.
+--The Triggered group. {trigger} is what sets the triggered action off.
 text("herocard.back.triggers.ready", [[Triggered action ready this round]])
 text("herocard.back.triggers.used", [[Triggered action used this round]])
-text("herocard.back.triggers.none", [[No triggered actions]])
 text("herocard.back.trigger.when", [[<b>When:</b> {trigger}]])
 
---The heroic resource tab. {resource} is the resource's name; {count} is a number.
-text("herocard.back.resource.spend", [[Spend {resource}]])
+--The heroic resource. {resource} is the resource's name; {count} is a number.
 text("herocard.back.resource.epic", [[{resource} (epic)]])
 text("herocard.back.growth.needs", [[Needs {count} more.]])
 
---Labels on the Montage, Negotiation and Downtime tabs.
-text("herocard.back.label.hero_tokens", [[Hero Tokens]])
+--Labels in the Features and Gear sections.
+text("herocard.back.label.skills", [[Skills]])
 text("herocard.back.label.renown", [[Renown]])
 text("herocard.back.label.wealth", [[Wealth]])
-text("herocard.back.label.victories", [[Victories]])
 text("herocard.back.label.xp", [[XP]])
 text("herocard.back.label.languages", [[Languages]])
 text("herocard.back.label.perks", [[Perks]])
 text("herocard.back.label.notes", [[Notes]])
-text("herocard.back.label.recoveries", [[Recoveries]])
 text("herocard.back.label.downtime", [[Downtime Activities]])
 text("herocard.back.label.projects", [[Projects]])
-text("herocard.back.negotiation.trained", [[Trained]])
-text("herocard.back.negotiation.untrained", [[Untrained]])
 text("herocard.back.skills.none", [[No skills]])
+--The Gear section while the hero has no projects (items come later).
+text("herocard.back.gear.none", [[Nothing here yet]])
 --The title of the test a click on a skill rolls. {skill} is the skill's name.
 text("herocard.back.skill_test", [[{skill} Test]])
-text("herocard.back.empty", [[Nothing to show here yet]])

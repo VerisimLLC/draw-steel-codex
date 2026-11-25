@@ -1147,6 +1147,13 @@ local function RegisterPatronsGazeDisplay()
         id = "patronsgaze",
         create = CreatePatronsGazeBox,
         ord = 3,
+        --the hero card's back shows it as a line in its own style.
+        card = function(token)
+            if token.properties == nil or not IsAcolyte(token.properties) then
+                return nil
+            end
+            return { name = "Patron's Gaze", resourceid = g_patronsGazeResourceId, holder = token }
+        end,
     }
 end
 

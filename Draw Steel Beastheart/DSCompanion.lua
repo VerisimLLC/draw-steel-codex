@@ -1818,5 +1818,13 @@ if TacPanel ~= nil and TacPanel.RegisterHeroicResourceDisplay ~= nil then
         create = CreateRampageBox,
         ord = 2,
         classic = true,
+        --the hero card's back shows it as a line in its own style.
+        card = function(token)
+            local displayToken = token.properties:GetRampageDisplayToken()
+            if displayToken == nil then
+                return nil
+            end
+            return { name = "Rampage", resourceid = g_rampageResourceId, holder = displayToken }
+        end,
     }
 end

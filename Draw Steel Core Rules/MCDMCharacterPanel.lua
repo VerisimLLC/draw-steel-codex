@@ -8155,7 +8155,12 @@ local g_heroicResourceDisplays = {}
 ---
 --- `classic` opts the display into the pre-rework HEROIC RESOURCES section as
 --- well; without it a display only appears on the reworked panel.
---- @param entry {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean}
+---
+--- `card(token)` tells the hero card's back (HeroCardBack.lua) how to show it
+--- as a line in the card's own style: {name, resourceid, holder} for a hero it
+--- fits (holder: the token that keeps the resource), or nil. A display
+--- without `card` is shown there as its tac panel box.
+--- @param entry {id: string, create: fun(): Panel, ord: number, where: nil|string, classic: nil|boolean, card: nil|fun(token: CharacterToken): {name: string, resourceid: string, holder: CharacterToken}|nil}
 function TacPanel.RegisterHeroicResourceDisplay(entry)
     g_heroicResourceDisplays[entry.id] = entry
 end

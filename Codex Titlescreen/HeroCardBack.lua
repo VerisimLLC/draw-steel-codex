@@ -2410,7 +2410,7 @@ local function ResourceLine(args)
         }
     end
     local holder, resourceid, name = args.holder, args.resourceid, args.name
-    return WithHover(gui.Panel{
+    local line = gui.Panel{
         width = "auto",
         height = "auto",
         flow = "horizontal",
@@ -2418,7 +2418,10 @@ local function ResourceLine(args)
         interactable = false,
         valueLabel,
         Text{ text = name, width = "auto", fontSize = 13, bold = true, color = COLOR_SOFT, textWrap = false, valign = "center" },
-    }, function() return HistoryTip(holder, resourceid, name) end)
+    }
+    --WithHover adds the hover to this panel itself; returning the local keeps the type a plain Panel.
+    WithHover(line, function() return HistoryTip(holder, resourceid, name) end)
+    return line
 end
 
 --- The hero's heroic resource (who may edit it is decided on the card's front).

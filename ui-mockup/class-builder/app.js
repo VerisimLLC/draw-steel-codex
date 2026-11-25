@@ -1154,8 +1154,9 @@ const featText = f => f.text || autoText(f);
 // ---------------------------------------------------------------------------------------------
 // The class model and its levels.
 /* What a gain line responds to: an engine trigger (TriggeredAbility ids) in its "you" and "someone
-   else" forms, with the values the trigger reports (for the line's "only if" test). "spendsurges"
-   is not an engine event yet: the game doesn't report surges spent (FOLLOW_UP_ITEMS F14). */
+   else" forms, with the values the trigger reports (for the line's "only if" test). An entry with
+   "engine" saves as that engine trigger with "base" joined to its condition: spending surges is
+   the game's Use Resource trigger limited to Resource = "Surges". */
 const GAIN_TRIGGERS = [
   { id: "rollinitiative", fixed: "When combat starts" },
   { id: "dealdamage", you: "deal damage", other: "deals damage" }, { id: "losehitpoints", you: "take damage", other: "takes damage" },
@@ -1166,17 +1167,27 @@ const GAIN_TRIGGERS = [
   { id: "rollpower", you: "make a power roll", other: "makes a power roll" },
   { id: "useresource", you: "spend a resource", other: "spends a resource", symbols: [["Resource", "text", "The resource spent, such as \"surges\""], ["Quantity", "number", "How many were spent"]] },
   { id: "gainresource", you: "gain a resource", other: "gains a resource", symbols: [["Resource", "text", "The resource gained"], ["Quantity", "number", "How many were gained"]] },
-  { id: "spendsurges", you: "spend surges on an ability", other: "spends surges on an ability", engine: false,
-    symbols: [["Quantity", "number", "How many surges were spent on the ability"], ["Purpose", "text", "What they bought: \"damage\" or \"potency\""]],
-    picks: [["At least 3 of them increase the damage", 'Quantity >= 3 and Purpose = "damage"', "at least 3 of them increase the damage"],
-      ["At least 2 of them increase the potency", 'Quantity >= 2 and Purpose = "potency"', "at least 2 of them increase the potency"]] },
+  { id: "spendsurges", you: "spend surges", other: "spends surges", engine: "useresource", base: 'Resource = "Surges"',
+    symbols: [["Quantity", "number", "How many surges were spent (one roll's surges are spent together)"]],
+    picks: [["At least 3 surges", "Quantity >= 3", "at least 3 of them"], ["At least 2 surges", "Quantity >= 2", "at least 2 of them"]] },
   { id: "inflictcondition", you: "gain a condition", other: "gains a condition" }, { id: "creaturedeath", you: "die", other: "dies" },
   { id: "kill", you: "kill a creature", other: "kills a creature" }, { id: "earnvictory", you: "earn a Victory", other: "earns a Victory" },
   { id: "endturn", you: "end your turn", other: "ends their turn" }, { id: "beginround", fixed: "When a round starts" },
 ];
+/* The event menu shows only the events core classes gain their resource from most often (count of
+   the 11 classes and 45 subclasses, 2026-11-25), plus spending surges; the rest of GAIN_TRIGGERS
+   still words imported lines, and anything else is built with "Build the trigger yourself...". */
+const GAIN_MENU = ["rollinitiative", "losehitpoints", "dealdamage", "forcemove", "creaturedeath", "useability", "rollpower", "spendsurges", "useresource"];
 const GAIN_WHO = [["self", "you"], ["selfandallies", "you or an ally"], ["allies", "an ally"], ["selfandheroes", "you or another hero"], ["otherheroes", "another hero"], ["enemy", "an enemy"], ["any", "any creature"]];
 const GAIN_FREQ = [["round", "The first time each round"], ["encounter", "The first time in an encounter"], ["recurring", "Whenever"]];
 const gainTrigger = g => GAIN_TRIGGERS.find(t => t.id === g.event) || { id: g.event, you: (g.src && g.src.check.name) || g.event, other: (g.src && g.src.check.name) || g.event };
+/* The engine trigger a gain line saves as, and its condition: the event's own limit (spending
+   surges = Use Resource with Resource = "Surges") joined with the line's "only if" test. */
+const gainEngineId = g => gainTrigger(g).engine || g.event;
+function gainCondFormula(g) {
+  const base = gainTrigger(g).base, own = g.cond ? testGs(g.cond) : "";
+  return base && own ? base + " and (" + own + ")" : base || own;
+}
 /* A gain line's own words: "The first time each round you or an ally spends surges on an ability". */
 function gainPhrase(g) {
   const t = gainTrigger(g); if (t.fixed) return t.fixed;
@@ -1474,9 +1485,9 @@ function compileGains() {
     checklist.push({ name, details, guid: g.guid, mode: g.freq, quantity: fxTable(g, "qty") });
     // Who sets it off is the trigger's subject (default: you); the line's test is its condition.
     triggers.push({ __typeName: "CharacterModifier", behavior: "trigger", name, description: details,
-      triggeredAbility: Object.assign({ __typeName: "TriggeredAbility", name, description: details, trigger: g.event, targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: name + ": gain " + res + ".",
+      triggeredAbility: Object.assign({ __typeName: "TriggeredAbility", name, description: details, trigger: gainEngineId(g), targetType: "self", mandatory: "game:heroicresourcetriggers", triggerPrompt: name + ": gain " + res + ".",
         behaviors: [{ __typeName: "ActivatedAbilityReplenishBehavior", checklistid: g.guid, quantity: fxFormula(g, "qty"), resourceid: RES.heroic }] },
-        g.who && g.who !== "self" ? { subject: g.who } : {}, g.cond ? { conditionFormula: testGs(g.cond) } : {}) });
+        g.who && g.who !== "self" ? { subject: g.who } : {}, gainCondFormula(g) ? { conditionFormula: gainCondFormula(g) } : {}) });
   });
   return { checklist, triggers, mods };
 }
@@ -1795,7 +1806,7 @@ function renderBoard() {
     if (g.event === "manual") { el.appendChild(E("span", null, g.src.check.details || g.src.check.name)); el.appendChild(E("span", "grow")); el.appendChild(E("span", "aside", "Applied by another feature")); gs.appendChild(el); return; }
     migrateGain(g); const rw = (cls.resourceName || "resource").toLowerCase(), t = gainTrigger(g);
     // "[The first time each round] [you or an ally] [spends surges on an ability], only if [test],"
-    const evOpts = GAIN_TRIGGERS.concat(GAIN_TRIGGERS.some(x => x.id === g.event) ? [] : [t]).map(x => [x.id, x.fixed || ((g.who || "self") === "self" ? x.you : x.other) + (x.engine === false ? " (not in the game yet)" : "")]);
+    const evOpts = GAIN_MENU.map(id => GAIN_TRIGGERS.find(x => x.id === id)).concat(GAIN_MENU.includes(g.event) || g.event === "advanced" ? [] : [t]).map(x => [x.id, x.fixed || ((g.who || "self") === "self" ? x.you : x.other)]);
     if (g.event === "advanced") {
       // Built in the triggered ability editor: its event, who, conditions and steps are all there.
       el.appendChild(E("span", "tag", "Trigger"));
@@ -1816,7 +1827,7 @@ function renderBoard() {
     const mb = fk(E("button", "mb", "\u22ef"), "gainmb:" + g.id); mb.type = "button"; mb.setAttribute("aria-label", "Options");
     mb.addEventListener("click", ev => { ev.stopPropagation(); menuAt(mb, m => { const x = E("button", null, "Delete"); x.type = "button"; x.addEventListener("click", () => { closeMenu(); pendingFk = "addgain"; change(() => cls.gains.splice(i, 1)); toast("Deleted that way to gain " + (cls.resourceName || "it").toLowerCase() + ".", { label: "Undo", run: undo }); }); m.appendChild(x); }); });
     el.appendChild(mb);
-    if (showGs) el.appendChild(E("div", "saves", "saves as checklist line (" + g.freq + ") + trigger " + g.event + (g.who !== "self" ? " (subject " + g.who + ")" : "") + (g.cond ? " if " + testGs(g.cond) : "") + ": Replenish " + fxFormula(g, "qty") + ", checklistid linked"));
+    if (showGs) el.appendChild(E("div", "saves", "saves as checklist line (" + g.freq + ") + trigger " + gainEngineId(g) + (g.who !== "self" ? " (subject " + g.who + ")" : "") + (gainCondFormula(g) ? " if " + gainCondFormula(g) : "") + ": Replenish " + fxFormula(g, "qty") + ", checklistid linked"));
     gs.appendChild(el);
   });
   const ag = fk(E("button", "addsent", "+ add a way to gain " + (cls.resourceName || "it").toLowerCase()), "addgain"); ag.type = "button";
@@ -2293,7 +2304,6 @@ function classIssues() {
   if (!cls.resourceName) out.push({ msg: "The heroic resource has no name.", soft: false });
   cls.gains.forEach(g => { if (g.event === "advanced" && !g.trig) out.push({ msg: "A way to gain " + resWord() + " needs its trigger built.", soft: false });
     if (g.event === "advanced" && g.trig && !g.trig.triggeredAbility) out.push({ msg: "\u201c" + recName(g.trig) + "\u201d changes a power roll, so it can't add " + resWord() + ". Build it as a triggered ability that reacts after the roll.", soft: false }); });
-  cls.gains.forEach(g => { if (gainTrigger(g).engine === false) out.push({ msg: "\u201c" + gainTrigger(g).you + "\u201d isn't a game event yet, so that gain won't happen in play until the game reports surges spent.", soft: true }); });
   if (!cls.gains.length && !cls.hrRaw) out.push({ msg: "There's no way to gain " + (cls.resourceName || "the resource").toLowerCase() + " yet.", soft: true });
   if (cls.startGain && !String(cls.startGain.n).trim()) out.push({ msg: "The start-of-turn " + (cls.resourceName || "resource").toLowerCase() + " gain has no amount.", soft: false });
   cls.gains.forEach(g => { if (!String(g.qty || "").trim()) out.push({ msg: "A way to gain " + (cls.resourceName || "the resource").toLowerCase() + " has no amount.", soft: false }); });

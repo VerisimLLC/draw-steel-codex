@@ -389,8 +389,9 @@ function readGains(c) {
     if (ev === "beginturn" && !start) { const st = readStart(ck, t, src); if (st) { start = st; continue; } }
     // How often (the line's mode), who sets it off (the trigger's subject) and its condition.
     const ta = t.m.triggeredAbility, fixed = (GAIN_TRIGGERS.find(x => x.id === ev) || {}).fixed;
-    const g = { id: newId("g"), event: ev, guid: ck.guid, src, refs: [[t, "trigger"]], freq: ck.mode || (fixed ? "encounter" : "recurring"), who: ta.subject || "self",
-      cond: String(ta.conditionFormula || "").trim() ? { t: "raw", src: String(ta.conditionFormula).trim() } : null };
+    const sp = readGainEvent(ev, String(ta.conditionFormula || "").trim());
+    const g = { id: newId("g"), event: sp.event, guid: ck.guid, src, refs: [[t, "trigger"]], freq: ck.mode || (fixed ? "encounter" : "recurring"), who: ta.subject || "self",
+      cond: sp.cond ? { t: "raw", src: sp.cond } : null };
     if (q && q.__typeName === "GoblinScriptTable") { const es = q.entries.slice().sort((a, b) => a.threshold - b.threshold); g.qty = String(es[0].script); g.qtyLv = es.slice(1).map(e => ({ from: String(e.threshold), value: String(e.script) })); }
     else g.qty = String(q);
     gains.push(g);
@@ -407,6 +408,15 @@ function readGains(c) {
   c.startGain = start; c.gains = gains; c.hrRaw = null; c.gainsImported = true;
   return true;
 }
+/* A saved trigger back to a gain line's event: Use Resource limited to "Surges" (in either
+   spelling the editor or an author writes) reads as spending surges, with the rest as the test. */
+function readGainEvent(ev, cond) {
+  for (const t of GAIN_TRIGGERS.filter(x => x.engine === ev && x.base)) {
+    const m = /^\s*Resource\s*(?:=|is)\s*"surges"\s*(?:and\s*\((.*)\)|and\s+(.*))?\s*$/i.exec(cond);
+    if (m) return { event: t.id, cond: (m[1] || m[2] || "").trim() };
+  }
+  return { event: ev, cond };
+}
 /* The record a placeholder writes: the saved one while its gain is unchanged, else that record
    updated from the gain (event, amount, prompt, how often), keeping everything else. */
 function gainRefRecord(f) {
@@ -420,7 +430,7 @@ function gainRefRecord(f) {
   if (g.event === "advanced") return t2 ? clone(t2) : null;   // built in the triggered ability editor
   const ta = r.triggeredAbility, rb = ta.behaviors.find(b => b.checklistid === g.guid), ch = gainChanges(g);
   if (ch.who) { if (g.who && g.who !== "self") ta.subject = g.who; else delete ta.subject; }
-  if (ch.cond) { if (g.cond) ta.conditionFormula = testGs(g.cond); else ta.conditionFormula = ""; }
+  if (ch.cond || ch.event) ta.conditionFormula = gainCondFormula(g);
   if (ch.event || ch.who || ch.freq) ta.triggerPrompt = t2.triggeredAbility.triggerPrompt;
   if (ch.event) { ta.trigger = t2.triggeredAbility.trigger; ta.triggerPrompt = t2.triggeredAbility.triggerPrompt;
     if ("resourceRefreshType" in src) { if (c2.mode === "round" || c2.mode === "encounter") r.resourceRefreshType = c2.mode; else delete r.resourceRefreshType; } }

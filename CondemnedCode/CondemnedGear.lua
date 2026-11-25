@@ -1206,6 +1206,8 @@ local function BuildPane(repaint)
         end
     end, true)
     button.selfStyle.halign = "right"
+    --its width is set to fill the footer, so the shared button's left margin would push it past the edge.
+    button.selfStyle.lmargin = 0
     local buttonLabel = button.children[1]
 
     --- @param text string

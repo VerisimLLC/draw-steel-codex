@@ -2349,6 +2349,9 @@ end)
 --action bar's strip (about 58 high) so a wide bar on a narrow screen never covers it.
 local TAB_BOTTOM = 76
 local g_tab = nil
+--the last reason KeepTab logged for not building the tab yet (logged once per change).
+--- @type nil|string
+local g_tabWait = nil
 
 --- @return boolean
 local function TabWanted()
@@ -2366,7 +2369,7 @@ local function CreateTab()
     open:SetClass("cgGold", true)
     open.children[1]:SetClass("cgGold", true)
     local box = gui.Panel{
-        classes = { "cgWindow", "cgTab" },
+        classes = { "cgWindow", "cgTab", "collapsed" },
         bgimage = "panels/square.png",
         border = 1,
         cornerRadius = 8,
@@ -2389,9 +2392,9 @@ local function CreateTab()
     }
     box.styles = GearStyles()
     --think polls a cheap signature: closing the window changes nothing the document sees.
+    --The wrapper never collapses, as a collapsed panel stops thinking; only the box hides.
     local shown = nil
     local tab = gui.Panel{
-        classes = { "collapsed" },
         styles = HeroSheetTheme.RootStyles(),
         floating = true,
         width = "auto",
@@ -2405,7 +2408,9 @@ local function CreateTab()
             local want = TabWanted()
             if want ~= shown then
                 shown = want
-                element:SetClass("collapsed", not want)
+                box:SetClass("collapsed", not want)
+                print(string.format("CONDEMNED GEAR:: tab %s (dm=%s open=%s window=%s heroes=%d)", want and "shown" or "hidden",
+                    tostring(dmhub.isDM), tostring(CondemnedGear.IsOpen()), tostring(CondemnedGear.IsWindowShowing()), #CondemnedGear.MyHeroes()))
             end
         end,
         box,
@@ -2426,15 +2431,27 @@ local function KeepTab()
     if g_tab ~= nil and g_tab.valid then
         return
     end
-    --while the game loads, the old HUD's layer is still referenced but already torn down.
+    --while a game loads, the old HUD's layer can still be referenced but already torn down,
+    --and adding to it raises. (Loading progress is no guide: a player's can stall below 1.)
     local hud = GameHud.instance
     local layer = hud ~= nil and hud.mainDialogPanel or nil
-    local loading = dmhub.gameLoadingProgress
-    if layer == nil or not layer.valid or (loading ~= nil and loading < 1) then
+    if layer == nil or not layer.valid then
+        local why = string.format("hud=%s layer=%s", tostring(hud ~= nil), tostring(layer ~= nil))
+        if why ~= g_tabWait then
+            g_tabWait = why
+            print("CONDEMNED GEAR:: tab waiting: " .. why)
+        end
         return
     end
-    g_tab = CreateTab()
-    gui.ShowDialog(mod, g_tab)
+    local tab = CreateTab()
+    local ok, err = pcall(gui.ShowDialog, mod, tab)
+    if not ok then
+        print("CONDEMNED GEAR:: tab not added, trying again: " .. tostring(err))
+        tab:DestroySelf()
+        return
+    end
+    g_tab = tab
+    print("CONDEMNED GEAR:: tab built")
 end
 dmhub.Schedule(2, KeepTab)
 

@@ -3417,8 +3417,30 @@ local mapButtons = rawget(_G, "MapButtons")
             icon = "phosphor/lock-simple-fill.png",
             popup = CreateCollarPanel,
         },
+        --the Director's Patrol Fight popup; the button appears once the story reaches Entering the Crysopolis.
+        patrol = {
+            name = "Set Up a Crysopolis Patrol Fight",
+            icon = "phosphor/sword.png",
+            stage = "hub",
+            popup = function(owner)
+                local campaign = rawget(_G, "CondemnedCampaign")
+                if campaign == nil or campaign.CreatePatrolPanel == nil then
+                    return nil
+                end
+                return campaign.CreatePatrolPanel(owner)
+            end,
+        },
     }
-    local ORDER = { "campaign", "collars" }
+    local ORDER = { "campaign", "collars", "patrol" }
+
+    --A button with a stage shows only once the story has reached it.
+    local function StageReached(button)
+        if button.stage == nil then
+            return true
+        end
+        local campaign = rawget(_G, "CondemnedCampaign")
+        return campaign ~= nil and campaign.Reached ~= nil and campaign.Reached(button.stage)
+    end
     local RAIL_TYPE = "condemned"
 
     --ids this Director took off the rail: never put back automatically (/condemnedbuttons does).
@@ -3427,6 +3449,10 @@ local mapButtons = rawget(_G, "MapButtons")
         storage = "pergamepreference",
         default = {},
     }
+
+    --the button whose popup was opened last, so a rail redraw can wait until that popup is closed
+    ---@type Panel|nil
+    local popupOwner = nil
 
     local function OpenPopup(id, element)
         if mod.unloaded then
@@ -3437,13 +3463,14 @@ local mapButtons = rawget(_G, "MapButtons")
             return
         end
         element.popup = button.popup(element)
+        popupOwner = element
     end
 
     local railTypes = rawget(_G, "RailEntryTypes")
     if railTypes ~= nil then
         railTypes[RAIL_TYPE] = {
             available = function(id)
-                return dmhub.isDM and BUTTONS[id] ~= nil
+                return dmhub.isDM and BUTTONS[id] ~= nil and StageReached(BUTTONS[id])
             end,
             name = function(id)
                 local button = BUTTONS[id]
@@ -3487,7 +3514,9 @@ local mapButtons = rawget(_G, "MapButtons")
         local removed = removedSetting:Get() or {}
         for _, id in ipairs(ORDER) do
             local key = RAIL_TYPE .. ":" .. id
-            if not removed[id] and slotOf(key) == nil then
+            --a locked button is added when it unlocks; added early, the rail would only park it
+            --out of sight and every session would add it again
+            if not removed[id] and StageReached(BUTTONS[id]) and slotOf(key) == nil then
                 add(key, "right")
             end
         end
@@ -3498,7 +3527,7 @@ local mapButtons = rawget(_G, "MapButtons")
         commands.RegisterMacro{
             name = "condemnedbuttons",
             summary = "put the Condemned buttons back on the rail",
-            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Campaign, Loyalty Collars) back on your icon rail.",
+            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Campaign, Loyalty Collars, and from Entering the Crysopolis on, Set Up a Crysopolis Patrol Fight) back on your icon rail.",
             command = function(str)
                 removedSetting:Set({})
                 SeedRail()
@@ -3516,18 +3545,48 @@ local mapButtons = rawget(_G, "MapButtons")
 
     dmhub.Coroutine(function()
         local seeded = false
+        --true while the buttons sit on the map's button bar; nil forces the loop below to add them again
+        ---@type boolean|nil
         local fallback = false
+        --a 1 or 0 per button in ORDER for whether the story has reached it; a change redraws the rail
+        local reachedBefore = nil
         while not mod.unloaded do
             local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
-            if dmhub.isDM and railMode and not seeded then
+            if not railMode then
+                --seed again when the rail comes back, in case a button unlocked while it was off
+                seeded = false
+            elseif dmhub.isDM and not seeded then
                 seeded = true
                 SeedRail()
+            end
+            local reached = ""
+            for _, id in ipairs(ORDER) do
+                reached = reached .. (StageReached(BUTTONS[id]) and "1" or "0")
+            end
+            --a redraw closes any open Condemned popup, and the Campaign popup is where the story
+            --gets moved on, so the redraw waits until that popup is closed
+            local popupOpen = popupOwner ~= nil and popupOwner.valid and popupOwner.popup ~= nil
+            if not popupOpen then
+                --only Directors have these buttons, so players' rails are left alone
+                if reachedBefore ~= nil and reached ~= reachedBefore and dmhub.isDM then
+                    if railMode then
+                        SeedRail()
+                        local rebuild = rawget(_G, "IconRailRebuildSoon")
+                        if rebuild ~= nil then
+                            rebuild()
+                        end
+                    end
+                    --the button-bar loop below only runs when fallback changes; nil makes it register
+                    --the bar again now, so a button that just unlocked or locked shows or goes
+                    fallback = nil
+                end
+                reachedBefore = reached
             end
             local wantFallback = mapButtons ~= nil and not railMode
             if wantFallback ~= fallback then
                 fallback = wantFallback
                 for _, id in ipairs(ORDER) do
-                    if fallback then
+                    if fallback and StageReached(BUTTONS[id]) then
                         mapButtons.Register("condemned:" .. id, {
                             name = BUTTONS[id].name,
                             icon = BUTTONS[id].icon,

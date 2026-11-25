@@ -3121,6 +3121,8 @@ end
 --limit reserves this much, so change them here, not on the label.
 local PRESET_CYCLER_WIDTH = 120
 local PRESET_CYCLER_MARGIN = 8
+--The title's widest size when a cycler sits beside it.
+local TITLE_MAX_WIDTH_WITH_CYCLER = string.format("100%%-%d", PRESET_CYCLER_WIDTH + PRESET_CYCLER_MARGIN)
 
 --getDocument() must RESOLVE the document, not be handed it. This panel is pooled
 --(ctx.pools.powerTables) and the pool lives on the render context, which persists
@@ -3166,8 +3168,7 @@ local function PowerRollDisplay(getDocument)
                     element.text = string.format("%s: %s", info.name, info.attr)
                     --A short title stays its own width; a long one wraps, leaving
                     --room for the difficulty cycler beside it when the test has one.
-                    element.selfStyle.maxWidth = cond(info.preset == nil, "100%",
-                        string.format("100%%-%d", PRESET_CYCLER_WIDTH + PRESET_CYCLER_MARGIN))
+                    element.selfStyle.maxWidth = cond(info.preset == nil, "100%", TITLE_MAX_WIDTH_WITH_CYCLER)
                 end,
                 press = function(element)
                     local attr = string.lower(m_info.attr)
@@ -3226,8 +3227,8 @@ local function PowerRollDisplay(getDocument)
                 width = PRESET_CYCLER_WIDTH,
                 height = 18,
                 valign = "center",
-                --left keeps it beside the title; centered, it would float to
-                --the middle of the space the full-width row leaves free.
+                --Without this the label centers itself in the row's empty space,
+                --far from a short title. Left alignment keeps it right after the title.
                 halign = "left",
                 text = "",
                 refreshPowerRoll = function(element, token)

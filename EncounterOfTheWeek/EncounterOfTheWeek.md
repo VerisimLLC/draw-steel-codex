@@ -4412,6 +4412,8 @@ Inn").
 
 - **Free**: Wealth is a count, not a price.
 - **One of each** offered treasure (no duplicates, even with Wealth 2+).
+- **Perishable** (2026-11-24): what a hero buys lasts for one encounter (see
+  "Consumables perish").
 - **Town Gate encounters only** reset the market. A Proving Pits game keeps
   nothing, so it does not refresh the stalls either (no farming).
 - **Live pool** (the rule above) plus Imp's Tongue.
@@ -6208,6 +6210,21 @@ them compete.
   name, quantity}}`; the town's `ApplyOutcome` gives the items to the roster
   hero inside the same stamped `ModifyProperties` as the Victories, so a retry
   never doubles them. The City server stores the outcome opaquely.
+- **Consumables perish** (user direction 2026-11-24; logic-tested, not run in
+  the app). When an encounter ends or is abandoned, EVERY consumable its heroes
+  hold is destroyed in town, used or not, wherever it came from (market, Forge).
+  `EotwRoster.PurgeConsumables` runs inside `ApplyOutcome`'s write (victory,
+  defeat, Retreat). Games with no outcome (abandoned, replaced, deleted,
+  Proving Pits) are covered by the `eotw:trips` preference: `EnterWorld` notes the heroes going
+  in, `DestroyPreviousGame` ends the trip (`EndTrip`), and `ApplyTrips` purges
+  and pushes; a trip also ends when the account's slot holds another game. A
+  fallen hero who is raised is purged in `ApplyReturns`.
+  `properties.eotwPerished[gameid]` makes it once per game, so a late result
+  ("While You Were Away") cannot take newer purchases. Leaving to resume later
+  purges nothing unless a series part already won is brought home. Parts played
+  on in one game keep their consumables until the heroes are home. Proving Pits
+  games purge too (user decision 2026-11-24), though they do not reopen the
+  Arcane Market.
 - **Treasure found is worn** (user direction 2026-10-19). An equippable
   treasure (trinket, leveled treasure, artifact: `EquipmentCategory.
   IsEquippable`) a hero gains in the game is equipped at once when they have

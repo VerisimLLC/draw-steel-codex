@@ -4977,6 +4977,8 @@ CreateScreen = function(args)
         m_resumeGameid = nil
         m_resumeInfo = nil
         CityLeaves.Leave(prevGameid)
+        --its heroes' consumables perish.
+        EotwRoster.EndTrip(prevGameid)
         lobby:LookupGame(prevGameid, function(gameinfo)
             if gameinfo == nil then
                 --the lobby record is gone entirely; just clear the slot.
@@ -5309,6 +5311,9 @@ CreateScreen = function(args)
             week = (EncounterOfTheWeek.GetWeek() or {}).week,
         }
         _G.EotwPendingArrival = arrival
+        if #clipboardIds > 0 then
+            EotwRoster.NoteTrip(gameid, clipboardIds)
+        end
 
         --analytics: the hand-off from town to game. resume = this player
         --already has a run open in it (going back into a game under way).

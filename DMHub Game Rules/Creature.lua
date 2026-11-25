@@ -398,6 +398,7 @@ end
 --- @field eotwBaseLevel? integer Encounter of the Week: the Level this monster spawned at, before level balancing (ApplyLevelBoost).
 --- @field eotwBaseEV? number Encounter of the Week: this monster's EV when it spawned, for level balancing's strongest-first order.
 --- @field eotwMarket? table|false Encounter of the Week town heroes: the hero's Arcane Market visit since their last encounter (EotwMarket.lua).
+--- @field eotwPerished? table<string, boolean> Encounter of the Week town heroes: the games whose consumables have already perished.
 --- @field followers? table Characters: follower entries (legacy shape, migrated by validation).
 --- @field levelOverride? integer Characters: minimum character level (slow start / level picker).
 --- @field levelUpSeen? integer Heroes: Level up has shown pages up to this Level; it shows one for each Level above (set when a respite raises the Level; HeroBuildPools.lua).

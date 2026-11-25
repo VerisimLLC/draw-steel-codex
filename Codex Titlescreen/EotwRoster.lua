@@ -101,6 +101,15 @@ setting{
     storage = "preference",
 }
 
+--The heroes this machine sent into games, whose consumables perish when the
+--trip ends (see ApplyTrips). JSON text:
+--{ [userid] = { ["<gameid>|<heroid>"] = {gameid, heroid, ended} } }.
+setting{
+    id = "eotw:trips",
+    default = "",
+    storage = "preference",
+}
+
 --Hall of Heroes entries a game this machine hosted could not hand the city
 --before it closed (see FlushPendingHall). Declared by the game-side EotW mod
 --too; JSON text: { [userid] = { [gameid] = args of the city's hall-record } }.
@@ -914,6 +923,7 @@ local function FetchAndImport(hero)
                 if not mod.unloaded then
                     PromoteRosterHeroes()
                     ApplyPendingOutcomes()
+                    EotwRoster.ApplyTrips()
                     --a hero just back from the grave: set their Stamina.
                     ApplyReturns()
                 end
@@ -931,6 +941,91 @@ end
 --there to compare against or import into.
 local function LobbyReady()
     return dmhub.inGame and dmhub.isLobbyGame and dmhub.gameLoadingProgress == 1
+end
+
+--- coming home: consumables perish ----------------------------------------
+--When an encounter ends or is abandoned, every consumable its heroes hold is
+--destroyed, used or not (David 2026-11-24). The hero's outcome does it; a game
+--with no outcome (abandoned, replaced, deleted, a Proving Pits game) is
+--covered by eotw:trips.
+
+--Destroy every consumable a hero holds, once per game (a late result must not
+--take what they have bought since). Call inside a ModifyProperties. A series
+--part played on in the same game has the run id "<gameid>-part<n>".
+---@param props creature
+---@param runid string|nil nil = always (a hero back from the grave)
+function EotwRoster.PurgeConsumables(props, runid)
+    if runid ~= nil then
+        local gameid = string.gsub(runid, "%-part%d+$", "")
+        local perished = {}
+        local old = rawget(props, "eotwPerished")
+        if type(old) == "table" then
+            for k, v in pairs(old) do
+                perished[k] = v
+            end
+        end
+        if perished[gameid] then
+            return
+        end
+        perished[gameid] = true
+        props.eotwPerished = perished
+    end
+    local gear = dmhub.GetTable("tbl_Gear") or {}
+    local gone = {}
+    for itemid, _ in pairs(props:try_get("inventory", {})) do
+        if gear[itemid] ~= nil and EquipmentCategory.IsConsumable(gear[itemid]) then
+            gone[#gone + 1] = itemid
+        end
+    end
+    for _, itemid in ipairs(gone) do
+        props:SetItemQuantity(itemid, 0)
+    end
+end
+
+--Trips being pushed right now (key -> heroid), and how often each has failed.
+EotwRoster.tripBusy = {}
+EotwRoster.tripFailures = {}
+
+---@return table all
+---@return table mine
+local function LoadTrips()
+    local all = nil
+    local text = dmhub.GetSettingValue("eotw:trips")
+    if type(text) == "string" and text ~= "" then
+        local parsed = dmhub.FromJson(text)
+        if type(parsed) == "table" and parsed.success then
+            all = parsed.result
+        end
+    end
+    if type(all) ~= "table" then
+        all = {}
+    end
+    local mine = all[dmhub.loginUserid]
+    if type(mine) ~= "table" then
+        mine = {}
+        all[dmhub.loginUserid] = mine
+    end
+    return all, mine
+end
+
+local function DropTrip(key)
+    local all, mine = LoadTrips()
+    if mine[key] ~= nil then
+        mine[key] = nil
+        dmhub.SetSettingValue("eotw:trips", dmhub.ToJson(all))
+    end
+end
+
+--Is a trip's removal being pushed for this hero right now?
+---@param heroid string
+---@return boolean
+local function TripBusy(heroid)
+    for _, busy in pairs(EotwRoster.tripBusy) do
+        if busy == heroid then
+            return true
+        end
+    end
+    return false
 end
 
 --- coming home: won encounters ------------------------------------------
@@ -1102,6 +1197,7 @@ local function ApplyOutcome(key, entry, tok)
                 if type(wounds) == "table" then
                     EotwRoster.SetWounds(props, wounds.damage, wounds.recoveriesUsed)
                 end
+                EotwRoster.PurgeConsumables(props, gameid)
                 --Secret Twin: the assassin came for them (EncounterMontage),
                 --so their past has caught up; the next respite rolls again.
                 if type(entry.outcome) == "table" and entry.outcome.assassinMet then
@@ -1174,7 +1270,7 @@ ApplyPendingOutcomes = function()
     for key, entry in pairs(mine) do
         if type(entry) ~= "table" or type(entry.heroid) ~= "string" or type(entry.gameid) ~= "string" then
             SetOutcomeStage(key, nil)
-        elseif not m_outcomeBusy[key] and not heroBusy[entry.heroid] and (m_outcomeFailures[key] or 0) < MAX_OUTCOME_ATTEMPTS then
+        elseif not m_outcomeBusy[key] and not heroBusy[entry.heroid] and not TripBusy(entry.heroid) and (m_outcomeFailures[key] or 0) < MAX_OUTCOME_ATTEMPTS then
             if EotwRoster.FindHero(entry.heroid) == nil then
                 printf("EotW town: hero %s is no longer in the roster; dropping its outcome", entry.heroid)
                 SetOutcomeStage(key, nil)
@@ -1187,6 +1283,98 @@ ApplyPendingOutcomes = function()
                 end
             end
         end
+    end
+end
+
+--Destroy the consumables of every trip that is over: its game is no longer
+--the one in the account's Encounter of the Week slot, or the town has just
+--dropped it (EndTrip). A hero with an outcome waiting is left to that outcome,
+--which does it in the same write.
+function EotwRoster.ApplyTrips()
+    if m_heroes == nil or m_conn == nil or not LobbyReady() then
+        return
+    end
+    local revs = GetRevs()
+    local _, pending = LoadPendingOutcomes()
+    local outcomeWaiting = {}
+    for _, entry in pairs(pending) do
+        if type(entry) == "table" and type(entry.heroid) == "string" then
+            outcomeWaiting[entry.heroid] = true
+        end
+    end
+    local _, mine = LoadTrips()
+    local drop = {}
+    for key, trip in pairs(mine) do
+        if type(trip) ~= "table" or type(trip.heroid) ~= "string" or type(trip.gameid) ~= "string" then
+            drop[#drop + 1] = key
+        elseif not TripBusy(trip.heroid) and not outcomeWaiting[trip.heroid]
+            and (trip.ended or lobby.eotwGameid ~= trip.gameid)
+            and (EotwRoster.tripFailures[key] or 0) < MAX_OUTCOME_ATTEMPTS then
+            local heroid = trip.heroid
+            local hero = EotwRoster.FindHero(heroid)
+            local tok = dmhub.GetCharacterById(heroid)
+            if hero == nil then
+                --dismissed or fallen.
+                drop[#drop + 1] = key
+            elseif tok ~= nil and revs[heroid] == hero.rev and not m_importing[heroid] and not m_promoting[heroid] then
+                EotwRoster.tripBusy[key] = heroid
+                tok:ModifyProperties{
+                    description = "Encounter of the Week: consumables perish",
+                    undoable = false,
+                    execute = function()
+                        EotwRoster.PurgeConsumables(tok.properties, trip.gameid)
+                    end,
+                }
+                printf("EotW town: %s's consumables from %s perish", tostring(tok.name), trip.gameid)
+                --as in ApplyOutcome: let the write land before the export.
+                dmhub.Schedule(0.3, function()
+                    if mod.unloaded then
+                        return
+                    end
+                    EotwRoster.PushHero(heroid, function(ok)
+                        EotwRoster.tripBusy[key] = nil
+                        if ok then
+                            DropTrip(key)
+                        else
+                            EotwRoster.tripFailures[key] = (EotwRoster.tripFailures[key] or 0) + 1
+                        end
+                        ApplyPendingOutcomes()
+                    end)
+                end)
+            end
+        end
+    end
+    for _, key in ipairs(drop) do
+        DropTrip(key)
+    end
+end
+
+--Heroes are entering a game: their consumables perish when the trip ends.
+---@param gameid string
+---@param heroids string[]
+function EotwRoster.NoteTrip(gameid, heroids)
+    local all, mine = LoadTrips()
+    for _, heroid in ipairs(heroids) do
+        mine[gameid .. "|" .. heroid] = { gameid = gameid, heroid = heroid }
+    end
+    dmhub.SetSettingValue("eotw:trips", dmhub.ToJson(all))
+end
+
+--The town is done with a game (finished, abandoned or replaced): its trips are
+--over, whatever the account slot still says.
+---@param gameid string
+function EotwRoster.EndTrip(gameid)
+    local all, mine = LoadTrips()
+    local changed = false
+    for _, trip in pairs(mine) do
+        if type(trip) == "table" and trip.gameid == gameid and not trip.ended then
+            trip.ended = true
+            changed = true
+        end
+    end
+    if changed then
+        dmhub.SetSettingValue("eotw:trips", dmhub.ToJson(all))
+        EotwRoster.ApplyTrips()
     end
 end
 
@@ -1259,6 +1447,8 @@ ApplyReturns = function()
                 undoable = false,
                 execute = function()
                     local props = tok.properties
+                    --what they carried when they fell is gone.
+                    EotwRoster.PurgeConsumables(props, nil)
                     if returnInfo.by == "rite" then
                         EotwRoster.SetWounds(props, 0, 0)
                     else
@@ -1352,6 +1542,7 @@ local function SyncWorkingCopies()
     PromoteRosterHeroes()
     --encounters won since the last visit: Victories onto the heroes.
     ApplyPendingOutcomes()
+    EotwRoster.ApplyTrips()
     ApplyReturns()
 end
 

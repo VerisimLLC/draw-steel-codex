@@ -258,10 +258,13 @@ local function ApplyToTarget(targetTok, casterTok, ability, mode, activityid)
             local effects = {}
             for _, b in ipairs(BehaviorsFor(ability, mode)) do
                 if b.typeName == "ActivatedAbilityApplyOngoingEffectBehavior" then
+                    --stacks is a formula on the caster (Revitalizing Ritual's is "level").
+                    local stacks = tonumber(dmhub.EvalGoblinScript(tostring(b:try_get("stacks", "1")), casterTok.properties:LookupSymbol{}, string.format("Number of stacks for %s", ability.name)))
                     props:ApplyOngoingEffect(b.ongoingEffect, b:try_get("duration"), {
                         tokenid = casterTok.id,
                         abilityName = ability.name,
                     }, {
+                        stacks = stacks,
                         sourceDescription = string.format("%s (%s)", ability.name, HeroName(casterTok)),
                     })
                     effects[#effects+1] = b.ongoingEffect
@@ -951,6 +954,13 @@ function EotwRespiteActivities.InnPanel(host)
                 height = "auto",
                 flow = "vertical",
                 valign = "center",
+                --the codex's own ability card, on the side away from the screen edge.
+                hover = function(element)
+                    local card = CreateAbilityTooltip(entry.ability, { token = r.tok, width = 480, halign = "left", valign = "center" })
+                    if card ~= nil then
+                        element.tooltip = card
+                    end
+                end,
                 gui.Label{ text = entry.ability.name, fontSize = 16, bold = true, color = TEXT, width = "100%", height = "auto" },
                 gui.Label{
                     text = cond(entry.paid, T("inn.activity.row_paid", { hero = HeroName(r.tok) }), T("inn.activity.row_free", { hero = HeroName(r.tok) })),

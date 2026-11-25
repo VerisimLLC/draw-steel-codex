@@ -14747,9 +14747,6 @@ CreateAbilityController = function()
 
                             local collideWith = movementInfo.collideWith or {}
 
-                            --implement increase of collide damage if we collide into an object.
-                            local collideDamage = overshoot
-
                             local isObject = true
                             for _, collideToken in ipairs(collideWith) do
                                 if not collideToken.isObject then
@@ -14758,9 +14755,11 @@ CreateAbilityController = function()
                                 end
                             end
 
-                            if isObject then
-                                collideDamage = collideDamage + 2
-                            end
+                            --what the Collision rule deals: the force left, 2 more into an object or
+                            --wall plus the pusher's bonus for that, less the creature's reduction.
+                            local pusher = g_currentSymbols.invoker ~= nil and Utils.ResolveGoblinScriptObject(g_currentSymbols.invoker) or nil
+                            local movementType = g_currentAbility:try_get("forcedMovement", "slide")
+                            local collideDamage = g_token.properties:PredictedCollisionDamage(overshoot, isObject, pusher, movementType)
 
                             --objects flagged "No Collision Damage" run their own collision
                             --behavior, so no standard collision damage is dealt in either
@@ -14795,9 +14794,15 @@ CreateAbilityController = function()
                                 }
 
                                 if not suppressDamage then
+                                    --a creature it hits takes its own share (no object bonus unless the
+                                    --mover is an object); an object is labelled with the mover's.
+                                    local hitDamage = collideDamage
+                                    if not collideToken.isObject then
+                                        hitDamage = collideToken.properties:PredictedCollisionDamage(overshoot, g_token.isObject, pusher, movementType)
+                                    end
                                     newTextLabels[#newTextLabels + 1] = {
                                         point = collideToken:PosAtLoc(),
-                                        text = string.format("-%d<color=#00000000>-</color>", collideDamage),
+                                        text = string.format("-%d<color=#00000000>-</color>", hitDamage),
                                     }
                                 end
                             end

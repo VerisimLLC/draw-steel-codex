@@ -825,6 +825,32 @@ function creature:PredictedFallDamage(fallDist, inWater)
     return damage
 end
 
+--- The damage the Collision global rule deals this creature when forced movement slams it
+--- into something with `speed` squares of the move left: 1 a square, 2 more against an object
+--- or wall plus the pusher's bonus for pushing into objects, less its forced movement damage
+--- reduction. Used by previews and the Monster AI; the damage itself is dealt by the rule.
+--- @param speed number Squares of the move left at the collision
+--- @param withObject boolean It hit an object or a wall rather than a creature
+--- @param pusher nil|creature Who made the move
+--- @param movementType nil|string "push", "pull", "slide"...; the pusher's bonus is only for "push"
+--- @return number
+function creature:PredictedCollisionDamage(speed, withObject, pusher, movementType)
+    if self:CalculateNamedCustomAttribute("No Damage From Forced Movement") >= 1 then
+        return 0
+    end
+    if withObject and self:CalculateNamedCustomAttribute("NoDamageFromForcedMovementWithObjects") >= 1 then
+        return 0
+    end
+    local damage = speed
+    if withObject then
+        damage = damage + 2
+        if pusher ~= nil and movementType == "push" then
+            damage = damage + pusher:CalculateNamedCustomAttribute("BonusPushDamageIntoObjects")
+        end
+    end
+    return math.max(0, damage - self:CalculateNamedCustomAttribute("Forced Movement Damage Reduction"))
+end
+
 --- Plays a single footstep sound matching the landing surface type.
 --- Called by the engine for on-feet landings on solid ground.
 --- @param surfaceType number The surface type ID from TileGameRules

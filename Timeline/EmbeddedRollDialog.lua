@@ -2482,7 +2482,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 if target.token ~= nil and target.token.valid then
                     local t = {
                         tokenId = target.token.charid,
-                        name = target.token.name or "",
+                        name = _G.creature.TokenDisplayName(target.token) or "",
                         surges = target.surges or 0,
                         boons = target.boons or 0,
                         banes = target.banes or 0,
@@ -3851,7 +3851,9 @@ function GameHud.CreateEmbeddedRollDialog()
                     maxHeight = 30,
                     halign = "center",
                     textOverflow = "truncate",
-                    text = target.token.name,
+                    --a map object shows the Name set in its object editor ("Shelf 2"), not its artwork's name.
+                    --_G.creature is the creature type: the local `creature` here is the roller.
+                    text = _G.creature.TokenDisplayName(target.token),
                     textAlignment = "center",
                 }
                 local boonLabel = gui.Label {

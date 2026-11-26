@@ -484,6 +484,8 @@ local function NameRow(token)
     --where the Director's pill sits, from the last measure.
     local pillUnits = 0
     local pillBeside = false
+    --the row's width from the last measure; the guess until then.
+    local rowUnits = room
 
     --- @param typing boolean
     local function Show(typing)
@@ -536,9 +538,10 @@ local function NameRow(token)
             openFor = token ~= nil and token.charid or nil
             --the field takes the name's room short of a pill beside it, so
             --nothing moves while typing; the row measures again after a save.
+            --2 to spare, so rounding never drops the pill below mid-type.
             local width = nameMax
             if pillBeside then
-                width = math.max(80, width - pillUnits - 8)
+                width = math.max(80, math.min(nameMax, rowUnits - iconsRoom - pillUnits - 8 - 2))
             end
             field.selfStyle.width = width
             field.captureEscape = true
@@ -692,10 +695,11 @@ local function NameRow(token)
     }
     --- @param nameUnits number
     --- @param measuredPill number
-    --- @param rowUnits number the row's width
-    local function Place(nameUnits, measuredPill, rowUnits)
+    --- @param measuredRow number the row's width
+    local function Place(nameUnits, measuredPill, measuredRow)
         pillUnits = measuredPill
-        pillBeside = nameUnits + iconsRoom + 8 + measuredPill <= rowUnits
+        rowUnits = measuredRow
+        pillBeside = nameUnits + iconsRoom + 8 + measuredPill <= measuredRow
         pill:SetClass("collapsed", not pillBeside)
         line2:SetClass("collapsed", pillBeside)
     end
@@ -714,11 +718,11 @@ local function NameRow(token)
             end
             --the row as drawn: Narrow's banner has no fixed column width,
             --so the guess above can be far short of the room it has.
-            local rowUnits = room
+            local measuredRow = room
             if line1.renderedWidth > 0 then
-                rowUnits = line1.renderedWidth / perUnit
+                measuredRow = line1.renderedWidth / perUnit
             end
-            Place(nameBox.renderedWidth / perUnit, shown.renderedWidth / perUnit, rowUnits)
+            Place(nameBox.renderedWidth / perUnit, shown.renderedWidth / perUnit, measuredRow)
         end)
     end
     Measure()
@@ -1983,9 +1987,9 @@ local function Stamina()
         field,
     }
 
-    --Edit mode's dashed frame round the bar, as the stats band frames what
-    --it edits (heroSheetEditFrame rules). Its 4/3 padding is there in both
-    --modes and comes out of the margins, so the bar never moves.
+    --In Edit mode a dashed frame goes round the bar, as on the stats band's
+    --editable values. Its padding is there in both modes, overhanging the
+    --bar's sides and taken from the gaps above and below, so the bar stays put.
     local framePanel = gui.Panel(HeroSheetTheme.HoverCard({
         classes = {"heroSheetEditFrame"},
         bgimage = "panels/square.png",
@@ -2072,7 +2076,7 @@ local function Stamina()
         width = "100%",
         height = 22,
         flow = "horizontal",
-        --2, less the frame's padding under the bar.
+        --with the frame's 3 of padding below the bar, -1 keeps the old 2 gap.
         tmargin = -1,
         LinePart("Dead at", deadAt, "left"),
         LinePart("Winded at", windedAt, "center"),

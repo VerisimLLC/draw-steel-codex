@@ -1751,9 +1751,9 @@ function MarkdownDocument.PageSkinPalette(doc)
 end
 
 --Style rules that repaint a dropdown (the closed box and its open menu) in a
---journal page's colors. Add them to a widget's styles; the open menu picks
---them up from the widget. Priority 60 is needed to beat the app theme's own
---dropdown rules, the highest of which is 55.
+--journal page's colors. Add them to a widget's styles; the open menu is drawn
+--inside the widget, so these rules reach it too. Priority 60 is needed to beat
+--the app theme's own dropdown rules, the highest of which is 55.
 --- @param pal table A palette from MarkdownDocument.PageSkinPalette.
 --- @return table[] styles
 function MarkdownDocument.PageSkinDropdownStyles(pal)

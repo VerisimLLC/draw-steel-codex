@@ -880,7 +880,21 @@ end
 --with the invoker's action type. Critical Hit depends on this.
 local function IsMainActionAbility(c)
     local actionid = c:try_get("invokerActionResourceId") or c:ActionResource()
-    return actionid == "d19658a2-4d7b-4504-af9e-1a5410fb17fd" --id of action
+    if actionid ~= CharacterResource.actionResourceId then
+        return false
+    end
+    --A maneuver made with the main action (Use Maneuver) pays the main action but is
+    --still a maneuver, so it must not set off "uses a main action" effects like Bleeding.
+    return c:try_get("baseActionResourceId") ~= CharacterResource.maneuverResourceId
+end
+
+--- True if this is a maneuver, including one made with the main action (Use Maneuver),
+--- which DSAugmentAbilities re-costs as the main action.
+--- @param c ActivatedAbility
+--- @return boolean
+local function IsManeuverAbility(c)
+    return c:ActionResource() == CharacterResource.maneuverResourceId
+        or c:try_get("baseActionResourceId") == CharacterResource.maneuverResourceId
 end
 
 --- True if a natural roll at or above the Critical Threshold on this ability is a Critical Hit.
@@ -931,7 +945,7 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     desc = "Returns true if this ability is a maneuver.",
     seealso = { "action" },
     calculate = function(c)
-        return c:ActionResource() == "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b" --id of maneuver
+        return IsManeuverAbility(c)
     end,
 
 })

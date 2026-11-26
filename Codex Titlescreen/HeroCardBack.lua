@@ -50,6 +50,9 @@ local COLOR_RECOVERY_OVER = "#e8a33dbb"
 --  BODY     running text, and label-and-value lines (see PairText)
 --  SMALL    sub-headings (uppercase, in the accent), captions, a row's meta
 --Uppercase is for headings only; inline labels are muted title case.
+--a jump button's scroll to its section: seconds it takes, seconds per step.
+local GLIDE_TIME = 0.28
+local GLIDE_THINK = 0.016
 local FONT_DISPLAY = 24
 local FONT_STAT = 18
 local FONT_SECTION = 17
@@ -3775,12 +3778,39 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         end,
     }
 
+    --a jump button's glide: from and to are scroll positions, start the
+    --time it began, last the position the glide itself set. nil when still.
+    local m_glide = nil
+
     local scroller = gui.Panel{
         width = "100%",
         height = designHeight - VPAD * 2 - FOOTER_HEIGHT,
         flow = "vertical",
         vscroll = true,
         interactable = false,
+        --only runs while gliding; the last step takes thinkTime back off.
+        think = function(element)
+            local glide = m_glide
+            if glide == nil then
+                element.thinkTime = nil
+                return
+            end
+            --the wheel moved it since the last step: the user wins, stop here.
+            if math.abs((tonumber(element.vscrollPosition) or 0) - glide.last) > 0.001 then
+                m_glide = nil
+                element.thinkTime = nil
+                return
+            end
+            local t = math.min(1, (dmhub.Time() - glide.start) / GLIDE_TIME)
+            --ease out: fast at first, settling into place.
+            local eased = 1 - (1 - t) ^ 3
+            glide.last = glide.from + (glide.to - glide.from) * eased
+            element.vscrollPosition = glide.last
+            if t >= 1 then
+                m_glide = nil
+                element.thinkTime = nil
+            end
+        end,
         scrollBody,
     }
 
@@ -3821,7 +3851,14 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
         if range <= 0 then
             return
         end
-        scroller.vscrollPosition = 1 - math.max(0, math.min(range, offset)) / range
+        local target = 1 - math.max(0, math.min(range, offset)) / range
+        local from = tonumber(scroller.vscrollPosition) or target
+        if math.abs(target - from) < 0.001 then
+            return
+        end
+        --a click mid-glide starts again from where the list is now.
+        m_glide = { from = from, to = target, start = dmhub.Time(), last = from }
+        scroller.thinkTime = GLIDE_THINK
     end
 
     --Gathers the rows into one group per section (rows before the first
@@ -3991,6 +4028,8 @@ local function CreateBackFace(charid, cardWidth, cardHeight, draggable)
             if show then
                 state.abilities = nil
                 state.gear = nil
+                m_glide = nil
+                scroller.thinkTime = nil
                 scroller.vscrollPosition = 1
                 content:FireEvent("refreshBack")
             end

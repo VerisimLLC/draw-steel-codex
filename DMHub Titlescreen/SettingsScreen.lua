@@ -6827,6 +6827,17 @@ function CreateSettingsScreen(dialog, args)
 		return editor
 	end
 
+	--The merge option shows only where the engine can merge the title bar: not on
+	--Mac, and not under Wine/Proton, where it froze the app on the splash screen.
+	--An empty collapsed panel stands in so the row is absent from search too.
+	local MergedTitleBarSetting = function()
+		local ok, available = pcall(function() return dmhub.mergedTitleBarAvailable end)
+		if ok and available == true then
+			return Setting("mergedtitlebar")
+		end
+		return gui.Panel{ classes = {"collapsed"} }
+	end
+
 	local SettingsHeading = function(title)
 		return gui.Label{
 			width = "100%",
@@ -7710,7 +7721,7 @@ function CreateSettingsScreen(dialog, args)
 						--Setting('perf:hideftextures'),
 						Setting('perf:castshadows'),
                         Setting("graphics:uiblur"),
-                        Setting("mergedtitlebar"),
+                        MergedTitleBarSetting(),
 
 						SettingsSection("Graphics"),
 

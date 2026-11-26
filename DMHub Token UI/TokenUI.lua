@@ -1069,7 +1069,8 @@ TokenHud.RegisterPanel{
                                     --this icon has a 'bond' to several other creatures.
                                     local tokens = creature.GetTokensWithBoundOngoingEffect(element.data.bondid)
                                     for i,tok in ipairs(tokens) do
-                                        if tok ~= nil and tok.valid and tok.charid ~= token.charid then
+                                        --As for the caster lines below: no line to a creature this viewer can't see.
+                                        if tok ~= nil and tok.valid and tok.charid ~= token.charid and (dmhub.isDM or tok.canSee) then
                                             local casterPos = token.pos
                                             if casterPos ~= nil then
                                                 element.data.highlight = element.data.highlight or {}
@@ -1085,7 +1086,9 @@ TokenHud.RegisterPanel{
 
                                 for casterid,_ in pairs(element.data.casteridSet or {}) do
 									local caster = dmhub.GetTokenById(casterid)
-									if caster ~= nil then
+									--A line to a caster this viewer can't see (hidden, or out of
+									--sight) would point straight at where it is.
+									if caster ~= nil and (dmhub.isDM or caster.canSee) then
 										local casterPos = caster.pos
 										if casterPos ~= nil then
                                             element.data.highlight = element.data.highlight or {}

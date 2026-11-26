@@ -3205,7 +3205,10 @@ function ActivatedAbility:FinishCast(casterToken, options)
 
 	GameSystem.OnEndCastActivatedAbility(casterToken, self, options)
 
-	if self:CountsAsRegularAbilityCast() and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+	--A cast cancelled before it paid was never used, so it must not set off "when you
+	--use an ability" triggers such as Bleeding. A cast that paid and then stopped still counts.
+	local cancelledUnpaid = options ~= nil and options.abort and not options.pay
+	if self:CountsAsRegularAbilityCast() and not cancelledUnpaid and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
         casterToken.properties:DispatchEvent("finishability", {usedability = self, cast = options.symbols and options.symbols.cast, partofanotherability = self:IsPartOfAnotherAbility(casterToken, options)})
     end
 end

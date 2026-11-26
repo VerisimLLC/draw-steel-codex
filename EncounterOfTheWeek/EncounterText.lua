@@ -80,6 +80,9 @@ text("encounter.arrange.names_and", [[{names} and {last}]])
 --On the card of a hero who has won this encounter before, and so gets no
 --Victory for it this time.
 text("encounter.victory.already_completed", [[Already Completed]])
+--On the card of a hero who summoned their Famous Relative this encounter,
+--and so gets no Victory for it.
+text("encounter.victory.famous_relative", [[Helped by Famous Relative]])
 --On a living hero's card after a win: what they take home. {treasure} is
 --the items, like "Bastion Belt x2, Ward Token".
 text("encounter.victory.treasure_note", [[Treasure: {treasure}]])

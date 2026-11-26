@@ -4898,7 +4898,7 @@ local CreateModuleDisplaySlot = function(options)
 	}
 
 	--modules an administrator has deprecated are still listed in the
-	--Installed/Published/Purchased tabs (they are filtered out of browse),
+	--Installed/Published/My Modules tabs (they are filtered out of browse),
 	--so mark them clearly.
 	local deprecatedBadge = gui.Label{
 		text = "DEPRECATED",
@@ -6429,7 +6429,8 @@ mod.shared.ShowDownloadShareDialog = function(options)
 
 	--Hero modules: add to / remove from the player's inventory (HeroModules.lua),
 	--which makes the module's classes and ancestries available to their heroes
-	--on the titlescreen and in every game those heroes enter.
+	--on the titlescreen and in Encounter of the Week games. Other games list it
+	--under My Modules for the Director to install.
 	local heroInventoryLabel = gui.Label{
 		text = "",
 		fontSize = 16,
@@ -6756,8 +6757,15 @@ mod.shared.ShowDownloadShareDialog = function(options)
 	local moduleDisplayPanel
 
 	QueryModuleIndex = function()
+		--My Modules ("purchased") also lists the free Hero modules the player
+		--added to their inventory.
+		local extraModuleIds = nil
+		if m_tabSelected == "purchased" then
+			extraModuleIds = HeroModules.GetAddedIds()
+		end
 		module.QueryModuleIndex{
 			index = m_tabSelected,
+			extraModuleIds = extraModuleIds,
 			success = function(moduleIndex)
 				m_moduleIndex = moduleIndex
 
@@ -6850,9 +6858,9 @@ mod.shared.ShowDownloadShareDialog = function(options)
 
 	-- Positional classes drive asymmetric corner rounding + adjacent-border
 	-- removal so the strip reads as a single pill bar rather than a row of
-	-- separate chips. "Purchased" and "Published Modules" can be collapsed,
+	-- separate chips. "My Modules" and "Published Modules" can be collapsed,
 	-- so the visibly-last tab is computed from their visibility.
-	local hasPurchased = #module.GetOurPurchasedModules() > 0
+	local hasPurchased = #module.GetOurPurchasedModules() > 0 or #HeroModules.GetAddedIds() > 0
 	local hasPublished = #module.GetOurPublishedModules() > 0
 
 	--Patreon tab: shown to anyone with a linked Patreon account, not merely to
@@ -6995,7 +7003,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 			},
 			gui.Label{
 				classes = {"enumSliderOption", TabPosition("purchased"), cond(not hasPurchased, "collapsed")},
-				text = "Purchased",
+				text = "My Modules",
 				width = "auto",
 				hpad = 14,
 				data = {

@@ -1203,6 +1203,12 @@ local function ApplyOutcome(key, entry, tok)
                 if type(entry.outcome) == "table" and entry.outcome.assassinMet then
                     props[EotwDowntime.ASSASSIN_FIELD] = nil
                 end
+                --Famous Relative: summoned in the encounter, so not again until
+                --the hero gains a Level (the ability's charge refreshes by Level).
+                local relative = type(entry.outcome) == "table" and entry.outcome.relativeSummoned or nil
+                if type(relative) == "string" and relative ~= "" and (props:GetResourceUsage(relative, "level") or 0) < 1 then
+                    props:ConsumeResource(relative, "level", 1, "Summoned famous relative")
+                end
                 local applied = {}
                 local old = rawget(props, "eotwOutcomes")
                 if type(old) == "table" then

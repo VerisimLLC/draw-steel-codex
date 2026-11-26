@@ -119,19 +119,28 @@ HeroSheetInventory.KINDS = KINDS
 local KIND_NAMES = {leveled = "Leveled treasure", trinket = "Trinket", consumable = "Consumable", other = "Item"}
 HeroSheetInventory.KIND_NAMES = KIND_NAMES
 
---- An item's kind line: "Leveled treasure . Neck, Magic".
+--- An item's keywords, sorted, as the rules write them: "Magic, Neck".
+--- Empty when it has none.
 --- @param item table a tbl_Gear row
---- @param kind nil|string the kind when the caller has it, else read from the item
 --- @return string
-function HeroSheetInventory.KindLine(item, kind)
+function HeroSheetInventory.Keywords(item)
     local keywords = {}
     pcall(function()
         keywords = table.mapped_keys(item:try_get("keywords", {}), ActivatedAbility.CanonicalKeyword)
         table.sort(keywords)
     end)
+    return table.concat(keywords, ", ")
+end
+
+--- An item's kind line: "Leveled treasure . Neck, Magic".
+--- @param item table a tbl_Gear row
+--- @param kind nil|string the kind when the caller has it, else read from the item
+--- @return string
+function HeroSheetInventory.KindLine(item, kind)
+    local keywords = HeroSheetInventory.Keywords(item)
     local line = KIND_NAMES[kind or HeroSheetInventoryActions.KindOf(item)] or "Item"
-    if #keywords > 0 then
-        line = line .. " \u{00B7} " .. table.concat(keywords, ", ")
+    if keywords ~= "" then
+        line = line .. " \u{00B7} " .. keywords
     end
     return line
 end

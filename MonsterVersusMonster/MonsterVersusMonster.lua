@@ -203,6 +203,7 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
             self:DispatchEvent("useresource", {
                 resource = string.lower(resourceInfo.name),
                 quantity = quantity,
+                spenton = "", -- only surge spends fill this in
             })
         end
         return

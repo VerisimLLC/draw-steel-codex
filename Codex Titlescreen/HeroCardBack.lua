@@ -6,8 +6,8 @@ local TP = UIText.Plural
 --PROTOTYPE: the back of the hero card (EotwHeroCard.lua), for heroes and
 --monsters alike: the tac panel's information (MCDMCharacterPanel.lua) laid
 --out on the card's own face, turned over by a hover button. A hero's back is
---one scroll in the hero sheet's order (Stats, Abilities, Features, Gear) under
---a jump row; a monster's is one scrolling list.
+--one scroll (Stats, Resources, Abilities, Features, then Gear) under a jump
+--row; a monster's is one scrolling list.
 --Every read is pcall-guarded: one missing rule must not blank the back.
 
 --the design width the back is laid out at before it is scaled onto the card;
@@ -28,13 +28,38 @@ local COLOR_BLUE = "#6fa8ff"
 local COLOR_TEMP = "#9cc4ff"
 local COLOR_STAMINA = "#4caf6a"
 local COLOR_RESOURCE = "#ffc98f"
---the separator in "Winded 22 · dies at -22", as the hero sheet's {dot}: a
---hyphen there reads as a minus sign.
+--the middle dot between "Winded 22" and "dies at -22", as the hero sheet's
+--{dot}: a hyphen there reads as a minus sign.
 local MIDDOT = "\u{00B7}"
 
 --dying: a lighter red than the condition chips' #cc2222 border, so it reads
 --as text on the dark plate.
 local COLOR_DYING = "#ff6b61"
+
+--the stamina bar's recovery preview: what one recovery would heal from here.
+--Pale green when it all lands; amber when some of it would be wasted past max.
+local COLOR_RECOVERY_FITS = "#4caf6a66"
+local COLOR_RECOVERY_OVER = "#e8a33dbb"
+
+--The back's type scale, by what a line IS (in the rules' order of
+--importance), so the same kind of information reads the same everywhere:
+--  DISPLAY  the creature's name, and its Level / EV badge
+--  STAT     a number read at a glance: characteristic tiles, resource amounts
+--  SECTION  a scroll section's heading (STATS, RESOURCES, ABILITIES, FEATURES)
+--  NAME     an entry's name: an ability, item, project, squad; Stamina
+--  BODY     running text, and label-and-value lines (see PairText)
+--  SMALL    sub-headings (uppercase, in the accent), captions, a row's meta
+--Uppercase is for headings only; inline labels are muted title case.
+local FONT_DISPLAY = 24
+local FONT_STAT = 18
+local FONT_SECTION = 17
+local FONT_NAME = 13
+local FONT_BODY = 12
+local FONT_SMALL = 11
+
+--a hero's accent: section and sub-section headings. A monster's is
+--COLOR_MONSTER. Resource-specific headings take COLOR_RESOURCE instead.
+local COLOR_ACCENT = COLOR_GOLD
 
 local function Try(fn, default)
     local ok, result = pcall(fn)
@@ -55,7 +80,7 @@ end
 local function Text(args)
     args.width = args.width or "100%"
     args.height = args.height or "auto"
-    args.fontSize = args.fontSize or 12
+    args.fontSize = args.fontSize or FONT_BODY
     args.color = args.color or COLOR_SOFT
     args.textAlignment = args.textAlignment or "left"
     args.textWrap = args.textWrap ~= false
@@ -63,15 +88,44 @@ local function Text(args)
     return gui.Label(args)
 end
 
+--- A sub-section heading (KIT, SKILLS, GAIN WRATH, ...): small, bold,
+--- uppercase, in the accent. Same look as a folding bucket's heading.
+--- @param color? string COLOR_RESOURCE for a section about the heroic resource
 local function SectionLabel(text, color)
     return Text{
         text = string.upper(text),
-        fontSize = 11,
+        fontSize = FONT_SMALL,
         bold = true,
-        color = color or COLOR_MUTED,
+        color = color or COLOR_ACCENT,
         bmargin = 2,
     }
 end
+
+--- A label and its value as rich text, for any "Speed 5" style line: the
+--- label muted, the value bold and bright. prose: the value is a list or a
+--- sentence (Languages, Perks), so it reads as body text instead.
+--- @param label string
+--- @param value any
+--- @param prose? boolean
+--- @return string
+local function PairText(label, value, prose)
+    if prose then
+        return string.format("<color=%s>%s</color>  %s", COLOR_MUTED, label, tostring(value))
+    end
+    return string.format("<color=%s>%s</color> <b><color=%s>%s</color></b>", COLOR_MUTED, label, COLOR_TEXT, tostring(value))
+end
+
+--a list row (an ability, item, project, gain): clear at rest, the plate on hover.
+local ROW_STYLES = {
+    {
+        selectors = {"heroCardRow"},
+        bgcolor = "#00000000",
+    },
+    {
+        selectors = {"heroCardRow", "hover"},
+        bgcolor = COLOR_PLATE,
+    },
+}
 
 --- Fades a panel and everything in it: a panel's opacity doesn't reach its
 --- children, and a row's words are children.
@@ -323,7 +377,7 @@ local function Header(tok, c)
                 text = EotwHeroCard.HeroDisplayName(tok),
                 --a fixed height so a long name shrinks to fit (minFontSize).
                 height = 30,
-                fontSize = 24,
+                fontSize = FONT_DISPLAY,
                 minFontSize = 12,
                 bold = true,
                 color = COLOR_TEXT,
@@ -331,9 +385,9 @@ local function Header(tok, c)
             },
             --one line each, shrunk to fit: a long subclass or kit name must
             --not push the header down into the tab rows under it.
-            Text{ text = line2, height = 17, fontSize = 13, minFontSize = 8, textWrap = false },
+            Text{ text = line2, height = 17, fontSize = FONT_NAME, minFontSize = 8, textWrap = false },
             --hover: the kit's stat bonuses, as the tac panel's kit name shows them.
-            WithHover(Text{ text = table.concat(parts, " - "), height = 16, fontSize = 12, minFontSize = 8, textWrap = false, color = COLOR_MUTED }, function()
+            WithHover(Text{ text = table.concat(parts, " - "), height = 16, fontSize = FONT_BODY, minFontSize = 8, textWrap = false, color = COLOR_MUTED }, function()
                 local tac = rawget(_G, "TacPanel")
                 local kit = Try(function() return c:Kit() end)
                 if tac == nil or tac.KitStatsTooltip == nil or kit == nil then
@@ -348,8 +402,8 @@ local function Header(tok, c)
             valign = "center",
             flow = "vertical",
             interactable = false,
-            Text{ text = tostring(level), fontSize = 24, bold = true, color = COLOR_GOLD, textAlignment = "center" },
-            Text{ text = "LEVEL", fontSize = 10, bold = true, color = COLOR_MUTED, textAlignment = "center" },
+            Text{ text = tostring(level), fontSize = FONT_DISPLAY, bold = true, color = COLOR_GOLD, textAlignment = "center" },
+            Text{ text = "LEVEL", fontSize = FONT_SMALL, bold = true, color = COLOR_MUTED, textAlignment = "center" },
         },
     }
 end
@@ -422,12 +476,28 @@ local function StaminaStrip(c, tok)
         thresholds = T("herocard.back.stamina.winded", { winded = string.format("%d", winded) })
     end
 
-    local recText = string.format("Recoveries <b><color=%s>%d/%d</color></b>", COLOR_TEXT, recCurrent, recMax)
+    --what spending one recovery now would do (heroes with one to spend, below
+    --max): where Stamina would land and how much would be wasted past max.
+    --Measured from current Stamina, with the hero's real recovery value.
+    local preview = nil
+    local heal = tonumber(recValue) or 0
+    if isHero and recCurrent > 0 and heal > 0 and cur < max then
+        preview = { from = cur, to = math.min(max, cur + heal), wasted = math.max(0, cur + heal - max) }
+    end
+
+    local recText = PairText("Recoveries", string.format("%d/%d", recCurrent, recMax))
     if recValue ~= nil then
         recText = recText .. string.format(" (%d each)", recValue)
     end
 
-    --heroes only: monsters have no recoveries, victories or hero tokens.
+    --the strip's second line: three stats side by side, each shrinking to
+    --fit its share rather than spilling into the next.
+    local function StripStat(text, width, alignment)
+        return Text{ text = text, fontSize = FONT_BODY, minFontSize = 9, height = 16, color = COLOR_MUTED, width = width, textAlignment = alignment, textWrap = false }
+    end
+
+    --heroes: recoveries, victories, hero tokens. Monsters have none of those;
+    --theirs is the Free strike, which the rules put beside Stamina.
     local bottomRow
     if isHero then
         bottomRow = gui.Panel{
@@ -437,19 +507,27 @@ local function StaminaStrip(c, tok)
             interactable = false,
             --hovers: the hero sheet's own words for recoveries and victories,
             --and the tac panel's rules and history for hero tokens.
-            Hover(Text{ text = recText, fontSize = 11.5, color = COLOR_MUTED, width = "46%", textWrap = false }, function()
+            Hover(StripStat(recText, "46%", "left"), function()
                 local tip = T("herosheet.card.recovery_tip", { value = string.format("%d", recValue or 0) })
+                if preview ~= nil then
+                    local from, to = string.format("%d", preview.from), string.format("%d", preview.to)
+                    if preview.wasted > 0 then
+                        tip = tip .. "\n\n" .. T("herocard.recovery.preview_over", { from = from, to = to, wasted = string.format("%d", preview.wasted) })
+                    else
+                        tip = tip .. "\n\n" .. T("herocard.recovery.preview", { from = from, to = to })
+                    end
+                end
                 local sources = SourcesText(heroTok, "recoveryValue")
                 if sources ~= nil and sources ~= "" then
                     tip = tip .. "\n\n" .. sources
                 end
                 return tip
             end),
-            Hover(Text{ text = string.format("Victories <b><color=%s>%d</color></b>", COLOR_TEXT, victories), fontSize = 11.5, color = COLOR_MUTED, width = "24%", textAlignment = "center", textWrap = false }, function()
+            Hover(StripStat(PairText("Victories", victories), "24%", "center"), function()
                 local resource = Try(function() return c:GetHeroicResourceName() end) or T("herosheet.card.resource_fallback")
                 return T("herosheet.card.victories_tip", { victories = string.format("%d", victories), resource = resource })
             end),
-            Hover(Text{ text = string.format("Hero Tokens <b><color=%s>%d</color></b>", COLOR_TEXT, heroTokens), fontSize = 11.5, color = COLOR_MUTED, width = "30%", textAlignment = "right", textWrap = false }, function()
+            Hover(StripStat(PairText("Hero Tokens", heroTokens), "30%", "right"), function()
                 local tac = rawget(_G, "TacPanel")
                 if tac == nil or tac.HeroTokenTooltipText == nil then
                     return nil
@@ -458,7 +536,12 @@ local function StaminaStrip(c, tok)
             end),
         }
     else
-        bottomRow = gui.Panel{ width = 1, height = 1, interactable = false }
+        local freeStrike = Try(function() return c:OpportunityAttack() end)
+        if freeStrike ~= nil then
+            bottomRow = StripStat(PairText("Free strike", freeStrike), "100%", "left")
+        else
+            bottomRow = gui.Panel{ width = 1, height = 1, interactable = false }
+        end
     end
 
     return gui.Panel{
@@ -477,8 +560,8 @@ local function StaminaStrip(c, tok)
             height = "auto",
             flow = "horizontal",
             interactable = false,
-            Text{ text = numbers, fontSize = 13, color = COLOR_MUTED, width = "52%" },
-            Text{ text = thresholds, fontSize = 11, color = COLOR_MUTED, width = "48%", textAlignment = "right", valign = "center" },
+            Text{ text = numbers, fontSize = FONT_NAME, color = COLOR_MUTED, width = "52%" },
+            Text{ text = thresholds, fontSize = FONT_SMALL, color = COLOR_MUTED, width = "48%", textAlignment = "right", valign = "center" },
         }, function() return SourcesText(heroTok, "maxStamina") end),
         gui.Panel{
             width = barWidth,
@@ -496,16 +579,6 @@ local function StaminaStrip(c, tok)
                 bgcolor = COLOR_STAMINA,
                 interactable = false,
             },
-            gui.Panel{
-                floating = true,
-                halign = "left",
-                x = fillWidth,
-                width = tempWidth,
-                height = "100%",
-                bgimage = "panels/square.png",
-                bgcolor = COLOR_TEMP,
-                interactable = false,
-            },
             --while dying: how far toward death.
             gui.Panel{
                 floating = true,
@@ -514,6 +587,29 @@ local function StaminaStrip(c, tok)
                 height = "100%",
                 bgimage = "panels/square.png",
                 bgcolor = COLOR_DYING,
+                interactable = false,
+            },
+            --one recovery's worth, from current Stamina to where it would
+            --land (from 0 while dying). Under temp Stamina, which a recovery
+            --doesn't touch.
+            gui.Panel{
+                floating = true,
+                halign = "left",
+                x = preview ~= nil and Px(math.max(0, preview.from)) or 0,
+                width = preview ~= nil and math.max(0, Px(preview.to) - Px(math.max(0, preview.from))) or 0,
+                height = "100%",
+                bgimage = "panels/square.png",
+                bgcolor = cond(preview ~= nil and preview.wasted > 0, COLOR_RECOVERY_OVER, COLOR_RECOVERY_FITS),
+                interactable = false,
+            },
+            gui.Panel{
+                floating = true,
+                halign = "left",
+                x = fillWidth,
+                width = tempWidth,
+                height = "100%",
+                bgimage = "panels/square.png",
+                bgcolor = COLOR_TEMP,
                 interactable = false,
             },
             gui.Panel{
@@ -584,7 +680,7 @@ local function Characteristics(c, tok)
                 interactable = false,
                 Text{
                     text = Signed(values[i]),
-                    fontSize = 18,
+                    fontSize = FONT_STAT,
                     bold = true,
                     color = cond(top, "#1a1200", COLOR_TEXT),
                     textAlignment = "center",
@@ -594,7 +690,7 @@ local function Characteristics(c, tok)
             },
             Text{
                 text = attr.description,
-                fontSize = 11,
+                fontSize = FONT_SMALL,
                 bold = top,
                 color = cond(top, COLOR_GOLD, COLOR_SOFT),
                 textAlignment = "center",
@@ -616,9 +712,7 @@ end
 
 --- @param tok? CharacterToken a hero's token: speed, disengage, stability and size get hovers with their sources
 local function MovementLine(c, tok)
-    local function Stat(name, value)
-        return string.format("%s <b><color=%s>%s</color></b>", name, COLOR_TEXT, tostring(value))
-    end
+    local Stat = PairText
 
     --each part: its text and, for a stat with sources, the key StatHover reads.
     local parts = {}
@@ -640,12 +734,8 @@ local function MovementLine(c, tok)
     if size ~= nil and size ~= "" then
         parts[#parts+1] = { Stat("Size", size), "size" }
     end
-    if not IsHeroProps(c) then
-        local freeStrike = Try(function() return c:OpportunityAttack() end)
-        if freeStrike ~= nil then
-            parts[#parts+1] = { Stat("Free strike", freeStrike) }
-        end
-    else
+    --a monster's Free strike is on its stamina strip.
+    if IsHeroProps(c) then
         local surges = Try(function() return c:GetAvailableSurges() end)
         if surges ~= nil then
             --what each surge adds to damage, as the hero sheet works it out.
@@ -686,7 +776,7 @@ local function MovementLine(c, tok)
         end
         statsRow = Text{
             text = table.concat(texts, "   "),
-            fontSize = 12,
+            fontSize = FONT_BODY,
             color = COLOR_MUTED,
             textAlignment = "center",
             vmargin = 4,
@@ -711,7 +801,7 @@ local function MovementLine(c, tok)
                 interactable = hover ~= nil,
                 hover = hover,
                 click = hover ~= nil and function(element) end or nil,
-                Text{ text = part[1], width = "auto", fontSize = 12, color = COLOR_MUTED, textWrap = false },
+                Text{ text = part[1], width = "auto", fontSize = FONT_BODY, color = COLOR_MUTED, textWrap = false },
             }
         end
         statsRow = gui.Panel{
@@ -738,8 +828,8 @@ local function MovementLine(c, tok)
     local movementLine
     if #modes > 0 then
         movementLine = Text{
-            text = "Movement  " .. table.concat(modes, "   "),
-            fontSize = 12,
+            text = string.format("<color=%s>Movement</color>  ", COLOR_MUTED) .. table.concat(modes, "   "),
+            fontSize = FONT_BODY,
             color = COLOR_MUTED,
             textAlignment = "center",
             bmargin = 4,
@@ -792,7 +882,7 @@ local function Chip(text, fill, border, color)
             text = text,
             width = "auto",
             height = "auto",
-            fontSize = 11.5,
+            fontSize = FONT_SMALL,
             bold = true,
             color = color,
             textWrap = false,
@@ -967,11 +1057,11 @@ local function ManagedEffects(tok)
         end
     end
     --the "No conditions" placeholder is 16pt for the tac panel: on the card
-    --it reads at the size of the card's other muted lines. After the tac
+    --it reads as body text, like the card's other empty lines. After the tac
     --rule, so it wins.
     styles[#styles+1] = {
         selectors = {"label", "cond-empty"},
-        fontSize = 11.5,
+        fontSize = FONT_BODY,
         lmargin = 4,
         color = COLOR_MUTED,
     }
@@ -1030,7 +1120,7 @@ local function SaveLine(c)
             threshold = string.format("<b><color=%s>%d+</color></b>", COLOR_TEXT, threshold),
             roll = roll,
         }),
-        fontSize = 11.5,
+        fontSize = FONT_BODY,
         color = COLOR_MUTED,
         bmargin = 3,
     }
@@ -1143,7 +1233,7 @@ local function Effects(c, tok)
     if okSave and saveLine ~= nil then
         children[#children+1] = saveLine
     end
-    children[#children+1] = Text{ text = defenseText, fontSize = 11.5 }
+    children[#children+1] = Text{ text = defenseText }
 
     return gui.Panel{
         width = "100%",
@@ -1213,8 +1303,9 @@ local function KitModifiers(c)
                 flow = "horizontal",
                 vpad = 2,
                 interactable = false,
-                Text{ text = row[1], width = "68%", fontSize = 11.5, color = COLOR_MUTED, textWrap = false },
-                Text{ text = row[2], width = "32%", fontSize = 11.5, bold = true, color = COLOR_TEXT, textAlignment = "right", textWrap = false },
+                --a label and its value, as PairText reads; shrunk to fit the half column.
+                Text{ text = row[1], width = "68%", height = 16, fontSize = FONT_BODY, minFontSize = 9, color = COLOR_MUTED, textWrap = false },
+                Text{ text = row[2], width = "32%", height = 16, fontSize = FONT_BODY, minFontSize = 9, bold = true, color = COLOR_TEXT, textAlignment = "right", textWrap = false },
             },
             Divider(),
         }
@@ -1253,8 +1344,7 @@ local function KitModifiers(c)
     local armor = Try(function() return kit.armor end)
     if type(armor) == "string" and armor ~= "" and armor ~= "None" then
         children[#children+1] = Text{
-            text = string.format("<b><color=%s>%s</color></b>  %s", COLOR_MUTED, string.upper(T("herocard.back.kit.armor")), armor),
-            fontSize = 12,
+            text = PairText(T("herocard.back.kit.armor"), armor),
             tmargin = 4,
         }
     end
@@ -1269,14 +1359,69 @@ end
 
 --- Heroic resource gains -----------------------------------------------------
 
-local function TwoColumnRow(left, right, rightColor, dim)
-    local row = gui.Panel{
+--- One row: name on the left, meta on the right, a card on hover.
+--- @param name string
+--- @param meta string rich text for the right-hand side
+--- @param tooltip fun(): Panel|nil builds the hover card; nil shows none
+--- @param onClick nil|fun() what a click does; without it a click does nothing
+local function Row(name, meta, tooltip, onClick)
+    return gui.Panel{
+        classes = {"heroCardRow"},
+        styles = ROW_STYLES,
         width = "100%",
         height = "auto",
         flow = "horizontal",
+        hpad = 8,
+        vpad = 1,
+        borderBox = true,
+        bgimage = "panels/square.png",
+        popupPositioning = "panel",
+        hover = function(element)
+            local ok, card = pcall(tooltip)
+            if ok and card ~= nil then
+                element.tooltip = CardTip(card)
+            end
+        end,
+        --a click on a row is never for turning the card.
+        click = function(element)
+            if onClick ~= nil then
+                element.tooltip = nil
+                onClick()
+            end
+        end,
+        Text{ text = name, fontSize = FONT_NAME, bold = true, color = COLOR_TEXT, width = "58%", textWrap = false },
+        Text{ text = meta, fontSize = FONT_SMALL, color = COLOR_MUTED, width = "42%", textAlignment = "right", textWrap = false, valign = "center" },
+    }
+end
+
+--- A list entry that isn't an ability (a gain, item, title, project), laid out
+--- like an ability's Row so every list on the back lines up: its name on the
+--- left, and on the right either a value (bold, in rightColor) or, when
+--- rightColor is COLOR_MUTED, a note (small and muted, like a Row's meta).
+--- dim: spent or not equipped.
+local function TwoColumnRow(left, right, rightColor, dim)
+    local note = rightColor == COLOR_MUTED
+    local row = gui.Panel{
+        classes = {"heroCardRow"},
+        styles = ROW_STYLES,
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        hpad = 8,
+        vpad = 1,
+        borderBox = true,
+        bgimage = "panels/square.png",
         interactable = false,
-        Text{ text = left, fontSize = 12, width = CONTENT_WIDTH - 90 },
-        Text{ text = right, fontSize = 12, bold = true, color = rightColor or COLOR_TEXT, width = 90, textAlignment = "right" },
+        Text{ text = left, fontSize = FONT_NAME, bold = true, color = COLOR_TEXT, width = "62%" },
+        Text{
+            text = right,
+            fontSize = cond(note, FONT_SMALL, FONT_BODY),
+            bold = not note,
+            color = rightColor or COLOR_TEXT,
+            width = "38%",
+            textAlignment = "right",
+            valign = "center",
+        },
     }
     if dim then
         Fade(row, 0.45)
@@ -1364,19 +1509,21 @@ local function PersistentAbilities(c, tok)
     local rows = {}
     for _, entry in ipairs(Try(function() return c:try_get("persistentAbilities") end, {})) do
         if entry.combatid == q.guid then
-            local row = TwoColumnRow(entry.abilityName or "", string.format("%d %s / turn", entry.cost or 0, resourceName), COLOR_RESOURCE)
-            if tok ~= nil then
-                local name = entry.abilityName
-                row = WithHover(row, function()
-                    for _, ability in ipairs(c:GetActivatedAbilities{ bindCaster = true }) do
-                        if ability.name == name then
-                            return CardTip(ability:Render({ width = 420 }, { token = tok }))
-                        end
-                    end
+            --an ability, so an ability's row: its cost on the right as
+            --the Abilities list shows costs, its card on hover.
+            local name = entry.abilityName
+            local meta = string.format("<b><color=%s>%d %s</color></b> / turn", COLOR_RESOURCE, entry.cost or 0, resourceName)
+            rows[#rows+1] = Row(name or "", meta, function()
+                if tok == nil then
                     return nil
-                end) or row
-            end
-            rows[#rows+1] = row
+                end
+                for _, ability in ipairs(c:GetActivatedAbilities{ bindCaster = true }) do
+                    if ability.name == name then
+                        return ability:Render({ width = 420 }, { token = tok })
+                    end
+                end
+                return nil
+            end)
         end
     end
     if #rows == 0 then
@@ -1394,10 +1541,11 @@ end
 
 --- Skills, languages, perks, notes -------------------------------------------
 
-local function LabelledLine(label, text)
+--- A label-and-value line (XP, Renown, Languages): see PairText.
+--- @param prose? boolean the value is a list or sentence, not a stat
+local function LabelledLine(label, text, prose)
     return Text{
-        text = string.format("<b><color=%s>%s</color></b>  %s", COLOR_MUTED, string.upper(label), text),
-        fontSize = 12,
+        text = PairText(label, text, prose),
         bmargin = 3,
     }
 end
@@ -1513,9 +1661,9 @@ local function MonsterHeader(tok, c)
             valign = "center",
             flow = "vertical",
             interactable = false,
-            Text{ text = name, height = 30, fontSize = 24, minFontSize = 12, bold = true, color = COLOR_TEXT, textWrap = false },
-            Text{ text = string.upper(monsterType), fontSize = 12, bold = true, color = COLOR_MONSTER, collapsed = monsterType == "" },
-            Text{ text = table.concat(parts, " - "), fontSize = 12, color = COLOR_MUTED },
+            Text{ text = name, height = 30, fontSize = FONT_DISPLAY, minFontSize = 12, bold = true, color = COLOR_TEXT, textWrap = false },
+            Text{ text = string.upper(monsterType), fontSize = FONT_BODY, bold = true, color = COLOR_MONSTER, collapsed = monsterType == "" },
+            Text{ text = table.concat(parts, " - "), fontSize = FONT_BODY, color = COLOR_MUTED },
         },
         gui.Panel{
             width = 44,
@@ -1523,8 +1671,8 @@ local function MonsterHeader(tok, c)
             valign = "center",
             flow = "vertical",
             interactable = false,
-            Text{ text = tostring(ev or "-"), fontSize = 24, bold = true, color = COLOR_MONSTER, textAlignment = "center" },
-            Text{ text = "EV", fontSize = 10, bold = true, color = COLOR_MUTED, textAlignment = "center" },
+            Text{ text = tostring(ev or "-"), fontSize = FONT_DISPLAY, bold = true, color = COLOR_MONSTER, textAlignment = "center" },
+            Text{ text = "EV", fontSize = FONT_SMALL, bold = true, color = COLOR_MUTED, textAlignment = "center" },
         },
     }
 end
@@ -1555,52 +1703,6 @@ end
 
 --Abilities and traits are one row each; hovering shows the full card (for
 --abilities, the action bar's own ability:Render), so a solo fits.
-
-local ROW_STYLES = {
-    {
-        selectors = {"heroCardRow"},
-        bgcolor = "#00000000",
-    },
-    {
-        selectors = {"heroCardRow", "hover"},
-        bgcolor = COLOR_PLATE,
-    },
-}
-
---- One row: name on the left, meta on the right, a card on hover.
---- @param name string
---- @param meta string rich text for the right-hand side
---- @param tooltip fun(): Panel|nil builds the hover card; nil shows none
---- @param onClick nil|fun() what a click does; without it a click does nothing
-local function Row(name, meta, tooltip, onClick)
-    return gui.Panel{
-        classes = {"heroCardRow"},
-        styles = ROW_STYLES,
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        hpad = 8,
-        vpad = 1,
-        borderBox = true,
-        bgimage = "panels/square.png",
-        popupPositioning = "panel",
-        hover = function(element)
-            local ok, card = pcall(tooltip)
-            if ok and card ~= nil then
-                element.tooltip = CardTip(card)
-            end
-        end,
-        --a click on a row is never for turning the card.
-        click = function(element)
-            if onClick ~= nil then
-                element.tooltip = nil
-                onClick()
-            end
-        end,
-        Text{ text = name, fontSize = 13, bold = true, color = COLOR_TEXT, width = "58%", textWrap = false },
-        Text{ text = meta, fontSize = 11.5, color = COLOR_MUTED, width = "42%", textAlignment = "right", textWrap = false },
-    }
-end
 
 --- What an ability costs and what kind of action it is, for the right-hand
 --- side of its row: "3 Malice - Main Action", "Signature - Maneuver".
@@ -1732,7 +1834,7 @@ local function BucketHeading(title, count, color)
         width = "auto",
         valign = "center",
         lmargin = 6,
-        fontSize = 11,
+        fontSize = FONT_SMALL,
         color = COLOR_MUTED,
         textWrap = false,
     }
@@ -1765,7 +1867,7 @@ local function BucketHeading(title, count, color)
             width = "auto",
             valign = "center",
             lmargin = 4,
-            fontSize = 11,
+            fontSize = FONT_SMALL,
             bold = true,
             color = color,
             textWrap = false,
@@ -1830,15 +1932,17 @@ end
 
 --- Hero scroll -----------------------------------------------------------------
 
---A hero's back is one scroll in the hero sheet's order: Stats, Abilities,
---Features, Gear. The header and a jump row stay in place above it; the jump
+--A hero's back is one scroll: Stats, Resources, Abilities, Features, then
+--Gear at the bottom. The header and a jump row stay in place above it; the jump
 --row only scrolls to a section's heading.
 
 local HERO_HEADER_HEIGHT = 66
 local JUMP_ROW_HEIGHT = 28
 local TOP_GAP = 6
 
-local HERO_SECTIONS = { "stats", "abilities", "features", "gear" }
+--the sections the jump row lists. Gear follows them at the bottom of the
+--scroll without a button of its own.
+local HERO_SECTIONS = { "stats", "resources", "abilities", "features" }
 
 --ability buckets, in the sheet's order. These start open; the rest folded.
 local HERO_BUCKETS = { "freestrike", "signature", "heroic", "triggered", "main", "maneuver", "other", "standard" }
@@ -1853,6 +1957,8 @@ local ABILITY_CACHE_SECONDS = 5
 local function SectionTitle(id)
     if id == "stats" then
         return T("herocard.back.section.stats")
+    elseif id == "resources" then
+        return T("herocard.back.section.resources")
     elseif id == "abilities" then
         return T("herocard.back.section.abilities")
     elseif id == "features" then
@@ -1873,9 +1979,9 @@ local function SectionHeading(id)
         interactable = false,
         Text{
             text = string.upper(SectionTitle(id)),
-            fontSize = 17,
+            fontSize = FONT_SECTION,
             bold = true,
-            color = COLOR_GOLD,
+            color = COLOR_ACCENT,
             bmargin = 2,
         },
         Divider(),
@@ -1935,7 +2041,7 @@ local function JumpButton(args)
             height = "auto",
             halign = "center",
             valign = "center",
-            fontSize = 12,
+            fontSize = FONT_BODY,
             bold = true,
             textWrap = false,
             interactable = false,
@@ -2134,7 +2240,7 @@ local function AppendBucket(result, info, title, rows, foldedByDefault, count)
     if #rows == 0 then
         return
     end
-    result[#result+1] = BucketHeading(title, count or #rows, COLOR_GOLD)
+    result[#result+1] = BucketHeading(title, count or #rows, COLOR_ACCENT)
     info[#info+1] = { heading = true, bucket = title, foldedByDefault = foldedByDefault }
     for _, row in ipairs(rows) do
         row.selfStyle.bmargin = 1
@@ -2145,7 +2251,7 @@ end
 
 --- A muted line for a tab or section with nothing in it.
 local function EmptyLine(text)
-    return Text{ text = "<i>" .. text .. "</i>", fontSize = 12, color = COLOR_MUTED }
+    return Text{ text = "<i>" .. text .. "</i>", color = COLOR_MUTED }
 end
 
 local function Lines(lines)
@@ -2174,7 +2280,6 @@ local function TriggerEntry(item, tok, c)
             text = T("herocard.back.trigger.when", { trigger = when }),
             width = CONTENT_WIDTH - 16,
             lmargin = 8,
-            fontSize = 11.5,
         }
     end
     return gui.Panel{
@@ -2199,9 +2304,9 @@ local function TriggerReadyLine(c)
         return nil
     end
     if used < max then
-        return Text{ text = T("herocard.back.triggers.ready"), fontSize = 12, bold = true, color = COLOR_STAMINA, bmargin = 2 }
+        return Text{ text = T("herocard.back.triggers.ready"), bold = true, color = COLOR_STAMINA, bmargin = 2 }
     end
-    return Text{ text = T("herocard.back.triggers.used"), fontSize = 12, color = COLOR_MUTED, bmargin = 2 }
+    return Text{ text = T("herocard.back.triggers.used"), color = COLOR_MUTED, bmargin = 2 }
 end
 
 --- The hero's potencies, Weak, Average and Strong, with their bonuses: the top
@@ -2217,7 +2322,7 @@ local function PotencyRow(c)
     local labelWidth = 66
     local cellWidth = math.floor((CONTENT_WIDTH - labelWidth) / #tiers)
     local cells = {
-        Text{ text = string.upper(T("herocard.back.potency.title")), width = labelWidth, fontSize = 11, bold = true, color = COLOR_MUTED, valign = "center", textWrap = false },
+        Text{ text = T("herocard.back.potency.title"), width = labelWidth, color = COLOR_MUTED, valign = "center", textWrap = false },
     }
     for _, tier in ipairs(tiers) do
         local value = tonumber(Try(function() return c:CalculatePotencyValue(tier.id) end))
@@ -2234,10 +2339,10 @@ local function PotencyRow(c)
             borderColor = "#3a4654",
             interactable = false,
             Text{
-                text = string.format("<b><size=15><color=%s>%d</color></size></b>  %s", COLOR_TEXT, value, tier.text),
+                text = string.format("<b><size=%d><color=%s>%d</color></size></b>  %s", FONT_NAME, COLOR_TEXT, value, tier.text),
                 height = "100%",
                 valign = "center",
-                fontSize = 11,
+                fontSize = FONT_SMALL,
                 color = COLOR_MUTED,
                 textAlignment = "center",
                 textWrap = false,
@@ -2301,7 +2406,7 @@ local function ActionPiece(item, tok, last)
                 UseAbility(charid, item.ability)
             end
         end,
-        Text{ text = (item.name or "") .. cond(last, "", ","), width = "auto", fontSize = 12, color = COLOR_SOFT, textWrap = false },
+        Text{ text = (item.name or "") .. cond(last, "", ","), width = "auto", color = COLOR_SOFT, textWrap = false },
     }
 end
 
@@ -2328,7 +2433,7 @@ local function OnYourTurn(items, tok)
         if list ~= nil and #list > 0 then
             table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
             local pieces = {
-                Text{ text = string.format("<b><color=%s>%s</color></b>", COLOR_MUTED, string.upper(kind.label)), width = "auto", fontSize = 11, rmargin = 8, textWrap = false, valign = "center" },
+                Text{ text = kind.label, width = "auto", color = COLOR_MUTED, rmargin = 8, textWrap = false, valign = "center" },
             }
             for i, item in ipairs(list) do
                 pieces[#pieces+1] = ActionPiece(item, tok, i == #list)
@@ -2388,15 +2493,22 @@ local function AppendAbilities(result, info, tok, c, state)
     end
 end
 
---the heroic resource's amount: a little larger than the stamina numbers.
-local RESOURCE_FONT_SIZE = 18
+--the heroic resource's amount: a stat number, larger than the stamina numbers.
+local RESOURCE_FONT_SIZE = FONT_STAT
 
 --- A resource on one line in Stats: the amount, then its name. Edited where it
 --- stands while current() gives a number; hover shows its history.
---- @param args {name: string, value: number, holder: CharacterToken, resourceid: string, current: (fun(): number|nil)|nil, apply: fun(amount: integer)|nil}
+--- With max, the amount reads "left/max" and an edit types what is left.
+--- @param args {name: string, value: number, max: number|nil, holder: CharacterToken, resourceid: string, current: (fun(): number|nil)|nil, apply: fun(amount: integer)|nil}
 --- @return Panel
 local function ResourceLine(args)
-    local valueLabel = Text{ text = tostring(args.value), width = "auto", fontSize = RESOURCE_FONT_SIZE, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 6 }
+    local function AmountText(value)
+        if args.max == nil then
+            return tostring(value)
+        end
+        return string.format("%d/%d", math.floor(value), math.floor(args.max))
+    end
+    local valueLabel = Text{ text = AmountText(args.value), width = "auto", fontSize = RESOURCE_FONT_SIZE, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 6 }
     local card = rawget(_G, "EotwHeroCard")
     if card ~= nil and args.current ~= nil and args.current() ~= nil then
         --room for the highlight's left edge inside the scroll's clip.
@@ -2407,6 +2519,13 @@ local function ResourceLine(args)
             color = COLOR_RESOURCE,
             current = args.current,
             apply = args.apply,
+            --after an edit the label goes back to "left/max", not just the number.
+            refreshText = args.max ~= nil and function()
+                local current = args.current()
+                if current ~= nil then
+                    valueLabel.text = AmountText(current)
+                end
+            end or nil,
         }
     end
     local holder, resourceid, name = args.holder, args.resourceid, args.name
@@ -2417,7 +2536,7 @@ local function ResourceLine(args)
         bmargin = 2,
         interactable = false,
         valueLabel,
-        Text{ text = name, width = "auto", fontSize = 13, bold = true, color = COLOR_SOFT, textWrap = false, valign = "center" },
+        Text{ text = name, width = "auto", fontSize = FONT_NAME, bold = true, color = COLOR_SOFT, textWrap = false, valign = "center" },
     }
     --WithHover adds the hover to this panel itself; returning the local keeps the type a plain Panel.
     WithHover(line, function() return HistoryTip(holder, resourceid, name) end)
@@ -2445,7 +2564,21 @@ end
 --- @param info {name: string, resourceid: string, holder: CharacterToken}
 local function ClassResourceLine(tok, info)
     local holder, resourceid = info.holder, info.resourceid
-    local value = Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)
+    --a resource with a usage limit (so many per encounter or per rest) shows
+    --what is left of its max; one without (Rampage) shows the amount it holds.
+    local resource = dmhub.GetTable(CharacterResource.tableName)[resourceid]
+    local limit = resource ~= nil and resource.usageLimit or "unbounded"
+    --- @return number amount, number|nil max
+    local function Amount()
+        local props = holder.properties
+        if limit == "unbounded" then
+            return tonumber(Try(function() return props:GetUnboundedResourceQuantity(resourceid) end, 0)) or 0, nil
+        end
+        local max = tonumber(Try(function() return props:GetResources()[resourceid] end, 0)) or 0
+        local used = tonumber(Try(function() return props:GetResourceUsage(resourceid, limit) end, 0)) or 0
+        return math.max(0, max - used), max
+    end
+    local value, max = Amount()
     local charid = tok.charid
     local card = rawget(_G, "EotwHeroCard")
     local current = nil
@@ -2454,12 +2587,14 @@ local function ClassResourceLine(tok, info)
             if card.HeroResourceCurrent(charid) == nil or not holder.valid then
                 return nil
             end
-            return Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)
+            local amount = Amount()
+            return amount
         end
     end
     return ResourceLine{
         name = info.name,
-        value = tonumber(value) or 0,
+        value = value,
+        max = max,
         holder = holder,
         resourceid = resourceid,
         current = current,
@@ -2467,15 +2602,24 @@ local function ClassResourceLine(tok, info)
             if not holder.valid then
                 return
             end
+            local have, most = Amount()
             local n = math.max(0, amount)
-            local have = tonumber(Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)) or 0
+            if most ~= nil then
+                n = math.min(n, most)
+            end
             if n == have then
                 return
             end
             holder:ModifyProperties{
                 description = "Set " .. info.name,
                 execute = function()
-                    holder.properties:AddUnboundedResource(resourceid, n - have, info.name)
+                    if most == nil then
+                        holder.properties:AddUnboundedResource(resourceid, n - have, info.name)
+                    elseif n > have then
+                        holder.properties:RefreshResource(resourceid, limit, n - have, info.name)
+                    else
+                        holder.properties:ConsumeResource(resourceid, limit, have - n, info.name)
+                    end
                 end,
             }
         end,
@@ -2493,11 +2637,14 @@ local function EpicResource(tok)
     if epic == nil or epic.name == nil or epic.name == "" then
         return nil
     end
-    --hover: its history, as the tac panel's Other Resources row keeps it.
-    local name = epic.name
-    return WithHover(TwoColumnRow(T("herocard.back.resource.epic", { resource = name }), tostring(epic.value or 0), COLOR_RESOURCE), function()
-        return HistoryTip(tok, CharacterResource.epicResourceId, name)
-    end)
+    --a resource, so a resource line like the heroic resource's (not edited
+    --here); hover: its history, as the tac panel's Other Resources row keeps it.
+    return ResourceLine{
+        name = T("herocard.back.resource.epic", { resource = epic.name }),
+        value = tonumber(epic.value) or 0,
+        holder = tok,
+        resourceid = CharacterResource.epicResourceId,
+    }
 end
 
 --- One threshold of a growing resources table: the amount it needs, then
@@ -2525,13 +2672,13 @@ local function GrowthRow(need, text, active, expiring)
                 text = tostring(need),
                 height = "100%",
                 valign = "center",
-                fontSize = 12,
+                fontSize = FONT_BODY,
                 bold = true,
                 textAlignment = "center",
                 color = cond(active, "#1a1200", COLOR_RESOURCE),
             },
         },
-        Text{ text = text, width = CONTENT_WIDTH - 32, lmargin = 10, fontSize = 12, valign = "center" },
+        Text{ text = text, width = CONTENT_WIDTH - 32, lmargin = 10, valign = "center" },
     }, cond(active, 1, cond(expiring, 0.75, 0.45)))
 end
 
@@ -2635,7 +2782,7 @@ local function LinkButton(args)
             text = args.text,
             width = "auto",
             height = "auto",
-            fontSize = 11,
+            fontSize = FONT_SMALL,
             bold = true,
             textWrap = false,
             interactable = false,
@@ -2671,7 +2818,7 @@ local function SquadRow(name, total, liveTokens, sq)
             height = "auto",
             flow = "horizontal",
             interactable = false,
-            Text{ text = name, width = "55%", fontSize = 12, bold = true, color = COLOR_TEXT, textWrap = false },
+            Text{ text = name, width = "55%", fontSize = FONT_NAME, bold = true, color = COLOR_TEXT, textWrap = false },
             Text{
                 text = T("herocard.back.summoner.count", {
                     dot = MIDDOT,
@@ -2680,7 +2827,7 @@ local function SquadRow(name, total, liveTokens, sq)
                     stamina = string.format("<b><color=%s>%d</color></b>/%d", COLOR_TEXT, hp, maxhp),
                 }),
                 width = "45%",
-                fontSize = 11,
+                fontSize = FONT_SMALL,
                 color = COLOR_MUTED,
                 textAlignment = "right",
                 textWrap = false,
@@ -2813,7 +2960,7 @@ local function MinionSquads(tok, c)
         end
     end
     if #list == 0 then
-        children[#children+1] = Text{ text = "<i>" .. T("herocard.back.summoner.none") .. "</i>", fontSize = 12, color = COLOR_MUTED }
+        children[#children+1] = Text{ text = "<i>" .. T("herocard.back.summoner.none") .. "</i>", color = COLOR_MUTED }
     end
 
     return gui.Panel{
@@ -2922,7 +3069,7 @@ local function SkillPiece(tok, skill, last, style)
             audio.FireSoundEvent("Mouse.Click")
             pcall(RollSkillTest, tok, skill)
         end,
-        Text{ text = skill.name .. cond(last, "", ","), width = "auto", fontSize = 12, bold = style ~= nil and style.bold == true, color = style ~= nil and style.color or COLOR_SOFT, textWrap = false },
+        Text{ text = skill.name .. cond(last, "", ","), width = "auto", fontSize = FONT_BODY, bold = style ~= nil and style.bold == true, color = style ~= nil and style.color or COLOR_SOFT, textWrap = false },
     }
 end
 
@@ -2941,7 +3088,7 @@ local function SkillsByGroup(c, tok)
         if #skills > 0 then
             table.sort(skills, function(a, b) return a.name < b.name end)
             local pieces = {
-                Text{ text = string.format("<b><color=%s>%s</color></b>", COLOR_MUTED, string.upper(cat.text)), width = "auto", fontSize = 12, rmargin = 8, textWrap = false },
+                Text{ text = cat.text, width = "auto", color = COLOR_MUTED, rmargin = 8, textWrap = false },
             }
             for i, skill in ipairs(skills) do
                 pieces[#pieces+1] = SkillPiece(tok, skill, i == #skills)
@@ -2968,7 +3115,7 @@ local function PerksLine(c)
     if perks == "" then
         return nil
     end
-    return LabelledLine(T("herocard.back.label.perks"), perks)
+    return LabelledLine(T("herocard.back.label.perks"), perks, true)
 end
 
 local function NotesLine(c)
@@ -2976,7 +3123,7 @@ local function NotesLine(c)
     if notes == nil then
         return nil
     end
-    return LabelledLine(T("herocard.back.label.notes"), string.format("<i>%s</i>", notes))
+    return LabelledLine(T("herocard.back.label.notes"), string.format("<i>%s</i>", notes), true)
 end
 
 --- The hero's complications: each one's name (its overview on hover), then
@@ -2992,7 +3139,7 @@ local function Complications(c)
         local overview = Try(function() return complication.description end, "")
         children[#children+1] = WithHover(Text{
             text = complication.name or "",
-            fontSize = 12.5,
+            fontSize = FONT_NAME,
             bold = true,
             color = COLOR_TEXT,
             bmargin = 2,
@@ -3012,7 +3159,7 @@ local function Complications(c)
                     markdown = true,
                     width = "100%",
                     height = "auto",
-                    fontSize = 12,
+                    fontSize = FONT_BODY,
                     color = COLOR_SOFT,
                     textAlignment = "left",
                     textWrap = true,
@@ -3030,12 +3177,12 @@ local function LanguagesLine(c)
     if languages == "" then
         return nil
     end
-    return LabelledLine(T("herocard.back.label.languages"), languages)
+    return LabelledLine(T("herocard.back.label.languages"), languages, true)
 end
 
---- XP, Wealth, Renown and banked downtime. Victories and hero tokens are on
---- the stamina strip.
-local function ProgressLines(c, charid)
+--- XP, Wealth and Renown, in the Resources section. Victories and hero tokens
+--- are on the stamina strip.
+local function ProgressLines(c)
     local lines = {}
     local sheet = rawget(_G, "EotwHeroSheet")
     local xp = sheet ~= nil and Try(function() return sheet.XpProgress(c) end) or nil
@@ -3064,14 +3211,20 @@ local function ProgressLines(c, charid)
     if renown ~= nil then
         lines[#lines+1] = LabelledLine(T("herocard.back.label.renown"), tostring(renown))
     end
-    local roster = rawget(_G, "EotwRoster")
-    if roster ~= nil then
-        local downtime = Try(function() return roster.GetDowntime(charid) end, 0)
-        if (tonumber(downtime) or 0) > 0 then
-            lines[#lines+1] = LabelledLine(T("herocard.back.label.downtime"), tostring(downtime))
-        end
-    end
     return Lines(lines)
+end
+
+--- Banked downtime activities, in Features; nil when there are none.
+local function DowntimeLine(charid)
+    local roster = rawget(_G, "EotwRoster")
+    if roster == nil then
+        return nil
+    end
+    local downtime = Try(function() return roster.GetDowntime(charid) end, 0)
+    if (tonumber(downtime) or 0) <= 0 then
+        return nil
+    end
+    return LabelledLine(T("herocard.back.label.downtime"), tostring(downtime))
 end
 
 --- The hero's own downtime projects with their progress.
@@ -3227,25 +3380,38 @@ local function AppendSection(result, info, id, builders)
     end
 end
 
---- A hero's back: one scroll in the hero sheet's order.
+--- A hero's back: one scroll. The heroic resource leads, since it changes
+--- every turn; the rest of the class's resources get their own section.
 --- @return Panel[] sections
 --- @return HeroCardSectionInfo[] info
 local function BuildHeroScroll(tok, charid, state)
     local c = tok.properties
     local result, info = {}, {}
     AppendSection(result, info, "stats", {
-        function() return StaminaStrip(c, tok) end,
         function() return ResourceHeadline(c, tok) end,
-        function() return EpicResource(tok) end,
-        function() return ClassResourceLines(tok) end,
-        function() return ClassPanel(tok, c, state) end,
+        function() return StaminaStrip(c, tok) end,
         function() return MinionSquads(tok, c) end,
         function() return Characteristics(c, tok) end,
         function() return MovementLine(c, tok) end,
         function() return Effects(c, tok) end,
-        function() return PersistentAbilities(c, tok) end,
         function() return KitModifiers(c) end,
     })
+
+    local before = #result
+    AppendSection(result, info, "resources", {
+        function() return EpicResource(tok) end,
+        function() return ClassResourceLines(tok) end,
+        function() return ProgressLines(c) end,
+        function() return ClassPanel(tok, c, state) end,
+        function() return ResourceGains(c) end,
+        function() return PersistentAbilities(c, tok) end,
+        function() return GrowthTables(c) end,
+    })
+    --the heading alone: say so rather than leave a bare heading.
+    if #result == before + 1 then
+        result[#result+1] = EmptyLine(T("herocard.back.resources.none"))
+        info[#info+1] = { heading = false }
+    end
 
     result[#result+1] = SectionHeading("abilities")
     info[#info+1] = { heading = false, section = "abilities" }
@@ -3257,28 +3423,25 @@ local function BuildHeroScroll(tok, charid, state)
     AppendAbilities(result, info, tok, c, state)
 
     AppendSection(result, info, "features", {
-        function() return ResourceGains(c) end,
-        function() return GrowthTables(c) end,
         function() return Complications(c) end,
         function()
             return Lines{ SectionLabel(T("herocard.back.label.skills")), SkillsByGroup(c, tok) }
         end,
         function() return LanguagesLine(c) end,
         function() return PerksLine(c) end,
-        function() return ProgressLines(c, charid) end,
+        function() return DowntimeLine(charid) end,
         function() return NotesLine(c) end,
     })
 
     local gear = GearData(tok, state)
-    local gearBuilders = {
+    before = #result
+    AppendSection(result, info, "gear", {
         function() return LeveledTreasures(gear) end,
         function() return Trinkets(gear) end,
         function() return Consumables(gear) end,
         function() return Titles(gear) end,
         function() return ProjectsList(c) end,
-    }
-    local before = #result
-    AppendSection(result, info, "gear", gearBuilders)
+    })
     --the heading alone: say so rather than leave a bare heading.
     if #result == before + 1 then
         result[#result+1] = EmptyLine(T("herocard.back.gear.none"))
@@ -4109,4 +4272,7 @@ HeroCardBack = {
     Decorate = Decorate,
     TurnAll = TurnAll,
     ConsumeMenuClick = ConsumeMenuClick,
+    --card entries may name a resource with a usage limit (shown as left/max).
+    --Older builds read one as 0, so a mod checks this before adding such an entry.
+    limitedClassResources = true,
 }

@@ -3729,7 +3729,9 @@ function CharacterModifier:ConsumeResourceCost(creature, modContext)
         if modContext ~= nil and modContext.modifier ~= nil then
             note = modContext.modifier.name
         end
-        creature:ConsumeSurges(cost, note)
+        -- Tells Use Resource triggers what the surges bought: "potency" when this modifier changes potency (Potency Surge), otherwise "other" (e.g. Kinetic Amplifier).
+        local raisesPotency = (tonumber(self:try_get("potencymod", 0)) or 0) ~= 0
+        creature:ConsumeSurges(cost, note, cond(raisesPotency, "potency", "other"))
     elseif costType == "epic" and not self:try_get("overrideCost", false) then
         local charges = self:try_get("_tmp_symbols", {}).charges or 1
         local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)*charges

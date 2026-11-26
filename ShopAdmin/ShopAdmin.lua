@@ -2,6 +2,37 @@ local mod = dmhub.GetModLoading()
 
 local ShowShopPanel
 
+--True if adding candidateId to bundleId's bundle would make bundleId contain itself:
+--candidateId is bundleId, or is a bundle that already holds bundleId at any depth.
+--Owning such a bundle used to crash the engine while it expanded the contents.
+---@param shopItems table<string, ShopItemLua>
+---@param bundleId string
+---@param candidateId string
+---@return boolean
+local function BundleWouldLoop(shopItems, bundleId, candidateId)
+    local visited = {}
+    local function Contains(itemId)
+        if itemId == bundleId then
+            return true
+        end
+        if visited[itemId] then
+            return false
+        end
+        visited[itemId] = true
+        local shopItem = shopItems[itemId]
+        if shopItem == nil then
+            return false
+        end
+        for childId,_ in pairs(shopItem.bundle) do
+            if Contains(childId) then
+                return true
+            end
+        end
+        return false
+    end
+    return Contains(candidateId)
+end
+
 Compendium.Register{
     section = "Assets",
     text = "Shop",
@@ -153,7 +184,8 @@ ShowShopPanel = function(parentPanel)
             local okPreview = true
             if m_dicePreview ~= nil or m_storedPreview then
                 okPreview = pcall(function()
-                    m_item.dicePreview = m_dicePreview
+                    --The stored form flips dieY (see ReadItemPreviewConfig).
+                    m_item.dicePreview = ShopDicePreview.StoredConfig(m_dicePreview)
                 end)
                 if okPreview then
                     m_storedPreview = m_dicePreview ~= nil
@@ -1157,14 +1189,22 @@ ShowShopPanel = function(parentPanel)
                 hasSearch = true,
                 lmargin = 10,
                 width = 320,
-                create = function(element)
+                --Rebuilt per item so the list never offers this bundle itself, or a bundle
+                --that already contains it: either would make the bundle contain itself.
+                item = function(element, item)
+                    if item.itemType ~= "Bundle" then
+                        return
+                    end
+
                     local options = {}
                     local shopItems = assets.shopItems
                     for k,v in pairs(shopItems) do
-                        options[#options+1] = {
-                            id = k,
-                            text = v.name,
-                        }
+                        if not BundleWouldLoop(shopItems, item.id, k) then
+                            options[#options+1] = {
+                                id = k,
+                                text = v.name,
+                            }
+                        end
                     end
 
                     table.sort(options, function(a,b) return a.text < b.text end)
@@ -1174,6 +1214,12 @@ ShowShopPanel = function(parentPanel)
 
                 change = function(element)
                     if element.idChosen == "none" then
+                        return
+                    end
+
+                    --Option ids are shop item ids, so always strings.
+                    if BundleWouldLoop(assets.shopItems, m_item.id, element.idChosen --[[@as string]]) then
+                        element.idChosen = "none"
                         return
                     end
 

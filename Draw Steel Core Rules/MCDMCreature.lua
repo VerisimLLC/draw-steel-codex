@@ -448,7 +448,11 @@ end
 -- the Use Resource trigger for this note, so pass it from any manual surge edit.
 creature.manualSurgeNote = "Manually Set"
 
-function creature:ConsumeSurges(ncount, note)
+--- Spends surges (a negative count gains them) and fires the Use Resource trigger for a spend.
+--- @param ncount number surges to spend
+--- @param note nil|string|table line for the surge history
+--- @param spentOn nil|"damage"|"potency"|"other" what the surges bought, shown to triggers as Spent On; defaults to "other"
+function creature:ConsumeSurges(ncount, note, spentOn)
     local surgeid = CharacterResource.nameToId["Surges"]
     if surgeid == nil then
         return
@@ -483,6 +487,7 @@ function creature:ConsumeSurges(ncount, note)
         self:DispatchEvent("useresource", {
             resource = string.lower(resourceInfo.name),
             quantity = ncount,
+            spenton = spentOn or "other",
         })
     end
 end
@@ -560,6 +565,23 @@ function character:GetHeroicOrMaliceResources()
         return summonerToken.properties:GetHeroicOrMaliceResources()
     end
     return g_baseCharacterGetHeroicOrMaliceResources(self)
+end
+
+--Any ancestry without names of its own uses human names. A Revenant still
+--waiting on a former life gets none, so the sheet asks for one first.
+local g_baseCharacterGetNameGeneratorTable = character.GetNameGeneratorTable
+function character:GetNameGeneratorTable()
+    local result = g_baseCharacterGetNameGeneratorTable(self)
+    if result ~= nil or self:Race():IsInherited() then
+        return result
+    end
+    for _, race in unhidden_pairs(GetTableCached(Race.tableName) or {}) do
+        if race.name == "Human" then
+            local key = race:try_get("nameGenerator")
+            return key ~= nil and GetTableCached("nameGenerators")[key] or nil
+        end
+    end
+    return nil
 end
 
 --A summon that shares its summoner's heroic resource surfaces the summoner's

@@ -927,6 +927,14 @@ local function NormalizePreviewConfig(cfg)
 	return result
 end
 
+--item.dicePreview stores dieY flipped: 1 - the die's real height on the tile.
+--Codex versions before 2026-11-26 cropped the tile's die upside down, which
+--drew it at 1 - dieY (exactly so while the die box overhangs the tile top and
+--bottom, as every stored config does), and the saved positions were placed by
+--eye against that. Keeping the stored value flipped means old and new
+--versions draw each tile the same. Only ReadItemPreviewConfig and
+--StoredPreviewConfig deal with this; all other code uses the real height.
+
 --Reads item.dicePreview defensively. Returns a normalized config, or nil when
 --the item has no custom preview config (or the engine binary predates the
 --dicePreview bridge property) -- nil means "automatic": the tile derives its
@@ -937,9 +945,28 @@ local function ReadItemPreviewConfig(item)
 	end
 	local ok, cfg = pcall(function() return item.dicePreview end)
 	if ok and type(cfg) == "table" then
-		return NormalizePreviewConfig(cfg)
+		local result = NormalizePreviewConfig(cfg)
+		result.dieY = 1 - result.dieY
+		return result
 	end
 	return nil
+end
+
+--The table to write to item.dicePreview for a config read with
+--ReadItemPreviewConfig (or made with NormalizePreviewConfig): a copy with
+--dieY flipped back to its stored form. nil (automatic) stays nil.
+---@param cfg table|nil
+---@return table|nil
+local function StoredPreviewConfig(cfg)
+	if cfg == nil then
+		return nil
+	end
+	local result = {}
+	for k,v in pairs(cfg) do
+		result[k] = v
+	end
+	result.dieY = 1 - (cfg.dieY or g_dicePreviewDefaults.dieY)
+	return result
 end
 
 --Maps a placement preset + pixel offset onto a floating text panel. The panel
@@ -1885,6 +1912,18 @@ local g_dicePreviewSeq = 0
 local g_tileBaseWidth = 325
 local g_tileBaseHeight = 180 + heightStretch
 
+--An imageRect from a crop measured top-down (top = 0). The engine's imageRect
+--runs bottom-up, so a crop that is not centred vertically must be flipped,
+--or the window slides the wrong way (a die clipped at the top moves down).
+---@param left number
+---@param top number
+---@param right number
+---@param bottom number
+---@return {x1: number, y1: number, x2: number, y2: number}
+local function TopDownImageRect(left, top, right, bottom)
+	return { x1 = left, y1 = 1 - bottom, x2 = right, y2 = 1 - top }
+end
+
 --Builds the composited layer panels for a Dice item's shop tile, shared by
 --the real shop tiles (MakeShopImageDisplay.refreshDicePreview) and the
 --ShopAdmin live preview (MakeDicePreviewTile). Returns (children, dieRect):
@@ -1941,12 +1980,8 @@ local function BuildDiceTileLayers(args)
 			valign = "top",
 			x = x1,
 			y = y1,
-			imageRect = {
-				x1 = (x1 - offsetX)/w,
-				y1 = (y1 - offsetY)/h,
-				x2 = (x2 - offsetX)/w,
-				y2 = (y2 - offsetY)/h,
-			},
+			imageRect = TopDownImageRect((x1 - offsetX)/w, (y1 - offsetY)/h,
+				(x2 - offsetX)/w, (y2 - offsetY)/h),
 		}
 
 		--Streamed art layers report to the first-open cover and fade in when
@@ -2194,12 +2229,926 @@ ShopDicePreview = {
 	Create = MakeDicePreviewTile,
 	NormalizeConfig = NormalizePreviewConfig,
 	ReadItemConfig = ReadItemPreviewConfig,
+	StoredConfig = StoredPreviewConfig,
 	defaults = g_dicePreviewDefaults,
 	tileWidth = g_tileBaseWidth,
 	tileHeight = g_tileBaseHeight,
 	--Recommended source art size: 2x the base tile, matching its aspect.
 	artWidth = g_tileBaseWidth * 2,
 	artHeight = g_tileBaseHeight * 2,
+}
+
+--------------------------------------------------------------------------------
+--Dice packs
+--A dice pack is a Bundle shop item whose contents are all Dice items (e.g.
+--the "Dice Bundle"). The store shows it with its sets' own art and dice
+--instead of a flat product image:
+--  * grid tile: a fan -- one wedge of each set's banner art, all meeting in
+--    the centre, with each set's die in the middle of its own wedge;
+--  * details page: the same fan at banner size, an "In this pack"
+--    row of the sets (each opens that set's own page, where its try dice and
+--    equip panel live), and the buy box.
+--The dice are the real spinning dice the single dice tiles show (pooled
+--preview scenes, see PackDieKey), one scene per die on screen.
+--------------------------------------------------------------------------------
+
+--The sets in a dice pack, cheapest first (then by name), or nil when the item
+--is not a dice pack: not a Bundle, fewer than two items, or holding anything
+--that is not a Dice item. A bundle stores its contents unordered, so this
+--sort is what keeps the order the same every time the pack is shown.
+---@param item ShopItemLua|nil
+---@return ShopItemLua[]|nil
+local function DicePackSets(item)
+	if item == nil or item.itemType ~= "Bundle" or not item.hasBundle then
+		return nil
+	end
+
+	local allItems = assets.shopItems
+	local sets = {}
+	for itemid,_ in pairs(item.bundle) do
+		local member = allItems[itemid]
+		if member == nil or member.itemType ~= "Dice" then
+			return nil
+		end
+		sets[#sets+1] = member
+	end
+
+	if #sets < 2 then
+		return nil
+	end
+
+	table.sort(sets, function(a, b)
+		if a.price ~= b.price then
+			return a.price < b.price
+		end
+		if a.name ~= b.name then
+			return a.name < b.name
+		end
+		return a.id < b.id
+	end)
+	return sets
+end
+
+--US cents as "$12.34".
+---@param cents number
+---@return string
+local function FormatCents(cents)
+	return string.format("$%d.%02d", math.tointeger(math.floor(cents/100)), math.tointeger(cents%100))
+end
+
+--What the sets in a pack cost bought one at a time, in US cents.
+---@param sets ShopItemLua[]
+---@return number
+local function DicePackSeparatePrice(sets)
+	local total = 0
+	for _,set in ipairs(sets) do
+		total = total + set.price
+	end
+	return total
+end
+
+--Wedge masks for the fan tile. Each wedge's art panel only shows inside its
+--wedge, through a mask image (bgimageMask: the mask's red x alpha). The masks
+--are painted on this client with gui.RenderToImage -- a white tile with two
+--big black squares turned to cover everything outside the wedge -- so nothing
+--is uploaded or shipped, and any number of sets works. Each (set count, wedge,
+--box size) mask is painted once and kept for the session. A mask stretches to
+--whatever panel shows it, so it is painted at the shape of the box it is for:
+--every grid tile and cart row shares the base tile's shape (one mask fits them
+--all); the pack page's wide banner gets masks of its own.
+--Entries: { id = <md5 image id once painted>, failed = bool, waiting = {fn} }.
+local g_packWedgeMasks = {}
+
+--How far each wedge reaches past its edges, in mask pixels, so neighbouring
+--wedges overlap and no backdrop shows between them. The joins are hard-edged
+--(a rotated panel's edge is not smoothed); the seam lines cover them.
+local g_packWedgeOverlap = 0.5
+
+--The width of the seam lines drawn over the joins, in layout pixels.
+local g_packSeamWidth = 2.5
+
+--The colour of the seam lines, and of the backdrop behind a fan (which shows
+--while the wedges fade in): the grey of the store's cards.
+local g_packSeamColor = "#202021ff"
+
+--The panel gui.RenderToImage paints a wedge mask from, for a w x h box.
+---@param count integer how many wedges the fan has
+---@param index integer which wedge: 1 points straight up, then clockwise
+---@param w number
+---@param h number
+---@return Panel
+local function BuildWedgeMaskPanel(count, index, w, h)
+	local cx = w/2
+	local cy = h/2
+	local size = 4*math.max(w, h)
+	local step = 360/count
+	local mid = -90 + (index-1)*step
+	local a0 = math.rad(mid - step/2)
+	local a1 = math.rad(mid + step/2)
+
+	local children = {
+		gui.Panel{
+			floating = true,
+			halign = "left",
+			valign = "top",
+			x = 0,
+			y = 0,
+			width = w,
+			height = h,
+			bgimage = "panels/square.png",
+			bgcolor = "white",
+		},
+	}
+
+	--Each wedge edge, with the unit normal pointing away from the wedge. A
+	--black square sits on that side with one face along the edge. Screen y
+	--points down, so these angles run clockwise; a panel's rotate runs the
+	--other way, hence rotate = -angle.
+	local edges = {
+		{ angle = a0, nx = math.sin(a0), ny = -math.cos(a0) },
+		{ angle = a1, nx = -math.sin(a1), ny = math.cos(a1) },
+	}
+	for _,edge in ipairs(edges) do
+		local sx = cx + edge.nx*(size/2 + g_packWedgeOverlap)
+		local sy = cy + edge.ny*(size/2 + g_packWedgeOverlap)
+		children[#children+1] = gui.Panel{
+			floating = true,
+			halign = "left",
+			valign = "top",
+			x = sx - size/2,
+			y = sy - size/2,
+			width = size,
+			height = size,
+			bgimage = "panels/square.png",
+			bgcolor = "black",
+			rotate = -math.deg(edge.angle),
+		}
+	end
+
+	return gui.Panel{
+		width = w,
+		height = h,
+		bgimage = "panels/square.png",
+		bgcolor = "black",
+		children = children,
+	}
+end
+
+--Calls onReady(maskid) with the mask for one wedge of a fan, painting it the
+--first time it is asked for. If masks cannot be painted (an engine without
+--gui.RenderToImage) onReady is never called and the wedges stay hidden, so
+--the tile shows only its ring of dice.
+---@param count integer
+---@param index integer
+---@param w number the mask's box size (see g_packWedgeMasks)
+---@param h number
+---@param onReady fun(maskid: string)
+local function RequestWedgeMask(count, index, w, h, onReady)
+	local key = string.format("%d:%d:%d:%d", count, index, math.floor(w), math.floor(h))
+	local entry = g_packWedgeMasks[key]
+	if entry == nil then
+		entry = { id = nil, failed = false, waiting = {} }
+		g_packWedgeMasks[key] = entry
+		local ok = pcall(function()
+			gui.RenderToImage{
+				panel = BuildWedgeMaskPanel(count, index, w, h),
+				width = w,
+				height = h,
+				--Small boxes at 2x so the wedge edges stay crisp when the
+				--full-bleed grid tile scales the mask up.
+				scale = cond(w < 600, 2, 1),
+				complete = function(imageid)
+					entry.id = imageid
+					local waiting = entry.waiting
+					entry.waiting = {}
+					for _,callback in ipairs(waiting) do
+						callback(imageid)
+					end
+				end,
+				error = function(message)
+					entry.failed = true
+					entry.waiting = {}
+					print(string.format("Shop: could not paint a dice pack wedge mask: %s", tostring(message)))
+				end,
+			}
+		end)
+		if not ok then
+			entry.failed = true
+		end
+	end
+
+	if entry.id ~= nil then
+		onReady(entry.id)
+	elseif not entry.failed then
+		entry.waiting[#entry.waiting+1] = onReady
+	end
+end
+
+--Places a set's banner art in a box: scaled to artH tall (keeping its own
+--shape), positioned so its die spot lands on (spotX, spotY) in the box, then
+--pushed back as needed so it still covers the whole box. Returns the
+--imageRect crop for a box-sized panel showing it, and where the art's die
+--spot ended up in the box.
+---@param cfg table a normalized banner config (ReadItemBannerConfig)
+---@param boxW number
+---@param boxH number
+---@param artH number
+---@param spotX number
+---@param spotY number
+---@return {x1: number, y1: number, x2: number, y2: number} rect
+---@return number dieX
+---@return number dieY
+local function BannerArtCrop(cfg, boxW, boxH, artH, spotX, spotY)
+	artH = math.max(artH, boxH, boxW*ShopDiceBannerArtHeight/ShopDiceBannerArtWidth)
+	local artW = artH*ShopDiceBannerArtWidth/ShopDiceBannerArtHeight
+	local lx = clamp(spotX - cfg.dieX*artW, boxW - artW, 0)
+	local ly = clamp(spotY - cfg.dieY*artH, boxH - artH, 0)
+	local rect = TopDownImageRect(-lx/artW, -ly/artH, (boxW - lx)/artW, (boxH - ly)/artH)
+	return rect, lx + cfg.dieX*artW, ly + cfg.dieY*artH
+end
+
+--The image id of a live, spinning die of a set: a pooled preview scene, as
+--the single dice tiles use (DiceSetPreviewManager). The key is
+--<set>:<slot>:<dice scale>:<spin axis>; slot keeps each place a die is shown
+--apart, so each gets its own scene. slot must not contain ':'.
+---@param set ShopItemLua
+---@param slot string
+---@return string
+local function PackDieKey(set, slot)
+	return string.format("#DicePreview:%s:%s:%.2f:%.2f",
+		tostring(set.assetid), slot, g_dicePreviewDefaults.diceScale, 0)
+end
+
+--Proportions of the fan tile, as fractions of the tile's height.
+local g_packDieSize = 0.23 --how big each die looks
+local g_packFanArtHeight = 1.35 --each wedge's banner art (it overhangs and is cropped)
+
+--Where a fan wedge's die goes: the middle (centroid) of the part of the wedge
+--inside the w x h box, so each die looks centred on its own wedge whatever the
+--box's shape. A plain ring does not: in a wide box the side wedges reach much
+--further than the top one, and the dice drift toward the seams.
+---@param count integer how many wedges the fan has
+---@param index integer which wedge: 1 points straight up, then clockwise
+---@param w number
+---@param h number
+---@return number x
+---@return number y
+local function WedgeCentre(count, index, w, h)
+	local cx = w/2
+	local cy = h/2
+	local radius = 4*math.max(w, h)
+	local step = 360/count
+	local mid = -90 + (index-1)*step
+
+	--The wedge as a polygon reaching well past the box: its tip, then its arc.
+	---@type number[][]
+	local poly = { {cx, cy} }
+	local samples = 16
+	for k = 0, samples do
+		local a = math.rad(mid - step/2 + step*k/samples)
+		poly[#poly+1] = { cx + radius*math.cos(a), cy + radius*math.sin(a) }
+	end
+
+	--Cut it to the box one side at a time (Sutherland-Hodgman clipping).
+	---@param pts number[][]
+	---@param inside fun(p: number[]): boolean
+	---@param cross fun(a: number[], b: number[]): number[]
+	---@return number[][]
+	local function ClipSide(pts, inside, cross)
+		local out = {}
+		for i = 1, #pts do
+			local a = pts[(i - 2) % #pts + 1]
+			local b = pts[i]
+			if inside(b) then
+				if not inside(a) then
+					out[#out+1] = cross(a, b)
+				end
+				out[#out+1] = b
+			elseif inside(a) then
+				out[#out+1] = cross(a, b)
+			end
+		end
+		return out
+	end
+	local function AtX(x0)
+		return function(a, b)
+			local t = (x0 - a[1])/(b[1] - a[1])
+			return { x0, a[2] + (b[2] - a[2])*t }
+		end
+	end
+	local function AtY(y0)
+		return function(a, b)
+			local t = (y0 - a[2])/(b[2] - a[2])
+			return { a[1] + (b[1] - a[1])*t, y0 }
+		end
+	end
+	poly = ClipSide(poly, function(p) return p[1] >= 0 end, AtX(0))
+	poly = ClipSide(poly, function(p) return p[1] <= w end, AtX(w))
+	poly = ClipSide(poly, function(p) return p[2] >= 0 end, AtY(0))
+	poly = ClipSide(poly, function(p) return p[2] <= h end, AtY(h))
+
+	--The centroid of what is left (the shoelace formula).
+	local twiceArea = 0
+	local sumX = 0
+	local sumY = 0
+	for i = 1, #poly do
+		local a = poly[(i - 2) % #poly + 1]
+		local b = poly[i]
+		local c = a[1]*b[2] - b[1]*a[2]
+		twiceArea = twiceArea + c
+		sumX = sumX + (a[1] + b[1])*c
+		sumY = sumY + (a[2] + b[2])*c
+	end
+	if math.abs(twiceArea) < 1e-6 then
+		return cx, cy
+	end
+	return sumX/(3*twiceArea), sumY/(3*twiceArea)
+end
+
+--How much of a pooled "#DicePreview" render the spinning die fills at the
+--tile scenes' dice scale (3.0). The render is mostly transparent margin (room
+--for the die's FX), so the die's panel is this many times bigger than the die.
+--Measured from the fan in the store (a d10 is about half its panel wide).
+local g_packLiveDieFill = 0.47
+
+--A live, spinning die for the fan: the same pooled preview scene the single
+--dice tiles use (DiceSetPreviewManager), centred on (x, y). Its panel is much
+--bigger than the die, so it is cropped to the tile like BuildDiceTileLayers'
+--layers: a panel's box takes mouse hits even where it is clipped away.
+---@param key string the "#DicePreview:..." image id
+---@param x number
+---@param y number
+---@param size number how big the die should look
+---@param tileW number
+---@param tileH number
+---@return Panel|nil
+local function LivePackDie(key, x, y, size, tileW, tileH)
+	local panelSize = size/g_packLiveDieFill
+	local px = x - panelSize/2
+	local py = y - panelSize/2
+	local x1 = math.max(0, px)
+	local y1 = math.max(0, py)
+	local x2 = math.min(tileW, px + panelSize)
+	local y2 = math.min(tileH, py + panelSize)
+	if x2 <= x1 or y2 <= y1 then
+		return nil
+	end
+
+	return gui.Panel{
+		interactable = false,
+		floating = true,
+		halign = "left",
+		valign = "top",
+		x = x1,
+		y = y1,
+		width = x2 - x1,
+		height = y2 - y1,
+		bgimage = key,
+		bgcolor = "white",
+		--The preview render is premultiplied, like the single dice tiles' die layer.
+		blend = "premultiplied",
+		imageRect = TopDownImageRect((x1 - px)/panelSize, (y1 - py)/panelSize,
+			(x2 - px)/panelSize, (y2 - py)/panelSize),
+	}
+end
+
+--A wedge's art waits, transparent, until both its mask and its image have
+--arrived, then fades in. Put these on the panel holding the fan.
+local g_packWedgeStyles = {
+	{
+		selectors = {"packWedge"},
+		opacity = 0,
+	},
+	{
+		selectors = {"packWedge", "maskReady", "loaded"},
+		opacity = 1,
+		transitionTime = 0.2,
+	},
+}
+
+--The seam lines of a fan of count wedges in a w x h box: a clear panel whose
+--conic gradient draws one divider along each wedge edge. The panel shader
+--draws dividers with soft edges, so the lines stay smooth at any angle, and
+--they hide the wedge masks' hard-edged joins underneath.
+---@param count integer
+---@param w number
+---@param h number
+---@return Panel
+local function PackSeamLines(count, w, h)
+	--The first divider goes on wedge 1's anticlockwise edge (see
+	--BuildWedgeMaskPanel); the rest follow evenly. Gradient points run 0..1
+	--with y up, and the shader measures their direction in pixels, so divide
+	--by the box size to keep the angle true on any box shape.
+	local angle = math.rad(-90 - 180/count)
+	local reach = 0.25*math.min(w, h)
+	--Clear everywhere but the lines: the seam colour at zero alpha, so the
+	--lines' soft edges fade out instead of lightening.
+	local clear = string.sub(g_packSeamColor, 1, 7) .. "00"
+
+	return gui.Panel{
+		interactable = false,
+		floating = true,
+		halign = "left",
+		valign = "top",
+		x = 0,
+		y = 0,
+		width = w,
+		height = h,
+		bgimage = "panels/square.png",
+		bgcolor = "white",
+		gradient = gui.Gradient{
+			type = "conic",
+			point_a = { x = 0.5, y = 0.5 },
+			point_b = { x = 0.5 + reach*math.cos(angle)/w, y = 0.5 - reach*math.sin(angle)/h },
+			stops = {
+				{ position = 0, color = clear },
+				{ position = 1, color = clear },
+			},
+			dividers = { count = count, width = g_packSeamWidth, color = g_packSeamColor },
+		},
+	}
+end
+
+--The layers of a dice pack's fan, for a tileW x tileH box: each set's banner
+--art masked to its wedge, the seam lines (PackSeamLines), then each set's
+--spinning die in the middle of its wedge (WedgeCentre). The art is placed so its own die spot sits under the
+--die where it can. seq keeps this fan's dice apart from other fans showing
+--the same sets. Optional maskW/maskH: the box shape the wedge masks are
+--painted at (default the base tile, which every tile shares).
+---@param args {tileW: number, tileH: number, sets: ShopItemLua[], seq: any, maskW: number|nil, maskH: number|nil}
+---@return Panel[]
+local function BuildPackFanLayers(args)
+	local tileW = args.tileW
+	local tileH = args.tileH
+	local sets = args.sets
+	local seq = tostring(args.seq)
+	local maskW = args.maskW or g_tileBaseWidth
+	local maskH = args.maskH or g_tileBaseHeight
+	local count = #sets
+	local dieSize = math.floor(tileH*g_packDieSize)
+
+	local layers = {}
+	local dice = {}
+	for i,set in ipairs(sets) do
+		local cfg = ReadItemBannerConfig(set)
+		local dieX, dieY = WedgeCentre(count, i, tileW, tileH)
+		local rect = BannerArtCrop(cfg, tileW, tileH, tileH*g_packFanArtHeight, dieX, dieY)
+
+		for _,image in ipairs({cfg.backgroundImage, cfg.foregroundImage}) do
+			if image ~= nil and image ~= "" then
+				layers[#layers+1] = gui.Panel{
+					classes = {"packWedge"},
+					interactable = false,
+					floating = true,
+					halign = "left",
+					valign = "top",
+					x = 0,
+					y = 0,
+					width = tileW,
+					height = tileH,
+					bgimage = image,
+					bgcolor = "white",
+					imageRect = rect,
+
+					create = function(element)
+						RequestWedgeMask(count, i, maskW, maskH, function(maskid)
+							if element.valid then
+								element.bgimageMask = maskid
+								element:SetClass("maskReady", true)
+							end
+						end)
+					end,
+
+					imageLoaded = function(element)
+						element:SetClass("loaded", true)
+					end,
+				}
+			end
+		end
+
+		local key = PackDieKey(set, string.format("pack%s_%d", seq, i))
+		local die = LivePackDie(key, dieX, dieY, dieSize, tileW, tileH)
+		if die ~= nil then
+			dice[#dice+1] = die
+		end
+	end
+
+	layers[#layers+1] = PackSeamLines(count, tileW, tileH)
+
+	--The dice go over every wedge: a foreground layer may reach past its die.
+	for _,die in ipairs(dice) do
+		layers[#layers+1] = die
+	end
+	return layers
+end
+
+--A set's art for a small card in the pack page's "In this pack" row: its own
+--tile art when it has one, else its banner cropped around the die (like the
+--automatic grid tile), with its spinning die on its spot. Scaled to cover
+--w x h and cropped, never stretched.
+---@param set ShopItemLua
+---@param w number
+---@param h number
+---@param slot string where this card is, for its die's key (PackDieKey)
+---@return Panel
+local function BuildPackSetArt(set, w, h, slot)
+	local images
+	local rect
+	local dieX
+	local dieY
+
+	local previewCfg = ReadItemPreviewConfig(set)
+	if previewCfg ~= nil and previewCfg.backgroundImage ~= "" then
+		--Tile art is authored at the base tile's shape.
+		local scale = math.max(w/g_tileBaseWidth, h/g_tileBaseHeight)
+		local artW = g_tileBaseWidth*scale
+		local artH = g_tileBaseHeight*scale
+		local lx = (w - artW)/2
+		local ly = (h - artH)/2
+		rect = TopDownImageRect(-lx/artW, -ly/artH, (w - lx)/artW, (h - ly)/artH)
+		images = { previewCfg.backgroundImage, previewCfg.foregroundImage }
+		dieX = lx + previewCfg.dieX*artW
+		dieY = ly + previewCfg.dieY*artH
+	else
+		local cfg = ReadItemBannerConfig(set)
+		--0.667: the automatic grid tile shows about two thirds of the banner's height.
+		rect, dieX, dieY = BannerArtCrop(cfg, w, h, h/0.667, w/2, h/2)
+		images = { cfg.backgroundImage, cfg.foregroundImage }
+	end
+
+	local children = {}
+	for _,image in ipairs(images) do
+		if image ~= nil and image ~= "" then
+			children[#children+1] = gui.Panel(TrackCoverImage({
+				interactable = false,
+				floating = true,
+				halign = "left",
+				valign = "top",
+				width = w,
+				height = h,
+				bgimage = image,
+				bgcolor = "white",
+				imageRect = rect,
+			}, true))
+		end
+	end
+	local die = LivePackDie(PackDieKey(set, slot), dieX, dieY, math.floor(h*0.55), w, h)
+	if die ~= nil then
+		children[#children+1] = die
+	end
+
+	return gui.Panel{
+		interactable = false,
+		clip = true,
+		clipHidden = true,
+		halign = "left",
+		valign = "top",
+		width = w,
+		height = h,
+		bgimage = "panels/square.png",
+		bgcolor = "#151515ff",
+		children = children,
+	}
+end
+
+--The details page of a dice pack: a big fan of the sets (the grid tile's fan
+--at banner size) with the pack's name and description, the "In this pack" row
+--(each card opens that set's page), then the separate-price line and Add to
+--Cart. Collapses itself for anything that is not a dice pack.
+---@return Panel
+local function MakeDicePackShowcase()
+	local miniGap = 14
+	local miniArtHeight = 196
+	local miniHeight = 268
+
+	local heroTitle = gui.Label{
+		classes = {"shopTitle"},
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		textAlignment = "left",
+		fontWeight = "bold",
+		fontSize = 34,
+		text = "",
+	}
+
+	local heroDescription = gui.Label{
+		classes = {"shopDescription"},
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		textAlignment = "left",
+		vmargin = 10,
+		maxHeight = 160,
+		textOverflow = "ellipsis",
+		text = "",
+	}
+
+	--The dice banner's text box, a little more opaque: it sits over pale art,
+	--where the banner's 0.75 left the grey description hard to read. Top-left:
+	--with the first wedge pointing up, a die sits at the bottom-left of the fan
+	--and the top-left corner is clear.
+	local heroTextBox = gui.Panel{
+		floating = true,
+		flow = "vertical",
+		halign = "left",
+		valign = "top",
+		x = 21.6,
+		y = 21.6,
+		width = 420,
+		height = "auto",
+		borderBox = true,
+		hpad = 16.8,
+		vpad = 14,
+		bgimage = "panels/square.png",
+		bgcolor = "#000000dd",
+		cornerRadius = 12,
+		heroTitle,
+		heroDescription,
+	}
+
+	local heroFan = gui.Panel{
+		interactable = false,
+		floating = true,
+		halign = "left",
+		valign = "top",
+		width = g_bannerDisplayWidth,
+		height = g_bannerDisplayHeight,
+	}
+
+	local hero = gui.Panel{
+		width = g_bannerDisplayWidth,
+		height = g_bannerDisplayHeight,
+		halign = "center",
+		clip = true,
+		bgimage = "panels/square.png",
+		bgcolor = g_packSeamColor,
+		styles = g_packWedgeStyles,
+		heroFan,
+		heroTextBox,
+	}
+
+	local minis = gui.Panel{
+		flow = "horizontal",
+		width = g_bannerDisplayWidth,
+		height = "auto",
+		halign = "center",
+	}
+
+	local valueLabel = gui.Label{
+		classes = {"collapsedWhenInventory", "collapseOnNoCommerce"},
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		fontSize = 13,
+		color = "#aaaaaaff",
+		text = "",
+	}
+
+	--Add to Cart with the price in the label, as on a dice set's page.
+	local addButton = gui.Label{
+		classes = {"itemButton", "collapsedWhenInventory", "collapseOnGift", "collapseOnNoCommerce"},
+		halign = "right",
+		tmargin = 6,
+		width = 320,
+		data = { item = nil, inCart = false },
+
+		refreshItem = function(element, item)
+			element.data.item = item
+		end,
+
+		refreshCart = function(element, shoppingCart)
+			local item = element.data.item
+			if item == nil then
+				return
+			end
+			local inCart = shoppingCart[item.id] == true
+			element.data.inCart = inCart
+			if inCart then
+				element.text = "Remove from Cart"
+			else
+				local priceText = cond(item.price <= 0, "FREE", FormatCents(item.price))
+				element.text = string.format("%s - %s", cond(shop:ItemInInventory(item.id), "Add as Gift", "Add to Cart"), priceText)
+			end
+		end,
+
+		press = function(element)
+			local item = element.data.item
+			if item == nil then
+				return
+			end
+			if element.data.inCart then
+				element:FireEventOnParents("removeFromCart", item)
+			else
+				element:FireEventOnParents("addToCart", item)
+				analytics.Event{ type = "shopAddCart", itemid = item.id }
+			end
+		end,
+	}
+
+	--A set in the "In this pack" row. Opening it tells the store which pack it
+	--came from, so that set's Go Back returns to the pack.
+	---@param set ShopItemLua
+	---@param width number
+	---@param pack ShopItemLua
+	---@param slot string where the card is in the row, for its die (PackDieKey)
+	---@return Panel
+	local function MakeMiniCard(set, width, pack, slot)
+		--Only built for a set the account owns (the row is rebuilt each time
+		--the page opens, so it is current).
+		local ownedTag = nil
+		if shop:ItemInInventory(set.id) then
+			ownedTag = gui.Label{
+				classes = {"packOwned"},
+				interactable = false,
+				floating = true,
+				halign = "right",
+				valign = "top",
+				x = -10,
+				y = 10,
+				text = "Owned",
+			}
+		end
+
+		return gui.Panel{
+			classes = {"packMini"},
+			width = width,
+			height = miniHeight,
+			halign = "left",
+			lmargin = 0,
+			rmargin = miniGap,
+			bgimage = "panels/square.png",
+
+			press = function(element)
+				element:FireEventOnParents("showItemDetails", set, "packContents", pack)
+			end,
+
+			BuildPackSetArt(set, width, miniArtHeight, slot),
+
+			gui.Label{
+				interactable = false,
+				floating = true,
+				halign = "left",
+				valign = "top",
+				x = 12,
+				y = miniArtHeight + 10,
+				width = width - 24,
+				height = "auto",
+				fontSize = 15,
+				fontWeight = "semibold",
+				color = "white",
+				text = set.name,
+			},
+
+			gui.Label{
+				interactable = false,
+				floating = true,
+				halign = "left",
+				valign = "top",
+				x = 12,
+				y = miniArtHeight + 36,
+				width = "auto",
+				height = "auto",
+				fontSize = 13,
+				color = "#aaaaaaff",
+				text = cond(set.price <= 0, "FREE", FormatCents(set.price)),
+			},
+
+			ownedTag,
+		}
+	end
+
+	return gui.Panel{
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "auto",
+		height = "auto",
+		halign = "center",
+		valign = "top",
+
+		styles = {
+			{
+				selectors = {"packMini"},
+				bgcolor = "#202020ff",
+				transitionTime = 0.15,
+			},
+			{
+				selectors = {"packMini", "hover"},
+				bgcolor = "#2e2e33ff",
+			},
+			{
+				selectors = {"packOwned"},
+				width = "auto",
+				height = 22,
+				hpad = 8,
+				borderBox = true,
+				bgimage = "panels/square.png",
+				bgcolor = "#000000b0",
+				borderWidth = 1,
+				borderColor = "srgb:#f6ddb6",
+				cornerRadius = 11,
+				color = "srgb:#f6ddb6",
+				fontSize = 11,
+				fontWeight = "bold",
+				uppercase = true,
+				textAlignment = "center",
+			},
+		},
+
+		showProductDetails = function(element, item)
+			local sets = DicePackSets(item)
+			element:SetClass("collapsed", sets == nil)
+			if sets == nil then
+				heroFan.children = {}
+				minis.children = {}
+				return
+			end
+
+			--The wide banner gets wedge masks of its own shape.
+			heroFan.children = BuildPackFanLayers{
+				tileW = g_bannerDisplayWidth,
+				tileH = g_bannerDisplayHeight,
+				sets = sets,
+				seq = "hero",
+				maskW = g_bannerDisplayWidth,
+				maskH = g_bannerDisplayHeight,
+			}
+			heroTitle.text = item.name
+			heroDescription.text = item.details or ""
+			heroDescription:SetClass("collapsed", (item.details or "") == "")
+
+			local count = #sets
+			local miniWidth = math.floor((g_bannerDisplayWidth - miniGap*(count - 1))/count)
+			local cards = {}
+			local owned = 0
+			for i,set in ipairs(sets) do
+				local card = MakeMiniCard(set, miniWidth, item, "packmini" .. i)
+				if i == count then
+					card.selfStyle.rmargin = 0
+				end
+				cards[#cards+1] = card
+				if shop:ItemInInventory(set.id) then
+					owned = owned + 1
+				end
+			end
+			minis.children = cards
+
+			local separate = DicePackSeparatePrice(sets)
+			local text = string.format("%d sets", count)
+			if separate > item.price then
+				text = string.format("%d sets, <b>%s</b> separately", count, FormatCents(separate))
+			end
+			if owned > 0 and owned < count and not shop:ItemInInventory(item.id) then
+				text = string.format("%s - you own %d", text, owned)
+			end
+			valueLabel.text = text
+		end,
+
+		hero,
+
+		gui.Label{
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			tmargin = 18,
+			bmargin = 10,
+			fontSize = 20,
+			fontWeight = "semibold",
+			color = "white",
+			text = "In this pack",
+		},
+
+		minis,
+
+		gui.Panel{
+			flow = "vertical",
+			width = g_bannerDisplayWidth,
+			height = "auto",
+			halign = "center",
+			tmargin = 14,
+			rmargin = 0,
+			gui.Panel{
+				flow = "vertical",
+				width = "auto",
+				height = "auto",
+				halign = "right",
+				rmargin = 24,
+				valueLabel,
+				addButton,
+			},
+		},
+	}
+end
+
+--The dice pack pieces, for the Shop admin (a separate module) and for
+--rendering a pack's tile or page offscreen with gui.RenderToImage.
+ShopDicePack = {
+	Sets = DicePackSets,
+	FanLayers = BuildPackFanLayers,
+	Showcase = MakeDicePackShowcase,
+	WedgeStyles = g_packWedgeStyles,
+	tileWidth = g_tileBaseWidth,
+	tileHeight = g_tileBaseHeight,
 }
 
 --Sizes a loaded hero image to the largest box with the art's own aspect that
@@ -2248,6 +3197,11 @@ local MakeShopImageDisplay = function(options)
 	local baseH = options.baseHeight or g_tileBaseHeight
 	options.baseWidth = nil
 	options.baseHeight = nil
+
+	--Tile-sized displays (grid cards, cart rows, the gift view) show a dice
+	--pack as its fan; the details page's banner-sized hero does not (the pack
+	--page has its own showcase).
+	local tileSized = baseW == g_tileBaseWidth and baseH == g_tileBaseHeight
 
 	local fitAspect = footer
 
@@ -2299,8 +3253,14 @@ local MakeShopImageDisplay = function(options)
 				m_item = item
 				--Dice items show a live, up-close die on their chosen banner
 				--background (cropped to the die) instead of a flat product shot.
+				local packSets = nil
+				if tileSized and item.itemType ~= "Dice" then
+					packSets = DicePackSets(item)
+				end
 				if item.itemType == "Dice" then
 					element:FireEvent("refreshDicePreview", item)
+				elseif packSets ~= nil then
+					element:FireEvent("refreshPackPreview", item, packSets)
 				elseif imageRole == "hero" then
 					element:FireEvent("refreshImage", ItemHeroImage(item))
 				else
@@ -2408,6 +3368,68 @@ local MakeShopImageDisplay = function(options)
 					width = tileW,
 					height = tileH,
 					children = clipChildren,
+				},
+			}
+		end,
+
+		--A dice pack's tile: the fan of its sets (see BuildPackFanLayers),
+		--sized and bled exactly like a Dice item's tile above, with a chip
+		--saying how many sets it holds on the grid cards.
+		refreshPackPreview = function(element, item, sets)
+			local tileW = 325*uiscale
+			local tileH = (180 + heightStretch)*uiscale
+			local tileY = 0
+			if fullBleed then
+				local bleedScale = 352/325
+				tileW = tileW * bleedScale
+				tileH = tileH * bleedScale
+				tileY = -8*uiscale
+			end
+
+			local layers = BuildPackFanLayers{ tileW = tileW, tileH = tileH, sets = sets, seq = mySeq }
+
+			--Top-right: the card's "Preview" badge takes the top-left corner.
+			if fullBleed then
+				layers[#layers+1] = gui.Label{
+					interactable = false,
+					floating = true,
+					halign = "right",
+					valign = "top",
+					x = -12,
+					y = 12,
+					width = "auto",
+					height = 22,
+					hpad = 9,
+					borderBox = true,
+					bgimage = "panels/square.png",
+					bgcolor = "#00000080",
+					borderWidth = 1,
+					borderColor = "#ffffff40",
+					cornerRadius = 11,
+					fontSize = 12,
+					fontWeight = "semibold",
+					uppercase = true,
+					color = "#e8e3daff",
+					textAlignment = "center",
+					text = string.format("%d sets", #sets),
+				}
+			end
+
+			element.children = {
+				bg,
+				gui.Panel{
+					interactable = false,
+					clip = true,
+					clipHidden = true,
+					bgimage = "panels/square.png",
+					bgcolor = g_packSeamColor,
+					halign = "center",
+					valign = cond(fullBleed, "top", "center"),
+					y = tileY,
+					width = tileW,
+					height = tileH,
+					styles = g_packWedgeStyles,
+					children = layers,
 				},
 			}
 		end,
@@ -2538,7 +3560,18 @@ local MakeShopItemText = function(options)
 				else
 					local dollars = math.tointeger(math.floor(item.price/100))
 					local cents = math.tointeger(item.price%100)
-					element.text = string.format("$%d.%02dUS", dollars, cents)
+					local text = string.format("$%d.%02dUS", dollars, cents)
+
+					--A dice pack also shows what its sets cost bought separately, struck through.
+					local packSets = DicePackSets(item)
+					if packSets ~= nil then
+						local separate = DicePackSeparatePrice(packSets)
+						if separate > item.price then
+							text = string.format("%s  <color=#8c8c8cff><s>%s</s></color>", text, FormatCents(separate))
+						end
+					end
+
+					element.text = text
 				end
 			end,
 
@@ -2569,7 +3602,9 @@ local MakeShopItemText = function(options)
 					end
 				end
 
-				if item.hasBundle then
+				--A dice pack shows its sets in its fan tile and on its page, so its
+				--card keeps just the description; other bundles list their contents.
+				if item.hasBundle and DicePackSets(item) == nil then
 					if text ~= "" then
 						text = text .. "\n\n"
 					end
@@ -3630,6 +4665,13 @@ local ShowItemDetailsInternal = function(args)
 	--carousel. Details mode drives itself from the viewed item.
 	local m_diceBanner = ShopDiceBanner.Create{ detailsMode = true }
 
+	--Dice packs get their own showcase (see MakeDicePackShowcase); the gift
+	--view keeps the compact generic layout.
+	local m_packShowcase = nil
+	if not args.gift then
+		m_packShowcase = MakeDicePackShowcase()
+	end
+
 	--Soft dark gradient backing for the details panel. Applied directly to the
 	--shopDetailsMainPanel below as its own bgimage, NOT as a floating child:
 	--a floating child sized at 100% resolves its percentage against the
@@ -4199,8 +5241,10 @@ local ShowItemDetailsInternal = function(args)
 				},
 			},
 
+			--The store decides where back is (detailsGoBack): the dice pack a
+			--set was opened from, else the products page.
 			press = function(element)
-				element:FireEventOnParents("showProductsPage")
+				element:FireEventOnParents("detailsGoBack")
 			end,
 
 			gui.Panel{
@@ -4703,10 +5747,12 @@ local ShowItemDetailsInternal = function(args)
 
 		},
 
+		m_packShowcase,
+
 		--Non-Dice showcase: the full-width hero banner (art + name/description
 		--overlay), the gallery thumbnails, then the info/cart column -- all
 		--stacked, the way the dice showcase above stacks its banner over its
-		--action row. Collapses for Dice items.
+		--action row. Collapses for Dice items and dice packs.
 		gui.Panel{
 			flow = "vertical",
 			width = cond(args.gift, 300, "auto"),
@@ -4718,7 +5764,8 @@ local ShowItemDetailsInternal = function(args)
 			--The gift view always keeps this compact layout.
 			showProductDetails = function(element, item)
 				local adventure = not args.gift and AdventurePage.Has(item)
-				element:SetClass("collapsed", item.itemType == "Dice" or adventure)
+				local pack = not args.gift and DicePackSets(item) ~= nil
+				element:SetClass("collapsed", item.itemType == "Dice" or adventure or pack)
 			end,
 
 			gui.Panel{
@@ -5199,6 +6246,12 @@ local function CreateShopScreenInternal(arguments)
 
 		local m_shoppingCart = {}
 
+		--The dice pack to return to when Go Back is pressed on the page now
+		--showing: set when a set is opened from a pack's "In this pack" row,
+		--cleared by any other way of opening a page or leaving for the grid.
+		---@type ShopItemLua|nil
+		local m_backToItem = nil
+
 		local m_category = "all"
 
 		local products = m_allProducts
@@ -5516,7 +6569,14 @@ local function CreateShopScreenInternal(arguments)
 				end
 			end,
 
-			showItemDetails = function(element, item, source)
+			--backTo: the dice pack a set was opened from (source "packContents").
+			showItemDetails = function(element, item, source, backTo)
+				if source == "packContents" then
+					m_backToItem = backTo
+				elseif source ~= nil then
+					m_backToItem = nil
+				end
+
 				element:FireEventTree("hideProducts")
 				element:FireEventTree("showProductDetails", item)
 				element:FireEventTree("refreshCart", m_shoppingCart)
@@ -5530,7 +6590,9 @@ local function CreateShopScreenInternal(arguments)
 
 				--Funnel attribution: which surface brought the user to this
 				--product page -- "featuredBanner" (top banner's View Dice),
-				--"productTile" (grid cards below), "cartRow", or "bundleLink".
+				--"productTile" (grid cards below), "cartRow", "bundleLink",
+				--"packContents" (a dice pack's "In this pack" row) or
+				--"packBack" (Go Back from one of those sets to its pack).
 				--nil = a re-fire from inside the already-open details view
 				--(gallery presses), which is not a navigation, so not counted.
 				if source ~= nil then
@@ -5543,7 +6605,20 @@ local function CreateShopScreenInternal(arguments)
 				end
 			end,
 
+			--Go Back on an item's page: to the dice pack the set was opened
+			--from, if any, else to the products page.
+			detailsGoBack = function(element)
+				local backTo = m_backToItem
+				if backTo ~= nil then
+					m_backToItem = nil
+					element:FireEvent("showItemDetails", backTo, "packBack")
+				else
+					element:FireEvent("showProductsPage")
+				end
+			end,
+
 			showProductsPage = function(element)
+				m_backToItem = nil
 				element:FireEventTree("showProducts")
 				element:FireEventTree("hideProductDetails")
 
@@ -6434,7 +7509,10 @@ local function CreateShopScreenInternal(arguments)
 							grid,
 						}
 
-						HeroModules.QueryFreeModules(function(items, err)
+						--cards by module id: an admin's second, fuller list keeps
+						--the cards already shown and only adds the new ones.
+						local cardsById = {}
+						HeroModules.QueryFreeModules(function(items, err, morePending)
 							if not grid.valid then
 								return
 							end
@@ -6443,13 +7521,24 @@ local function CreateShopScreenInternal(arguments)
 								return
 							end
 							if #items == 0 then
-								statusLabel.text = "There are no free items yet. Check back soon!"
+								if not morePending then
+									statusLabel.text = "There are no free items yet. Check back soon!"
+								end
 								return
 							end
-							statusLabel:SetClass("collapsed", true)
+							if morePending then
+								statusLabel.text = "Loading your unlisted modules..."
+							else
+								statusLabel:SetClass("collapsed", true)
+							end
 							local cards = {}
 							for _, info in ipairs(items) do
-								cards[#cards+1] = MakeHeroModuleCard(info)
+								local card = cardsById[info.fullid]
+								if card == nil then
+									card = MakeHeroModuleCard(info)
+									cardsById[info.fullid] = card
+								end
+								cards[#cards+1] = card
 							end
 							grid.children = cards
 						end)

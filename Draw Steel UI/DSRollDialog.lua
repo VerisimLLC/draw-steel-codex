@@ -1717,7 +1717,9 @@ function GameHud.CreateRollDialog(self)
                     maxHeight = 30,
                     halign = "center",
                     textOverflow = "truncate",
-                    text = target.token.name,
+                    --a map object shows the Name set in its object editor ("Shelf 2"), not its artwork's name.
+                    --_G.creature is the creature type: the local `creature` here is the roller.
+                    text = _G.creature.TokenDisplayName(target.token),
                     textAlignment = "center",
                 }
                 local boonLabel = gui.Label {
@@ -3957,7 +3959,7 @@ function GameHud.CreateRollDialog(self)
                                 execute = function()
                                     --filed under the cast, so History shows it on the action's row.
                                     GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
-                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote, "damage")
                                     end)
                                 end,
                             }

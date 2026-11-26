@@ -1535,11 +1535,13 @@ local function ParseDevJoinCode(text)
     return gameid, reportId
 end
 
---Wraps the function that pastes a hero into the game being entered so it runs
---once the player's Hero modules (HeroModules.lua) are installed there too, and
---the hero's class and ancestry exist when it lands. The wrapper runs in the
---destination game, after this file may have unloaded, so HeroModules is looked
---up there rather than captured here.
+--Wraps the function that pastes a hero into the game being entered. In an
+--Encounter of the Week game it runs once the player's Hero modules
+--(HeroModules.lua) are installed there too, so the hero's class and ancestry
+--exist when it lands. Any other game gets no automatic installs: its Director
+--adds modules from the module browser (the inventory is listed under My
+--Modules). The wrapper runs in the destination game, after this file may have
+--unloaded, so HeroModules is looked up there rather than captured here.
 --A module with code only the game's owner can add, so the owner's client is
 --asked to (HeroModules.ServeOwnerRequests). The hero is pasted after at most
 --8 s of waiting for that answer -- an owner who is away adds it when they next
@@ -1549,7 +1551,14 @@ end
 local function AfterHeroModulesInstalled(paste)
     return function()
         local heroModules = rawget(_G, "HeroModules")
-        if heroModules ~= nil and heroModules.InstallIntoGame ~= nil then
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        local isEotw = false
+        if eotw ~= nil and eotw.IsEotwGame ~= nil then
+            pcall(function()
+                isEotw = eotw.IsEotwGame() == true
+            end)
+        end
+        if isEotw and heroModules ~= nil and heroModules.InstallIntoGame ~= nil then
             heroModules.InstallIntoGame(function()
                 local charid = paste()
                 if charid ~= nil and heroModules.WarnIfHeroesMissingContent ~= nil then

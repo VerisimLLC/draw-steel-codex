@@ -151,3 +151,20 @@ text("persistence.must_end", [[You must end some abilities so you do not lose es
 
 --The dialog's button.
 text("persistence.confirm", [[Confirm]])
+
+----------------------------------------------------------------------------
+-- TRIGGERS THAT ACT DURING A MOVE: the Tactician's Overwatch
+-- (Draw Steel Ability Behaviors/AbilityMidMoveTriggers.lua)
+----------------------------------------------------------------------------
+
+--Floats over a creature put back along its path because being slowed cut its move short.
+text("midmove.cut_short.float", [[Stopped]])
+
+--Bottom of the screen while the Tactician picks who strikes. {target} is the moving
+--enemy's name, or the unnamed_target text when the player can't see its name.
+text("midmove.direct_ally.choose", [[Choose an ally to free strike {target}]])
+text("midmove.direct_ally.no_allies", [[No ally can free strike {target}]])
+text("midmove.direct_ally.unnamed_target", [[the moving enemy]])
+
+--An ally's button when they can't reach the enemy from where they stand. {name} is the ally.
+text("midmove.direct_ally.out_of_reach", [[{name} (out of reach)]])

@@ -711,7 +711,11 @@ GameSystem.RegisterGoblinScriptField{
 
 --Shortest 3D distance in squares between two tokens: the horizontal distance, or the
 --vertical gap between their altitude ranges (touching vertically counts as adjacent).
-local function TokenDistance3D(a, b)
+--Global so triggered-action range checks (PowerTableTriggers.lua) use it too.
+---@param a CharacterToken
+---@param b CharacterToken
+---@return number
+function TokenDistance3D(a, b)
     local horizontal = a:Distance(b)
     local aTop = (a.floorAltitude or 0) + (a.tileSize or 1)
     local bTop = (b.floorAltitude or 0) + (b.tileSize or 1)

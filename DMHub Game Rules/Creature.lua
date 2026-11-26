@@ -8173,6 +8173,8 @@ function creature:OnMove(path)
         path = PathMoved.new{
             path = path,
             size = ourToken.tileSize,
+            --Read now: Moved charges this path to moveDistance before any trigger resolves.
+            movedBefore = self:DistanceMovedThisTurn(),
         }
     })
 
@@ -8503,6 +8505,8 @@ end
 
 --- @class PathMoved: GameType
 --- @field new fun(o?: table): PathMoved
+--- @field path LuaPath The engine path (has no default, so reading it from a bare PathMoved raises).
+--- @field movedBefore? number On a "move" event: squares the creature had moved this turn before this path.
 PathMoved = RegisterGameType("PathMoved")
 PathMoved.size = 1
 

@@ -365,7 +365,8 @@ feature's text.
 
 ## 5. Phasing (proposal)
 
-> **Open (ledger, 2026-11-26):** phasing is being settled with the owner.
+> **Superseded (ledger, 2026-11-26):** the build order is the ability editor (UI, then blocks), then the
+> triggered editor, then classes and subclasses. See the implementation plan, section 7.
 
 1. **Registry and host framework, plus the modifier blocks the class builder already has.**
    Hosts: the A editors (titles, perks, complications, ancestries, careers, creature
@@ -517,3 +518,4 @@ today. "Advanced editor" is the name for today's form everywhere (it replaces "M
 | 2026-11-26 | **Pickers: one entry per kind, never one per value.** The amount picker lists the kinds of amount with real examples (A number, A stat, A stat with math, More as you level, Depends on a test, A dice roll); the examples follow a searched stat; the stat, sign and numbers are changed on the block. | Owner. |
 | 2026-11-26 | **Class page:** one tab per level, Slow start as one tab listing its four encounters; the class is the large tab and its subclasses are smaller pills in a labelled group; the combine button shows a chain icon. | Owner. |
 | 2026-11-26 | **The `Block Editor` mod loads after Draw Steel UI and Draw Steel Ability Editor** (it embeds the triggered ability editor). Supersedes "after Draw Steel Core Rules" above. **Phasing (D10) is open** until the owner's phasing discussion. | Consistency fix. |
+| 2026-11-26 | **Build order (replaces D10):** (0) skeleton, `Block.lua` with stub registrations and the in-app proofs; (1) the **ability editor UI**, with blocks from stub registrations; (2) **ability blocks** working, every core ability round-tripping; (3) the **triggered editor**, UI then logic; (4) **class and subclass**, embedding both; later titles, perks, kits, items, monsters. **Rollout:** each editor sits behind a developer setting until its records round-trip in the app, then becomes the Simple tab beside the Advanced editor. Details: implementation plan section 7. | Owner. The class builder embeds the ability and triggered editors, so they come first, and the shared pieces are built once. |

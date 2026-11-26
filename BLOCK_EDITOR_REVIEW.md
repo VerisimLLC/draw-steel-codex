@@ -43,7 +43,7 @@ is removed), the palette and a glyph on every block (plan section 13), "Advanced
 name, undo/redo with uploads (plan section 12), keyboard (mouse-first with a word list). The
 shelf keeps colour for blocks that don't fit (dashed outline), and stays on the right except on
 phones. B4 (a GoblinScript parser instead of regexes) and B6 (the drag ghost) are phase-0 work in
-the plan. Still open: phasing and rollout.
+the plan. Phasing and rollout were decided on 2026-11-26 (implementation plan section 7).
 
 ## 1. Blockers
 

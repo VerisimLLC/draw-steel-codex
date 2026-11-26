@@ -176,22 +176,28 @@ Block.RegisterHost{
 - The prototype's `SENT` table and `importer.js` are the worked reference for every block (about
   45 types; every core class and subclass opens and saves back unchanged).
 
-## 7. Build order
+## 7. Build order (decided 2026-11-26)
 
-**To be settled with the owner (next conversation).** Two orders are on the table: the ledger's D10
-(one-list editors such as titles and perks first, then subclasses and classes) and the order
-below (one feature end to end, then the class). Whichever is chosen goes into the ledger and
-replaces this section. Phase 0 is the same in both:
+The ability editor first, as a UI and then with working blocks; then the triggered editor in the
+same order; then the class and subclass editor, which embeds both. The shared pieces (shelf,
+stack, slots, pickers, card, checks, undo with uploads) are built with the ability editor and
+reused after it.
 
 | Phase | What | Done when |
 |---|---|---|
-| 0 | Module skeleton; `DMHub Utils/Block.lua` with the registries and the claims reader/writer; choice registry moved to `Class.lua`; **proofs in the app**: drag with a ghost via `transferDragTo` and pointer-based drop slots, one sentence label with many link words at 80-140% font size, fixed-colour blocks with hover/selected, the book card fonts, panel counts for the largest class | The empty editor opens from a developer command; the proofs pass; type check clean |
-| 1 | One host and one modifier block end to end (`conditionimmunity`, then `attribute`); grey blocks for the rest | Open -> save unchanged -> identical; edit one value -> only that field changes |
-| 2 | Shelf, stack, Logic, test picker, amount picker, undo/redo with uploads (section 12) | The prototype's interaction tests pass against the Lua editor |
-| 3 | Roll blocks with combine, gains, growing table, wrappers, option choices | Every core class opens with the prototype's counts |
-| 4 | Class host with subclass pills, routed from today's class editor | All 11 classes and 45 subclasses round-trip unchanged in the app |
-| 5 | Title and Perk hosts | Same round trip for their tables |
-| 6 | Ability steps (the ability editor as a host) | The 1,019 core abilities round-trip in the app |
+| 0 | Module skeleton; `DMHub Utils/Block.lua` registries with **stub** block registrations; **proofs in the app**: a drag ghost via `transferDragTo` with pointer-based drop slots, one sentence label with many link words at 80-140% font size, fixed-colour blocks with hover/selected and glyphs, the book card fonts, panel counts for a large ability | The empty editor opens from a developer command; the proofs pass; type check clean |
+| 1 | **Ability editor UI**: sections, stack, shelf, drop slots, amount and test pickers, the book-style card, checks, the Advanced editor link, undo/redo with uploads (section 12). Blocks come from the stub registrations, never written into the UI | It looks and behaves like the mockup; edits upload and undo; no real blocks needed |
+| 2 | **Ability blocks**: real declarations beside each behaviour (replacing the stubs, no UI change); reader, writer and claims; one GoblinScript parser for tests and formulas | The 1,019 core abilities open and save back unchanged in the app |
+| 3 | **Triggered editor**, UI then logic: the trigger card, "when", trigger conditions, Test Trigger, on the phase 1-2 pieces | Core triggered abilities round-trip |
+| 4 | **Class and subclass editor**: the page from the host declaration, gain lines, level tabs, subclass pills, embedding the phase 2-3 editors | All 11 classes and 45 subclasses round-trip |
+| later | Titles, perks, kits, items, monsters with the same stack | Each round-trips its table |
+
+**Hosts and rollout.** Abilities mostly live inside other records (a feature's modifier, a
+monster, an item), so the ability editor's host saves through the record that holds the ability;
+the class builder later embeds it through that same host. Until abilities round-trip in the app
+(end of phase 2), the new editor sits behind a developer setting; then it becomes the **Simple**
+tab of the ability editor, with today's editor as the **Advanced** tab. The triggered and class
+editors follow the same rule at the end of their phases.
 
 ## 8. Testing
 
@@ -215,7 +221,7 @@ Lua can draw (section 13); the old editor is the **Advanced editor**; undo and r
 uploads as in section 12; mouse-first, with a per-block word list for the keyboard and an engine
 ask for focus on link words.
 
-Still open: **phasing and rollout** (section 7), and who builds which side in parallel.
+Phasing and rollout decided 2026-11-26 (section 7). Still open: who builds which side in parallel.
 
 ## 10. Web prototype features to carry into Lua (checked 2026-11-25)
 

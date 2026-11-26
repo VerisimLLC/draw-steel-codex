@@ -3380,7 +3380,7 @@ function pickerOptions(h) {
     ]]);
   } else {
     // One entry: which stat is picked in the block (its stat menu); what the trigger reports follows.
-    groups.push(["Use a stat", "A characteristic, Level, Stamina...", [item(Whose + " [Level]", "Change which stat in the block.", () => X("stat", { role: who, field: "Level" }), NUM_FIELDS.join(" ").toLowerCase() + " characteristic")]
+    groups.push(["Use a stat", "A characteristic, Level, Stamina...", [item("A stat or attribute", "Level, a characteristic, speed... Change which on the block.", () => X("stat", { role: who, field: "Level" }), NUM_FIELDS.join(" ").toLowerCase() + " characteristic attribute")]
       .concat(d.symbols.filter(y => y.type === "number").map(y => item(y.name, y.desc, () => X("sym", { name: y.name }))))]);
     groups.push(["Scale with level", "Grows as the creature levels up.", [
       item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),

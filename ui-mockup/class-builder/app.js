@@ -175,6 +175,18 @@ function fxWords(obj, key) {
 const fxIsCount = (obj, key) => /^(\d+|\d*d\d+)$/i.test(String(obj[key] == null ? "" : obj[key]).trim());
 const gainAmountText = (g, res) => fxIsCount(g, "qty") || !String(g.qty || "").trim() ? fxText(g, "qty") + " " + res : "a number of " + res + " equal to " + fxWords(g, "qty");
 function fxTok(obj, key, placeholder, words) {
+  // A plain stat ("Might") shows as a stat word you change in place, like a test's stat; its menu
+  // ends with "A formula instead..." for anything else.
+  const cur = String(obj[key] == null ? "" : obj[key]).trim();
+  if (FX_STATS.includes(cur) && !fxSteps(obj, key).length) {
+    const t = tok(fxWords(obj, key) || "your " + cur, b => menuAt(b, m => {
+      addFilter(m);
+      FX_STATS.forEach(f => { const x = E("button", null, "your " + f); x.type = "button"; if (f === cur) x.classList.add("on");
+        x.addEventListener("click", () => { closeMenu(); change(() => { obj[key] = f; }); }); m.appendChild(x); });
+      const more = E("button", null, "A formula instead\u2026"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); fillFx(m, obj, key); }); m.appendChild(more);
+    }), false, objKey(obj) + ":" + key);
+    t.classList.add("fx"); t.title = "Change which stat"; return t;
+  }
   const t = tok((words ? fxWords(obj, key) : fxText(obj, key)) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
   t.classList.add("fx"); t.title = "Build a formula"; return t;
 }
@@ -195,15 +207,11 @@ function fillFx(m, obj, key, ad) {
   ph.appendChild(E("p", null, "A number, or what it should be based on."));
   const search = E("input"); search.placeholder = "What should this be based on? e.g. level, might"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search); m.appendChild(ph);
   const item = (txt, d, make, k) => ({ txt, d, make, k: k || "" });
-  // The stat chooser inside the "Your [stat]" entry, starting on the current stat if there is one.
-  const statPick = E("select", "fxstat"); statPick.setAttribute("aria-label", "Which stat");
-  FX_STATS.forEach(f => { const o = E("option", null, f); o.value = f; statPick.appendChild(o); });
-  statPick.value = FX_STATS.includes(base()) ? base() : "Level";
-  statPick.addEventListener("click", ev => ev.stopPropagation());
-  statPick.addEventListener("change", () => setF(statPick.value));
+  // Searching a stat's name and picking "A stat or attribute" uses that stat.
+  const searchStat = () => { const q = search.value.trim().toLowerCase(); return q ? FX_STATS.find(f => f.toLowerCase().startsWith(q)) : null; };
   const groups = [
-    // One entry: the stat is picked in the entry itself (a characteristic, Level, Victories...).
-    ["Use a stat", "A characteristic, Level, Stamina...", [Object.assign(item("Your", "Pick which stat here.", () => setF(statPick.value), FX_STATS.join(" ").toLowerCase() + " characteristic"), { sel: true })]],
+    // One entry: which stat is changed afterwards on the block itself (its stat word is a menu).
+    ["Use a stat", "A characteristic, Level, Stamina...", [item("A stat or attribute", "Level, Victories, a characteristic... Change which on the block.", () => setF(searchStat() || (FX_STATS.includes(base()) ? base() : "Level")), FX_STATS.join(" ").toLowerCase() + " characteristic attribute")]],
     ["Scale with level", "Grows as the creature levels up.", [
       item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
       item("[ ] plus your Level", "Goes up by one every level.", () => setF(base() + " + Level"), "per level")]],
@@ -216,13 +224,11 @@ function fillFx(m, obj, key, ad) {
   const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
   const draw = () => {
     pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
-    // Searching a stat's name sets the "Your [stat]" entry to it, so one click uses it.
-    const hit = q && FX_STATS.find(f => f.toLowerCase().startsWith(q)); if (hit) statPick.value = hit;
     groups.forEach(([g, gd, opts]) => {
       const vis = opts.filter(o => !q || (g + " " + o.txt + " " + o.d + " " + o.k).toLowerCase().includes(q)); if (!vis.length) return;
       const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
       const cap = !q && !expanded.has(g) && vis.length > 4;
-      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; const chip = E("span", "chip num", o.txt); if (o.sel) { chip.appendChild(document.createTextNode(" ")); chip.appendChild(statPick); } b.appendChild(chip); if (o.d) b.appendChild(E("span", "d", o.d));
+      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (o.d) b.appendChild(E("span", "d", o.d));
         b.addEventListener("click", o.make); pb.appendChild(b); n++; });
       if (cap) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); expanded.add(g); draw(); }); pb.appendChild(more); }
     });

@@ -300,8 +300,10 @@ Block.RegisterGainEvent{
 **Picker rule (both editors): one entry per kind of thing, never one per value.** A test or
 formula that differs only in which stat, amount or dice it uses is one entry; the choice is made
 in the block (a stat menu, a number box), where it is easy to change. Search still finds the
-entry by every stat name it covers, and searching a stat's name pre-selects it. Examples:
-"Your [stat]" (not one entry per stat), "Your [level] is at least [ ]" (not one per number),
+entry by every stat name it covers, and picking it after searching a stat's name uses that stat.
+Nothing is chosen inside the picker itself: the block's word is the menu. Examples:
+"A stat or attribute" (not one entry per stat; on the block it reads "your Might", and that word
+lists the stats plus "A formula instead..."), "Your [level] is at least [ ]" (not one per number),
 one dice entry, and one entry per value an event reports. Entries are only separate when they
 are different tests ("You are winded", "There are at least [1] enemies within [1] squares").
 Stats come from one list (`Block.RegisterStat`, or the trigger's own `symbols`), so a new stat

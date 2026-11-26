@@ -448,7 +448,11 @@ end
 -- the Use Resource trigger for this note, so pass it from any manual surge edit.
 creature.manualSurgeNote = "Manually Set"
 
-function creature:ConsumeSurges(ncount, note)
+--- Spends surges (a negative count gains them) and fires the Use Resource trigger for a spend.
+--- @param ncount number surges to spend
+--- @param note nil|string|table line for the surge history
+--- @param spentOn nil|"damage"|"potency"|"other" what the surges bought, shown to triggers as Spent On; defaults to "other"
+function creature:ConsumeSurges(ncount, note, spentOn)
     local surgeid = CharacterResource.nameToId["Surges"]
     if surgeid == nil then
         return
@@ -483,6 +487,7 @@ function creature:ConsumeSurges(ncount, note)
         self:DispatchEvent("useresource", {
             resource = string.lower(resourceInfo.name),
             quantity = ncount,
+            spenton = spentOn or "other",
         })
     end
 end

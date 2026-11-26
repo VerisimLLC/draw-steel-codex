@@ -1494,7 +1494,13 @@ TriggeredAbility.RegisterTrigger{
             name = "Quantity",
             type = "number",
             desc = "The number of resources used.",
-        }
+        },
+        -- Other resources send "" rather than leaving it out, so a condition reading Spent On always gets a string.
+        spenton = {
+            name = "Spent On",
+            type = "string",
+            desc = "For surges: what they were spent on, \"damage\", \"potency\" or \"other\". Empty for other resources.",
+        },
     }
 }
 

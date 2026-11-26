@@ -8545,7 +8545,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                 execute = function()
                                     --filed under the cast, so History shows it on the action's row.
                                     GameSystem.ForCast(m_symbols ~= nil and m_symbols.cast or nil, function()
-                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote)
+                                        creatureUsed:ConsumeSurges(surgesUsed, surgesNote, "damage")
                                     end)
                                 end,
                             }

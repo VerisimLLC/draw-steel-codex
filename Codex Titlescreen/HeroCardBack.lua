@@ -512,9 +512,9 @@ local function StaminaStrip(c, tok)
                 if preview ~= nil then
                     local from, to = string.format("%d", preview.from), string.format("%d", preview.to)
                     if preview.wasted > 0 then
-                        tip = tip .. "\n\n" .. T("herocard.back.recovery.preview_over", { from = from, to = to, wasted = string.format("%d", preview.wasted) })
+                        tip = tip .. "\n\n" .. T("herocard.recovery.preview_over", { from = from, to = to, wasted = string.format("%d", preview.wasted) })
                     else
-                        tip = tip .. "\n\n" .. T("herocard.back.recovery.preview", { from = from, to = to })
+                        tip = tip .. "\n\n" .. T("herocard.recovery.preview", { from = from, to = to })
                     end
                 end
                 local sources = SourcesText(heroTok, "recoveryValue")

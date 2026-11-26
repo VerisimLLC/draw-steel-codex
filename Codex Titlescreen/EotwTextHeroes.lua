@@ -563,11 +563,12 @@ text("herocard.back.stamina.winded", [[Winded at {winded}]])
 text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
 --After the numbers while a hero is between 0 and their death value.
 text("herocard.back.stamina.dying", [[Dying]])
---Under the Recoveries hover on the stamina strip: what spending one recovery
---now would do. {from} and {to} are Stamina before and after; {wasted} is how
---much of the recovery would go past maximum Stamina.
-text("herocard.back.recovery.preview", [[Spending one now: {from} to {to}.]])
-text("herocard.back.recovery.preview_over", [[Spending one now: {from} to {to}, {wasted} wasted past max.]])
+--In the Recoveries hovers (the card back's stamina strip, the front's
+--recoveries circle): what spending one recovery now would do. {from} and {to}
+--are Stamina before and after; {wasted} is how much of the recovery would go
+--past maximum Stamina.
+text("herocard.recovery.preview", [[Spending one now: {from} to {to}.]])
+text("herocard.recovery.preview_over", [[Spending one now: {from} to {to}, {wasted} wasted past max.]])
 
 --The kit's modifiers at the end of Stats. {kit} is the kit's name (or both
 --kits' names, for a hero with two). Damage values read +1/+2/+3, by tier.

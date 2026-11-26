@@ -591,6 +591,11 @@ local RESOURCE_ROW_HEIGHT = 28
 --the card's stamina row and the bar inside it, and the bar's numbers.
 local STAMINA_ROW_HEIGHT = 23
 local CARD_STAMINA_BAR = { height = 21, fontSize = 15 }
+--the stamina bar's recovery preview (CreateStaminaBar), as on the card's back
+--(HeroCardBack.lua): pale green when a Recovery all lands, amber when some of
+--it would be wasted past max.
+local RECOVERY_PREVIEW_FITS = "#4caf6a66"
+local RECOVERY_PREVIEW_OVER = "#e8a33dbb"
 --condition chips in the card's top-right corner: the outer dark/red-bordered
 --chip and the condition icon inside it.
 local CONDITION_CHIP_SIZE = 26
@@ -1014,6 +1019,38 @@ local function CreateStaminaBar(charid, opts)
         bgimage = true,
         interactable = false,
     }
+    --the recovery preview (a hero with a Recovery to spend, below max): one
+    --Recovery's worth from current Stamina (from 0 while dying), amber when
+    --some would be wasted past max. A floating layer of its own, under temp
+    --Stamina, so temp keeps riding the end of the fill. recLead is the
+    --clear gap up to where the preview starts. Colours set directly (not by
+    --class) so the bar reads the same on the hero sheet, outside the card.
+    local recLead = gui.Panel{
+        width = "0%",
+        height = "100%-2",
+        valign = "center",
+        halign = "left",
+        lmargin = 1,
+        interactable = false,
+    }
+    local recFill = gui.Panel{
+        width = "0%",
+        height = "100%-2",
+        valign = "center",
+        halign = "left",
+        bgimage = "panels/square.png",
+        bgcolor = RECOVERY_PREVIEW_FITS,
+        interactable = false,
+    }
+    local recLayer = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        flow = "horizontal",
+        interactable = false,
+        recLead,
+        recFill,
+    }
     --the numbers. An editable bar splits off the current Stamina
     --(currentLabel), which is edited where it stands; numbers then takes the
     --mouse for the whole bar.
@@ -1078,6 +1115,10 @@ local function CreateStaminaBar(charid, opts)
     local m_slideTime = nil
     --the values the numbers read.
     local m_cur, m_max, m_temp = 0, 0, 0
+    --what one Recovery would heal now, or nil when there's no preview (not a
+    --hero, no Recovery left, at max, or dead).
+    ---@type number|nil
+    local m_heal = nil
     --stamina + temp stamina as of the last refresh, so a drop can be
     --spotted. nil until the first refresh, so a card built on an already
     --hurt hero does not flash on arrival.
@@ -1159,6 +1200,23 @@ local function CreateStaminaBar(charid, opts)
             tempPct = math.min(1 - pct, m_temp / m_max)
         end
         tempFill.selfStyle.width = string.format("%f%%", tempPct * 98)
+        --the recovery preview: from the fill's end (it slides with the
+        --fill), or from 0 while dying, to where one Recovery would land.
+        local recStart, recWidth, recOver = 0, 0, false
+        if m_heal ~= nil and m_heal > 0 and m_display == "val" and m_max > 0 and m_cur + m_heal > 0 then
+            local finish
+            if m_cur > 0 then
+                recStart = pct
+                finish = pct + m_heal / m_max
+            else
+                finish = (m_cur + m_heal) / m_max
+            end
+            recWidth = math.max(0, math.min(1, finish) - recStart)
+            recOver = m_cur + m_heal > m_max
+        end
+        recLead.selfStyle.width = string.format("%f%%", recStart * 98)
+        recFill.selfStyle.width = string.format("%f%%", recWidth * 98)
+        recFill.selfStyle.bgcolor = cond(recOver, RECOVERY_PREVIEW_OVER, RECOVERY_PREVIEW_FITS)
         --mid-slide the number counts with the bar; once it lands the true
         --value shows. Only while stamina is positive: a dying hero's is
         --negative while the bar is pinned empty, and counting down to that
@@ -1202,6 +1260,7 @@ local function CreateStaminaBar(charid, opts)
         bgcolor = "#00000066",
         interactable = false,
         fill,
+        recLayer,
         tempFill,
         numbers,
     }
@@ -1251,6 +1310,18 @@ local function CreateStaminaBar(charid, opts)
                 return
             end
             m_cur, m_max, m_temp = cur, max, temp
+            m_heal = nil
+            if cur < max and not IsCardHeroDead(tok) then
+                pcall(function()
+                    if c:IsHero() then
+                        local id = CharacterResource.recoveryResourceId
+                        local left = (c:GetResources()[id] or 0) - (c:GetResourceUsage(id, "long") or 0)
+                        if left > 0 then
+                            m_heal = tonumber(c:RecoveryAmount())
+                        end
+                    end
+                end)
+            end
             m_targetPct = math.max(0, math.min(1, cur / max))
             m_display = StaminaDisplayFor(tok)
             track:SetClass("collapsed", m_display == "none")
@@ -1656,6 +1727,7 @@ local function CreateRecoveriesCircle(charid, barHolder, spendOnClick)
                 return
             end
             local current, max, recoveryValue = 0, 0, nil
+            local stamina, maxStamina = 0, 0
             pcall(function()
                 local c = tok.properties
                 local id = CharacterResource.recoveryResourceId
@@ -1663,12 +1735,24 @@ local function CreateRecoveriesCircle(charid, barHolder, spendOnClick)
                 local used = c:GetResourceUsage(id, "long") or 0
                 current = math.max(0, max - used)
                 recoveryValue = c:RecoveryAmount()
+                stamina, maxStamina = c:CurrentHitpoints(), c:MaxHitpoints()
             end)
             local lines = {
                 T("herocard.recoveries.tooltip_count", { current = string.format("%d", current), max = string.format("%d", max) }),
             }
             if recoveryValue ~= nil then
                 lines[#lines+1] = T("herocard.recoveries.tooltip_value", { value = string.format("%d", recoveryValue) })
+            end
+            --what spending one now would do, as the bar's preview shows it.
+            local heal = tonumber(recoveryValue) or 0
+            if current > 0 and heal > 0 and stamina < maxStamina then
+                local from, to = string.format("%d", stamina), string.format("%d", math.min(maxStamina, stamina + heal))
+                local wasted = stamina + heal - maxStamina
+                if wasted > 0 then
+                    lines[#lines+1] = T("herocard.recovery.preview_over", { from = from, to = to, wasted = string.format("%d", wasted) })
+                else
+                    lines[#lines+1] = T("herocard.recovery.preview", { from = from, to = to })
+                end
             end
             gui.Tooltip(table.concat(lines, "\n"))(element)
         end,

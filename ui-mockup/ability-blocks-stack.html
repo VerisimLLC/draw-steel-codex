@@ -2295,7 +2295,17 @@ function targetingRows(o) {
   else if (area) tgtRow.push(sel(o, "targetCount", AREA_TARGETS, null, "target"));
   else if (o.targetCount === "self" || o.targetCount === "special") tgtRow.push(sel(o, "targetCount", TARGET_COUNTS, null, "target"));
   else tgtRow.push(renderHolder(o.numTargets), sel(o, "targetCount", TARGET_COUNTS, null, "target"));
-  return [distRow, tgtRow];
+  const rows = [distRow, tgtRow];
+  // Several targets: picked all at once, or one at a time with the whole ability resolving for each
+  // before the next is picked (sequentialTargeting), so the user can move between targets.
+  if (!o.seqMode) o.seqMode = "all together";
+  const several = !area && o.distance !== "Self" && !["self", "special"].includes(o.targetCount) && cHolder(o.numTargets).s !== "1";
+  if (several || o.seqMode === "one at a time") {
+    const seq = sel(o, "seqMode", [["all together", "all targets picked together"], ["one at a time", "one target at a time, moving between them"]], null, "how targets are picked");
+    seq.title = "One at a time: the user picks a target and the ability resolves for it, then they can move before picking the next (\u201cmovement can be broken up before, after and between each target\u201d).";
+    rows.push([lbl("Targets are:"), seq]);
+  }
+  return rows;
 }
 /* The saved targeting fields for each distance form: the same fields the statblock importer writes. */
 function targetFields(o) {
@@ -2310,11 +2320,13 @@ function targetFields(o) {
   else if (o.distance === "Aura") Object.assign(r, { targetType: "all", range: size, numTargets: "1", rangeTextOverride: size + " aura" });
   else if (o.distance === "Cube") Object.assign(r, { targetType: "cube", radius: size, numTargets: "1" });
   else if (o.distance === "Line") Object.assign(r, { targetType: "line", range: size, radius: cHolder(o.lineWidth).s, lineDistance: cHolder(o.lineWithin).s, numTargets: "1" });
+  // One target at a time (the engine's default is all together, so false is left out).
+  if (o.seqMode === "one at a time") r.sequentialTargeting = true;
   return r;
 }
 /* Fresh targeting for a mode option that targets differently. */
 function newTargeting() {
-  const t = { distance: "Ranged", targetCount: "creature", range: H("number", "range", "10"), numTargets: H("number", "numTargets", "1") };
+  const t = { distance: "Ranged", targetCount: "creature", range: H("number", "range", "10"), numTargets: H("number", "numTargets", "1"), seqMode: "all together" };
   ensureDistance(t); return t;
 }
 function headBlock(rows, key) {
@@ -4405,6 +4417,7 @@ function openAbility(rec) {
   let m;
   a.range = H2("range", rec.range == null ? 1 : rec.range); a.numTargets = H2("numTargets", rec.numTargets == null ? 1 : rec.numTargets);
   if (rec.objectTarget) a.objects = true;   // "One creature or object"
+  a.seqMode = rec.sequentialTargeting ? "one at a time" : "all together";
   if (tt === "self") { a.distance = "Self"; a.targetCount = "self"; }
   else if (tt === "all") { a.distance = /aura/i.test(rto) ? "Aura" : "Burst"; a.areaSize = H2("areaSize", rec.range); }
   else if (tt === "cube") { a.distance = "Cube"; a.areaSize = H2("areaSize", rec.radius); }
@@ -4455,7 +4468,7 @@ function openBehaviours(list, hidden, rec, a0) {
       if (md.rules && String(md.rules).trim()) (a0.overrides = a0.overrides || {})["mode." + o.id] = { text: String(md.rules).trim(), basis: null, saved: true };
       const sp = (md.condition || "").match(/^Heroic Resources Available to Spend >= (\d+)$/); if (sp) o.extra = sp[1];
       else if (md.condition) hidden.push("option \u201c" + md.text + "\u201d has condition " + md.condition);
-      if (md.hasAbility && md.variation) { o.own = "yes"; const va = openAbility(md.variation); o.t = { distance: va.distance, targetCount: va.targetCount, range: va.range, numTargets: va.numTargets, areaSize: va.areaSize, lineWidth: va.lineWidth, lineWithin: va.lineWithin, meleeRange: va.meleeRange }; o.varSteps = va.steps; }
+      if (md.hasAbility && md.variation) { o.own = "yes"; const va = openAbility(md.variation); o.t = { distance: va.distance, targetCount: va.targetCount, seqMode: va.seqMode, range: va.range, numTargets: va.numTargets, areaSize: va.areaSize, lineWidth: va.lineWidth, lineWithin: va.lineWithin, meleeRange: va.meleeRange }; o.varSteps = va.steps; }
       mb.f.opts.push(o); mb.branches["o" + o.id] = o.varSteps || [];
     });
   }

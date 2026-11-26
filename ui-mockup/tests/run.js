@@ -34,6 +34,8 @@ const CHECKS = [
     && /CB pick: Agility \+ 1 \[\]/.test(out) && /'A stat with mathyour Agility \+ 4 · your Agility × 2'/.test(out)],
   // Improve an ability, Can't use abilities and Routine open core records; editing one value changes only that field.
   ['t-newblocks.js', out => { const j = json(out); return ['improve', 'suppress', 'routine'].every(k => j[k] && j[k].edit && j[k].edit.length === 1); }],
+  // Sequential targeting: offered for several targets, saved as sequentialTargeting, read back, and cleared.
+  ['t-seq.js', out => { const j = json(out); return j.rowShown && !j.before && j.saved === true && j.reread === 'one at a time' && !j.cleared && !j.rowForOne; }],
   // Every core ability opens in the ability editor and saves back unchanged (4 known exceptions).
   ['t-ab.js', out => json(out).same >= 1015],
   // Treating every step as edited still keeps the saved records (13 known reader-precision cases).

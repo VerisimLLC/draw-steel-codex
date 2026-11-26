@@ -253,6 +253,7 @@ only the items in 10.1 change because of the toolkit. Each later row names where
 | Scope line: "Open in Advanced editor" / "Keep editing here", and "Edit in Advanced editor" on grey blocks | 4s |
 | Triggered ability: the trigger card, "+ when...", trigger conditions; Test Trigger | 4h, 4q, 4r; Test Trigger from TRIGGERED_ABILITY_EDITOR_DESIGN.md |
 | Choose one when used (options), each option its own steps | 4n |
+| Picking targets one at a time (`sequentialTargeting`), a row under Who it targets | 4ae |
 | Requirements ("Can only be used when") with tests | 4y |
 | Formula builder (fx) with the GoblinScript reference; the test picker with combining first | 4aa, 4ab, 4z |
 | Remember a value; hand-offs to a follow-up; potency checks | 4w, 4ad, 4e, 4f |

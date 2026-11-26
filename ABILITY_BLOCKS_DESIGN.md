@@ -1139,6 +1139,23 @@ inside mentions is now passed automatically. *Blessed Light*, *Exploding Arrow*,
 way; of the rest, most need an edge or bane on a later roll. Re-run: fully built 84 -> 90, kinds of steps
 matching content 135 -> 141.
 
+## 4ae. Picking targets one at a time (2026-11-26)
+
+"Movement can be broken up before, after and between each target" is the engine's
+`sequentialTargeting` (ActivatedAbility.lua:385, 1970-1995, 4393): the user picks one target, the
+whole ability resolves for it, then they pick the next ("Choose Target 2/3"), and earlier targets
+are excluded unless duplicates are allowed. The time between picks is when the user moves.
+
+- **Where it shows:** a third row under Who it targets, **Targets are: [all targets picked together /
+  one target at a time, moving between them]**, shown when an ability (or a mode option that targets
+  differently) has more than one target, or already picks one at a time. Its tooltip quotes the
+  book's wording.
+- **Saved as** `sequentialTargeting: true`; "all together" leaves the field out (the engine default).
+  Read back from the record, including from a variation's own targeting.
+- **Not the same as moving before or after an attack:** that is a Choose one when used block whose
+  "move first" option targets a square and then uses the strike as a new ability (see 4n and the
+  core abilities Chronal Spike, Inertial Step, Knockback).
+
 ## 5. Plan
 
 Each step ends in something testable and is a go/no-go gate for the next.

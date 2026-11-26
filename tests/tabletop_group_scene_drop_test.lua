@@ -60,8 +60,9 @@ local function Setup(opts)
             return opts.background == true
         end,
     }
-    --rawset: env falls back to _G, so the type checker would hold this fake to the full dmhub type.
-    rawset(env, 'dmhub', {tabletopDragSurface = 'table', panelDropSurface = opts.surface or 'table', isDM = false})
+    --env falls back to _G, so the type checker holds this fake to the full dmhub type.
+    ---@diagnostic disable-next-line: missing-fields
+    env.dmhub = {tabletopDragSurface = 'table', panelDropSurface = opts.surface or 'table', isDM = false}
     env.DirectorScreen = {ItemDragging = function() end, ItemDropped = function() end}
     env.g_heroCards = {ScreenKey = function() return 'k' end, Detach = function() end}
     env.g_chrome = {CreatureDropClaimed = function() return false end}

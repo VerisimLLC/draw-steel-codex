@@ -9,8 +9,8 @@
   color-scheme: dark;
   --bg: #121110; --dlg: #1c1a17; --panel: #24211c; --line: #3b352b;
   --fg: #ede5d5; --dim: #a3998a; --gold: #cca350; --err: #e2685a; --warn: #e0a040; --ok: #7cc28a;
-  --c-stats: #3c5fa8; --c-rolls: #7d4aa3; --c-def: #2f6f6a; --c-abil: #b36125; --c-skill: #9a6d1c;
-  --c-res: #8a6a20; --c-rem: #6b6258; --c-if: #b05a24; --c-test: #2c7391; --c-num: #3c8656; --c-adv: #5b564e; --c-cond: #8e3f86;
+  --c-stats: #3c5fa8; --c-rolls: #7d4aa3; --c-def: #2f6f6a; --c-abil: #8b5434; --c-skill: #5d6a1c;
+  --c-res: #8a6a20; --c-rem: #6b6258; --c-if: #a8501d; --c-test: #2c7391; --c-num: #357a4d; --c-adv: #5b564e; --c-cond: #8e3f86;
   --c-choice: #3d7a3a; --c-mine: #7a4f8f; --c-grow: #8f3a2e; --c-area: #8b5434; --c-head: #8c6a24;
   --card-bg: #fdfcf8; --card-fg: #141414;
   --font-ui: "Inter", system-ui, sans-serif; --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
@@ -40,7 +40,8 @@ select.btn { max-width: 100%; }
   .body { grid-template-columns: minmax(0, 1fr) 240px; }
   .side { grid-column: 1 / span 2; position: static; max-height: none; border-left: none; border-top: 1px solid var(--line); }
 }
-@media (max-width: 760px) {
+/* Phones only: the shelf moves under the blocks; on every wider window it stays on the right. */
+@media (max-width: 600px) {
   .body { grid-template-columns: minmax(0, 1fr); }
   .shelf { position: static; max-height: none; border-left: none; border-top: 1px solid var(--line); order: 2; }
   .side { grid-column: 1; order: 3; }
@@ -322,6 +323,29 @@ pre.saved { font-variant-ligatures: none; }
 /* The formula picker's kinds of amount: the example reads like the block. */
 .menu.picker .opt .d.ex { font-style: italic; color: inherit; opacity: .85; }
 .menu.picker .ph .now { margin: 4px 0 0; font-size: 12.5px; }
+/* Group glyphs: the non-colour cue for what kind of block it is (white, beside the grip). */
+.gly { width: 14px; height: 14px; flex: none; color: #fff; opacity: .92; display: inline-block; vertical-align: -2px; }
+/* The class is the large tab; its subclasses are smaller pills in their own group, set off by a rule. */
+.ntab.on:not(.sub) input { width: 190px; field-sizing: content; min-width: 6ch; max-width: 320px; }
+.nametabs .subgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: 6px; padding-left: 12px; border-left: 1px solid var(--line); }
+.nametabs .sublbl { font: 600 9.5px var(--font-head); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
+.ntab.sub { border-radius: 14px; border-bottom-width: 1px; padding: 3px 11px; flex-direction: row; align-items: center; }
+.ntab.sub .k { display: none; }
+.ntab.sub .n { font-size: 13px; font-weight: 500; }
+.ntab.sub.on input { font: 600 15px var(--font-head); }
+.ntab.sub.add { border-style: dashed; font-size: 12.5px; }
+.nametabs .crumb { align-self: center; margin-left: auto; color: var(--dim); font-style: italic; font-size: 12.5px; }
+/* One tab per level; Slow start is one tab; All levels lets features be dragged between levels. */
+.lvtabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 2px 0 8px; border-bottom: 1px solid var(--line); }
+.lvtab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--dim); font: 500 13px var(--font-ui); padding: 5px 9px; cursor: pointer; display: inline-flex; gap: 5px; align-items: baseline; }
+.lvtab .n { font-size: 10.5px; opacity: .7; }
+.lvtab:hover { color: var(--ink, inherit); }
+.lvtab.on { color: var(--gold); border-bottom-color: var(--gold); font-weight: 600; }
+.cbtn { writing-mode: horizontal-tb; padding: 4px; line-height: 0; }
+/* What the audit found for a feature saved as text only. */
+.audit { margin: 6px 0 4px; padding: 8px 10px; border-left: 3px solid var(--line); background: rgba(255,255,255,.03); border-radius: 4px; font-size: 12.5px; line-height: 1.45; }
+.audit b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+.audit.A { border-left-color: #4DB88C; } .audit.B { border-left-color: #E9C868; } .audit.C { border-left-color: #E8A030; } .audit.D, .audit.Unsure { border-left-color: var(--dim); }
 </style>
 <div class="app">
   <div class="top">
@@ -345,6 +369,7 @@ pre.saved { font-variant-ligatures: none; }
 <div class="modal" id="abModal" aria-hidden="true"><iframe id="abFrame" title="Ability editor" src="ability-editor.html?embed=1"></iframe></div>
 <script src="tables.js"></script>
 <script src="core-classes.js"></script>
+<script src="text-audit.js"></script>
 <script src="app.js"></script>
 <script src="importer.js"></script>
 

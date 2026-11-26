@@ -117,6 +117,12 @@ const READERS = {
     return null;
   },
   movementtext: m => ({ type: "reminder", f: make("reminder", { text: m.text || "", color: m.color || "white" }) }),
+  abilityimprovement: m => ({ type: "improve", f: make("improve", { kw: kwList(m.keywords), kwKeep: m.keywords != null, filter: m.abilityFilter != null ? String(m.abilityFilter) : null, filterKeep: m.abilityFilter != null,
+    cost: m.resourceCostType || "none", n: String(m.resourceCostAmount == null ? "1" : m.resourceCostAmount), rules: m.rules || "", params: clone(m.params || []) }) }),
+  // Suppressing one ability by the modifier's own name has no block yet: it opens as advanced.
+  suppressabilities: m => m.abilityFilter || m.keywords ? { type: "suppress", f: make("suppress", { by: m.abilityFilter ? "filter" : "kw", filter: m.abilityFilter || "", kw: kwList(m.keywords),
+    why: m.explanation || "", whyKeep: m.explanation != null }) } : null,
+  routine: m => m.ability && m.ability.__typeName === "RoutineDisplay" ? { type: "routine", f: make("routine", { rec: clone(m.ability), kw: kwList(m.ability.keywords) }) } : null,
 };
 /* A usage limit as the game enforces it: usageLimitOptions inside the ability or trigger first,
    then the modifier's own fields (what the old editor shows). */
@@ -134,6 +140,9 @@ const CLAIMS = {
   trigger: ["resourceRefreshType", "numCharges", "filterCondition"], surgeType: POWER_CLAIMS, dmgType: POWER_CLAIMS, modAbility: ["attributes", "filterAbility", "modifyDescription", "filterCondition"], abilityAddon: ["ability", "filterAbility", "modifyDescription", "filterCondition"], moveBonus: POWER_CLAIMS, replaceRoll: POWER_CLAIMS, moveSwap: ["movementTypes", "filterCondition"], edge: POWER_CLAIMS, enemy: POWER_CLAIMS, damage: POWER_CLAIMS, outcome: POWER_CLAIMS, potency: POWER_CLAIMS, surges: POWER_CLAIMS, rollCombo: POWER_CLAIMS,
 };
 CLAIMS.growing = ["progression"];
+CLAIMS.improve = ["abilityFilter", "keywords", "resourceCostType", "resourceCostAmount", "rules", "params", "filterCondition"];
+CLAIMS.suppress = ["abilityFilter", "keywords", "explanation", "filterCondition"];
+CLAIMS.routine = ["ability", "filterCondition"];
 Object.keys(CLAIMS).forEach(t => { if (SENT[t]) SENT[t].claims = CLAIMS[t]; });
 
 /* Grey blocks for records no block can show: they keep the record exactly and name its type. */

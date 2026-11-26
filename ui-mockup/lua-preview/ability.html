@@ -19,10 +19,10 @@
   --accent: #E4DDD0; --accentHover: #F7F3EA;
   --success: #4DB88C; --info: #E9C868; --warning: #E8A030; --danger: #C94040;
   /* Block colours: fixed, NOT theme tokens. They tell the author what kind of block it is,
-     so a theme may change the ground and chrome around them but never these. Same palette as
-     the web prototype; in Lua they live in one table (BEStyles.BlockColors) as literal hex. */
-  --blk-rolls: #7d4aa3; --blk-res: #8a6a20; --blk-choice: #3d7a3a; --blk-if: #b05a24;
-  --blk-grow: #8f3a2e; --blk-abil: #b36125; --blk-test: #2c7391; --blk-adv: #5b564e;
+     so a theme may change the ground and chrome around them but never these. One table keyed by
+     meaning, shared by both editors (BEStyles.BlockColors), every colour at least 5:1 under white text. */
+  --blk-rolls: #7d4aa3; --blk-res: #8a6a20; --blk-choice: #3d7a3a; --blk-if: #a8501d;
+  --blk-grow: #8f3a2e; --blk-abil: #8b5434; --blk-test: #2c7391; --blk-adv: #5b564e;
   /* fonts: web stand-ins for Berling (label), Liberation Sans (input), Courier (mono) */
   --f-label: "Crimson Pro", "Berling", Georgia, serif;
   --f-input: "Arimo", "Liberation Sans", Arial, sans-serif;
@@ -182,7 +182,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 @media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } .detail { padding: 4px 10px 20px; max-height: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* ---------- ability editor additions ---------- */
-:root { --blk-head: #8c6a24; --blk-harm: #a8343f; --blk-hinder: #8e3f86; --blk-move: #3c5fa8; --blk-effect: #2b6f86; --blk-help: #3d7a3a; }
+:root { --blk-head: #8c6a24; --blk-harm: #a8343f; --blk-hinder: #8e3f86; --blk-move: #3c5fa8; --blk-effect: #2b6f86; --blk-help: #277057; }
 [data-cat="head"] { --c: var(--blk-head); } [data-cat="harm"] { --c: var(--blk-harm); } [data-cat="hinder"] { --c: var(--blk-hinder); }
 [data-cat="move"] { --c: var(--blk-move); } [data-cat="effect"] { --c: var(--blk-effect); } [data-cat="abil"] { --c: var(--blk-abil); }
 [data-cat="help"] { --c: var(--blk-help); } [data-cat="text"] { --c: var(--blk-adv); }
@@ -251,10 +251,14 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .dragging .sliver.nodrop { height: 2px; margin: 3px 0; border: 0; background: transparent; }
 @media (max-width: 1150px) { .cols.ab { grid-template-columns: minmax(0, 1fr) 250px; } .rightab { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); max-height: none; } }
 @media (max-width: 700px) { .cols.ab { grid-template-columns: minmax(0, 1fr); } .cols.ab .right { border-left: 0; border-top: 1px solid var(--borderSolid); } .mouth { grid-template-columns: minmax(0, 1fr); gap: 2px; } .tierlbl { padding-top: 2px; } }
+/* Group glyphs: white, beside the grip, the non-colour cue for a block's kind. */
+.gly { width: 14px; height: 14px; flex: none; color: #fff; opacity: .92; margin-top: 4px; }
+.shelfrow .gly { margin-top: 0; }
 </style>
 
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="g-stats" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11a5.5 5.5 0 1 1 11 0"/><path d="M8 11l3-4"/></g></symbol><symbol id="g-move" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="5.5" cy="5" rx="2" ry="3"/><ellipse cx="10.5" cy="11" rx="2" ry="3"/></g></symbol><symbol id="g-rolls" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor"/><circle cx="8" cy="8" r=".9" fill="currentColor"/></g></symbol><symbol id="g-def" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></g></symbol><symbol id="g-abil" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z"/></g></symbol><symbol id="g-create" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l5.5 4-2 7h-7l-2-7z"/></g></symbol><symbol id="g-skill" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5h4.5A1.5 1.5 0 0 1 8 5v8.5a1.5 1.5 0 0 0-1.5-1.5H2zM14 3.5H9.5A1.5 1.5 0 0 0 8 5v8.5A1.5 1.5 0 0 1 9.5 12H14z"/></g></symbol><symbol id="g-res" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.3"/></g></symbol><symbol id="g-logic" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5v5a3 3 0 0 0 3 3h6"/><path d="M10.5 8l2.5 2.5-2.5 2.5"/></g></symbol><symbol id="g-choice" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5h7.5M6 8h7.5M6 11.5h7.5"/><circle cx="3" cy="4.5" r=".9" fill="currentColor"/><circle cx="3" cy="8" r=".9" fill="currentColor"/><circle cx="3" cy="11.5" r=".9" fill="currentColor"/></g></symbol><symbol id="g-harm" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 2.5L6 10M10 2.5h3.5V6M4 9l3 3M2.5 13.5l2.5-2.5"/></g></symbol><symbol id="g-hinder" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></g></symbol><symbol id="g-effect" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></g></symbol><symbol id="g-help" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 0 1 8 4.8a2.7 2.7 0 0 1 5.5 1.4C13.5 10 8 13.5 8 13.5z"/></g></symbol><symbol id="g-test" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4"/><path d="M10 10l3.5 3.5"/></g></symbol><symbol id="g-tests" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5.5 8.2l1.8 1.8 3.5-3.6"/></g></symbol><symbol id="g-show" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></g></symbol><symbol id="g-script" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5"/></g></symbol><symbol id="g-unique" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l6.2 6.2L8 14.2 1.8 8z"/></g></symbol><symbol id="g-adv" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6L5 5M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4"/></g></symbol><symbol id="g-num" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v6M5 5.5h6M5 12.5h6"/></g></symbol><symbol id="g-grow" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6L8 3l5.5 3L8 9z"/><path d="M2.5 9.5L8 12.5l5.5-3"/></g></symbol><symbol id="g-mine" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 11.3 4.3 13.3l.8-4.1L2 6.3l4.2-.5z"/></g></symbol></svg>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-caret" viewBox="0 0 16 16"><path d="M3 5.5h10L8 11z" fill="currentColor"/></symbol>
   <symbol id="i-grip" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="5.5" cy="3.5" r="1.3"/><circle cx="10.5" cy="3.5" r="1.3"/><circle cx="5.5" cy="8" r="1.3"/><circle cx="10.5" cy="8" r="1.3"/><circle cx="5.5" cy="12.5" r="1.3"/><circle cx="10.5" cy="12.5" r="1.3"/></g></symbol>
@@ -280,9 +284,9 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
   <div class="app luaon" id="app" data-lua="BEMainPanel.CreatePanel{ host = AbilityHost }  -- the same module as the class builder, a different host; opened from the compendium or as a modal from the class builder" data-what="Editor root">
     <div class="titlebar" data-lua='gui.Panel{ classes = {"panel", "barTrack"}, flow = "horizontal", wrap = true }' data-what="Title bar">
       <div class="classname">Edit Ability</div>
-      <div class="tabbar" role="tablist" data-lua='gui.Panel{ classes = {"tabBar"} }  -- Simple is this editor; Full editor opens AbilityEditor.lua on the same record' data-what="Editor tabs">
+      <div class="tabbar" role="tablist" data-lua='gui.Panel{ classes = {"tabBar"} }  -- Simple is this editor; Advanced editor opens AbilityEditor.lua on the same record' data-what="Editor tabs">
         <button class="tab selected" role="tab" aria-selected="true">Simple</button>
-        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = "Full editor", press = OpenAbilityEditor }' data-what="Tab: the full form editor">Full editor</button>
+        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = "Advanced editor", press = OpenAbilityEditor }' data-what="Tab: the Advanced editor (today's form editor)">Advanced editor</button>
       </div>
       <div class="tools">
         <span class="lbl">Belongs to</span>
@@ -616,5 +620,23 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
   document.querySelectorAll('.dd').forEach(d => d.classList.add('tok-like'));
 })();
 </script>
+<script>
+/* Group glyphs beside each block's grip: the non-colour cue for its kind. In Lua each is a mask
+   image, gui.Panel{ bgimage = "phosphor/<name>.png", bgcolor = "white", width = 14, height = 14 }. */
+(function () {
+  const G = { roll: ["g-rolls", "dice-six"], res: ["g-res", "coin"], choice: ["g-choice", "list-bullets"], logic: ["g-logic", "arrow-elbow-right-down-bold"],
+    grow: ["g-grow", "stack-plus"], abil: ["g-abil", "lightning"], harm: ["g-harm", "sword"], hinder: ["g-hinder", "lock-simple"], move: ["g-move", "footprints-fill"],
+    effect: ["g-effect", "sparkle"], help: ["g-help", "heart"], text: ["g-adv", "gear-six-fill"] };
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = cat => { const g = G[cat]; if (!g) return null; const svg = document.createElementNS(NS, "svg"), use = document.createElementNS(NS, "use");
+    svg.setAttribute("class", "gly"); svg.setAttribute("aria-hidden", "true"); use.setAttribute("href", "#" + g[0]); svg.appendChild(use);
+    svg.dataset.lua = 'gui.Panel{ classes = {"beGlyph"}, bgimage = "phosphor/' + g[1] + '.png", bgcolor = "white", width = 14, height = 14 }  -- the group glyph'; svg.dataset.what = "Group glyph (" + g[1] + ")"; return svg; };
+  const addAll = root => root.querySelectorAll(".grip").forEach(gr => { if (gr.nextElementSibling && gr.nextElementSibling.classList.contains("gly")) return;
+    const host = gr.closest("[data-cat]"); const g = host && mk(host.dataset.cat); if (g) gr.after(g); });
+  addAll(document);
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) addAll(n.parentNode || n); }))).observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
 </body>
 </html>

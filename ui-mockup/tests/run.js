@@ -32,6 +32,8 @@ const CHECKS = [
   // Searching a stat changes the examples to that stat, in both editors.
   ['t-adapt.js', out => /CB agility: \[\s*'A statyour Agility',\s*'A stat with mathyour Agility plus 4 · your Agility times 2'\s*\]/.test(out)
     && /CB pick: Agility \+ 1 \[\]/.test(out) && /'A stat with mathyour Agility \+ 4 · your Agility × 2'/.test(out)],
+  // Improve an ability, Can't use abilities and Routine open core records; editing one value changes only that field.
+  ['t-newblocks.js', out => { const j = json(out); return ['improve', 'suppress', 'routine'].every(k => j[k] && j[k].edit && j[k].edit.length === 1); }],
   // Every core ability opens in the ability editor and saves back unchanged (4 known exceptions).
   ['t-ab.js', out => json(out).same >= 1015],
   // Treating every step as edited still keeps the saved records (13 known reader-precision cases).

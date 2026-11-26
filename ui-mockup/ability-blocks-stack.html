@@ -19,22 +19,22 @@
   --c-head: #8c6a24;
   --c-roll: #7d4aa3;
   --c-act: #a33d4b;
-  --c-ctrl: #b36125;
+  --c-ctrl: #a8501d;
   --c-harm: #a8343f;
   --c-hinder: #8e3f86;
-  --c-help: #3d7a3a;
+  --c-help: #277057;
   --c-effect: #2b6f86;
   --c-move: #3c5fa8;
-  --c-res: #9a6d1c;
-  --c-rollchg: #d0679e;
+  --c-res: #8a6a20;
+  --c-rollchg: #7d4aa3;
   --c-pot: #2c7391;
-  --c-ctrl2: #c2742c;
+  --c-ctrl2: #8b5434;
   --c-create: #8b5434;
   --c-tests: #4d6a8a;
   --c-show: #6b6258;
   --c-script: #55524c;
   --c-unique: #6a5a3c;
-  --c-num: #3c8656;
+  --c-num: #357a4d;
   --c-test: #2c7391;
   --c-raw: #5b564e;
   --c-pass: #2f6f6a;
@@ -204,7 +204,11 @@ ul.problems.checks li { border-left-color: var(--gold); }
 .cat-unique { --c: var(--c-unique); }
 .pgroup.common h3 { color: var(--fg); }
 .pal-step.hl { outline: 2px solid var(--gold); outline-offset: 1px; }
-.pal-step.faded { opacity: .55; }
+/* A shelf block that can't go in the chosen list keeps its colour (the colour means its kind) and
+   shows a dashed outline; hovering says why. */
+.pal-step.faded { outline: 1.5px dashed rgba(255,255,255,.55); outline-offset: -3px; }
+/* Group glyphs: the non-colour cue for what kind of block it is (white, beside the handle). */
+.gly { width: 14px; height: 14px; flex: none; color: #fff; opacity: .92; display: inline-block; vertical-align: -2px; margin-right: 2px; }
 .more-main summary { cursor: pointer; color: var(--dim); font-size: 11.5px; padding: 2px 0; }
 .more-main[open] { display: flex; flex-direction: column; gap: 4px; }
 .cats-title { margin: 4px 0 0; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .1em; color: var(--dim); }
@@ -413,7 +417,7 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
     <h1>Edit Ability</h1>
     <div class="seg" role="group" aria-label="Editor">
       <button aria-pressed="true" type="button">Simple</button>
-      <button aria-pressed="false" type="button" title="The existing full editor (not part of this prototype)">Full editor</button>
+      <button aria-pressed="false" type="button" title="The existing editor, now called the Advanced editor (not part of this prototype)">Advanced editor</button>
     </div>
     <span class="spacer"></span>
     <label for="ownerSel" class="note" title="In the app this comes from where the ability lives">Belongs to</label>
@@ -1959,7 +1963,7 @@ function renderStep(st, list, ctx, scope) {
   e.dataset.step = st.id;
   const bar = E("div", "bar");
   const hd = E("span", "handle"); hd.innerHTML = GRIP; hd.title = "Drag to move"; hd.dataset.drag = st.id;
-  bar.appendChild(hd);
+  bar.appendChild(hd); bar.appendChild(glyphEl(def.cat));
   const f = st.f;
   const add = n => bar.appendChild(n);
   let gsHolder = null;
@@ -2085,7 +2089,7 @@ function renderStep(st, list, ctx, scope) {
     }
     case "opaque": {
       add(E("span", "adv-tag", "Advanced")); add(lbl(f.summary));
-      const fb = E("button", "full-btn", "Edit in full editor"); fb.type = "button";
+      const fb = E("button", "full-btn", "Edit in the Advanced editor"); fb.type = "button";
       fb.addEventListener("click", ev => { ev.stopPropagation(); fullEditorNote(fb, f); });
       add(fb); break;
     }
@@ -2473,7 +2477,7 @@ function renderTriggeredHeader() {
   main.appendChild(renderList(ab.steps, "main"));
 }
 /* The simple editor's scope line. It never refuses an ability (unmodelled parts open as Advanced steps or
-   formula blocks and save untouched), but it suggests the full editor when the simple view would hide
+   formula blocks and save untouched), but it suggests the Advanced editor when the simple view would hide
    most of what the ability does:
    - more than half its steps are Advanced (or words the blocks can't read yet);
    - it contains a script or a macro;
@@ -2502,12 +2506,12 @@ function fullEditorBanner() {
   const cx = complexityOf(ab);
   if (!cx.reasons.length || ab.bannerDismissed) return null;
   const b = E("div", "scope-banner");
-  b.appendChild(E("div", "sb-title", "Most of this " + (ab.kind === "triggered" ? "trigger" : "ability") + " is easier to edit in the full editor"));
+  b.appendChild(E("div", "sb-title", "Most of this " + (ab.kind === "triggered" ? "trigger" : "ability") + " is easier to edit in the Advanced editor"));
   const ul = E("ul"); cx.reasons.forEach(r => ul.appendChild(E("li", null, cap(r) + "."))); b.appendChild(ul);
   b.appendChild(E("p", null, "You can still edit it here: the marked parts are kept exactly as they are when you save."));
   const row = E("div", "sb-row");
-  const full = E("button", "btn primary", "Open in full editor"); full.type = "button";
-  full.addEventListener("click", ev => { ev.stopPropagation(); toast("In the app, this opens the same ability in the full editor, at the same place.", true); });
+  const full = E("button", "btn primary", "Open in the Advanced editor"); full.type = "button";
+  full.addEventListener("click", ev => { ev.stopPropagation(); toast("In the app, this opens the same ability in the Advanced editor, at the same place.", true); });
   const stay = E("button", "btn", "Keep editing here"); stay.type = "button";
   stay.addEventListener("click", ev => { ev.stopPropagation(); ab.bannerDismissed = true; refresh(); });
   row.appendChild(full); row.appendChild(stay); b.appendChild(row);
@@ -2928,7 +2932,7 @@ function importAbilityText(raw) {
     a.descParas = a.descParas || []; const di = a.descParas.length; a.descParas.push({ label: para.label, text: "" });
     a.overrides["desc" + di] = { text: para.text, basis: null }; if (para.label !== "Effect") (a.labels = a.labels || {})["desc" + di] = para.label;
     // Only "Effect" paragraphs always happen. "Strained:" steps go inside "Only if you are Strained";
-    // "Persistent N:" needs the full editor's persistence settings; "Trigger:", "Special:" and other
+    // "Persistent N:" needs the Advanced editor's persistence settings; "Trigger:", "Special:" and other
     // labels are card words only.
     if (/^effect$/i.test(para.label)) a.steps.push(...parseEffectParagraph(para.text, ctx));
     else if (/^strained$/i.test(para.label)) {
@@ -3136,7 +3140,7 @@ function renderSide(c) {
   const hard = pr.filter(q => !q.soft), soft = pr.filter(q => q.soft);
   const st = E("div", "status " + (hard.length ? "bad" : soft.length ? "warn" : "ok"));
   st.appendChild(E("span", "dot"));
-  st.appendChild(E("div", null, hard.length ? hard.length + " thing" + (hard.length > 1 ? "s" : "") + " to finish before saving." : soft.length ? "Ready to save, but " + soft.length + " thing" + (soft.length > 1 ? "s look" : " looks") + " worth checking." : "Ready to save. The full editor can open it too."));
+  st.appendChild(E("div", null, hard.length ? hard.length + " thing" + (hard.length > 1 ? "s" : "") + " to finish before saving." : soft.length ? "Ready to save, but " + soft.length + " thing" + (soft.length > 1 ? "s look" : " looks") + " worth checking." : "Ready to save. The Advanced editor can open it too."));
   side.appendChild(st);
   if (soft.length) { const ul = E("ul", "problems checks"); soft.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
   const adv = countOpaque(ab.steps);
@@ -3146,7 +3150,7 @@ function renderSide(c) {
     const d = E("details", "saved"); d.appendChild(E("summary", null, ab.openHidden.length + " saved setting" + (ab.openHidden.length > 1 ? "s" : "") + " kept as they are (no block shows them yet)"));
     const ul = E("ul", "note"); ab.openHidden.forEach(h => ul.appendChild(E("li", null, h))); d.appendChild(ul); side.appendChild(d);
   }
-  if (adv) side.appendChild(E("p", "note", adv + " advanced step" + (adv > 1 ? "s use" : " uses") + " settings only the full editor can change. They are kept as they are when you save."));
+  if (adv) side.appendChild(E("p", "note", adv + " advanced step" + (adv > 1 ? "s use" : " uses") + " settings only the Advanced editor can change. They are kept as they are when you save."));
   if (hard.length) { const ul = E("ul", "problems"); hard.forEach(p => ul.appendChild(E("li", null, p.msg))); side.appendChild(ul); }
 
   const card = E("div", "card"); const cardNotes = [];
@@ -3582,7 +3586,7 @@ let rollSink = null;
 /* Every other behaviour the engine registers (ActivatedAbility.RegisterType), minus the five Draw Steel
    suppresses and the Debug tool: [id, name, typeName, uses in the compendium, shelf group].
    They appear as blocks with a Settings button (their own settings panel), so nothing needs the
-   full editor to be added. Usage counts come from draw-steel-data. */
+   Advanced editor to be added. Usage counts come from draw-steel-data. */
 const GENERIC_BEHAVIORS = [["aura","Create Aura","ActivatedAbilityAuraBehavior",181,"create"],["temporary_effect","Ability Duration Effect","ActivatedAbilityApplyAbilityDurationEffect",148,"effect"],["mod_power_roll","Modify Power Roll","ActivatedAbilityModifyPowerRollBehavior",130,"roll"],["summon","Summon Creatures","ActivatedAbilitySummonBehavior",122,"create"],["remove_creature","Remove Creature","ActivatedAbilityRemoveCreatureBehavior",120,"harm"],["augmentedability","Augmented Ability","ActivatedAbilityAugmentedAbilityBehavior",116,"ctrl2"],["conditionriders","Add Condition Riders","ActivatedAbilityApplyRidersBehavior",105,"effect"],["floattext","Float Text","ActivatedAbilityFloatTextBehavior",81,"show"],["customtrigger","Custom Trigger","ActivatedAbilityCustomTriggerBehavior",62,"ctrl2"],["destroy","Destroy","ActivatedAbilityDestroyBehavior",47,"harm"],["delay","Delay","ActivatedAbilityDelayBehavior",43,"ctrl"],["loyalty_collar_explosion","Loyalty Collar Explosion","ActivatedAbilityLoyaltyCollarExplosionBehavior",40,"harm"],["manipulate_targets","Manipulate Targets","ActivatedAbilityAddNewTargetsBehavior",30,"ctrl"],["lua","Lua Script","ActivatedAbilityScriptBehavior",26,"script"],["terraform_elevation","Terraform Elevation","ActivatedAbilityChangeElevationBehavior",25,"create"],["remember","Remember","ActivatedAbilityRememberBehavior",24,"ctrl"],["create_object","Create Object","ActivatedAbilityCreateObjectBehavior",19,"create"],["fall","Fall","ActivatedAbilityFallBehavior",19,"move"],["setstamina","Set Stamina","ActivatedAbilitySetStaminaBehavior",18,"help"],["limit","Limit Ability Uses","ActivatedAbilityLimitBehavior",17,"ctrl"],["forcedmovementloc","Forced Movement Origin","ActivatedAbilityForcedMovementLocBehavior",17,"hinder"],["raise_corpse","Raise Corpse","ActivatedAbilityRaiseCorpseBehavior",17,"create"],["disguise","Disguise","ActivatedAbilityDisguiseBehavior",15,"show"],["roll","Roll Dice","ActivatedAbilityRollBehavior",14,"tests"],["save_ends_to_eot","Save Ends To End Of Turn","ActivatedAbilitySaveEndsToEotBehavior",14,"effect"],["character_speech","Character Speech","ActivatedAbilityCharacterSpeechBehavior",14,"show"],["terraform_terrain","Terraform Terrain","ActivatedAbilityChangeTerrainBehavior",14,"create"],["modify_cast","Modify Cast","ActivatedAbilityModifyCastBehavior",13,"ctrl"],["play_sound","Play Sound","ActivatedAbilityPlaySoundBehavior",12,"show"],["change_initiative","Manipulate Combat Order","ActivatedAbilityInitiativeBehavior",11,"tests"],["revertloc","Revert Location","ActivatedAbilityRevertLocBehavior",10,"move"],["draw_steel_save","Draw Steel Save","ActivatedAbilitySaveBehavior",9,"tests"],["condition_source","Set Source of Condition","ActivatedAbilityConditionSourceBehavior",8,"effect"],["build_wall","Build Wall","ActivatedAbilityBuildWallBehavior",7,"create"],["fizzle","Fizzle","ActivatedAbilityFizzleBehavior",6,"ctrl"],["transform","Transform Creatures","ActivatedAbilityTransformBehavior",5,"create"],["climb_creature","Climb Creature","ActivatedAbilityClimbCreatureBehavior",5,"move"],["transform_zone","Transform Zone","ActivatedAbilityTransformZoneBehavior",5,"create"],["change_movement_type","Change Movement Type","ActivatedAbilityChangeMovementTypeBehavior",4,"move"],["lift_vertical","Lift Into The Air","ActivatedAbilityLiftVerticalBehavior",4,"move"],["stealAbility","Steal Ability","ActivatedAbilityStealAbilityBehavior",4,"ctrl2"],["manifest_treasure","Manifest Treasure","ActivatedAbilityManifestTreasureBehavior",3,"res"],["recast","Recast Ability","ActivatedAbilityRecastBehavior",3,"ctrl2"],["opposed","Opposed Power Roll","ActivatedAbilityOpposedRollBehavior",3,"tests"],["creature_set","Creature List","ActivatedAbilityCreatureSetBehavior",2,"ctrl"],["jump_test","Jump (Roll to Target)","ActivatedAbilityJumpBehavior",2,"move"],["create_lane_object","Create Lane Object","ActivatedAbilityCreateLaneObjectBehavior",2,"create"],["Macro","Macro Execution","ActivatedAbilityMacroBehavior",2,"script"],["open_sheet","Open Character Sheet","ActivatedAbilityOpenSheetBehavior",2,"show"],["recoverySelection","Recovery Selection","ActivatedAbilityRecoverySelectionBehavior",2,"help"],["dig_vertical","Dig Vertical Movement","ActivatedAbilityDigVerticalBehavior",2,"move"],["ordertargets","Order Targets","ActivatedAbilityOrderTargetsBehavior",1,"ctrl"],["table_roll","Roll on Table","ActivatedAbilityTableRollBehavior",1,"tests"],["throw_object","Throw Object","ActivatedAbilityThrowObjectBehavior",1,"move"],["persistenceControl","Persistence Control","ActivatedAbilityPersistenceControlBehavior",1,"ctrl2"],["hop_in_place","Hop In Place","ActivatedAbilityHopBehavior",1,"move"],["swing_object","Swing Object","ActivatedAbilitySwingObjectBehavior",1,"move"],["relocate_aura","Relocate Aura","ActivatedAbilityRelocateAuraBehavior",1,"create"],["portal_transit","Portal Transit","ActivatedAbilityPortalTransitBehavior",1,"create"],["hurl_grabbed","Hurl Grabbed Creature","ActivatedAbilityHurlGrabbedBehavior",1,"move"],["chain_reach","Chain To Nearby Enemies","ActivatedAbilityChainReachBehavior",1,"harm"],["track_stat","Track Stat","ActivatedAbilityTrackStatBehavior",1,"ctrl"],["shift_wall_voxel","Shift Wall Voxel","ActivatedAbilityShiftWallVoxelBehavior",1,"create"],["tauntbynearest","Taunt By Nearest","ActivatedAbilityTauntByNearestBehavior",1,"hinder"],["dramatic_banner","Dramatic Banner","ActivatedAbilityDramaticBannerBehavior",1,"show"],["show_journal","Show Journal Entry","ActivatedAbilityShowJournalBehavior",0,"show"],["movement_carrier","Assign Movement Carrier","ActivatedAbilityMovementCarrierBehavior",0,"move"],["summon_companion","Summon Companion","ActivatedAbilitySummonCompanionBehavior",0,"create"],["patron_gaze_resolve","Patron","ActivatedAbilityPatronGazeResolveBehavior",0,"ctrl2"],["resetrollstatus","Reset Roll Status","ActivatedAbilityResetRollStatusBehavior",0,"ctrl"],["skill_check","Skill Check","ActivatedAbilitySkillCheckBehavior",0,"tests"],["drop_items","Discard Items","ActivatedAbilityDropItemsBehavior",0,"create"],["create_item","Create Item","ActivatedAbilityCreateItemBehavior",0,"create"],["apply_free_strike_power_modifiers","Apply Flagged Power Modifiers (Free Strike)","ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior",0,"roll"],["stash_target","Remember Target","ActivatedAbilityStashTargetBehavior",0,"ctrl"],["pull_into_caster","Pull Into Caster Space","ActivatedAbilityPullIntoCasterBehavior",0,"move"],["displace_overlapping","Displace Creatures Overlapping Caster","ActivatedAbilityDisplaceOverlappingBehavior",0,"move"],["routineControl","Routine Control","ActivatedAbilityRoutineControlBehavior",0,"ctrl2"],["limit_caster_effects","Limit Active Effects","ActivatedAbilityLimitCasterEffectsBehavior",0,"effect"],["manipulate_target_locs","Manipulate Target Locations","ActivatedAbilityManipulateTargetLocs",0,"ctrl"],["teleport_to_line_end","Teleport To Line End","ActivatedAbilityTeleportToLineEndBehavior",0,"move"],["pay_ability_cost","Pay Ability Cost","ActivatedAbilityPayAbilityCostBehavior",0,"res"],["confer_conditions","Confer Conditions","ActivatedAbilityConferConditionsBehavior",0,"effect"]];
 const STEP_USE = {"powerRoll": 1627, "potency": 1783, "damage": 4990, "condition": 2341, "forced": 922, "useNew": 1738, "invoke": 120, "applyEffect": 1681, "endEffects": 571, "resource": 355, "move": 166, "heal": 109, "tempStamina": 81, "ifStep": 860};
 // Create Aura now has its own sentence block (below), so it leaves the generic list.
@@ -3825,10 +3829,24 @@ function commonKeys() {
   return ranked.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
 const catOf = k => (PALETTE.find(g => g[2].includes(k)) || ["ctrl"])[0];
+/* One colour table, keyed by meaning, shared with the class builder (BEStyles.BlockColors in Lua):
+   every colour is at least 5:1 under white text, and every group also has a glyph, so colour is
+   never the only cue. Each glyph stands in for the named Phosphor icon the codex already ships. */
+const GLYPHS = { roll: ["g-rolls", "dice-six"], rollchg: ["g-rolls", "dice-six"], harm: ["g-harm", "sword"], hinder: ["g-hinder", "lock-simple"],
+  ctrl2: ["g-abil", "lightning"], effect: ["g-effect", "sparkle"], ctrl: ["g-logic", "arrow-elbow-right-down-bold"], help: ["g-help", "heart"], res: ["g-res", "coin"],
+  create: ["g-create", "polygon"], move: ["g-move", "footprints-fill"], tests: ["g-tests", "check-square"], pot: ["g-test", "magnifying-glass-bold"], show: ["g-show", "eye"],
+  script: ["g-script", "code"], unique: ["g-unique", "diamond"], raw: ["g-adv", "gear-six-fill"], act: ["g-abil", "lightning"] };
+const GLYPH_SPRITE = "<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\"><symbol id=\"g-stats\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 11a5.5 5.5 0 1 1 11 0\"/><path d=\"M8 11l3-4\"/></g></symbol><symbol id=\"g-move\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><ellipse cx=\"5.5\" cy=\"5\" rx=\"2\" ry=\"3\"/><ellipse cx=\"10.5\" cy=\"11\" rx=\"2\" ry=\"3\"/></g></symbol><symbol id=\"g-rolls\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"2.5\" width=\"11\" height=\"11\" rx=\"2\"/><circle cx=\"5.5\" cy=\"5.5\" r=\".9\" fill=\"currentColor\"/><circle cx=\"10.5\" cy=\"10.5\" r=\".9\" fill=\"currentColor\"/><circle cx=\"8\" cy=\"8\" r=\".9\" fill=\"currentColor\"/></g></symbol><symbol id=\"g-def\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z\"/></g></symbol><symbol id=\"g-abil\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z\"/></g></symbol><symbol id=\"g-create\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l5.5 4-2 7h-7l-2-7z\"/></g></symbol><symbol id=\"g-skill\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 3.5h4.5A1.5 1.5 0 0 1 8 5v8.5a1.5 1.5 0 0 0-1.5-1.5H2zM14 3.5H9.5A1.5 1.5 0 0 0 8 5v8.5A1.5 1.5 0 0 1 9.5 12H14z\"/></g></symbol><symbol id=\"g-res\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"5.5\"/><circle cx=\"8\" cy=\"8\" r=\"2.3\"/></g></symbol><symbol id=\"g-logic\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 2.5v5a3 3 0 0 0 3 3h6\"/><path d=\"M10.5 8l2.5 2.5-2.5 2.5\"/></g></symbol><symbol id=\"g-choice\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 4.5h7.5M6 8h7.5M6 11.5h7.5\"/><circle cx=\"3\" cy=\"4.5\" r=\".9\" fill=\"currentColor\"/><circle cx=\"3\" cy=\"8\" r=\".9\" fill=\"currentColor\"/><circle cx=\"3\" cy=\"11.5\" r=\".9\" fill=\"currentColor\"/></g></symbol><symbol id=\"g-harm\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13.5 2.5L6 10M10 2.5h3.5V6M4 9l3 3M2.5 13.5l2.5-2.5\"/></g></symbol><symbol id=\"g-hinder\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3.5\" y=\"7\" width=\"9\" height=\"6.5\" rx=\"1\"/><path d=\"M5.5 7V5a2.5 2.5 0 0 1 5 0v2\"/></g></symbol><symbol id=\"g-effect\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z\"/></g></symbol><symbol id=\"g-help\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 0 1 8 4.8a2.7 2.7 0 0 1 5.5 1.4C13.5 10 8 13.5 8 13.5z\"/></g></symbol><symbol id=\"g-test\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"7\" cy=\"7\" r=\"4\"/><path d=\"M10 10l3.5 3.5\"/></g></symbol><symbol id=\"g-tests\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"2.5\" width=\"11\" height=\"11\" rx=\"2\"/><path d=\"M5.5 8.2l1.8 1.8 3.5-3.6\"/></g></symbol><symbol id=\"g-show\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/></g></symbol><symbol id=\"g-script\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5\"/></g></symbol><symbol id=\"g-unique\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 1.8l6.2 6.2L8 14.2 1.8 8z\"/></g></symbol><symbol id=\"g-adv\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6L5 5M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4\"/></g></symbol><symbol id=\"g-num\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2.5v6M5 5.5h6M5 12.5h6\"/></g></symbol><symbol id=\"g-grow\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 6L8 3l5.5 3L8 9z\"/><path d=\"M2.5 9.5L8 12.5l5.5-3\"/></g></symbol><symbol id=\"g-mine\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 11.3 4.3 13.3l.8-4.1L2 6.3l4.2-.5z\"/></g></symbol></svg>";
+function glyphEl(cat) {
+  const g = GLYPHS[cat]; if (!g) return document.createTextNode("");
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), use = document.createElementNS(NS, "use");
+  svg.setAttribute("class", "gly"); svg.setAttribute("aria-hidden", "true"); use.setAttribute("href", "#" + g[0]); svg.appendChild(use); return svg;
+}
+if (!document.getElementById("g-stats")) document.body.insertAdjacentHTML("afterbegin", GLYPH_SPRITE);
 function shelfBlock(t, act, faded) {
   const d = STEPS[t], cat = catOf(t);
   const b = E("button", "pal-step cat-" + cat + (faded ? " faded" : "")); b.type = "button"; b.dataset.palette = t;
-  const hd = E("span", "handle"); hd.innerHTML = GRIP; b.appendChild(hd); b.appendChild(E("span", null, d.label));
+  const hd = E("span", "handle"); hd.innerHTML = GRIP; b.appendChild(hd); b.appendChild(glyphEl(cat)); b.appendChild(E("span", null, d.label));
   const ok = allowed(t, act.ctx, act.scope);
   b.title = d.desc + (ok ? "" : d.rollChange ? " (Only for events that happen during a power roll, and only in the main list.)" : " (It can't go in this list. Drag it into a different one.)");
   if (!ok) b.setAttribute("aria-disabled", "true");
@@ -3988,11 +4006,11 @@ function effectRules(f, stepId) {
   return box;
 }
 
-/* Prototype stand-in for handing one step to the existing full editor. */
+/* Prototype stand-in for handing one step to the existing Advanced editor. */
 function fullEditorNote(anchor, f) {
   closePopups();
   const m = E("div", "menu"); m.style.maxWidth = "300px"; m.style.padding = "10px 12px"; m.addEventListener("click", ev => ev.stopPropagation());
-  m.appendChild(E("div", null, "In the app this opens the full editor on this step (" + f.record.__typeName + "), then returns here. Its settings are kept exactly as they are."));
+  m.appendChild(E("div", null, "In the app this opens the Advanced editor on this step (" + f.record.__typeName + "), then returns here. Its settings are kept exactly as they are."));
   place(m, anchor);
 }
 
@@ -4678,7 +4696,7 @@ if (EMBED) {
   }, true);
   // Phone width inside the class builder: one column (blocks, then shelf, then card).
   const st = document.createElement("style");
-  st.textContent = "@media (max-width: 760px) { .dlg-body { grid-template-columns: minmax(0, 1fr) !important; } .dlg-body > .main { grid-column: 1; grid-row: 1; } .dlg-body > .palette { grid-column: 1 !important; grid-row: 2 !important; position: static; max-height: none; border-left: none; border-top: 1px solid var(--line); } .dlg-body > .side { grid-column: 1; grid-row: 3; } }";
+  st.textContent = "@media (max-width: 600px) { .dlg-body { grid-template-columns: minmax(0, 1fr) !important; } .dlg-body > .main { grid-column: 1; grid-row: 1; } .dlg-body > .palette { grid-column: 1 !important; grid-row: 2 !important; position: static; max-height: none; border-left: none; border-top: 1px solid var(--line); } .dlg-body > .side { grid-column: 1; grid-row: 3; } }";
   document.head.appendChild(st);
   parent.postMessage({ type: "cb-ready" }, "*");
 }

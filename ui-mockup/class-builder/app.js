@@ -312,6 +312,20 @@ const lbl = t => document.createTextNode(" " + t + " ");
    characteristic is a stat, choosing a perk is with skills). A "Common" list of the most used comes first. */
 const GROUPS = [["stats", "Stats", "--c-stats"], ["rolls", "Rolls", "--c-rolls"], ["def", "Defences", "--c-def"], ["abil", "Abilities", "--c-abil"],
   ["skill", "Skills, perks and languages", "--c-skill"], ["res", "Class, kit, resources and reminders", "--c-res"], ["if", "Logic", "--c-if"]];
+/* One colour table, keyed by meaning, shared with the ability editor (BEStyles.BlockColors in Lua):
+   every colour is at least 5:1 under white text, and every group also has a glyph, so colour is
+   never the only cue. Each glyph stands in for the named Phosphor icon the codex already ships. */
+const GLYPHS = { "--c-stats": ["g-stats", "gauge"], "--c-rolls": ["g-rolls", "dice-six"], "--c-def": ["g-def", "shield"], "--c-abil": ["g-abil", "lightning"],
+  "--c-skill": ["g-skill", "book-open"], "--c-res": ["g-res", "coin"], "--c-if": ["g-logic", "arrow-elbow-right-down-bold"], "--c-choice": ["g-choice", "list-bullets"],
+  "--c-grow": ["g-grow", "stack-plus"], "--c-mine": ["g-mine", "star"], "--c-adv": ["g-adv", "gear-six-fill"], "--c-test": ["g-test", "magnifying-glass-bold"],
+  "--c-cond": ["g-hinder", "lock-simple"], "--c-num": ["g-num", "plus-minus"], "--c-area": ["g-create", "polygon"], "--c-rem": ["g-show", "eye"] };
+const GLYPH_SPRITE = "<svg width=\"0\" height=\"0\" style=\"position:absolute\" aria-hidden=\"true\"><symbol id=\"g-stats\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 11a5.5 5.5 0 1 1 11 0\"/><path d=\"M8 11l3-4\"/></g></symbol><symbol id=\"g-move\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><ellipse cx=\"5.5\" cy=\"5\" rx=\"2\" ry=\"3\"/><ellipse cx=\"10.5\" cy=\"11\" rx=\"2\" ry=\"3\"/></g></symbol><symbol id=\"g-rolls\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"2.5\" width=\"11\" height=\"11\" rx=\"2\"/><circle cx=\"5.5\" cy=\"5.5\" r=\".9\" fill=\"currentColor\"/><circle cx=\"10.5\" cy=\"10.5\" r=\".9\" fill=\"currentColor\"/><circle cx=\"8\" cy=\"8\" r=\".9\" fill=\"currentColor\"/></g></symbol><symbol id=\"g-def\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z\"/></g></symbol><symbol id=\"g-abil\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z\"/></g></symbol><symbol id=\"g-create\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l5.5 4-2 7h-7l-2-7z\"/></g></symbol><symbol id=\"g-skill\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 3.5h4.5A1.5 1.5 0 0 1 8 5v8.5a1.5 1.5 0 0 0-1.5-1.5H2zM14 3.5H9.5A1.5 1.5 0 0 0 8 5v8.5A1.5 1.5 0 0 1 9.5 12H14z\"/></g></symbol><symbol id=\"g-res\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"5.5\"/><circle cx=\"8\" cy=\"8\" r=\"2.3\"/></g></symbol><symbol id=\"g-logic\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 2.5v5a3 3 0 0 0 3 3h6\"/><path d=\"M10.5 8l2.5 2.5-2.5 2.5\"/></g></symbol><symbol id=\"g-choice\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 4.5h7.5M6 8h7.5M6 11.5h7.5\"/><circle cx=\"3\" cy=\"4.5\" r=\".9\" fill=\"currentColor\"/><circle cx=\"3\" cy=\"8\" r=\".9\" fill=\"currentColor\"/><circle cx=\"3\" cy=\"11.5\" r=\".9\" fill=\"currentColor\"/></g></symbol><symbol id=\"g-harm\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13.5 2.5L6 10M10 2.5h3.5V6M4 9l3 3M2.5 13.5l2.5-2.5\"/></g></symbol><symbol id=\"g-hinder\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3.5\" y=\"7\" width=\"9\" height=\"6.5\" rx=\"1\"/><path d=\"M5.5 7V5a2.5 2.5 0 0 1 5 0v2\"/></g></symbol><symbol id=\"g-effect\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z\"/></g></symbol><symbol id=\"g-help\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 13.5S2.5 10 2.5 6.2A2.7 2.7 0 0 1 8 4.8a2.7 2.7 0 0 1 5.5 1.4C13.5 10 8 13.5 8 13.5z\"/></g></symbol><symbol id=\"g-test\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"7\" cy=\"7\" r=\"4\"/><path d=\"M10 10l3.5 3.5\"/></g></symbol><symbol id=\"g-tests\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"2.5\" width=\"11\" height=\"11\" rx=\"2\"/><path d=\"M5.5 8.2l1.8 1.8 3.5-3.6\"/></g></symbol><symbol id=\"g-show\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/></g></symbol><symbol id=\"g-script\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5\"/></g></symbol><symbol id=\"g-unique\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 1.8l6.2 6.2L8 14.2 1.8 8z\"/></g></symbol><symbol id=\"g-adv\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6L5 5M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4\"/></g></symbol><symbol id=\"g-num\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2.5v6M5 5.5h6M5 12.5h6\"/></g></symbol><symbol id=\"g-grow\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2.5 6L8 3l5.5 3L8 9z\"/><path d=\"M2.5 9.5L8 12.5l5.5-3\"/></g></symbol><symbol id=\"g-mine\" viewBox=\"0 0 16 16\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2l1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 11.3 4.3 13.3l.8-4.1L2 6.3l4.2-.5z\"/></g></symbol></svg>";
+function glyphEl(colorVar) {
+  const g = GLYPHS[colorVar]; if (!g) return document.createTextNode("");
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), use = document.createElementNS(NS, "use");
+  svg.setAttribute("class", "gly"); svg.setAttribute("aria-hidden", "true"); use.setAttribute("href", "#" + g[0]); svg.appendChild(use); return svg;
+}
+document.addEventListener("DOMContentLoaded", () => { if (!document.getElementById("g-stats")) document.body.insertAdjacentHTML("afterbegin", GLYPH_SPRITE); });
 const modBase = (feat, extra) => Object.assign({ __typeName: "CharacterModifier", name: feat.name, description: feat.text || "" }, extra);
 /* Choice blocks are what the player picks when they gain the feature. Unlike the other sentences they
    don't save as modifiers: each saves as its own choice record, and compileFeature decides the feature's
@@ -552,6 +566,45 @@ const SENT = {
     render: (f, add) => { add(lbl("Reminder:")); add(textTok(f, "text", "what players are reminded of", 40)); },
     prose: f => String(f.text || "").replace(/\.?$/, "."),
     compile: (f, feat) => modBase(feat, { behavior: "movementtext", text: f.text, color: f.color || "white" }) },
+  /* Improve an ability (abilityimprovement, DSAbilityImprovement.lua): matching abilities can spend a
+     cost for a bonus. The rule text is what the card says; the bonuses are the ones the game applies. */
+  improve: { desc: "Abilities that match can spend a cost to be improved: a rule, plus bonuses the game applies (range, area, targets).", label: "Improve an ability", group: "abil", uses: 10,
+    make: () => ({ kw: [], filter: "", cost: "cost", n: "3", rules: "", params: [] }),
+    render: (f, add) => {
+      add(lbl("Your abilities")); if ((f.kw || []).length || f.kwKeep) { add(lbl("with the")); add(multiTok(f, "kw", KEYWORDS.map(k => [k, k]), "any keyword", "or")); add(lbl("keyword")); }
+      add(lbl("where")); add(textTok(f, "filter", "any ability", 28)); add(lbl("can spend"));
+      if (f.cost !== "none") add(textTok(f, "n", "1"));
+      add(pickTok(f, "cost", [["cost", resWord()], ["epic", (cls.epicName || "epic resource").toLowerCase()], ["none", "nothing"]])); add(lbl("to:")); add(textTok(f, "rules", "what the improvement does", 36));
+      (f.params || []).forEach(pm => { add(lbl("+")); add(textTok(pm, "value", "1", 3)); add(lbl(IMPROVE_PARAMS[pm.id] || pm.id)); });
+      const more = tok("+ bonus", b => menuAt(b, m => Object.keys(IMPROVE_PARAMS).forEach(id => { const x = E("button", null, IMPROVE_PARAMS[id]); x.type = "button";
+        x.addEventListener("click", () => { closeMenu(); change(() => { (f.params = f.params || []).push({ id, value: "1" }); }); }); m.appendChild(x); })), true);
+      more.classList.add("small"); add(more);
+    },
+    prose: f => "Your abilities" + ((f.kw || []).length ? " with the " + listWords(f.kw, "or") + " keyword" : "") + (f.filter ? " where " + f.filter : "") + " can spend "
+      + (f.cost === "none" ? "nothing" : f.n + " " + (f.cost === "epic" ? "epic resource" : resWord())) + " to: " + String(f.rules || "").replace(/\.?$/, "."),
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "abilityimprovement" }, f.filter != null && (f.filter !== "" || f.filterKeep) ? { abilityFilter: f.filter } : {},
+      (f.kw || []).length || f.kwKeep ? { keywords: Object.fromEntries((f.kw || []).map(k => [k, true])) } : {},
+      { resourceCostType: f.cost || "none", resourceCostAmount: String(f.n == null ? "1" : f.n), rules: f.rules || "", params: (f.params || []).map(pm => ({ id: pm.id, value: String(pm.value) })) })) },
+  /* Can't use abilities (suppressabilities, DSSuppressAbilities.lua): abilities with a keyword, or that
+     fail a test, can't be used; with an explanation they stay on the sheet, greyed, saying why. */
+  suppress: { desc: "Stop the hero using some abilities: by keyword, or every ability that doesn't pass a test.", label: "Can't use abilities", group: "abil", uses: 3,
+    make: () => ({ by: "kw", kw: ["Magic"], filter: "", why: "" }),
+    render: (f, add) => {
+      if (f.by === "filter") { add(lbl("You can only use abilities where")); add(textTok(f, "filter", "a test", 28)); }
+      else { add(lbl("You can't use abilities with the")); add(multiTok(f, "kw", KEYWORDS.map(k => [k, k]), "choose keywords", "or")); add(lbl("keyword")); }
+      add(pickTok(f, "by", [["kw", "(by keyword)"], ["filter", "(by a test)"]])); add(lbl("Shown on the sheet as:")); add(textTok(f, "why", "hidden", 24));
+    },
+    prose: f => (f.by === "filter" ? "You can only use abilities where " + f.filter : "You can't use abilities with the " + listWords(f.kw || [], "or") + " keyword") + ".",
+    compile: (f, feat) => modBase(feat, Object.assign({ behavior: "suppressabilities" }, f.by === "filter" ? { abilityFilter: f.filter } : { keywords: Object.fromEntries((f.kw || []).map(k => [k, true])) },
+      f.why || f.whyKeep ? { explanation: f.why || "" } : {})) },
+  /* A routine (Troubadour performances, Conduit prayers...): its card, kept as saved except what is changed here. */
+  routine: { desc: "A routine the hero can keep running (a performance or prayer): its card.", label: "Routine", group: "abil", uses: 13,
+    make: () => ({ rec: { __typeName: "RoutineDisplay", name: "New routine", type: "No action", distance: "Aura 5", target: "Self and each ally in the area", effect: "", flavor: "", keywords: { Magic: true }, guid: guid() }, kw: ["Magic"] }),
+    render: (f, add) => { add(lbl("You have the routine")); add(textTok(f.rec, "name", "name", 18)); add(lbl("(")); add(textTok(f.rec, "type", "No action", 10)); add(lbl(",")); add(textTok(f.rec, "distance", "Aura 5", 8));
+      add(lbl(",")); add(textTok(f.rec, "target", "who it affects", 20)); add(lbl(")")); add(multiTok(f, "kw", KEYWORDS.concat(["Performance"]).filter((k, i, a) => a.indexOf(k) === i).map(k => [k, k]), "keywords", "and"));
+      add(lbl("Effect:")); add(textTok(f.rec, "effect", "what it does", 40)); },
+    prose: f => "You have the " + (f.rec.name || "routine") + " routine.",
+    compile: (f, feat) => modBase(feat, { behavior: "routine", ability: Object.assign(clone(f.rec), { keywords: Object.fromEntries((f.kw || []).map(k => [k, true])) }) }) },
   /* Growing table (Growing Ferocity, Psionic Mastery...): rows unlocked by the most heroic resource the
      hero has had this turn ("Heroic Resources This Turn", the turn's high-water mark), each from a level.
      Each row holds ordinary blocks. It saves the display table (growingresources) plus every row's
@@ -983,6 +1036,8 @@ function gainLimit(r, g) {
 }
 /* A gain's amount on its resource step: a formula string, or a level table when it grows (as core content). */
 const gainQty = g => fxSteps(g, "qty").length ? fxTable(g, "qty") : fxFormula(g, "qty");
+/* The bonuses the game applies with an improvement (CharacterModifier.RegisterImprovementParam). */
+const IMPROVE_PARAMS = { range: "range", radius: "area size", target_count: "targets" };
 const omit = (o, ks) => { ks.forEach(k => delete o[k]); return o; };
 /* The feature record a companion / summoner wrapper holds: a saved one keeps its own fields. */
 const wrapFeature = (src, inner, feat) => Object.assign(src && src.feature ? omit(clone(src.feature), ["modifiers"]) : { __typeName: "CharacterFeature", name: feat.name, description: feat.text || "" }, { modifiers: inner });
@@ -1071,7 +1126,9 @@ function drawCombineBrackets(into, list, groups) {
     const mids = els.map(e => e.offsetTop + Math.min(e.offsetHeight / 2, 16)), top = Math.min(...mids), bot = Math.max(...mids);
     const br = E("div", "cbr"); br.style.top = top + "px"; br.style.height = (bot - top) + "px"; br.style.left = (2 + gi * 4) + "px"; into.appendChild(br);
     mids.forEach(y => { const a = E("div", "cbar"); a.style.top = (y - 1) + "px"; a.style.left = (2 + gi * 4) + "px"; into.appendChild(a); });
-    const b = E("button", "cbtn", "Combine"); b.type = "button"; b.title = "Combine these into one roll change (saved as one power roll modifier)";
+    // The chain icon (ui-mockup/lua-preview/icons/link.svg) marks "join these into one".
+    const b = E("button", "cbtn"); b.type = "button"; b.title = "Combine these into one roll change (saved as one power roll modifier)"; b.setAttribute("aria-label", b.title);
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
     b.style.top = ((top + bot) / 2) + "px"; b.style.left = (gi * 4) + "px";
     b.addEventListener("click", ev => { ev.stopPropagation(); combineBlocks(list, ids); });
     into.appendChild(b);
@@ -1682,6 +1739,7 @@ const trimLevels = r => Object.assign({}, r, { levels: Object.fromEntries(Object
 // ---------------------------------------------------------------------------------------------
 // State, undo, and the draft kept in this browser.
 let cls = null, openId = null, showGs = false, undoStack = [], redoStack = [];
+const levelTab = {};   // which level tab is open, per class or subclass (a view setting, not saved)
 /* Classes are kept in this browser: several of them, each with its own undo and redo history, so a
    reload or an Import never loses work. (Older single drafts are moved into the list.) */
 const STORE_KEY = "classBuilderStore", OLD_DRAFT_KEY = "classBuilderDraft";
@@ -1899,7 +1957,7 @@ function renderBoard() {
     el.appendChild(E("span", "grow")); el.appendChild(E("span", "aside", "Make changes in the advanced editor")); gs.appendChild(el); });
   if (cls.startGain && !cls.hrRaw) {
     const sg = cls.startGain;
-    const el = E("div", "sent startgain"); el.style.setProperty("--c", "var(--c-res)");
+    const el = E("div", "sent startgain"); el.style.setProperty("--c", "var(--c-res)"); el.appendChild(glyphEl("--c-res"));
     el.appendChild(lbl("At the start of each of your turns, you gain"));
     // The same fx picker as every other amount; "1d3" stores as a die, anything else as a set amount.
     const sgAd = { get: () => sg.kind === "die" ? "1d" + sg.n : sg.n,
@@ -1927,7 +1985,7 @@ function renderBoard() {
     gs.appendChild(el);
   }
   cls.gains.forEach((g, i) => {
-    const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)");
+    const el = E("div", "sent"); el.style.setProperty("--c", "var(--c-res)"); el.appendChild(glyphEl("--c-res"));
     // A line the class keeps with no trigger of its own (applied by another feature) is shown as saved.
     if (g.event === "manual") { el.appendChild(E("span", null, g.src.check.details || g.src.check.name)); el.appendChild(E("span", "grow")); el.appendChild(E("span", "aside", "Applied by another feature")); gs.appendChild(el); return; }
     migrateGain(g); const rw = (cls.resourceName || "resource").toLowerCase(), t = gainTrigger(g);
@@ -1987,13 +2045,26 @@ function renderBoard() {
   }
   board.appendChild(lh);
   if (!sc) board.appendChild(E("p", "hint", "Create slow start rules used by Pregen Characters."));
-  const keys = laneKeys(); let shown = 0;
+  // One tab per level, Slow start as one tab (its four encounters together), and All levels, where
+  // features can be dragged between levels. Which tab is open is a view setting, not an edit.
+  const keys = laneKeys(), tabOf = levelTab[ed().id] || "all", count = ks => ks.reduce((n, k) => n + (ed().lanes[k] || []).length, 0);
+  const strip = E("div", "lvtabs"); strip.setAttribute("role", "tablist"); strip.setAttribute("aria-label", "Levels");
+  const lvTab = (id, text, n) => { const t = fk(E("button", "lvtab" + (tabOf === id ? " on" : "")), "lvtab:" + id); t.type = "button"; t.setAttribute("role", "tab"); t.setAttribute("aria-selected", tabOf === id ? "true" : "false");
+    t.appendChild(document.createTextNode(text)); if (n != null) t.appendChild(E("span", "n", String(n)));
+    t.addEventListener("click", () => { levelTab[ed().id] = id; render(); restoreFocus("lvtab:" + id); }); strip.appendChild(t); };
+  lvTab("all", "All levels");
+  if (keys.some(k => ENCOUNTERS.includes(k))) lvTab("slow", "Slow start", count(ENCOUNTERS));
+  keys.filter(k => k.startsWith("level-")).forEach(k => lvTab(k, ORD(+k.slice(6)), count([k])));
+  board.appendChild(strip);
+  const inTab = k => tabOf === "all" ? true : tabOf === "slow" ? ENCOUNTERS.includes(k) : k === tabOf;
+  let shown = 0;
   keys.forEach(k => {
+    if (!inTab(k)) return;
     const isLevel = k.startsWith("level-"); const n = isLevel ? +k.slice(6) : 0;
-    if (isLevel && n > ed().showLevels && !(ed().lanes[k] || []).length) return;
+    if (tabOf === "all" && isLevel && n > ed().showLevels && !(ed().lanes[k] || []).length) return;
     shown++; board.appendChild(renderLane(k));
   });
-  if (ed().showLevels < 10) {
+  if (tabOf === "all" && ed().showLevels < 10) {
     const more = fk(E("button", "collapsed-note", "Show levels " + (ed().showLevels + 1) + "\u201310"), "morelevels"); more.type = "button";
     more.addEventListener("click", () => change(() => { ed().showLevels = 10; })); board.appendChild(more);
   }
@@ -2012,17 +2083,22 @@ function basicsSource(test, subs) {
    The tab being shown holds the name field; the others switch to theirs. Each subclass is still its
    own compendium entry (table "subclasses") that stores this class as its parent. */
 function nameTabs(input) {
-  const bar = E("div", "clsname nametabs"); bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", "Class and subclasses");
+  let bar = E("div", "clsname nametabs"); bar.setAttribute("role", "tablist"); bar.setAttribute("aria-label", "Class and subclasses");
   const tab = (o, kind) => {
     const on = ed() === o, t = E(on ? "div" : "button", "ntab" + (on ? " on" : "") + (kind === "Subclass" ? " sub" : ""));
     t.setAttribute("role", "tab"); t.setAttribute("aria-selected", on ? "true" : "false"); t.appendChild(E("span", "k", kind));
     if (on) t.appendChild(input); else { t.type = "button"; t.appendChild(E("span", "n", o.name)); t.addEventListener("click", () => showView(o === cls ? null : o.id)); fk(t, "subtab:" + (o === cls ? "class" : o.id)); }
     bar.appendChild(t);
   };
-  tab(cls, "Class"); cls.subclasses.forEach(x => tab(x, "Subclass"));
-  const add = fk(E("button", "ntab add", "+ subclass"), "subtab:new"); add.type = "button"; add.title = "Add a subclass to " + cls.name;
+  // The class is the large tab; its subclasses are smaller pills in a labelled group set off by a rule.
+  tab(cls, "Class");
+  const grp = E("div", "subgroup"); grp.setAttribute("role", "group"); grp.setAttribute("aria-label", "Subclasses of " + cls.name);
+  grp.appendChild(E("span", "sublbl", "Subclasses")); bar.appendChild(grp);
+  const realBar = bar; bar = grp; cls.subclasses.forEach(x => tab(x, "Subclass"));
+  const add = fk(E("button", "ntab sub add", "+ New"), "subtab:new"); add.type = "button"; add.title = "Add a subclass to " + cls.name;
   add.addEventListener("click", () => { change(() => { cls.view = newSubclass().id; openId = null; }); window.scrollTo(0, 0); setTimeout(() => { const i = document.querySelector('[data-fk="cls:name"]'); if (i) { i.focus(); i.select(); } }); });
-  bar.appendChild(add);
+  bar.appendChild(add); bar = realBar;
+  if (ed() !== cls) bar.appendChild(E("span", "crumb", "Editing " + ed().name + ", a subclass of " + cls.name));
   return bar;
 }
 /* Under a subclass's name: which class it belongs to, how players pick it, and Delete. */
@@ -2062,7 +2138,7 @@ function chip(f, k) {
   const bad = featureIssues(f, k).some(x => !x.soft);
   const c = fk(E("button", "chip blockchip" + (bad ? " bad" : "")), "chip:" + f.id); c.type = "button"; c.dataset.drag = "feature"; c.dataset.value = f.id;
   c.style.setProperty("--c", "var(" + featColor(f) + ")");
-  const gr = E("span", "grip"); gr.innerHTML = GRIP; c.appendChild(gr);
+  const gr = E("span", "grip"); gr.innerHTML = GRIP; c.appendChild(gr); c.appendChild(glyphEl(featColor(f)));
   c.appendChild(E("span", "nm", featName(f)));
   c.title = kindLabel(f) + (bad ? ". Something to finish." : "") + (featText(f) ? "\n" + featText(f) : "");
   c.addEventListener("click", () => { if (c.dataset.dragged) return; openFeature(f.id); });
@@ -2180,6 +2256,13 @@ function doDrop(d, t) {
   change(() => { if (from.L.combo && from.L.combo !== L.combo) uncombine(from.L.combo, from.s); from.L.list.splice(from.i, 1); let idx = t.idx; if (from.L.list === L.list && from.i < idx) idx--; L.list.splice(idx, 0, from.s); });
 }
 
+/* The audit's finding for a text-only core feature, keyed "Class|lane|Feature" (or "Class/Subclass|..."). */
+const AUDIT_HEADS = { A: "The game already applies this", B: "This could be built with blocks", C: "Needs a block the editor doesn't have yet", D: "Story text: nothing to automate", Unsure: "Not sure yet" };
+function textAudit(f, laneKey) {
+  const A = window.CB_TEXT_AUDIT; if (!A) return null;
+  const owner = ed() === cls ? cls.name : cls.name + "/" + ed().name;
+  return A[owner + "|" + laneKey + "|" + String(f.name || "").trim()] || null;
+}
 function renderFeature(f, laneKey) {
   const box = E("div", "feat"); box.style.setProperty("--c", "var(" + featColor(f) + ")");
   // The open feature's header is the block itself, in the feature's colour.
@@ -2196,6 +2279,9 @@ function renderFeature(f, laneKey) {
   const lb = E("div", "lbl2", "What it does");
   if (showGs) lb.appendChild(E("span", "mono saves-type", " \u00b7 saves as " + compileFeature(f).__typeName));
   box.appendChild(lb);
+  // A core feature saved as text only: what the audit found (TEXT_ONLY_FEATURES_AUDIT.md).
+  const au = !f.sentences.length && textAudit(f, laneKey);
+  if (au) { const n = E("div", "audit " + au.cat); n.appendChild(E("b", null, AUDIT_HEADS[au.cat] || "Checked")); n.appendChild(document.createTextNode(au.why)); box.appendChild(n); }
   const sents = E("div", "sents"); regList(sents, f.sentences, f, false);
   {
     renderSentenceList(f.sentences, f, sents);
@@ -2259,7 +2345,7 @@ function renderSentence(s, list, i, feat, host) {
   const el = E("div", "sent" + (d.wrapper ? " ifwrap" : "")); el.style.setProperty("--c", "var(" + g[2] + ")");
   el.dataset.drag = "block"; el.dataset.value = s.id;
   const line = d.wrapper ? E("div", "ifline") : el;
-  const grip = E("span", "grip"); grip.innerHTML = GRIP; grip.title = "Drag to move"; line.appendChild(grip);
+  const grip = E("span", "grip"); grip.innerHTML = GRIP; grip.title = "Drag to move"; line.appendChild(grip); line.appendChild(glyphEl(g[2]));
   const add = n => line.appendChild(n);
   d.render(s.f, add, s, feat);
   const grow = E("span", "grow"); line.appendChild(grow);
@@ -2303,7 +2389,7 @@ function savesLine(r) {
 function shelfBlock(label, color, uses, title, dragKind, value, onClick, disabled) {
   const b = E("button", "pal"); b.type = "button"; b.style.setProperty("--c", "var(" + color + ")");
   b.dataset.drag = dragKind; b.dataset.value = value; b.title = title; fk(b, "shelf:" + dragKind + ":" + value);
-  const h = E("span", "grip"); h.innerHTML = GRIP; b.appendChild(h); b.appendChild(E("span", "pl", label));
+  const h = E("span", "grip"); h.innerHTML = GRIP; b.appendChild(h); b.appendChild(glyphEl(color)); b.appendChild(E("span", "pl", label));
   if (disabled) b.setAttribute("aria-disabled", "true");
   b.addEventListener("click", () => { if (b.dataset.dragged) return; onClick(); });
   return b;

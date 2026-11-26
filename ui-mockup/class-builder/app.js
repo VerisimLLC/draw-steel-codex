@@ -493,8 +493,11 @@ const SENT = {
   immunity: { desc: "Damage immunity or weakness to one or more types.", label: "Immunity or weakness", group: "def", uses: 383, make: () => ({ dtypes: ["fire"], kind: "immunity", amount: "5" }),
     render: (f, add) => { if (!f.dtypes) f.dtypes = [f.dtype || "fire"];
       add(lbl("You have")); add(multiTok(f, "dtypes", T.damageTypes.map(d => [d, d]).concat([["all", "damage"]]), "choose damage types", "and")); add(pickTok(f, "kind", [["immunity", "immunity"], ["weakness", "weakness"]])); if (!fxIsCount(f, "amount")) add(lbl("equal to")); add(fxTok(f, "amount", "amount", true));
-      add(lbl("against")); add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "any damage", "and")); if ((f.keywords || []).length) add(lbl("abilities")); },
-    prose: f => "You have " + listWords(f.dtypes || [f.dtype], "and") + " " + f.kind + " " + (fxIsCount(f, "amount") ? "" : "equal to ") + fxWords(f, "amount") + ".",
+      // Which abilities it applies to, by keyword: "from abilities with [any keyword]" or "... with the [Magic] keyword".
+      const kw = f.keywords || []; add(lbl(kw.length ? "from abilities with the" : "from abilities with"));
+      add(multiTok(f, "keywords", KEYWORDS.map(k => [k, k]), "any keyword", "and")); if (kw.length) add(lbl(kw.length === 1 ? "keyword" : "keywords")); },
+    prose: f => "You have " + listWords(f.dtypes || [f.dtype], "and") + " " + f.kind + " " + (fxIsCount(f, "amount") ? "" : "equal to ") + fxWords(f, "amount")
+      + ((f.keywords || []).length ? " from abilities with the " + listWords(f.keywords, "and") + " keyword" + (f.keywords.length > 1 ? "s" : "") : "") + ".",
     // Weakness is saved as negative damage reduction: check against the engine before shipping.
     compile: (f, feat) => modBase(feat, { behavior: "resistance", resistances: (f.dtypes || [f.dtype]).map(d => Object.assign({ __typeName: "ResistanceEntry", apply: "Damage Reduction", damageType: d, dr: f.kind === "weakness" ? "-(" + fxFormula(f, "amount") + ")" : fxFormula(f, "amount") },
       (f.keywords || []).length ? { keywords: Object.fromEntries(f.keywords.map(k => [k, true])) } : {})) }) },

@@ -2419,6 +2419,8 @@ local WINDOW = {
     outsideY = 9,
     wallY = 8.5,
     damage = 5,
+    --the sound event Draw Steel Audio plays for breaking glass objects
+    sound = "Obj.Break_GlassGnrcMed",
     wallName = "Stained-Glass Window (breakable)",
     artName = "Stained-Glass Window Art",
     brokenArtName = "Stained-Glass Window Art (Broken)",
@@ -2512,6 +2514,8 @@ local function ShatterWindow(charid)
     end
     glass.inactive = true
     glass:Upload()
+    --every client hears it; this code runs only on the map host.
+    audio.DispatchSoundEvent(WINDOW.sound)
 
     --the push broke only the edges it went through; open the whole window.
     EraseWindowWall(floor)
@@ -2549,37 +2553,77 @@ local function RequestShatter(charid)
     end
 end
 
---Every forced move, on the client that made it: a push that broke a wall with its path
---beside the glass shatters the window. The glass is the only breakable wall there.
-GameSystem.RegisterPlayObserver("condemnedwindow", {
-    forcedmove = function(props, info)
-        if mod.unloaded or type(info) ~= "table" or (info.walls or 0) <= 0 then
-            return
-        end
-        local floor = FindWindow()
-        if floor == nil then
-            return
-        end
-        local token = dmhub.LookupToken(props)
-        if token == nil then
-            return
-        end
-        for _, step in ipairs(info.path or {}) do
-            local stepX, stepY, floorIndex = step[1], step[2], step[3]
-            if floorIndex == floor.floorIndex and stepX >= WINDOW.minX and stepX <= WINDOW.maxX
-                and (stepY == WINDOW.insideY or stepY == WINDOW.outsideY) then
-                --after this move has finished uploading, not inside it.
-                local charid = token.charid
-                dmhub.Schedule(0.1, function()
-                    if not mod.unloaded then
-                        RequestShatter(charid)
-                    end
-                end)
-                return
+--Which side of the glass a creature standing at loc is on, judged from every square it
+--covers: "outside" if any is in the row beyond the glass, else "inside" if any is in the
+--row before it, else nil (not next to the glass).
+---@param token CharacterToken
+---@param loc Loc
+---@param floorIndex number
+---@return string|nil
+local function SideOfGlass(token, loc, floorIndex)
+    local side = nil
+    for _, square in ipairs(token:LocsOccupyingWhenAt(loc) or {}) do
+        local underGlass = square.x >= WINDOW.minX and square.x <= WINDOW.maxX
+        if square.floor == floorIndex and underGlass then
+            if square.y == WINDOW.outsideY then
+                return "outside"
+            end
+            if square.y == WINDOW.insideY then
+                side = "inside"
             end
         end
-    end,
-})
+    end
+    return side
+end
+
+--True if the token's path takes it through the glass, either way. Only neighbouring steps
+--are compared, so a long drag out of a door and round to the far side doesn't count.
+---@param token CharacterToken
+---@param path LuaPath
+---@param floorIndex number
+---@return boolean
+local function PathCrossesGlass(token, path, floorIndex)
+    local previousSide = nil
+    for _, step in ipairs(path.steps or {}) do
+        local side = SideOfGlass(token, step, floorIndex)
+        if previousSide ~= nil and side ~= nil and side ~= previousSide then
+            return true
+        end
+        previousSide = side
+    end
+    return false
+end
+
+--A creature force-moved through the glass shatters the window: pushed by an ability or
+--ALT-dragged by the Director. This runs before the move lands, so it waits for the token
+--to stop. Asking twice is safe: the second shatter finds the window already gone.
+local g_baseOnMove = creature.OnMove
+---@param path LuaPath
+function creature:OnMove(path)
+    if not mod.unloaded and path.forced then
+        local ok, err = pcall(function()
+            local floor = FindWindow()
+            local token = dmhub.LookupToken(self)
+            if floor == nil or token == nil or not PathCrossesGlass(token, path, floor.floorIndex) then
+                return
+            end
+            local charid = token.charid
+            dmhub.Coroutine(function()
+                local deadline = dmhub.Time() + 8
+                repeat
+                    coroutine.yield(0.1)
+                until mod.unloaded or not token.valid or not token.isMoving or dmhub.Time() > deadline
+                if not mod.unloaded then
+                    RequestShatter(charid)
+                end
+            end)
+        end)
+        if not ok then
+            print("Condemned: window push check failed:", err)
+        end
+    end
+    return g_baseOnMove(self, path)
+end
 
 --Map host, every upkeep: an attack that brought the window object to 0 Stamina shatters it.
 --Once the glass is gone from the wall, the window object and art are kept hidden in case
@@ -2595,6 +2639,9 @@ local function WatchWindow()
         if glass ~= nil and not glass.inactive then
             glass.inactive = true
             glass:Upload()
+            --if the wall went before ShatterWindow ran, ShatterWindow finds the glass
+            --gone and plays nothing, so the sound is played here.
+            audio.DispatchSoundEvent(WINDOW.sound)
         end
         SetWindowArt(true)
         return

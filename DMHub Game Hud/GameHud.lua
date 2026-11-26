@@ -209,7 +209,7 @@ function GameHud.CreateCodexCalloutsPanel(getReferenceWidth)
                 local before, after = SplitCalloutAtLock(text)
 
                 local textPanel
-                if before ~= nil then
+                if before ~= nil and after ~= nil then
                     --One label per word, so the row fills each line before it wraps (a single
                     --label would wrap as one block and leave the line half empty).
                     local pieces = {}

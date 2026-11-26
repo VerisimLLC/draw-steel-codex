@@ -1511,13 +1511,22 @@ end
 --- @param editable boolean
 --- @param args table
 local function CreateResourceCount(charid, editable, args)
-    --one size for every count; small enough that three fit across the card.
-    local iconSize = 18
-    local fontSize = 17
+    --one size for every count, small enough that three fit across the card.
+    --With a fourth showing, the row makes them all compact (setCompact).
+    local iconSize, compactIconSize = 18, 13
+    local fontSize, compactFontSize = 17, 13
+    local m_compact = false
+    --the space before this count; compact counts sit closer together.
+    local function Gap()
+        local gap = args.lmargin or 0
+        return cond(m_compact, gap / 2, gap)
+    end
     local icon = gui.Panel{
         classes = {"eotwResIcon"},
         width = iconSize,
         height = iconSize,
+        --takes the mouse so this tooltip can show; with no click handler,
+        --clicks still reach the card.
         linger = function(element)
             local tok = dmhub.GetCharacterById(charid)
             if tok ~= nil and tok.valid and tok.properties ~= nil then
@@ -1538,13 +1547,15 @@ local function CreateResourceCount(charid, editable, args)
         text = "0",
         interactable = false,
     }
+    ---@type CardNumberEntryArgs
+    local entryArgs = {
+        label = valueLabel,
+        fontSize = fontSize,
+        current = args.current,
+        apply = args.apply,
+    }
     if editable then
-        entry = CreateNumberEntry{
-            label = valueLabel,
-            fontSize = fontSize,
-            current = args.current,
-            apply = args.apply,
-        }
+        entry = CreateNumberEntry(entryArgs)
     end
     return gui.Panel{
         width = "auto",
@@ -1553,6 +1564,23 @@ local function CreateResourceCount(charid, editable, args)
         halign = args.halign or "left",
         valign = "center",
         lmargin = args.lmargin or 0,
+        data = { shown = false },
+        setCompact = function(element, compact)
+            m_compact = compact
+            local size = cond(compact, compactIconSize, iconSize)
+            local textSize = cond(compact, compactFontSize, fontSize)
+            icon.selfStyle.width = size
+            icon.selfStyle.height = size
+            valueLabel.selfStyle.fontSize = textSize
+            valueLabel.selfStyle.lmargin = cond(compact, 2, 4)
+            if entry ~= nil then
+                entryArgs.fontSize = textSize
+                entry.selfStyle.fontSize = textSize
+            end
+            if element.data.shown then
+                element.selfStyle.lmargin = Gap()
+            end
+        end,
         refreshCard = function(element)
             local tok = dmhub.GetCharacterById(charid)
             if tok == nil or not tok.valid or tok.properties == nil then
@@ -1564,7 +1592,13 @@ local function CreateResourceCount(charid, editable, args)
             --the count itself stays visible: a collapsed panel gets no
             --refreshCard, so it could never come back.
             valueLabel:SetClass("collapsed", value == nil)
-            element.selfStyle.lmargin = cond(value == nil, 0, args.lmargin or 0)
+            element.selfStyle.lmargin = cond(value == nil, 0, Gap())
+            local shown = value ~= nil
+            if shown ~= element.data.shown then
+                element.data.shown = shown
+                --the row counts what shows, to decide whether all must shrink.
+                element:FireEventOnParents("resourceCountsChanged")
+            end
             if value == nil then
                 icon:SetClass("collapsed", true)
                 return
@@ -1641,9 +1675,9 @@ local function SortedResourceReadouts()
     return result
 end
 
---One registered readout as a count on the resource row. Each part asks the
---readout again, looked up by id so a re-registration takes over; a read that
---errors or returns nil hides the count.
+--One registered readout, drawn as a count on the resource row. Its icon,
+--value and tooltip each call read again, finding the readout by id so a
+--re-registration takes over; an error or nil hides the count.
 --- @param charid string
 --- @param id string
 local function CreateResourceReadout(charid, id)
@@ -1677,8 +1711,8 @@ local function CreateResourceReadout(charid, id)
 end
 
 --The resource row under the stamina bar: the heroic resource (the class's
---own icon, from the character panel's source), in combat surges, then any
---registered readouts at the left; the hero's Victories at the right.
+--own icon, from the character panel's source), surges (in combat only) and
+--any registered readouts at the left; the hero's Victories at the right.
 --editable: a click on a number opens a box to type a new one (the Director
 --or the hero's controller, where CardEditsAllowed).
 local function CreateResourceRow(charid, editable)
@@ -1759,6 +1793,24 @@ local function CreateResourceRow(charid, editable)
         flow = "horizontal",
         halign = "left",
         valign = "center",
+        data = { compact = false },
+        --more than three counts showing do not fit at full size: shrink them
+        --all, and grow them back once one hides again.
+        resourceCountsChanged = function(element)
+            local shown = 0
+            for _, count in ipairs(element.children) do
+                if count.data.shown then
+                    shown = shown + 1
+                end
+            end
+            local compact = shown > 3
+            if compact ~= element.data.compact then
+                element.data.compact = compact
+                for _, count in ipairs(element.children) do
+                    count:FireEvent("setCompact", compact)
+                end
+            end
+        end,
         children = children,
     }
 end

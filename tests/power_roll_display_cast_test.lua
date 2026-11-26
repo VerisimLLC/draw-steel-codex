@@ -20,13 +20,16 @@ local gsStart = assert(creatureSource:find('function GenerateSymbols(self, symbo
 local gsStop = assert(creatureSource:find('\nfunction creature:GetLevelInClass', gsStart, true))
 assert(load(creatureSource:sub(gsStart, gsStop), 'GenerateSymbols'))()
 
-function GoblinScriptTrue(v) return v ~= nil and v ~= false and v ~= 0 end
+--Stubs go in through rawset so the type checker does not merge them into the real globals.
+local function stub(name, value) rawset(_G, name, value) end
+
+stub('GoblinScriptTrue', function(v) return v ~= nil and v ~= false and v ~= 0 end)
 
 --Mimics the compiled GoblinScript for 'cast.mode = 4': the dot operator looks up
 --'cast' and then calls the result to read 'mode'; runtime errors are caught and
 --recorded as ExecuteGoblinScript does.
 local runtimeErrors = {}
-function ExecuteGoblinScript(formula, symbols, defaultValue, contextMessage)
+stub('ExecuteGoblinScript', function(formula, symbols, defaultValue, contextMessage)
     local ok, result = pcall(function()
         local cast = symbols('cast')
         local mode = tonumber(cast('mode')) or 0
@@ -37,7 +40,7 @@ function ExecuteGoblinScript(formula, symbols, defaultValue, contextMessage)
         return defaultValue
     end
     return result
-end
+end)
 
 local source = readSource('Draw Steel Core Rules/MCDModifyPowerRolls.lua')
 local start = assert(source:find('    shouldShowInPowerRollDialog = function(self, creature, rollType, roll, options)', 1, true))

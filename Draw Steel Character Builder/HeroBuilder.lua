@@ -4384,9 +4384,10 @@ function HeroBuilder.Create(args)
         return generator
     end
 
-    --- Wrap an ancestry-step change so it also gives the Hero a name when one
-    --- is due. Returns the wrapped change, and a function to call after it is
-    --- saved that writes the name to the token (the engine saves names apart).
+    --- Wrap an ancestry-step change so it also names the Hero from their new
+    --- ancestry, unless the player typed a name of their own. Returns the
+    --- wrapped change, and a Rename function to call once it is saved: the
+    --- name belongs to the token, not the build, so it is saved separately.
     --- @param token CharacterToken
     --- @param change fun(hero: character)
     --- @return fun(hero: character), fun()
@@ -4398,9 +4399,12 @@ function HeroBuilder.Create(args)
             name = nil
             local auto = hero:try_get(Engine().AUTO_NAME_FIELD)
             local autoName = type(auto) == "table" and auto.name or nil
+            --a name the player typed is never replaced.
             if typed ~= "" and typed ~= autoName then
                 return
             end
+            --the Builder's name stays when the new pick uses the same name
+            --table, so the Hero is not renamed on every trait pick.
             local generator = NameTableOf(hero)
             if generator == nil or (typed ~= "" and auto.table == generator.id) then
                 return
@@ -4534,7 +4538,8 @@ function HeroBuilder.Create(args)
         else
             local Rename = nil
             if stepid == "ancestry" then
-                --a Revenant's former life can bring the name table.
+                --picking a Revenant's former life gives them a name table,
+                --so it can name the Hero too.
                 local token = Host().token()
                 if token ~= nil then
                     change, Rename = WithAncestryName(token, change)
@@ -4939,15 +4944,16 @@ function HeroBuilder.Create(args)
     end
 
     --A characteristic being dragged: the chip on the pointer, where the
-    --pointer started (pop-up layer units), and the tile it is over.
+    --pointer started (pop-up layer units), the Font Size zoom when the drag
+    --began, and the tile it is over.
     --- @type nil|{tile: Panel, chip: Panel, start: {x: number, y: number}, zoom: number, over: nil|Panel}
     local charDrag = nil
 
     --- Where the pointer is during a tile's drag: its start plus how far it
     --- has moved (the engine finds no targets while the tile stays put, so
     --- the Builder hit-tests the pointer, as the Inventory's drag does).
-    --- The tile reports the move in its own units, which the Font Size zoom
-    --- shrinks, so it is scaled back up to screen units like the start.
+    --- The tile reports the move in its own units, which shrink as Font Size
+    --- grows, so it is multiplied by the zoom to match the start's screen units.
     --- @param tile Panel
     --- @return {x: number, y: number}
     local function CharDragPointer(tile)

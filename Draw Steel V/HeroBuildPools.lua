@@ -1797,9 +1797,9 @@ function HeroBuild.Create(options)
         hero:Invalidate()
     end
 
-    --Set the class, at the Hero's current Level (for a new Hero, the Level
-    --Build at Level chose; EotW Heroes are always Level 1). Clears the old
-    --class's picks, kit and characteristics.
+    --Set the class, at the Hero's current Level. A new Hero starts at the
+    --Level picked in Build at Level (EotW Heroes are always Level 1). Clears
+    --the old class's picks, kit and characteristics.
     ---@param hero character
     ---@param classid string
     function Build.hero.SetClass(hero, classid)

@@ -3851,8 +3851,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     maxHeight = 30,
                     halign = "center",
                     textOverflow = "truncate",
-                    --a map object shows its own Name ("Shelf 2"), not its art's name. _G.creature
-                    --is the creature type: the local `creature` here is the roller.
+                    --a map object shows the Name set in its object editor ("Shelf 2"), not its artwork's name.
+                    --_G.creature is the creature type: the local `creature` here is the roller.
                     text = _G.creature.TokenDisplayName(target.token),
                     textAlignment = "center",
                 }

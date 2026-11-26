@@ -1,0 +1,31 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await require('./cbpage.js')(b);
+  await p.evaluate(() => change(() => { cls.gains.push({ id: newId('g'), event: 'dealdamage', freq: 'round', who: 'self', cond: null, qty: '2', guid: guid() }); }));
+  await p.waitForTimeout(300);
+  const line = () => p.locator('.sent').filter({ hasText: 'deal damage' }).first();
+  const txt = async () => (await line().textContent()).replace(/\s+/g, ' ').replace(/.*you gain /, 'you gain ').slice(0, 80);
+  const qty = () => p.evaluate(() => cls.gains.at(-1).qty);
+  // "Might * 2": pick a stat, then Do math
+  await line().locator('.tok', { hasText: /^2$/ }).last().click(); await p.waitForTimeout(150);
+  await p.locator('.menu.picker .ph input').fill('might'); await p.waitForTimeout(80);
+  await p.locator('.menu.picker .opt .d').first().click(); await p.waitForTimeout(200);
+  console.log('1 stat:', await qty(), '|', await txt());
+  await line().locator('.tok.fx').first().click(); await p.waitForTimeout(150);
+  await p.locator('.menu button', { hasText: 'A formula instead' }).click(); await p.waitForTimeout(150);
+  await p.locator('.menu.picker .opt', { hasText: '[ ] plus [1]' }).click(); await p.waitForTimeout(200);
+  console.log('2 math:', await qty(), '|', await txt());
+  await line().locator('.fxsum .tok', { hasText: 'plus' }).click(); await p.waitForTimeout(150);
+  await p.locator('.menu button', { hasText: 'times' }).click(); await p.waitForTimeout(200);
+  console.log('3 sign:', await qty(), '|', await txt());
+  await line().locator('.fxsum .tok', { hasText: /^1$/ }).click(); await p.waitForTimeout(150);
+  await p.keyboard.press('Control+A'); await p.keyboard.type('2'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  console.log('4 number:', await qty(), '|', await txt());
+  // "Level + 4": change the stat part to Level, the sign back to plus, the number to 4
+  await line().locator('.fxsum .tok', { hasText: 'your Might' }).click(); await p.waitForTimeout(150);
+  await p.locator('.menu button', { hasText: 'your Level' }).click(); await p.waitForTimeout(200);
+  await line().locator('.fxsum .tok', { hasText: 'times' }).click(); await p.locator('.menu button', { hasText: /^plus$/ }).click(); await p.waitForTimeout(200);
+  await line().locator('.fxsum .tok', { hasText: /^2$/ }).click(); await p.keyboard.press('Control+A'); await p.keyboard.type('4'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  console.log('5 Level + 4:', await qty(), '|', await txt());
+  const rec = await p.evaluate(() => { const g = cls.gains.at(-1), c = compileGains(); return [c.checklist.find(x => x.guid === g.guid).details, c.triggers.find(t => t.triggeredAbility.behaviors.some(b => b.checklistid === g.guid)).triggeredAbility.behaviors[0].quantity]; });
+  console.log('saved:', JSON.stringify(rec));
+  console.log('errs', p.errs); await b.close(); })();

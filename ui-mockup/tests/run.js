@@ -22,6 +22,10 @@ const CHECKS = [
   ['t-blocks.js', out => { const j = json(out); return !j.kitAllowed && j.statAllowed && j.kitIssue.length === 1 && j.combo.req === 'hasSurges' && j.combo.attr === 'mgt'; }],
   // Opening the formula picker doesn't mark a block as edited.
   ['t-fx.js', out => json(out).every(x => x[3] === true)],
+  // A sum is built and changed on the block: "Might * 2", then "Level + 4", saved as formulas.
+  ['t-math.js', out => /4 number: Might \* 2/.test(out) && /5 Level \+ 4: Level \+ 4/.test(out) && /"Level \+ 4"\]/.test(out)],
+  // "A stat or attribute" in the picker; the stat is changed from the block's word.
+  ['t-statpick.js', out => /selects in picker: 0/.test(out) && /after Might: Might/.test(out) && /search vic \+ pick: Victories/.test(out)],
   // Every core ability opens in the ability editor and saves back unchanged (4 known exceptions).
   ['t-ab.js', out => json(out).same >= 1015],
   // Treating every step as edited still keeps the saved records (13 known reader-precision cases).

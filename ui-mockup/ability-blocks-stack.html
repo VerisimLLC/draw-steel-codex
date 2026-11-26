@@ -3388,8 +3388,8 @@ function pickerOptions(h) {
       item("[ ] plus " + (r0.label === "You" ? "your" : r0.poss) + " Level", "Goes up by one every level.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }) }), "per level"),
     ]]);
     groups.push(["Do math", "Add, subtract, multiply, halve.", [
-      item("[ ] + [ ]", "Add two values (also -, * and /).", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: numH("1") }), "plus minus times add subtract"),
-      item("Half of [ ]", "Division rounds down.", () => X("math", { op: "/" }, { a: numH(h.lit || "1"), b: numH("2") }), "divide half"),
+      // One entry for + - * / : the sign is a menu on the block.
+      item("[ ] + [ ]", "Change the sign (+, -, *, /) on the block. Division rounds down.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: numH("1") }), "plus minus times multiply add subtract divide half double"),
       item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => X("pick", {}, { a: numH("2"), cond: H("boolean", h.docs), b: numH(h.lit || "1") }), "when else choose"),
     ]]);
     if (h.kind === "roll") groups.push(["Roll dice", "Only damage and healing can roll.", [item("1d6", "Change the count and sides after.", () => X("dice", { n: "1", s: "6" }), "random d6 d10")]]);

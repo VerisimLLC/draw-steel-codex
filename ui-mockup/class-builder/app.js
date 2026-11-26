@@ -166,7 +166,18 @@ function fxTable(obj, key) {
 }
 const FX_PICKS = [["1", "a number"], ["Victories", "your Victories"], ["1d3", "a die roll (1d3)"], ["Level", "your level"]].concat(CHARS.map(c => [c[1], "your " + c[1]]));
 /* A formula read as words: "Victories" reads "your Victories" (the FX_PICKS wording). */
+/* "Level + 4", "Might * 2": one sign between two parts, each a stat or a whole number. These show
+   on the block as words you change in place ("your Level [plus] [4]"); anything else is a formula. */
+const FX_OPS = [["+", "plus"], ["-", "minus"], ["*", "times"], ["/", "divided by"]];
+const fxPart = t => FX_STATS.includes(t) || /^\d+$/.test(t);
+function fxSum(f) {
+  const m = /^\s*([A-Za-z][A-Za-z ]*?|\d+)\s*([-+*/])\s*([A-Za-z][A-Za-z ]*?|\d+)\s*$/.exec(String(f == null ? "" : f));
+  return m && fxPart(m[1]) && fxPart(m[3]) ? { a: m[1], op: m[2], b: m[3] } : null;
+}
+const fxPartWords = t => /^\d+$/.test(t) ? t : ((FX_PICKS.find(p => p[0] === t && /^your /.test(p[1])) || [0, "your " + t])[1]);
 function fxWords(obj, key) {
+  const sum = !fxSteps(obj, key).length && fxSum(obj[key]);
+  if (sum) return fxPartWords(sum.a) + " " + FX_OPS.find(o => o[0] === sum.op)[1] + " " + fxPartWords(sum.b);
   const base = String(obj[key] == null ? "" : obj[key]).trim(), pick = FX_PICKS.find(p => p[0] === base && /^your /.test(p[1]));
   return pick ? fxText(obj, key).replace(base, pick[1]) : fxText(obj, key);
 }
@@ -178,6 +189,8 @@ function fxTok(obj, key, placeholder, words) {
   // A plain stat ("Might") shows as a stat word you change in place, like a test's stat; its menu
   // ends with "A formula instead..." for anything else.
   const cur = String(obj[key] == null ? "" : obj[key]).trim();
+  const sum = !fxSteps(obj, key).length && fxSum(cur);
+  if (sum) return fxSumToks(obj, key, sum);
   if (FX_STATS.includes(cur) && !fxSteps(obj, key).length) {
     const t = tok(fxWords(obj, key) || "your " + cur, b => menuAt(b, m => {
       addFilter(m);
@@ -189,6 +202,29 @@ function fxTok(obj, key, placeholder, words) {
   }
   const t = tok((words ? fxWords(obj, key) : fxText(obj, key)) || placeholder, b => menuAt(b, m => fillFx(m, obj, key)), obj[key] === "" || obj[key] == null, objKey(obj) + ":" + key);
   t.classList.add("fx"); t.title = "Build a formula"; return t;
+}
+/* A sum on the block: each side is a stat word (its menu lists the stats, or "A number") or a
+   number you type, and the sign is a menu. Each change rewrites the formula. */
+function fxSumToks(obj, key, sum) {
+  const wrapEl = E("span", "fxsum"), setPart = (k, v) => change(() => { const s2 = Object.assign({}, sum, { [k]: v }); obj[key] = s2.a + " " + s2.op + " " + s2.b; });
+  const part = k => {
+    const v = sum[k];
+    if (/^\d+$/.test(v)) {   // a number: typed in place (typing a stat's name also works)
+      const proxy = {}; Object.defineProperty(proxy, "v", { get: () => v, set: x => { const t = String(x).trim(); const st = FX_STATS.find(f => f.toLowerCase() === t.toLowerCase());
+        const s2 = Object.assign({}, sum, { [k]: st || (/^\d+$/.test(t) ? t : v) }); obj[key] = s2.a + " " + s2.op + " " + s2.b; } });
+      proxy.id = objKey(obj) + ":" + key + ":" + k;
+      return textTok(proxy, "v", "1", 4);
+    }
+    return tok(fxPartWords(v), b => menuAt(b, m => { addFilter(m);
+      const num = E("button", null, "A number"); num.type = "button"; num.addEventListener("click", () => { closeMenu(); setPart(k, "1"); }); m.appendChild(num);
+      FX_STATS.forEach(f => { const x = E("button", null, "your " + f); x.type = "button"; x.addEventListener("click", () => { closeMenu(); setPart(k, f); }); m.appendChild(x); });
+    }), false, objKey(obj) + ":" + key + ":" + k);
+  };
+  const opTok = tok(FX_OPS.find(o => o[0] === sum.op)[1], b => menuAt(b, m => FX_OPS.forEach(([o, w]) => { const x = E("button", null, w); x.type = "button"; x.addEventListener("click", () => { closeMenu(); setPart("op", o); }); m.appendChild(x); })), false, objKey(obj) + ":" + key + ":op");
+  // The small fx opens the full formula picker, for anything more than one sign.
+  const more = tok("fx", b => menuAt(b, m => fillFx(m, obj, key)), false, objKey(obj) + ":" + key + ":fx"); more.classList.add("small"); more.title = "Build a different formula";
+  [part("a"), opTok, part("b"), more].forEach((t, i) => { if (i) wrapEl.appendChild(document.createTextNode(" ")); wrapEl.appendChild(t); });
+  return wrapEl;
 }
 /* The formula picker, laid out like the ability editor's (same header, search, groups and
    "Type a formula instead"), so an fx amount looks the same in every editor. Class amounts are
@@ -215,9 +251,9 @@ function fillFx(m, obj, key, ad) {
     ["Scale with level", "Grows as the creature levels up.", [
       item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
       item("[ ] plus your Level", "Goes up by one every level.", () => setF(base() + " + Level"), "per level")]],
-    ["Do math", "Add, subtract, multiply, halve.", [
-      item("[ ] + [ ]", "Add two values (also -, * and /).", () => setF(base() + " + 1"), "plus minus times add subtract"),
-      item("Half of [ ]", "Division rounds down.", () => setF(wrap(base()) + " / 2"), "divide half"),
+    // One entry for + - * / (the sign and the number change on the block); a choice of two values is its own test.
+    ["Do math", "Add, subtract, multiply, divide.", [
+      item("[ ] plus [1]", "Change the sign (plus, minus, times, divided by) and the number on the block.", () => setF((fxPart(base()) ? base() : wrap(base())) + " + 1"), "plus minus times multiply add subtract divide half double"),
       item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => setF("2 when Winded else " + base()), "when else choose")]],
     ["Roll dice", "Only damage, healing and gains can roll.", [item("1d3", "Change the count and sides in the formula below.", () => setF("1d3"), "random dice d3 d6 d10")]],
   ];

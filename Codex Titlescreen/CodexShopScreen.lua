@@ -6434,7 +6434,10 @@ local function CreateShopScreenInternal(arguments)
 							grid,
 						}
 
-						HeroModules.QueryFreeModules(function(items, err)
+						--cards by module id: an admin's second, fuller list keeps
+						--the cards already shown and only adds the new ones.
+						local cardsById = {}
+						HeroModules.QueryFreeModules(function(items, err, morePending)
 							if not grid.valid then
 								return
 							end
@@ -6443,13 +6446,24 @@ local function CreateShopScreenInternal(arguments)
 								return
 							end
 							if #items == 0 then
-								statusLabel.text = "There are no free items yet. Check back soon!"
+								if not morePending then
+									statusLabel.text = "There are no free items yet. Check back soon!"
+								end
 								return
 							end
-							statusLabel:SetClass("collapsed", true)
+							if morePending then
+								statusLabel.text = "Loading your unlisted modules..."
+							else
+								statusLabel:SetClass("collapsed", true)
+							end
 							local cards = {}
 							for _, info in ipairs(items) do
-								cards[#cards+1] = MakeHeroModuleCard(info)
+								local card = cardsById[info.fullid]
+								if card == nil then
+									card = MakeHeroModuleCard(info)
+									cardsById[info.fullid] = card
+								end
+								cards[#cards+1] = card
 							end
 							grid.children = cards
 						end)

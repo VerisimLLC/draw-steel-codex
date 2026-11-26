@@ -12,8 +12,8 @@ function module.AdminAbsorbModules() end
 --- @param fn function Callback invoked when module stats have been loaded.
 function module.PrepareModuleStats(fn) end
 
---- Queries the module index with the given options. Supports filtering by 'purchased', 'installed', 'published', or 'patreon' index types. Calls options.success with a ModuleIndexLua on success or options.failure on error.
---- @param options table Options table with 'index' (string), 'success' (function(ModuleIndexLua)), and 'failure' (function(string)) fields.
+--- Queries the module index with the given options. Supports filtering by 'purchased', 'installed', 'published', or 'patreon' index types. Calls options.success with a ModuleIndexLua on success or options.failure on error. With one of those index types, options.extraModuleIds (a list of module ids) adds more modules to the list, e.g. the free Hero modules in the player's inventory alongside their purchases.
+--- @param options table Options table with 'index' (string), 'extraModuleIds' (nil|string[]), 'success' (function(ModuleIndexLua)), and 'failure' (function(string)) fields.
 function module.QueryModuleIndex(options) end
 
 --- Creates a ModuleDependencySearcher that analyzes the current game to find dependency relationships among the given set of GUIDs.

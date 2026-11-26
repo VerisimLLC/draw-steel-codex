@@ -1919,13 +1919,60 @@ end
 --The extra Victory Challenge Mode is worth; the script validator reads it too.
 EncounterOfTheWeekGame.CHALLENGE_VICTORIES = 1
 
+--Famous Relative (complication): a hero who summons their relative earns no
+--Victory from the encounter, and can't summon them again until they gain a
+--Level. The summon stamps the hero with this encounter's run id; the outcome
+--carries the spent charge home, since the next encounter starts from the
+--town's copy of the hero (EotwRoster ApplyOutcome).
+EncounterOfTheWeekGame.FAMOUS_RELATIVE_ABILITY = "b20bf63a-3bca-4c37-ac9a-b1708c89a2f3"
+EncounterOfTheWeekGame.RELATIVE_FIELD = "eotwRelativeSummoned"
+
+--Duplicate hook: stamp a hero who just summoned their famous relative.
+---@param casterToken CharacterToken
+---@param ability ActivatedAbility
+function EncounterOfTheWeekGame.NoteRelativeSummoned(casterToken, ability)
+    if not EncounterOfTheWeekGame.IsEotwGame() or casterToken == nil or casterToken.properties == nil then
+        return
+    end
+    if ability:try_get("guid") ~= EncounterOfTheWeekGame.FAMOUS_RELATIVE_ABILITY and ability.name ~= "Summon Famous Relative" then
+        return
+    end
+    local stamp = { runid = Series.RunId(), resourceid = ability:GetUsageLimitOptions().resourceid }
+    casterToken:ModifyProperties{
+        description = "Summoned famous relative",
+        execute = function()
+            casterToken.properties[EncounterOfTheWeekGame.RELATIVE_FIELD] = stamp
+        end,
+    }
+    printf("EotW: %s summoned their famous relative; no Victory from this encounter", tostring(casterToken.name))
+end
+ActivatedAbilitySummonBehavior.RegisterDuplicateHook("eotw-famous-relative", function(casterToken, token, ability)
+    EncounterOfTheWeekGame.NoteRelativeSummoned(casterToken, ability)
+end)
+
+--This hero's famous-relative stamp if they summoned the relative in THIS
+--encounter (an earlier series part played in this game does not count), else nil.
+---@param charid string
+---@return nil|{runid: string, resourceid: string}
+function EncounterOfTheWeekGame.RelativeSummoned(charid)
+    local stamp = nil
+    pcall(function()
+        local tok = dmhub.GetCharacterById(charid)
+        local s = tok ~= nil and tok.properties ~= nil and rawget(tok.properties, EncounterOfTheWeekGame.RELATIVE_FIELD) or nil
+        if type(s) == "table" and s.runid == Series.RunId() then
+            stamp = s
+        end
+    end)
+    return stamp
+end
+
 --The Victories this hero's win is worth: the encounter's Victories the first
 --time; in Challenge Mode one more for the challenge's first win -- both at
 --once for a hero who never won the normal mode, and nothing for one who has
 --won the challenge.
 function EncounterOfTheWeekGame.VictoryAward(charid)
     local CHALLENGE_VICTORIES = EncounterOfTheWeekGame.CHALLENGE_VICTORIES
-    if AlreadyCompletedHeroes()[charid] then
+    if AlreadyCompletedHeroes()[charid] or EncounterOfTheWeekGame.RelativeSummoned(charid) ~= nil then
         return 0
     end
     local encounterVictories = EncounterVictories()
@@ -2084,6 +2131,8 @@ local function AutoAwardVictories(live, now)
             exemptions[token.charid] = ""
         elseif completed[token.charid] then
             exemptions[token.charid] = UIText.T("encounter.victory.already_completed")
+        elseif EncounterOfTheWeekGame.RelativeSummoned(token.charid) ~= nil then
+            exemptions[token.charid] = UIText.T("encounter.victory.famous_relative")
         else
             amounts[token.charid] = EncounterOfTheWeekGame.VictoryAward(token.charid)
         end
@@ -2701,6 +2750,11 @@ local function OutcomesFor(userid, encounter, result)
         local montage = rawget(_G, "EncounterMontage")
         if #entries > before and montage ~= nil and montage.AssassinSent(charid) then
             entries[#entries].outcome.assassinMet = true
+        end
+        --Famous Relative summoned here: the town spends the charge on its copy.
+        local relative = EncounterOfTheWeekGame.RelativeSummoned(charid)
+        if #entries > before and relative ~= nil then
+            entries[#entries].outcome.relativeSummoned = relative.resourceid
         end
         ::continue::
     end

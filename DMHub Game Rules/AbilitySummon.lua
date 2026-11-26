@@ -150,6 +150,38 @@ function ActivatedAbilitySummonBehavior.RunSummonHooks(casterToken, token)
     end
 end
 
+--Duplicate hooks: functions run on the caster's client for every duplicate a
+--Duplicate behavior makes, once it is on the map. A game mode registers one to
+--react to a particular duplicate: Encounter of the Week notes a hero who
+--summoned their Famous Relative. Keyed by id, like summon hooks.
+---@type table<string, fun(casterToken: CharacterToken, token: CharacterToken, ability: ActivatedAbility)>
+local g_duplicateHooks = {}
+
+--- Register (or with fn nil, remove) a duplicate hook under `id`.
+--- @param id string
+--- @param fn nil|fun(casterToken: CharacterToken, token: CharacterToken, ability: ActivatedAbility)
+function ActivatedAbilitySummonBehavior.RegisterDuplicateHook(id, fn)
+    g_duplicateHooks[id] = fn
+end
+
+--- The source's abilities for a duplicate, minus the ability making it: a
+--- duplicate that could cast it would make duplicates of its own (a Famous
+--- Relative summoning a relative of their own).
+--- @param srcProps creature
+--- @param castAbility ActivatedAbility
+--- @return ActivatedAbility[]
+local function DuplicateAbilities(srcProps, castAbility)
+    local guid = castAbility:try_get("guid")
+    local result = {}
+    for _, a in ipairs(srcProps:GetActivatedAbilities{excludeGlobal = true}) do
+        local same = (guid ~= nil and a:try_get("guid") == guid) or a.name == castAbility.name
+        if not same then
+            result[#result+1] = a
+        end
+    end
+    return DeepCopy(result)
+end
+
 --Custom looks for the creatures a caster summons. Keyed by monster_type
 --(several bestiary entries can share one monster_type; monsters without one
 --fall back to their bestiary id). In each entry, nil means "not customized":
@@ -1478,8 +1510,7 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                 --for characters, abilities come from class features and modifiers,
                 --not just innateActivatedAbilities. Gather all computed abilities
                 --and store them as innate on the monster duplicate.
-                local sourceAbilities = srcProps:GetActivatedAbilities{excludeGlobal = true}
-                props.innateActivatedAbilities = DeepCopy(sourceAbilities)
+                props.innateActivatedAbilities = DuplicateAbilities(srcProps, ability)
             end
             if self.copyTriggers then
                 props.availableTriggers = DeepCopy(srcProps:try_get("availableTriggers", {}))
@@ -1564,8 +1595,7 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                         token.properties.innateConditionImmunities = DeepCopy(srcProps:try_get("innateConditionImmunities", {}))
                     end
                     if self.copyAbilities then
-                        local sourceAbilities = srcProps:GetActivatedAbilities{excludeGlobal = true}
-                        token.properties.innateActivatedAbilities = DeepCopy(sourceAbilities)
+                        token.properties.innateActivatedAbilities = DuplicateAbilities(srcProps, ability)
                     end
                     if self.copyTriggers then
                         token.properties.availableTriggers = DeepCopy(srcProps:try_get("availableTriggers", {}))
@@ -1588,6 +1618,13 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
         token:UploadToken("Duplicate Token")
         game.UpdateCharacterTokens()
         coroutine.yield(0.1)
+
+        for id, fn in pairs(g_duplicateHooks) do
+            local ok, err = pcall(fn, casterToken, token, ability)
+            if not ok then
+                printf("Duplicate hook '%s' failed: %s", tostring(id), tostring(err))
+            end
+        end
 
         ::continue_duplicate::
     end

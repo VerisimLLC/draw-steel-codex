@@ -184,7 +184,8 @@ ShowShopPanel = function(parentPanel)
             local okPreview = true
             if m_dicePreview ~= nil or m_storedPreview then
                 okPreview = pcall(function()
-                    m_item.dicePreview = m_dicePreview
+                    --The stored form flips dieY (see ReadItemPreviewConfig).
+                    m_item.dicePreview = ShopDicePreview.StoredConfig(m_dicePreview)
                 end)
                 if okPreview then
                     m_storedPreview = m_dicePreview ~= nil

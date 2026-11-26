@@ -127,6 +127,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .bracket .h1 { top: 18px; } .bracket .h2 { bottom: 18px; }
 .bracket button { position: absolute; left: 3px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--border); background: var(--bgAlt); color: var(--fg); font: 700 12px var(--f-input); cursor: pointer; padding: 0; }
 .bracket button:hover { background: var(--bgInverse); color: var(--fgInverse); }
+.bracket button svg { width: 13px; height: 13px; display: block; margin: auto; }
 
 /* featureCard: header strip + body, @bgAlt, 10px outer corners */
 .card { background: var(--bgAlt); border-radius: 10px; margin: 10px 0; }
@@ -204,6 +205,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
   <symbol id="i-gear" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></g></symbol>
   <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
   <symbol id="i-x" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g></symbol>
   <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
 </svg>
 
@@ -306,8 +308,8 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
           <div class="cardbody stack" data-stack data-lua='gui.Panel{ classes = {"featureCardBody"}, flow = "vertical" }  -- BEStack: blocks with a sliver between each' data-what="Feature card body (a block stack)">
             <div class="sliver"></div>
             <div class="combo" data-lua='gui.Panel{ classes = {"beCombo"}, flow = "horizontal", BEBracket(), BEStack(blocks) }' data-what="Combinable pair">
-              <div class="bracket" data-lua='gui.Panel{ width = 26, gui.Panel{ classes = {"beBracketLine"}, width = 1, height = "100%-36", valign = "center" }, gui.Panel{ width = 12, height = 1 } (x2), gui.Button{ text = "+", tooltip = "Combine into one power modifier" } }' data-what="Combine bracket (three 1px panels and a button)">
-                <span class="v"></span><span class="h1"></span><span class="h2"></span><button type="button" aria-label="Combine these into one power roll modifier" data-lua='gui.Button{ classes = {"button", "sizeXxs"}, text = "+", tooltip = "Combine into one power modifier", press = CombineBlocks }' data-what="Combine button">+</button>
+              <div class="bracket" data-lua='gui.Panel{ width = 26, gui.Panel{ classes = {"beBracketLine"}, width = 1, height = "100%-36", valign = "center" }, gui.Panel{ width = 12, height = 1 } (x2), gui.Button{ icon = "ui-icons/link.png" } }' data-what="Combine bracket (three 1px panels and a button)">
+                <span class="v"></span><span class="h1"></span><span class="h2"></span><button type="button" aria-label="Combine these into one power roll modifier" title="Combine these into one power roll modifier" data-lua='gui.Button{ classes = {"beCombine"}, icon = "ui-icons/link.png", tooltip = "Combine these into one power roll modifier", press = CombineBlocks }  -- the chain icon: new, added as a mask image like the Phosphor icons' data-what="Combine button (chain icon)"><svg aria-hidden="true"><use href="#i-link"/></svg></button>
               </div>
               <div>
                 <div class="block" data-cat="roll" data-lua='BEBlockPanel.Create(block)  -- power roll modifier' data-what="Block: change a roll">
@@ -405,7 +407,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
     <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Block colours are fixed</h3><p>A block's colour tells the author what kind of block it is, so it is not a theme token. The colours live in one Lua table (<code>BEStyles.BlockColors</code>) as literal hex, set on each block's own style, and each block carries its own white text. A theme recolours the ground, cards, menus and shelf around them. Try the "Warm Gold theme" switch.</p></div>
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Drop slivers</h3><p>The engine adds <code>drag-target</code> to every valid target during a drag and <code>drag-target-hover</code> to the one under the cursor. Clear at rest; during a drag each becomes a dashed slot (<code>borderStyle = "dashed"</code>), and the one under the cursor opens to a block-sized "Drop here" slot.</p></div>
     <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Dragging from the shelf needs a ghost</h3><p>A dragged panel moves itself, so a shelf row uses <code>dragMove = false</code> and moves a floating copy in its <code>dragging</code> event (engine ask E2 would make this built in). Every drag keeps a menu path: "Add a block" and the block menu's Move up / Move down.</p></div>
-    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Rectangles only</h3><p>No notched puzzle shapes: panels have per-corner radius, bevels or 9-slice images. Blocks are rows with 5px corners, wrappers indent with a 2px rule, and the combine bracket is three 1px panels plus a button.</p></div>
+    <div class="note"><div class="tagline" style="color:var(--warning)">Changes</div><h3>Rectangles only</h3><p>No notched puzzle shapes: panels have per-corner radius, bevels or 9-slice images. Blocks are rows with 5px corners, wrappers indent with a 2px rule, and the combine bracket is three 1px panels plus a chain-icon button (the chain is a new icon image).</p></div>
     <div class="note"><div class="tagline" style="color:var(--success)">Same</div><h3>Menus and pickers</h3><p><code>gui.ContextMenu</code> for short lists, like the gain event menu with "Build the trigger yourself..." at the end; <code>gui.Dropdown</code> with <code>hasSearch</code> for long ones (abilities, conditions); <code>gui.Multiselect</code> chips for skill groups.</p></div>
     <div class="note"><div class="tagline" style="color:var(--danger)">Watch</div><h3>Panel count</h3><p>Each block is a few panels, but a full class is hundreds. Rebuild only the block that changed, never the stack; use <code>hideObjectsOutOfScroll</code> in the detail column; check long link sentences at 80% to 140% font size.</p></div>
   </div>

@@ -50,11 +50,11 @@ end
 ---@field frozen Panel[] the panels collapsed for this frame, uncollapsed on pop.
 ---@field slot Panel the panel the stacked card mounts into.
 ---@field prevSlot Panel|nil the slot below (nil = the sidebar itself).
----@field coid any the coroutine the pop waits for: the stacked cast, or another cast still using its slot.
+---@field coid nil|integer the coroutine the pop waits for: the stacked cast, or another cast still using its slot.
 ---@field dialog Panel the interrupted roll dialog.
----@field displayedAbility any
----@field aliases table
----@field deferredCard Panel|nil
+---@field displayedAbility any the interrupted card's ability, put back on pop.
+---@field aliases table the interrupted card's folded-in sub-abilities, put back on pop.
+---@field deferredCard Panel|nil the interrupted card's not-yet-revealed wrapper, if any.
 ---@field lock table|nil the interrupted cast's display lock.
 
 ---@type AbilityCardFrame[]
@@ -64,9 +64,21 @@ local g_cardStack = {}
 ---@type Panel|nil
 local g_cardSlot = nil
 
+--Defined further down; IsRollStacked needs it to clear frames left behind.
+---@type fun(frame: AbilityCardFrame, force: boolean|nil)
+local PopCardFrame
+
 --True while a trigger's roll is stacked on top of the roll it interrupted.
 ---@return boolean
 function CharacterPanel.IsRollStacked()
+    --A HUD rebuild destroys the stacked slot along with the think that would have
+    --popped it. Drop those frames here, or every later roll would count as stacked.
+    for index = #g_cardStack, 1, -1 do
+        local frame = g_cardStack[index]
+        if frame ~= nil and not frame.slot.valid then
+            PopCardFrame(frame, true)
+        end
+    end
     return #g_cardStack > 0
 end
 
@@ -79,6 +91,15 @@ local function CardSlot(host)
         return g_cardSlot
     end
     return host
+end
+
+--The roll dialog mounted anywhere under `panel` (a card slot or the sidebar), or nil.
+---@param panel Panel
+---@return Panel|nil
+local function FindRollDialogIn(panel)
+    return panel:FindChildRecursive(function(child)
+        return child:HasClass("embeddedRollDialog")
+    end)
 end
 
 -- Shared document for broadcasting the active ability timeline to other players.
@@ -2301,10 +2322,7 @@ function CharacterPanel.FindEmbeddedRollDialog()
 
     --While a trigger roll is stacked, the dialog that counts is the top one;
     --the interrupted dialog underneath is not to be reused, queued on or shown.
-    local embedded = CardSlot(panel):FindChildRecursive(function(p)
-        return p:HasClass("embeddedRollDialog")
-    end)
-    return embedded
+    return FindRollDialogIn(CardSlot(panel))
 end
 
 --True if a roll dialog is currently shown in the standalone roll host (table
@@ -2819,8 +2837,9 @@ local g_acquiringRollDialogCoid = nil
 --and bring the interrupted card back exactly as it was. Safe to call twice.
 ---@param frame AbilityCardFrame
 ---@param force boolean|nil pop even while another cast still uses the slot; only for
----restoring a backup, which cancels every roll and cannot wait.
-local function PopCardFrame(frame, force)
+---restoring a backup, which cancels every roll and cannot wait, and for a slot a HUD
+---rebuild already destroyed.
+PopCardFrame = function(frame, force)
     local index = nil
     for i, candidate in ipairs(g_cardStack) do
         if candidate == frame then
@@ -2843,9 +2862,7 @@ local function PopCardFrame(frame, force)
     for i = index, #g_cardStack do
         local slot = g_cardStack[i].slot
         if busy == nil and not force and slot.valid then
-            local dialog = slot:FindChildRecursive(function(p)
-                return p:HasClass("embeddedRollDialog")
-            end)
+            local dialog = FindRollDialogIn(slot)
             local owner = dialog ~= nil and dialog.data ~= nil and dialog.data.castCoroutine or nil
             if owner ~= nil and owner ~= frame.coid and coroutine.IsCoroutineWithIdStillRunning(owner) then
                 busy = owner
@@ -3024,9 +3041,7 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     end
 
     local slot = CardSlot(panel)
-    local embeddedRoll = slot:FindChildRecursive(function(p)
-        return p:HasClass("embeddedRollDialog")
-    end)
+    local embeddedRoll = FindRollDialogIn(slot)
     if embeddedRoll ~= nil then
         --could not displace existing ability.
         if DisplayLockHeld() then

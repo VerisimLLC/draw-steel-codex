@@ -13,15 +13,32 @@ end
 
 --This file implements the main roll prompt dialog that appears when you get a dice roll prompt.
 
---Dialogs holding their thrown roll open, keyed by panel. The engine keeps EVERY
---amendable roll open while this says yes, so it is tracked per dialog: a stacked
---trigger roll finishing must not release the roll it interrupted.
+--True on engines where each roll can decide its own hold (the holdOpen roll arg).
+--Older engines only have the one global hook below, so there a stacked trigger roll
+--cannot be amendable: it would wait forever on the roll held open under it.
+local g_perRollHold = false
+pcall(function()
+    --The field is newer than the generated engine Definitions; old engines may raise.
+    ---@diagnostic disable-next-line: undefined-field
+    g_perRollHold = dmhub.perRollHoldOpen == true
+end)
+
+--Dialogs holding their thrown roll open, keyed by panel. Engines without per-roll
+--holds keep EVERY amendable roll open while this says yes, so it is tracked per
+--dialog: a stacked trigger roll finishing must not release the roll it interrupted.
 local g_rollHolders = {}
+
+--True while `panel`'s dialog has its roll held open and is still on screen. A dialog
+--that went away without relinquishing must not hold a roll open forever.
+---@param panel Panel
+---@return boolean
+local function DialogHoldsRoll(panel)
+    return g_rollHolders[panel] == true and panel.valid and panel.data.IsShown()
+end
+
 dmhub.HoldAmendableRollOpen = function()
     for panel in pairs(g_rollHolders) do
-        --A holder only counts while its dialog is still up; one that went away
-        --without relinquishing must not hold every later roll open forever.
-        if panel.valid and panel.data.IsShown() then
+        if DialogHoldsRoll(panel) then
             return true
         end
         g_rollHolders[panel] = nil
@@ -1321,6 +1338,12 @@ function GameHud.CreateEmbeddedRollDialog()
     local resultPanel
     local CalculateRollText
     local BroadcastDialogState
+
+    --True for a stacked trigger roll on an engine without per-roll holds. Such a roll
+    --is not amendable, so it has no Re-roll or Intel re-roll and completes on landing.
+    local function StackedWithoutAmend()
+        return resultPanel.data.stacked and not g_perRollHold
+    end
 
     local rollAllPrompts = nil
     local rollActive = nil
@@ -5585,10 +5608,11 @@ function GameHud.CreateEmbeddedRollDialog()
             --that costs something, so it survives: un-collapse it and hand
             --Accept Result its half of the bar back. Only touched in strict
             --mode, where the construction-time block already wrote both.
-            --A stacked roll has no Re-roll at all: it completes when its dice land,
-            --and a completed roll can no longer be amended.
-            if m_strictRolls or resultPanel.data.stacked then
-                local hidden = (rule == nil) or resultPanel.data.stacked
+            --A stacked roll on an older engine has no Re-roll at all: it completes
+            --when its dice land, and a completed roll can no longer be amended.
+            local stackedWithoutAmend = StackedWithoutAmend()
+            if m_strictRolls or stackedWithoutAmend then
+                local hidden = (rule == nil) or stackedWithoutAmend
                 element.selfStyle.collapsed = cond(hidden, 1, 0)
                 proceedAfterRollButton.selfStyle.width = cond(hidden, "100%", 140)
                 proceedAfterRollButton.selfStyle.halign = cond(hidden, "center", "right")
@@ -5792,7 +5816,7 @@ function GameHud.CreateEmbeddedRollDialog()
             --no Intel to spend (also the "not this campaign" case). The
             --shownWhenPending style handles the rest.
             local enabled = (it ~= nil and it.Enabled ~= nil and it.Enabled()) and true or false
-            element:SetClass("collapsed", (not enabled) or pool < 1 or resultPanel.data.stacked)
+            element:SetClass("collapsed", (not enabled) or pool < 1 or StackedWithoutAmend())
         end,
         press = function(element)
             local it = rawget(_G, "IntelTracker")
@@ -8608,10 +8632,16 @@ function GameHud.CreateEmbeddedRollDialog()
                 local rollArgs = {
                     guid = resultPanel.data.rollid,
                     description = m_options.description,
-                    --A stacked trigger roll is never amendable: the engine only
-                    --finishes amendable rolls once no dialog holds one open, and
-                    --the roll this one interrupted is still holding its own.
-                    amendable = m_options.amendable and not resultPanel.data.stacked,
+                    --On an older engine a stacked trigger roll is never amendable: that engine
+                    --keeps every amendable roll open while any dialog holds one, and the roll
+                    --under it is still held.
+                    amendable = m_options.amendable and not StackedWithoutAmend(),
+                    --Newer engines ask this roll alone whether to stay open, so a
+                    --stacked roll and the roll under it each finish on their own.
+                    --Older engines ignore it and use dmhub.HoldAmendableRollOpen.
+                    holdOpen = g_perRollHold and function()
+                        return DialogHoldsRoll(resultPanel)
+                    end or nil,
                     tokenid = tokenid,
                     silent = rollIsSilent,
                     delay = delayRoll,
@@ -8852,10 +8882,10 @@ function GameHud.CreateEmbeddedRollDialog()
                         m_rollTotalLabel.text = tostring(rollInfo.total or 0)
 
                         resultPanel:SetClassTree("rolling", false)
-                        --A stacked roll completes as soon as its dice land (it is not
-                        --amendable) but still waits on Accept Result, which only shows
-                        --while pending.
-                        resultPanel:SetClassTree("rollPending", showingDialog and resultPanel.data.stacked)
+                        --A stacked roll on an older engine completes as soon as its dice
+                        --land (it is not amendable) but still waits on Accept Result,
+                        --which only shows while pending.
+                        resultPanel:SetClassTree("rollPending", showingDialog and StackedWithoutAmend())
                         resultPanel:SetClassTree("finishedRolling", true)
                         if showingDialog then
                             ShowDiceFaces(rollInfo)

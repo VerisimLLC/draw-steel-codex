@@ -12,20 +12,22 @@ local stop = assert(source:find('\nend\n', start, true), 'end of ExecuteCommandI
 local body = source:sub(start + 1, stop + 4)
 
 --Engine stubs: only what ExecuteCommandInternal touches on these paths.
-regex = {
+--rawset so the type checker does not merge the stubs into the real globals.
+local function stub(name, value) rawset(_G, name, value) end
+stub('regex', {
     MatchGroups = function(str, pattern)
         if pattern == 'TEST_NONDAMAGE' and str:find('^gain ') then return {all = str} end
         if pattern == 'TEST_DAMAGE' and str:find('^%d+ damage') then return {all = str} end
         return nil
     end,
     ReplaceAll = function(str, pattern, repl) return str end,
-}
-dmhub = {GetTable = function() return {} end}
-unhidden_pairs = pairs
-ActivatedAbilityDrawSteelCommandBehavior = {
+})
+stub('dmhub', {GetTable = function() return {} end})
+stub('unhidden_pairs', pairs)
+stub('ActivatedAbilityDrawSteelCommandBehavior', {
     ResolveOrGroups = function(rule) return rule end,
     NormalizeRuleTextForCreature = function(_, rule) return rule end,
-}
+})
 
 local executed = {}
 local patterns = {

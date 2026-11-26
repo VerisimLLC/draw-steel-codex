@@ -88,7 +88,7 @@ the plan. Still open: phasing and rollout.
 
 ## 3. Minor
 
-- IMPL cited `dmhub.SetAndUploadObject`, which does not exist; it is `SetAndUploadTableItem` (Definitions/dmhub.lua:676). **Verified; fixed in the plan 2026-11-26.** The root CLAUDE.md "Data Tables" section names the same wrong function (left for the owner).
+- IMPL cited `dmhub.SetAndUploadObject`, which does not exist; it is `SetAndUploadTableItem` (Definitions/dmhub.lua:676). **Verified; fixed in the plan 2026-11-26.** The root CLAUDE.md and docs/ named the same wrong function; fixed 2026-11-26.
 - IMPL uploads on every save; CODING defers the upload until the author leaves the record. Pick one.
 - Line references drifted in IMPL/CODING (MainPanel.lua:770, RegisterType, TypeInfo, testGs) and in FOLLOW_UP F3-F5 (corrected there).
 - Wording differs between the editors: "+ add step" / "+ add what it does" / "+ add a block"; Remove vs Delete; load order "after Core Rules" vs "after Draw Steel UI"; prototypes use the Unicode ellipsis, Lua text must be ASCII.

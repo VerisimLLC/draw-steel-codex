@@ -97,4 +97,4 @@ for id, condition in unhidden_pairs(conditionsTable) do
 end
 ```
 
-Write back with `dmhub.SetAndUploadObject("charConditions", id, obj)`.
+Write back with `dmhub.SetAndUploadTableItem("charConditions", obj)` (the entry is `obj.id`).

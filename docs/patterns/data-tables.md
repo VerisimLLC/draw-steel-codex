@@ -53,10 +53,10 @@ end
 
 ## Writing to a table
 
-Use `dmhub.SetAndUploadObject(tableName, id, obj)` to write an entry:
+Use `dmhub.SetAndUploadTableItem(tableName, obj)` to write an entry. The object's own `id` field says which entry it replaces; if it has no `id`, a new one is generated and returned:
 
 ```lua
-dmhub.SetAndUploadObject("charConditions", conditionId, conditionObj)
+dmhub.SetAndUploadTableItem("charConditions", conditionObj)   -- conditionObj.id is the entry it replaces
 ```
 
 This serializes the object, writes it locally, and uploads it to the cloud.
@@ -76,6 +76,6 @@ Table names are typically stored as a `tableName` field on the Game Type (e.g., 
 
 - **Read** with `dmhub.GetTable(name)` — returns a GUID-keyed table
 - **Iterate** with `unhidden_pairs()` — never use raw `pairs()` on data tables
-- **Write** with `dmhub.SetAndUploadObject(table, id, obj)` — handles serialization and cloud sync
+- **Write** with `dmhub.SetAndUploadTableItem(table, obj)` (the entry is `obj.id`) — handles serialization and cloud sync
 - **Table names** are strings, typically stored on the Game Type as `.tableName`
 - Data tables store **definitions** (content), not **session state** (use [Shared Documents](shared-documents.md) for that)

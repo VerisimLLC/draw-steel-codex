@@ -71,7 +71,7 @@ end
 ```
 
 ### Data Tables
-Game data is stored in named tables accessed via `dmhub.GetTable("tableName")`. Iterate with `unhidden_pairs(t)` (skips soft-deleted entries). Write with `dmhub.SetAndUploadObject(tableName, id, obj)`.
+Game data is stored in named tables accessed via `dmhub.GetTable("tableName")`. Iterate with `unhidden_pairs(t)` (skips soft-deleted entries). Write with `dmhub.SetAndUploadTableItem(tableName, obj)`: the object's own `id` says which entry it replaces (a new id is generated if it has none, and returned).
 
 ### Modifying Token Properties
 When changing any value on a token's properties outside of the character sheet, you **must** wrap mutations in `token:ModifyProperties{}`. This observes the changes, uploads only the diffs to the cloud, and supports undo.

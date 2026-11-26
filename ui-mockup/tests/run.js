@@ -26,6 +26,9 @@ const CHECKS = [
   ['t-math.js', out => /4 number: Might \* 2/.test(out) && /5 Level \+ 4: Level \+ 4/.test(out) && /"Level \+ 4"\]/.test(out)],
   // "A stat or attribute" in the picker; the stat is changed from the block's word.
   ['t-statpick.js', out => /selects in picker: 0/.test(out) && /after Might: Might/.test(out) && /search vic \+ pick: Victories/.test(out)],
+  // The amount picker lists the kinds of amount in both editors, and a searched stat is used.
+  ['t-amount.js', out => /CB rows: A number \| A stat \| A stat with math \| More from a level \| Depends on a test \| A dice roll/.test(out)
+    && /CB pres \+ stat with math: Presence \+ 1/.test(out) && /AB rows: A number \| A stat \| A stat with math/.test(out) && /AB errs \[\]/.test(out)],
   // Every core ability opens in the ability editor and saves back unchanged (4 known exceptions).
   ['t-ab.js', out => json(out).same >= 1015],
   // Treating every step as edited still keeps the saved records (13 known reader-precision cases).

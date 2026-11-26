@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
   console.log('1 stat:', await qty(), '|', await txt());
   await line().locator('.tok.fx').first().click(); await p.waitForTimeout(150);
   await p.locator('.menu button', { hasText: 'A formula instead' }).click(); await p.waitForTimeout(150);
-  await p.locator('.menu.picker .opt', { hasText: '[ ] plus [1]' }).click(); await p.waitForTimeout(200);
+  await p.locator('.menu.picker .opt', { hasText: 'A stat with math' }).click(); await p.waitForTimeout(200);
   console.log('2 math:', await qty(), '|', await txt());
   await line().locator('.fxsum .tok', { hasText: 'plus' }).click(); await p.waitForTimeout(150);
   await p.locator('.menu button', { hasText: 'times' }).click(); await p.waitForTimeout(200);

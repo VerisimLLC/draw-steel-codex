@@ -297,6 +297,15 @@ Block.RegisterGainEvent{
 - Anything the short menu can't say is built with "Build the trigger yourself...", which opens
   the triggered ability editor seeded from the line.
 
+**The amount picker** (formulas, both editors) is one list of the kinds of amount, each named
+plainly with a real example in the block's own words, no group headings and no "[ ]" notation:
+A number ("3"), A stat ("your Might, any characteristic, Level, Victories..."), A stat with math
+("your Level plus 4 · your Might times 2"), More from a level ("1, then 2 from 5th level"),
+Depends on a test ("2 if you are winded, otherwise 1"), A dice roll ("1d3"), then values the
+trigger reports, then "Type a formula instead". A "Now:" line shows the current value, and a note
+says the stat, sign and numbers are changed on the block after picking. Searching a stat's name
+makes the stat rows use it ("might" + A stat with math = "your Might plus 1").
+
 **Picker rule (both editors): one entry per kind of thing, never one per value.** A test or
 formula that differs only in which stat, amount or dice it uses is one entry; the choice is made
 in the block (a stat menu, a number box), where it is easy to change. Search still finds the

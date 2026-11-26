@@ -241,34 +241,38 @@ function fillFx(m, obj, key, ad) {
   const setF = f => { change(() => { if (ad) ad.set(f); else obj[key] = f; }); };
   const ph = E("div", "ph"); const t = E("div", "t", "Amount"); t.appendChild(E("span", "kind", "number")); ph.appendChild(t);
   ph.appendChild(E("p", null, "A number, or what it should be based on."));
+  // What it is now, so it's clear a pick replaces it (or, for "More from a level", builds on it).
+  const nowV = String(get() == null ? "" : get()).trim();
+  if (nowV) { const nw = E("p", "now"); nw.appendChild(E("b", null, "Now: ")); nw.appendChild(document.createTextNode(ad && ad.reads ? ad.reads(nowV) : fxWords(ad ? { v: nowV } : obj, ad ? "v" : key))); ph.appendChild(nw); }
   const search = E("input"); search.placeholder = "What should this be based on? e.g. level, might"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search); m.appendChild(ph);
   const item = (txt, d, make, k) => ({ txt, d, make, k: k || "" });
-  // Searching a stat's name and picking "A stat or attribute" uses that stat.
+  // Searching a stat's name, then picking a row that uses a stat, uses that stat.
   const searchStat = () => { const q = search.value.trim().toLowerCase(); return q ? FX_STATS.find(f => f.toLowerCase().startsWith(q)) : null; };
-  const groups = [
-    // One entry: which stat is changed afterwards on the block itself (its stat word is a menu).
-    ["Use a stat", "A characteristic, Level, Stamina...", [item("A stat or attribute", "Level, Victories, a characteristic... Change which on the block.", () => setF(searchStat() || (FX_STATS.includes(base()) ? base() : "Level")), FX_STATS.join(" ").toLowerCase() + " characteristic attribute")]],
-    ["Scale with level", "Grows as the creature levels up.", [
-      item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
-      item("[ ] plus your Level", "Goes up by one every level.", () => setF(base() + " + Level"), "per level")]],
-    // One entry for + - * / (the sign and the number change on the block); a choice of two values is its own test.
-    ["Do math", "Add, subtract, multiply, divide.", [
-      item("[ ] plus [1]", "Change the sign (plus, minus, times, divided by) and the number on the block.", () => setF((fxPart(base()) ? base() : wrap(base())) + " + 1"), "plus minus times multiply add subtract divide half double"),
-      item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => setF("2 when Winded else " + base()), "when else choose")]],
-    ["Roll dice", "Only damage, healing and gains can roll.", [item("1d3", "Change the count and sides in the formula below.", () => setF("1d3"), "random dice d3 d6 d10")]],
-  ];
+  const curStat = () => FX_STATS.includes(base()) ? base() : null;
+  const STAT_WORDS = FX_STATS.join(" ").toLowerCase() + " characteristic attribute";
+  /* One list of the kinds of amount, each named plainly with a real example in the block's own words
+     ("your Level plus 4"), so it shows that any stat can be used and that math works with a stat.
+     What the example shows (which stat, the sign, the numbers) is changed on the block afterwards. */
+  const groups = [["", "", [
+    item("A number", "3", () => setF(/^\d+$/.test(base()) ? base() : "1"), "number amount flat fixed"),
+    item("A stat", "your Might  (any characteristic, Level, Victories\u2026)", () => setF(searchStat() || curStat() || "Might"), STAT_WORDS),
+    item("A stat with math", "your Level plus 4  \u00b7  your Might times 2", () => setF(fxSum(base()) ? base() : (searchStat() || curStat() || "Level") + " + 1"), STAT_WORDS + " math plus minus times multiply add subtract divide half double"),
+    item("More from a level", "1, then 2 from 5th level", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "level echelon scale grows bonus"),
+    item("Depends on a test", "2 if you are winded, otherwise 1", () => setF("2 when Winded else " + base()), "if when else choose test"),
+    item("A dice roll", "1d3", () => setF("1d3"), "random dice roll d3 d6 d10")]]];
   const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
   const draw = () => {
     pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
     groups.forEach(([g, gd, opts]) => {
       const vis = opts.filter(o => !q || (g + " " + o.txt + " " + o.d + " " + o.k).toLowerCase().includes(q)); if (!vis.length) return;
-      const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
-      const cap = !q && !expanded.has(g) && vis.length > 4;
-      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (o.d) b.appendChild(E("span", "d", o.d));
+      if (g) { const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh); }
+      const cap = g && !q && !expanded.has(g) && vis.length > 4;
+      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (o.d) b.appendChild(E("span", g ? "d" : "d ex", o.d));
         b.addEventListener("click", o.make); pb.appendChild(b); n++; });
       if (cap) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); expanded.add(g); draw(); }); pb.appendChild(more); }
     });
     if (!n) pb.appendChild(E("p", "note", "Nothing matches. You can type a formula below."));
+    else if (!q) pb.appendChild(E("p", "note", "You change the stat, sign and numbers on the block after picking."));
     // Level steps (core classes store these as a level table): shown under the groups while there are any.
     if (steps.length && !q) {
       const gh = E("div", "grp", "Changes with level"); gh.appendChild(E("span", "gd", "A different amount from a level on.")); pb.appendChild(gh);

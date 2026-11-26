@@ -401,6 +401,9 @@ details.saved pre { font: 11px var(--font-mono); font-variant-ligatures: none; b
 .note { color: var(--dim); font-size: 12px; line-height: 1.5; margin: 0; }
 #dragGhost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; opacity: .9; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
 @media (prefers-reduced-motion: no-preference) { .flash { animation: fl .35s ease-out; } @keyframes fl { from { filter: brightness(1.6); } to { filter: none; } } }
+/* The formula picker's kinds of amount: the example reads like the block. */
+.picker .opt .d.ex { font-style: italic; opacity: .85; }
+.picker .ph .now { margin: 4px 0 0; font-size: 12.5px; }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono&display=swap">
 
@@ -3301,6 +3304,7 @@ function place(el, anchor) {
    "Who" is preset from the field description (defaultRole) and explained in the header; every
    block keeps a dropdown to switch it afterwards. Items come from the slot's description, so each
    field only offers what is valid there. */
+let pickerQuery = "";   // the picker's search text, so a row that uses a stat can use the one searched for
 function pickerOptions(h) {
   const d = docOf(h.docs), wantBool = h.kind === "boolean", groups = [];
   const who = d.defaultRole;
@@ -3379,20 +3383,21 @@ function pickerOptions(h) {
       item("Not [ ]", "Flip a test: true when it is false.", () => X("not", {}, { a: H("boolean", h.docs) }), "not negate opposite", true),
     ]]);
   } else {
-    // One entry: which stat is picked in the block (its stat menu); what the trigger reports follows.
-    groups.push(["Use a stat", "A characteristic, Level, Stamina...", [item("A stat or attribute", "Level, a characteristic, speed... Change which on the block.", () => X("stat", { role: who, field: "Level" }), NUM_FIELDS.join(" ").toLowerCase() + " characteristic attribute")]
-      .concat(d.symbols.filter(y => y.type === "number").map(y => item(y.name, y.desc, () => X("sym", { name: y.name }))))]);
-    groups.push(["Scale with level", "Grows as the creature levels up.", [
-      item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),
-        b: Object.assign(numH(), { expr: X("pick", {}, { a: numH("1"), cond: Object.assign(H("boolean", h.docs), { expr: X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }) }), b: numH("0") }) }) }), "echelon bonus"),
-      item("[ ] plus " + (r0.label === "You" ? "your" : r0.poss) + " Level", "Goes up by one every level.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }) }), "per level"),
-    ]]);
-    groups.push(["Do math", "Add, subtract, multiply, halve.", [
-      // One entry for + - * / : the sign is a menu on the block.
-      item("[ ] + [ ]", "Change the sign (+, -, *, /) on the block. Division rounds down.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"), b: numH("1") }), "plus minus times multiply add subtract divide half double"),
-      item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => X("pick", {}, { a: numH("2"), cond: H("boolean", h.docs), b: numH(h.lit || "1") }), "when else choose"),
-    ]]);
-    if (h.kind === "roll") groups.push(["Roll dice", "Only damage and healing can roll.", [item("1d6", "Change the count and sides after.", () => X("dice", { n: "1", s: "6" }), "random d6 d10")]]);
+    /* One list of the kinds of amount, each named plainly with a real example in the block's own
+       words, so it shows that any stat can be used and that math works with a stat. What the example
+       shows (which stat, the sign, the numbers) is changed on the block afterwards. */
+    const yourW = r0.label === "You" ? "your" : r0.poss, STAT_WORDS = NUM_FIELDS.join(" ").toLowerCase() + " characteristic attribute";
+    const qStat = () => { const q = norm(pickerQuery || ""); return q ? NUM_FIELDS.find(f => norm(f).startsWith(q)) : null; };
+    groups.push(["", "", [
+      item("A number", "3", () => X("num", { v: h.lit || "1" }), "number amount flat fixed"),
+      item("A stat", yourW + " Might  (any characteristic, Level, speed\u2026)", () => X("stat", { role: who, field: qStat() || "Might" }), STAT_WORDS)]
+      .concat(d.symbols.filter(y => y.type === "number").map(y => item(y.name, y.desc, () => X("sym", { name: y.name }), "event " + y.name)))
+      .concat([
+      item("A stat with math", yourW + " Level + 4  \u00b7  " + yourW + " Might \u00d7 2", () => X("math", { op: "+" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: qStat() || "Level" }) }), b: numH("1") }), STAT_WORDS + " math plus minus times multiply add subtract divide half double"),
+      item("More from a level", "1, then 2 from 5th level", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),
+        b: Object.assign(numH(), { expr: X("pick", {}, { a: numH("1"), cond: Object.assign(H("boolean", h.docs), { expr: X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }) }), b: numH("0") }) }) }), "level echelon scale grows bonus"),
+      item("Depends on a test", "2 if " + (r0.label === "You" ? "you are" : r0.prose + " is") + " winded, otherwise 1", () => X("pick", {}, { a: numH("2"), cond: H("boolean", h.docs), b: numH(h.lit || "1") }), "if when else choose test"),
+      ]).concat(h.kind === "roll" ? [item("A dice roll", "1d6", () => X("dice", { n: "1", s: "6" }), "random dice roll d6 d10")] : [])]);
   }
   // Values a Remember step noted come first: the point of remembering is to use them here.
   const mems = memoryNames().filter((n, i, a) => a.findIndex(m => norm(m) === norm(n)) === i);
@@ -3438,6 +3443,8 @@ function openPicker(h, anchor) {
   const t = E("div", "t", d.title); t.appendChild(E("span", "kind", h.kind === "boolean" ? "true / false" : h.kind === "roll" ? "number or dice" : "number")); ph.appendChild(t);
   ph.appendChild(E("p", null, d.help));
   const whoP = E("p", "who"); whoP.innerHTML = "<b>Who:</b> " + esc(d.who); ph.appendChild(whoP);
+  // What it is now, so it's clear a pick replaces it.
+  if (h.kind !== "boolean" && (h.expr || String(h.lit == null ? "" : h.lit).trim())) { const nw = E("p", "now"); nw.appendChild(E("b", null, "Now: ")); nw.appendChild(document.createTextNode(cHolder(h).prose)); ph.appendChild(nw); }
   const search = E("input"); search.placeholder = h.kind === "boolean" ? "What do you want to check? e.g. prone, winded, level" : "What should this be based on? e.g. level, might"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search);
   p.appendChild(ph);
   const pb = E("div", "pb"); p.appendChild(pb);
@@ -3445,17 +3452,17 @@ function openPicker(h, anchor) {
   // Without a search, each intent shows its first few choices so every intent stays visible.
   const expanded = new Set();
   const draw = () => {
-    pb.innerHTML = ""; const q = norm(search.value);
+    pb.innerHTML = ""; const q = norm(search.value); pickerQuery = search.value;
     let n = 0;
     for (const [g, gd, opts] of groups) {
       const vis = opts.filter(o => !q || norm(g + " " + o.chip.txt + " " + (o.d || "") + " " + (o.key || "")).includes(q));
       if (!vis.length) continue;
-      const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
-      const cap4 = !q && !expanded.has(g) && vis.length > 4;
+      if (g) { const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh); }
+      const cap4 = g && !q && !expanded.has(g) && vis.length > 4;
       for (const o of cap4 ? vis.slice(0, 3) : vis) {
         const b = E("button", "opt"); b.type = "button";
         b.appendChild(E("span", "chip" + (o.chip.ex ? " ex" : o.chip.test ? " test" : ""), o.chip.txt));
-        if (o.d) b.appendChild(E("span", "d", o.d));
+        if (o.d) b.appendChild(E("span", g ? "d" : "d ex", o.d));
         if (!o.make) { b.disabled = true; b.style.opacity = .6; }
         else b.addEventListener("click", () => { h.expr = o.make(); closeIfSingle(); refresh(); flash(h.id); });
         pb.appendChild(b); n++;
@@ -3464,6 +3471,7 @@ function openPicker(h, anchor) {
         more.addEventListener("click", () => { expanded.add(g); draw(); }); pb.appendChild(more); }
     }
     if (!n) pb.appendChild(E("p", "note", "Nothing matches. You can type a formula below."));
+    else if (!q && h.kind !== "boolean") pb.appendChild(E("p", "note", "You change the stat, sign and numbers on the block after picking."));
   };
   search.addEventListener("input", draw);
   draw();

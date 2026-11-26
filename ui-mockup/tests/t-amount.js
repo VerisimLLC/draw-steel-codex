@@ -1,0 +1,31 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch();
+  // class builder
+  const p = await require('./cbpage.js')(b);
+  await p.evaluate(() => change(() => { cls.gains.push({ id: newId('g'), event: 'dealdamage', freq: 'round', who: 'self', cond: null, qty: 'Level + 4', guid: guid() }); }));
+  await p.waitForTimeout(300);
+  const line = () => p.locator('.sent').filter({ hasText: 'deal damage' }).first();
+  await line().locator('.fxsum .tok', { hasText: 'fx' }).click(); await p.waitForTimeout(250);
+  console.log('CB rows:', (await p.locator('.menu.picker .opt .chip').allTextContents()).join(' | '));
+  console.log('CB now:', await p.locator('.menu.picker .now').textContent());
+  await p.locator('.menu.picker .ph input').fill('might'); await p.waitForTimeout(100);
+  console.log('CB search might:', (await p.locator('.menu.picker .opt .chip').allTextContents()).join(' | '));
+  await p.locator('.menu.picker .opt', { hasText: 'A stat with math' }).click(); await p.waitForTimeout(200);
+  console.log('CB stat with math (had a sum):', await p.evaluate(() => cls.gains.at(-1).qty));
+  await p.evaluate(() => change(() => { cls.gains.at(-1).qty = '2'; })); await p.waitForTimeout(200);
+  await line().locator('.tok', { hasText: /^2$/ }).last().click(); await p.waitForTimeout(150);
+  await p.locator('.menu.picker .ph input').fill('pres'); await p.waitForTimeout(100);
+  await p.locator('.menu.picker .opt', { hasText: 'A stat with math' }).click(); await p.waitForTimeout(200);
+  console.log('CB pres + stat with math:', await p.evaluate(() => cls.gains.at(-1).qty), '|', (await line().textContent()).replace(/\s+/g, ' ').replace(/.*you gain /, '').slice(0, 60));
+  console.log('CB errs', p.errs);
+  // ability editor
+  const q = await b.newPage({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: 2 }); const errs = []; q.on('pageerror', e => errs.push(e.message));
+  await q.goto('file://' + require('path').resolve(__dirname, '..', 'ability-blocks-stack.html')); await q.waitForTimeout(600);
+  await q.locator('.pal-step', { hasText: 'Deal damage' }).first().click(); await q.waitForTimeout(400);
+  const num = q.locator('[data-holder]').filter({ hasText: 'fx' }).first(); await num.locator('button, .fx').first().click(); await q.waitForTimeout(300);
+  console.log('AB rows:', (await q.locator('.picker .opt .chip').allTextContents()).join(' | '));
+  console.log('AB now:', await q.locator('.picker .now').textContent().catch(() => '(none)'));
+  await q.locator('.picker .ph input').fill('agil'); await q.waitForTimeout(100);
+  await q.locator('.picker .opt', { hasText: 'A stat with math' }).click(); await q.waitForTimeout(300);
+  console.log('AB after agil + math:', (await q.locator('[data-holder]').nth(1).textContent().catch(() => '?')).replace(/\s+/g, ' ').slice(0, 60));
+  console.log('AB errs', errs); await b.close(); })();

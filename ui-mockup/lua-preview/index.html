@@ -46,6 +46,19 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .app { color: var(--fg); background: var(--bg); border: 1px solid var(--borderSolid); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
 .titlebar { background: linear-gradient(90deg, var(--bg), var(--bgAlt)); display: flex; flex-wrap: wrap; align-items: end; gap: 4px 18px; padding: 10px 14px 0; border-bottom: 1px solid var(--borderSolid); }
 .classname { font: 700 22px/1 var(--f-label); color: var(--fgStrong); padding-bottom: 10px; }
+/* The class is the big tab; its subclasses are smaller pills in their own group, set off by a rule. */
+.classtab { font: 700 22px/1 var(--f-label); color: var(--fgStrong); background: none; border: 0; border-bottom: 3px solid transparent; padding: 0 2px 9px; cursor: pointer; display: inline-flex; align-items: baseline; gap: 8px; }
+.classtab .kind { font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; color: var(--fgMuted); }
+.classtab.selected { border-bottom-color: var(--accent); }
+.classtab:not(.selected) { color: var(--fg); }
+.subgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 10px 4px; padding: 2px 0 2px 14px; border-left: 1px solid var(--borderSolid); }
+.sublbl { font: 700 10px var(--f-input); letter-spacing: .08em; text-transform: uppercase; color: var(--fgMuted); margin-right: 4px; }
+.subtab { font: 14px var(--f-label); color: var(--fg); background: transparent; border: 1px solid var(--borderSolid); border-radius: 12px; padding: 2px 10px; cursor: pointer; }
+.subtab:hover { background: var(--bgAlt); color: var(--fgStrong); }
+.subtab[aria-selected="true"] { background: var(--bgAlt); border-color: var(--fg); color: var(--fgStrong); font-weight: 700; }
+.subtab.add { color: var(--fgMuted); border-style: dashed; }
+.crumb { margin: 0 0 12px auto; font: italic 14px var(--f-label); color: var(--fgMuted); }
+.sechead.collapsed .caret { transform: rotate(-90deg); }
 .tabbar { display: flex; flex-wrap: wrap; gap: 2px; }
 .tab { font: 600 15px var(--f-label); color: var(--fgMuted); background: var(--bg); border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 6px 14px 7px; cursor: pointer; }
 .tab:hover { color: var(--fg); }
@@ -210,14 +223,15 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 
   <div class="app luaon" id="app" data-lua="BEMainPanel.CreatePanel{ host = ClassHost }  -- DockablePanel or full-screen launchable; root of the tree" data-what="Editor root">
     <div class="titlebar" data-lua='gui.Panel{ classes = {"panel", "barTrack"}, flow = "horizontal", wrap = true }' data-what="Title bar">
-      <div class="classname" data-lua='gui.Label{ classes = {"label", "sizeXl", "bold"}, editableOnDoubleClick = true, text = cls.name }' data-what="Class name (double-click to rename)">Fury</div>
-      <div class="tabbar" role="tablist" data-lua='gui.Panel{ classes = {"tabBar"}, flow = "horizontal" }' data-what="Subclass tabs">
-        <button class="tab selected" role="tab" aria-selected="true" data-lua='gui.Label{ classes = {"tab", "selected"}, text = "Fury", press = ShowView }' data-what="Tab: the class itself">Fury</button>
-        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = sub.name }  -- one per compendium subclass with primaryClassId = cls.id' data-what="Tab: a subclass entry">Berserker</button>
-        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = sub.name }' data-what="Tab: a subclass entry">Reaver</button>
-        <button class="tab" role="tab" data-lua='gui.Label{ classes = {"tab"}, text = sub.name }' data-what="Tab: a subclass entry">Stormwight</button>
-        <button class="tab add" data-lua='gui.Button{ icon = "phosphor/plus-bold.png", text = "Subclass", press = NewSubclass }  -- adds a compendium entry' data-what="Add a subclass">+ Subclass</button>
+      <button class="classtab selected" type="button" data-lua='gui.Label{ classes = {"beClassTab", "selected"}, editableOnDoubleClick = true, text = cls.name, press = ShowClass }  -- the class itself: the largest tab' data-what="The class (double-click to rename)">Fury<span class="kind">Class</span></button>
+      <div class="subgroup" role="tablist" aria-label="Subclasses of Fury" data-lua='gui.Panel{ classes = {"beSubclassGroup"}, flow = "horizontal", border = {x1 = 1} }  -- smaller pills under a "Subclasses" label, set apart from the class by a rule' data-what="Subclasses of the class">
+        <span class="sublbl">Subclasses</span>
+        <button class="subtab" role="tab" aria-selected="false" data-lua='gui.Label{ classes = {"beSubclassTab"}, text = sub.name }  -- one per compendium subclass with primaryClassId = cls.id' data-what="A subclass (its own compendium entry)">Berserker</button>
+        <button class="subtab" role="tab" aria-selected="false">Reaver</button>
+        <button class="subtab" role="tab" aria-selected="false">Stormwight</button>
+        <button class="subtab add" type="button" data-lua='gui.Button{ classes = {"beSubclassAdd"}, text = "+ New", press = NewSubclass }  -- adds a compendium entry with this class as its parent' data-what="Add a subclass">+ New</button>
       </div>
+      <div class="crumb" id="crumb" aria-live="polite"></div>
     </div>
 
     <div class="cols" id="cols">
@@ -226,13 +240,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
         <div class="seam"></div>
         <div class="navrow selected" data-lua='gui.Panel{ classes = {"beNavRow", "selected"} }  -- @bgAlt fill + 3px @accent edge, name bold @fgStrong' data-what="Selected selector row">How you gain Ferocity <span class="count">4</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- slow start: one tab per encounter, shown while the class uses it' data-what="Selector row"><span class="long">Encounter 1</span><span class="short">Enc 1</span> <span class="count">7</span></div>
-        <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">Encounter 2</span><span class="short">Enc 2</span> <span class="count">1</span></div>
-        <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">Encounter 3</span><span class="short">Enc 3</span> <span class="count">1</span></div>
-        <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">Encounter 4</span><span class="short">Enc 4</span> <span class="count">0</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- slow start: Encounters 1-4 as one shared list on one page' data-what="Selector row"><span class="long">Slow start</span><span class="short">Slow start</span> <span class="count">9</span></div>
         <div class="seam"></div>
         <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- one tab per level, 1st to 10th' data-what="Selector row"><span class="long">1st level</span><span class="short">1st</span> <span class="count">0</span></div>
         <div class="seam"></div>
@@ -290,7 +298,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
           <div class="addrow" data-lua='gui.Panel{ classes = {"beAddRow", "hoverable"}, press = OpenShelfMenu, gui.Panel{ classes = {"iconButton", "addButton", "sizeXs"} }, gui.Label{ text = "Add a way to gain Ferocity" } }' data-what="Add row"><svg><use href="#i-plus"/></svg>Add a way to gain Ferocity</div>
         </div>
 
-        <div class="sechead" data-lua='gui.Panel{ classes = {"beSectionHeader"} }' data-what="Section header"><svg class="caret"><use href="#i-caret"/></svg>Encounter 1<span class="count">7 features</span></div>
+        <div class="sechead" data-lua='gui.Panel{ classes = {"beSectionHeader"} }' data-what="Section header"><svg class="caret"><use href="#i-caret"/></svg>Slow start: Encounter 1<span class="count">7 features</span></div>
         <div class="underline"></div>
 
         <div class="card" data-lua='gui.Panel{ classes = {"featureCard"}, gui.Panel{ classes = {"featureCardHeader", "expanded"} }, gui.Panel{ classes = {"featureCardBody"} } }  -- existing theme classes' data-what="Feature card">
@@ -350,6 +358,12 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
             <div class="addrow"><svg><use href="#i-plus"/></svg>Add a block</div>
           </div>
         </div>
+        <div class="sechead collapsed" data-lua='gui.Panel{ classes = {"beSectionHeader"} }  -- the slow start page lists Encounters 1-4 together; each collapses' data-what="Section header (collapsed)"><svg class="caret"><use href="#i-caret"/></svg>Slow start: Encounter 2<span class="count">1 feature</span></div>
+        <div class="underline"></div>
+        <div class="sechead collapsed"><svg class="caret"><use href="#i-caret"/></svg>Slow start: Encounter 3<span class="count">1 feature</span></div>
+        <div class="underline"></div>
+        <div class="sechead collapsed"><svg class="caret"><use href="#i-caret"/></svg>Slow start: Encounter 4<span class="count">none</span></div>
+        <div class="underline"></div>
       </section>
 
       <aside class="col right" data-lua='gui.Panel{ width = 330, height = "100%", flow = "vertical" }  -- BEShelf over BEStatusPanel' data-what="Right column">
@@ -484,6 +498,16 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
     }
   });
   window.addEventListener('scroll', closeMenu, true);
+
+  // The class and its subclasses: one selected at a time; a subclass says whose it is.
+  const classTab = document.querySelector('.classtab'), crumb = document.getElementById('crumb');
+  const pickView = el => {
+    classTab.classList.toggle('selected', el === classTab);
+    document.querySelectorAll('.subtab:not(.add)').forEach(t => t.setAttribute('aria-selected', t === el ? 'true' : 'false'));
+    crumb.textContent = el === classTab ? '' : 'Editing ' + el.textContent + ', a subclass of Fury';
+  };
+  classTab.addEventListener('click', () => pickView(classTab));
+  document.querySelectorAll('.subtab:not(.add)').forEach(t => t.addEventListener('click', () => pickView(t)));
 
   // shelf search
   document.getElementById('shelf-search').addEventListener('input', e => {

@@ -2055,6 +2055,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     local m_canceled = false
 
+    --The roll this cast's roll is stacked over, when a trigger interrupted it. While ours
+    --is open the chat card's edge/bane controls point at ours; this one gets them back after.
+    ---@type ActiveRollLua?
+    local m_coveredActiveRoll = nil
+
     local tiers = DeepCopy(self.tiers)
     local modeDamageType = ModeDamageType(ability, options)
     if modeDamageType ~= nil then
@@ -2185,6 +2190,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         }),
 
         rollActive = function(activeRoll)
+            --Another roll is still held open (a trigger roll is stacked over it).
+            --A non-amendable roll must not take its edge/bane amend controls at all;
+            --an amendable one borrows them and gives them back when it is done.
+            if activeRoll ~= nil and g_activeRoll ~= nil and g_activeRoll ~= activeRoll and g_activeRoll.amendable then
+                if not activeRoll.amendable then
+                    return
+                end
+                m_coveredActiveRoll = m_coveredActiveRoll or g_activeRoll
+            end
             g_activeRoll = activeRoll
         end,
 
@@ -2318,6 +2332,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     -- never affects production play.
     while m_canceled == false and dmhub.GetSettingValue("test:aiholdroll") do
         coroutine.yield(0.02)
+    end
+
+    --Our roll is done: give the chat card's amend controls back to the roll under it.
+    if m_coveredActiveRoll ~= nil then
+        if m_coveredActiveRoll.amendable then
+            g_activeRoll = m_coveredActiveRoll
+        end
+        m_coveredActiveRoll = nil
     end
 
     --Our own lock only: a no-op if a later cast has since taken the card.

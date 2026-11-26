@@ -526,9 +526,14 @@ text("herocard.dismiss.tooltip", [[Dismiss]])
 --The section headings in the one scroll of a turned-over hero card, which
 --are also the buttons in the jump row above it.
 text("herocard.back.section.stats", [[Stats]])
+text("herocard.back.section.resources", [[Resources]])
 text("herocard.back.section.abilities", [[Abilities]])
 text("herocard.back.section.features", [[Features]])
+--the heading of the last part of the scroll, which has no jump-row button.
 text("herocard.back.section.gear", [[Gear]])
+--The Resources section when the hero's class has nothing beyond its heroic
+--resource to show there.
+text("herocard.back.resources.none", [[No other resources]])
 
 --The folding groups in the Abilities section.
 text("herocard.back.bucket.signature", [[Signature]])
@@ -558,6 +563,11 @@ text("herocard.back.stamina.winded", [[Winded at {winded}]])
 text("herocard.back.stamina.range", [[Winded {winded} {dot} dies at {death}]])
 --After the numbers while a hero is between 0 and their death value.
 text("herocard.back.stamina.dying", [[Dying]])
+--Under the Recoveries hover on the stamina strip: what spending one recovery
+--now would do. {from} and {to} are Stamina before and after; {wasted} is how
+--much of the recovery would go past maximum Stamina.
+text("herocard.back.recovery.preview", [[Spending one now: {from} to {to}.]])
+text("herocard.back.recovery.preview_over", [[Spending one now: {from} to {to}, {wasted} wasted past max.]])
 
 --The kit's modifiers at the end of Stats. {kit} is the kit's name (or both
 --kits' names, for a hero with two). Damage values read +1/+2/+3, by tier.

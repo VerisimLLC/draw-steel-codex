@@ -1659,7 +1659,8 @@ end
 --Stamina: the bar with hover zones Damage / Set / Heal / Temp. Picking one
 --turns the bar into a field for that value: Enter or the tick applies, Esc
 --or the cross cancels. It writes Stamina the same way the Character panel's
---bar does.
+--bar does. In Edit mode the zones give way to the Max Stamina card
+--(HeroSheetStats.MaxStaminaCard), where custom changes to the maximum are made.
 
 local STAMINA_MODES = {
     dmg = {label = "Damage", description = "Apply Damage"},
@@ -1757,7 +1758,8 @@ local function Stamina()
     --- @param newMode string
     local function OpenField(newMode)
         local token = HeroSheet.Token()
-        if token == nil or not HeroSheetWrite.CanWrite() then
+        --Edit mode changes the maximum, not the Stamina the Hero has now.
+        if token == nil or not HeroSheetWrite.CanWrite() or HeroSheet.Editing() then
             return
         end
         local cur, _, temp = Values(token)
@@ -1956,7 +1958,6 @@ local function Stamina()
         cornerRadius = 4,
         width = "100%",
         height = 24,
-        tmargin = 8,
         gui.Panel{
             classes = {"heroSheetHpClip"},
             bgimage = "panels/square.png",
@@ -1974,6 +1975,36 @@ local function Stamina()
         zones,
         field,
     }
+
+    --Edit mode's dashed frame round the bar, as the stats band frames what
+    --it edits (heroSheetEditFrame rules). Its 4/3 padding is there in both
+    --modes and comes out of the margins, so the bar never moves.
+    local framePanel = gui.Panel(HeroSheetTheme.HoverCard({
+        classes = {"heroSheetEditFrame"},
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 6,
+        width = "100%+8",
+        height = "auto",
+        halign = "center",
+        hpad = 4,
+        vpad = 3,
+        borderBox = true,
+        tmargin = 5,
+        hover = function(element)
+            element:SetClass("heroSheetLit", HeroSheet.Editing())
+        end,
+        dehover = function(element)
+            element:SetClass("heroSheetLit", false)
+        end,
+        bar,
+    }, function(pinned, close, element)
+        local body = HeroSheetStats.MaxStaminaCard(pinned, element)
+        if body == nil then
+            return nil
+        end
+        return HeroSheetTheme.CardFrame(body, pinned, close)
+    end, nil, {halign = "center", valign = "bottom"}))
 
     --the line's labels: 13 at Wide, 11.5 at Medium and Narrow, so the
     --"Dead at" and "Winded at" values never run together.
@@ -2034,7 +2065,8 @@ local function Stamina()
         width = "100%",
         height = 22,
         flow = "horizontal",
-        tmargin = 2,
+        --2, less the frame's padding under the bar.
+        tmargin = -1,
         LinePart("Dead at", deadAt, "left"),
         LinePart("Winded at", windedAt, "center"),
         LinePart("Temp", tempHolder, "center"),
@@ -2075,22 +2107,41 @@ local function Stamina()
             windedAt.text = tostring(winded)
             tempValue.text = tostring(temp)
             HeroSheetTheme.SetDots(tempDots, HeroSheetTheme.TextWidth(tempValue.text, LineFont()))
-            tempDots:SetClass("collapsed", not HeroSheetWrite.CanWrite())
+            --Edit mode changes the maximum only: Damage, Set, Heal and Temp
+            --are off, and a field left open closes.
+            local editing = HeroSheet.Editing()
+            local canChange = HeroSheetWrite.CanWrite() and not editing
+            if editing and mode ~= nil then
+                CloseField()
+            end
+            tempDots:SetClass("collapsed", not canChange)
+            tempValue:SetClass("hoverable", canChange)
+            framePanel:SetClass("heroSheetEditOn", editing)
+            if not editing then
+                framePanel:SetClass("heroSheetLit", false)
+                framePanel.popup = nil
+            end
             local word = string.upper(string.sub(state, 1, 1)) .. string.sub(state, 2)
             stateWord.text = word
             stateWord:SetClass("heroSheetCardSuccess", state == "healthy")
             stateWord:SetClass("heroSheetCardWarning", state == "winded")
             stateWord:SetClass("heroSheetCardDanger", state == "dying" or state == "dead")
             --the zones only for those who may change the Hero.
-            zones:SetClass("collapsed", not HeroSheetWrite.CanWrite())
+            zones:SetClass("collapsed", not canChange)
         end,
-        bar,
+        heroSheetEdit = function(element, editing)
+            local token = HeroSheet.Token()
+            if token ~= nil then
+                element:FireEvent("heroSheetRedrawStamina", token)
+            end
+        end,
+        framePanel,
         line,
     }, {
         name = "card stamina",
         signature = function(token)
             local cur, max, temp, winded, state = Values(token)
-            return string.format("%d|%d|%d|%s", cur, max, temp, state)
+            return string.format("%d|%d|%d|%s|%s", cur, max, temp, state, tostring(HeroSheet.Editing()))
         end,
         refresh = function(panel, token)
             panel:FireEvent("heroSheetRedrawStamina", token)

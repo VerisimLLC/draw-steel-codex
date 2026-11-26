@@ -707,7 +707,7 @@ end
 --popup's calls: the base (not editable on a Hero, as on the old sheet), its
 --sources and the custom changes.
 --- @param hero creature
---- @param key string a characteristic id ("mgt"), "size", "speed", "disengage", "stability", "wealth" or "renown"
+--- @param key string a characteristic id ("mgt"), "size", "speed", "disengage", "stability", "wealth", "renown" or "stamina" (the maximum)
 --- @return HeroSheetStatEditSpec
 local function StatEditSpec(hero, key)
     --- @type HeroSheetStatEditSpec
@@ -765,6 +765,21 @@ local function StatEditSpec(hero, key)
         SplitChanges(hero, hero:DescribeModifications("creatureSize", hero:GetBaseCreatureSizeNumber() or 1), spec)
         spec.stat = "Size"
         spec.size = true
+    elseif key == "stamina" then
+        --the class's Stamina formula, which grows with Level, is the base.
+        local base = hero:BaseHitpoints()
+        local label = "Base"
+        pcall(function()
+            local class = (hero --[[@as character]]):GetClass()
+            if class ~= nil then
+                label = string.format("Base (%s, Level %d)", class.name, hero:CharacterLevel())
+            end
+        end)
+        spec.rows[1] = {label = label, value = tostring(base), base = true}
+        SplitChanges(hero, hero:DescribeModifications("hitpoints", base), spec)
+        spec.stat = "Stamina"
+        spec.feature = "Stamina Modification"
+        spec.note = "Base comes from the class and Level chosen in the Builder."
     end
     return spec
 end
@@ -1098,6 +1113,36 @@ local function StatEditor(key, title, value, element, actions)
         editor = editor,
         hint = spec.note,
         actions = actions,
+    }
+end
+
+--- The Max Stamina card on the Stamina bar (HeroSheetCard), shown only in
+--- Edit mode: hovering lists the base and every source, a click pins it as
+--- the editor for custom changes, like the band's Wealth card.
+--- @param pinned boolean
+--- @param element Panel the element the card is pinned to
+--- @return nil|Panel nil out of Edit mode: no card
+function HeroSheetStats.MaxStaminaCard(pinned, element)
+    local token = HeroSheet.Token()
+    if token == nil or not HeroSheet.Editing() then
+        return nil
+    end
+    local hero = token.properties
+    local value = tostring(hero:MaxHitpoints())
+    if pinned then
+        return StatEditor("stamina", "Max Stamina", value, element)
+    end
+    local spec = StatEditSpec(hero, "stamina")
+    local rows = spec.rows
+    for _, change in ipairs(spec.custom) do
+        rows[#rows+1] = {label = change.name, value = ModStr(change.value)}
+    end
+    return CardBody{
+        title = "Max Stamina",
+        value = value,
+        rows = rows,
+        pinned = false,
+        hint = EditHint(false),
     }
 end
 

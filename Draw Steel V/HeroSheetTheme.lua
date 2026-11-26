@@ -1023,6 +1023,10 @@ function HeroSheetTheme.HoverCard(args, build, pin, placement)
                     element.popup = nil
                 end
             end
+            local body = build(true, close, element)
+            if body == nil then
+                return
+            end
             element.popupPositioning = "panel"
             element.popup = gui.Panel{
                 width = "auto",
@@ -1035,7 +1039,7 @@ function HeroSheetTheme.HoverCard(args, build, pin, placement)
                 escape = function()
                     close()
                 end,
-                build(true, close, element),
+                body,
             }
         end
     end

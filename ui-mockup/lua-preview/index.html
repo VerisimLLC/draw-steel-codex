@@ -172,7 +172,10 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
 .notes-h { font: 700 20px var(--f-label); color: var(--fgStrong); margin: 10px 0 0; }
 
 /* narrower: the section list becomes a strip across the top, so the shelf keeps its place on the right */
-@media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr) 280px; } .nav { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--borderSolid); display: flex; overflow-x: auto; padding: 0; } .navrow { flex: none; border-left: 0; border-bottom: 3px solid transparent; } .navrow.selected { border-bottom-color: var(--accent); } .seam { display: none; } }
+.navrow .short { display: none; }
+/* In the narrow strip, levels read "1st", "2nd"... so more tabs fit without scrolling. */
+@media (max-width: 1100px) { .navrow .long { display: none; } .navrow .short { display: inline; } }
+@media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr) 280px; } .nav { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--borderSolid); display: flex; flex-wrap: wrap; padding: 0; } .navrow { flex: none; border-left: 0; border-bottom: 3px solid transparent; } .navrow.selected { border-bottom-color: var(--accent); } .seam { display: none; } }
 @media (max-width: 700px) { .right { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--borderSolid); } }
 @media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } .detail { padding: 4px 10px 20px; max-height: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -223,17 +226,33 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
         <div class="seam"></div>
         <div class="navrow selected" data-lua='gui.Panel{ classes = {"beNavRow", "selected"} }  -- @bgAlt fill + 3px @accent edge, name bold @fgStrong' data-what="Selected selector row">How you gain Ferocity <span class="count">4</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">1st level <span class="count">5</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- slow start: one tab per encounter, shown while the class uses it' data-what="Selector row"><span class="long">Encounter 1</span><span class="short">Enc 1</span> <span class="count">7</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- the dot is a small @warning panel: this level has a check' data-what="Selector row with a check">2nd level <span class="dot" aria-label="has a check"></span><span class="count">2</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">Encounter 2</span><span class="short">Enc 2</span> <span class="count">1</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">3rd level <span class="count">1</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">Encounter 3</span><span class="short">Enc 3</span> <span class="count">1</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">4th level <span class="count">3</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">Encounter 4</span><span class="short">Enc 4</span> <span class="count">0</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">5th to 10th <span class="count">14</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- one tab per level, 1st to 10th' data-what="Selector row"><span class="long">1st level</span><span class="short">1st</span> <span class="count">0</span></div>
         <div class="seam"></div>
-        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row">Slow start <span class="count">0</span></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }  -- one tab per level; the dot is a small @warning panel: this level has a check' data-what="Selector row"><span class="long">2nd level</span><span class="short">2nd</span> <span class="dot" aria-label="has a check"></span><span class="count">1</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">3rd level</span><span class="short">3rd</span> <span class="count">1</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">4th level</span><span class="short">4th</span> <span class="count">7</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">5th level</span><span class="short">5th</span> <span class="count">1</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">6th level</span><span class="short">6th</span> <span class="count">3</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">7th level</span><span class="short">7th</span> <span class="count">4</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">8th level</span><span class="short">8th</span> <span class="count">2</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">9th level</span><span class="short">9th</span> <span class="count">1</span></div>
+        <div class="seam"></div>
+        <div class="navrow" data-lua='gui.Panel{ classes = {"beNavRow"} }' data-what="Selector row"><span class="long">10th level</span><span class="short">10th</span> <span class="count">7</span></div>
       </nav>
 
       <section class="col detail" id="detail" data-lua='gui.Panel{ width = "100%-560", height = "100%", flow = "vertical", vscroll = true, hideObjectsOutOfScroll = true }  -- BEFeatureDetail' data-what="Detail column">
@@ -271,7 +290,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
           <div class="addrow" data-lua='gui.Panel{ classes = {"beAddRow", "hoverable"}, press = OpenShelfMenu, gui.Panel{ classes = {"iconButton", "addButton", "sizeXs"} }, gui.Label{ text = "Add a way to gain Ferocity" } }' data-what="Add row"><svg><use href="#i-plus"/></svg>Add a way to gain Ferocity</div>
         </div>
 
-        <div class="sechead" data-lua='gui.Panel{ classes = {"beSectionHeader"} }' data-what="Section header"><svg class="caret"><use href="#i-caret"/></svg>1st level<span class="count">5 features</span></div>
+        <div class="sechead" data-lua='gui.Panel{ classes = {"beSectionHeader"} }' data-what="Section header"><svg class="caret"><use href="#i-caret"/></svg>Encounter 1<span class="count">7 features</span></div>
         <div class="underline"></div>
 
         <div class="card" data-lua='gui.Panel{ classes = {"featureCard"}, gui.Panel{ classes = {"featureCardHeader", "expanded"} }, gui.Panel{ classes = {"featureCardBody"} } }  -- existing theme classes' data-what="Feature card">
@@ -353,7 +372,7 @@ body { margin: 0; background: #050506; color: var(--fg); font: 14px/1.4 var(--f-
         </div>
         <div class="checks" data-lua='BEStatusPanel.Create(issues)  -- rows of a @warning/@danger dot + label; press jumps to the block' data-what="Checks">
           <div class="sechead" style="margin-top:0"><svg class="caret"><use href="#i-caret"/></svg>Checks<span class="count">2</span></div><div class="underline"></div>
-          <div class="issue"><span class="sev" style="background:var(--warning)"></span>2nd level: "Furious Change" has no blocks yet.</div>
+          <div class="issue"><span class="sev" style="background:var(--warning)"></span>2nd level: "Perk" has no blocks yet.</div>
           <div class="issue"><span class="sev" style="background:var(--success)"></span>Saves back unchanged: 1,153 records.</div>
         </div>
       </aside>

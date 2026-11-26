@@ -6886,7 +6886,7 @@ local function AnthemWindow()
     local function AppendMGS(list)
         mgsLockedCount = 0
         local kinds = AnthemMGS.TAB_KINDS[tab]
-        if kinds == nil then
+        if kinds == nil or not MGSAudio.Enabled() then
             return
         end
         local state = MGSAudio.State()

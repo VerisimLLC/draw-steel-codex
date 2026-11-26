@@ -100,6 +100,33 @@ local function Changed()
     end
 end
 
+--Dev gate for every MGS feature until it ships: off, the library is empty
+--(Tracks() and Track() find nothing, Refresh() fetches nothing), so the Audio
+--Studio and the Anthem picker show no MGS folders, rows or connect notes.
+--Tracks a game already has stay ordinary clips either way. No editor entry, so
+--it never shows in the settings UI; toggle from chat with /toggle dev:mgs.
+MGSAudio.enabledSetting = setting{
+    id = "dev:mgs",
+    default = false,
+    storage = "preference",
+    onchange = function()
+        if mod.unloaded then
+            return
+        end
+        if MGSAudio.Enabled() then
+            MGSAudio.Refresh()
+        end
+        --open libraries and pickers rebuild with or without the MGS rows.
+        Changed()
+    end,
+}
+
+--- Whether this user gets the MGS features (the dev:mgs gate).
+--- @return boolean
+function MGSAudio.Enabled()
+    return MGSAudio.enabledSetting:Get() == true
+end
+
 --- Repaint fn whenever the connection or the manifest changes; owner keys it.
 --- @param owner table
 --- @param fn nil|fun()
@@ -192,12 +219,18 @@ end
 
 --- @return MGSTrack[]
 function MGSAudio.Tracks()
+    if not MGSAudio.Enabled() then
+        return {}
+    end
     return g_tracks
 end
 
 --- @param id string
 --- @return nil|MGSTrack
 function MGSAudio.Track(id)
+    if not MGSAudio.Enabled() then
+        return nil
+    end
     return g_byId[id]
 end
 
@@ -337,7 +370,7 @@ end
 --- Check the connection and bring the manifest up to date: call when the picker
 --- opens. It downloads the manifest (a few MB) only when MGS says it changed.
 function MGSAudio.Refresh()
-    if g_state == "loading" then
+    if not MGSAudio.Enabled() or g_state == "loading" then
         return
     end
     if Token() == nil then

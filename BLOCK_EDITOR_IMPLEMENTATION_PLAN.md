@@ -247,3 +247,62 @@ only the items in 10.1 change because of the toolkit. Each later row names where
 | Grey advanced blocks, info cards, "Copy the engine record" | BLOCK_EDITOR_FRAMEWORK.md |
 | Each gain's "saves as" line under Show GoblinScript | Proposal |
 | Growing rows ("+ more from a level"), options with their own blocks ("+ add to this option") | Proposal |
+
+## 11. Adding a way to gain a heroic resource (worked example: spending surges)
+
+A developer adds a gain event with **one registration beside the rules**, and no edit to any
+editor file. It assumes the registries live on `Block` in `DMHub Utils/Block.lua`
+(BLOCK_EDITOR_REVIEW.md, B2).
+
+**1. The game event.** The engine trigger, with its typed values, already exists or is added in
+the rules (an engine change, so it is its own task). Spending surges is `useresource`
+(`Draw Steel Core Rules/MCDMRules.lua`), which reports `resource` and `quantity`:
+
+```lua
+TriggeredAbility.RegisterTrigger{
+    id = "useresource",
+    text = "Use Resource",
+    symbols = {
+        resource = { name = "Resource", type = "string", desc = "The resource used." },
+        quantity = { name = "Quantity", type = "number", desc = "The number of resources used." },
+    },
+}
+```
+
+**2. The gain event**, registered in the same file, right after it:
+
+```lua
+Block.RegisterGainEvent{
+    id = "spendsurges",                 -- the editor's own id; saved data never sees it
+    trigger = "useresource",            -- the engine trigger it saves as
+    base = 'Resource = "Surges"',       -- joined to the line's test: Resource = "Surges" and (...)
+    you = "spend surges",               -- "you spend surges"
+    other = "spends surges",            -- "you or an ally spends surges"
+    words = { Quantity = "number of surges spent" },   -- how a test on a value reads in the sentence
+    menu = true,                        -- in the short menu; otherwise only under "Build the trigger yourself..."
+    order = 80,                         -- position in the menu (by how often classes use it)
+}
+```
+
+**3. What the editor does with it, with nothing else written:**
+- The gain line's event menu lists "spend surges" (or not, with `menu = false`).
+- The line's "Only if" picker starts with **About this event**: one entry per value the engine
+  trigger reports, read from its `symbols`. A number becomes an ordinary comparison ("Quantity is
+  at least [1]") whose value and comparison change in the block, and the value also appears in
+  the block's stat menu. So there is no list of fixed amounts to write or keep in step.
+- Saving writes the trigger (`useresource`), its condition (`base` joined to the line's test),
+  the resource step linked to the class's checklist line, and the once-per-round/encounter limit.
+- Opening a saved class reads a `useresource` trigger whose condition starts with `base` back
+  as this event, with the rest as the line's test.
+- Anything the short menu can't say is built with "Build the trigger yourself...", which opens
+  the triggered ability editor seeded from the line.
+
+**Picker rule (both editors): one entry per kind of thing, never one per value.** A test or
+formula that differs only in which stat, amount or dice it uses is one entry; the choice is made
+in the block (a stat menu, a number box), where it is easy to change. Search still finds the
+entry by every stat name it covers, and searching a stat's name pre-selects it. Examples:
+"Your [stat]" (not one entry per stat), "Your [level] is at least [ ]" (not one per number),
+one dice entry, and one entry per value an event reports. Entries are only separate when they
+are different tests ("You are winded", "There are at least [1] enemies within [1] squares").
+Stats come from one list (`Block.RegisterStat`, or the trigger's own `symbols`), so a new stat
+appears in every picker at once.

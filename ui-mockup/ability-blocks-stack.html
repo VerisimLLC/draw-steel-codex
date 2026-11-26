@@ -3369,10 +3369,9 @@ function pickerOptions(h) {
       item("An ally adjacent to " + (who === "You" ? "you" : r0.prose) + " has the [ ] feature", "Such as Shield? Shield!", () => X("adjFeature", { role: who, name: "" }), "adjacent ally feature", true)];
     if (youR && who !== "You") near.unshift(item(Who + " is within [1] square of you", "", () => X("within", { from: "You", to: who, op: "<=", n: "1", path: (youR.prefix || "") + "Distance" }), "distance range adjacent near", true));
     groups.push(["Check what's nearby", "Distance, and creatures close by.", near]);
+    // One entry: which number is picked in the block (its stat menu), and either side can be any formula.
     groups.push(["Compare a number", "Level, characteristics, speed, round number...", [
-      item(Whose + " Level is at least [ ]", "", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }), "level echelon", true),
-      item(Whose + " Might is at least [ ]", "Any characteristic.", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Might" }) }), b: numH("2") }), "agility reason intuition presence characteristic", true),
-      item("[ any number ] is at least [ ]", "Pick any stat or formula on either side.", () => X("compare", { op: ">=" }, { a: numH("0"), b: numH("1") }), "compare greater less equal", true),
+      item(Whose + " [Level] is at least [ ]", "Change which number in the block: a characteristic, speed, the round...", () => X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }), "level echelon might agility reason intuition presence characteristic speed stamina round compare greater less equal any number", true),
     ]]);
     groups.push(["Combine tests", "Need several things at once, or any one of them.", [
       item("All of these are true", "Every test must pass (and).", () => X("all", { items: [H("boolean", h.docs), H("boolean", h.docs)] }), "and both every", true),
@@ -3380,7 +3379,8 @@ function pickerOptions(h) {
       item("Not [ ]", "Flip a test: true when it is false.", () => X("not", {}, { a: H("boolean", h.docs) }), "not negate opposite", true),
     ]]);
   } else {
-    groups.push(["Use a stat", "A characteristic, Level, Stamina...", NUM_FIELDS.map(fl => item(Whose + " " + fl, "", () => X("stat", { role: who, field: fl }), "characteristic"))
+    // One entry: which stat is picked in the block (its stat menu); what the trigger reports follows.
+    groups.push(["Use a stat", "A characteristic, Level, Stamina...", [item(Whose + " [Level]", "Change which stat in the block.", () => X("stat", { role: who, field: "Level" }), NUM_FIELDS.join(" ").toLowerCase() + " characteristic")]
       .concat(d.symbols.filter(y => y.type === "number").map(y => item(y.name, y.desc, () => X("sym", { name: y.name }))))]);
     groups.push(["Scale with level", "Grows as the creature levels up.", [
       item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),

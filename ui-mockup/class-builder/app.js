@@ -195,8 +195,15 @@ function fillFx(m, obj, key, ad) {
   ph.appendChild(E("p", null, "A number, or what it should be based on."));
   const search = E("input"); search.placeholder = "What should this be based on? e.g. level, might"; search.setAttribute("aria-label", "Search blocks"); ph.appendChild(search); m.appendChild(ph);
   const item = (txt, d, make, k) => ({ txt, d, make, k: k || "" });
+  // The stat chooser inside the "Your [stat]" entry, starting on the current stat if there is one.
+  const statPick = E("select", "fxstat"); statPick.setAttribute("aria-label", "Which stat");
+  FX_STATS.forEach(f => { const o = E("option", null, f); o.value = f; statPick.appendChild(o); });
+  statPick.value = FX_STATS.includes(base()) ? base() : "Level";
+  statPick.addEventListener("click", ev => ev.stopPropagation());
+  statPick.addEventListener("change", () => setF(statPick.value));
   const groups = [
-    ["Use a stat", "A characteristic, Level, Stamina...", FX_STATS.map(f => item("Your " + f, "", () => setF(f), "characteristic"))],
+    // One entry: the stat is picked in the entry itself (a characteristic, Level, Victories...).
+    ["Use a stat", "A characteristic, Level, Stamina...", [Object.assign(item("Your", "Pick which stat here.", () => setF(statPick.value), FX_STATS.join(" ").toLowerCase() + " characteristic"), { sel: true })]],
     ["Scale with level", "Grows as the creature levels up.", [
       item("[1], plus [1] from level [5]", "A bonus once a level is reached.", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "echelon bonus"),
       item("[ ] plus your Level", "Goes up by one every level.", () => setF(base() + " + Level"), "per level")]],
@@ -204,16 +211,18 @@ function fillFx(m, obj, key, ad) {
       item("[ ] + [ ]", "Add two values (also -, * and /).", () => setF(base() + " + 1"), "plus minus times add subtract"),
       item("Half of [ ]", "Division rounds down.", () => setF(wrap(base()) + " / 2"), "divide half"),
       item("[ ] if [test], otherwise [ ]", "Pick one of two values.", () => setF("2 when Winded else " + base()), "when else choose")]],
-    ["Roll dice", "Only damage, healing and gains can roll.", [item("1d3", "Change the count and sides after.", () => setF("1d3"), "random d3 d6"), item("1d6", "", () => setF("1d6"), "random d6 d10")]],
+    ["Roll dice", "Only damage, healing and gains can roll.", [item("1d3", "Change the count and sides in the formula below.", () => setF("1d3"), "random dice d3 d6 d10")]],
   ];
   const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
   const draw = () => {
     pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
+    // Searching a stat's name sets the "Your [stat]" entry to it, so one click uses it.
+    const hit = q && FX_STATS.find(f => f.toLowerCase().startsWith(q)); if (hit) statPick.value = hit;
     groups.forEach(([g, gd, opts]) => {
       const vis = opts.filter(o => !q || (g + " " + o.txt + " " + o.d + " " + o.k).toLowerCase().includes(q)); if (!vis.length) return;
       const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh);
       const cap = !q && !expanded.has(g) && vis.length > 4;
-      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (o.d) b.appendChild(E("span", "d", o.d));
+      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; const chip = E("span", "chip num", o.txt); if (o.sel) { chip.appendChild(document.createTextNode(" ")); chip.appendChild(statPick); } b.appendChild(chip); if (o.d) b.appendChild(E("span", "d", o.d));
         b.addEventListener("click", o.make); pb.appendChild(b); n++; });
       if (cap) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); expanded.add(g); draw(); }); pb.appendChild(more); }
     });
@@ -594,7 +603,10 @@ function testStats(ctx) {
   const castStats = ctx === "offer" ? [["Cast.Target Count", "the number of targets", q => "there are " + q + " targets"]] : [];
   // On a roll, the target's characteristics too ("Target.Intuition < 3" is common in potency-style options).
   const targetStats = ctx === "offer" || ctx === "tick" ? CHARS.map(c => ["Target." + c[1], "the target's " + c[1], q => "the target's " + c[1] + " is " + q]) : [];
-  return castStats.concat(targetStats, [["Size", "your size", q => "your size is " + q]], [["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
+  // A gain line can also compare what its event reports (how many surges were spent...).
+  const gt = /^gain:/.test(ctx || "") ? GAIN_TRIGGERS.find(x => x.id === ctx.slice(5)) : null;
+  const eventStats = ((gt && gt.symbols) || []).filter(y => y[1] === "number").map(([nm, , , w]) => [nm, "the " + (w || nm.toLowerCase()), q => "the " + (w || nm.toLowerCase()) + " is " + q]);
+  return eventStats.concat(castStats, targetStats, [["Size", "your size", q => "your size is " + q]], [["Victories", "your Victories", q => "you have " + q + " Victories"], ["Level", "your level", q => "your level is " + q],
     ...CHARS.map(c => [c[1], "your " + c[1], q => "your " + c[1] + " is " + q]),
     ["Stamina", "your Stamina", q => "your Stamina is " + q],
     ["Recoveries Available to Spend", "your Recoveries left", q => "you have " + q + " Recoveries left"],
@@ -653,6 +665,9 @@ function testGs(x) {
   }
 }
 /* The book wording for a test ("you have 5 or more Victories"); neg gives the opposite. */
+/* Where a test's words are written (a gain line reads its event's numbers: "the number of surges spent"). */
+let proseCtx = null;
+const proseIn = (ctx, fn) => { const was = proseCtx; proseCtx = ctx; try { return fn(); } finally { proseCtx = was; } };
 function testProse(x, neg) {
   if (!x) return neg ? "a condition is not met" : "a condition is met";
   switch (x.t) {
@@ -669,7 +684,7 @@ function testProse(x, neg) {
     case "nearby": { const one = +x.n === 1, w = { Enemies: one ? "enemy" : "enemies", Friends: one ? "ally" : "allies", Creatures: one ? "creature" : "creatures" }[x.kind];
       const q = (TEST_OP_PROSE[neg ? TEST_OP_FLIP[x.op] : x.op] || (n => n))(x.n || "1"); return "there " + (one ? "is " : "are ") + q + " " + w + " within " + (x.r || "1") + (+x.r === 1 ? " square" : " squares") + " of you"; }
     case "adjFeature": return (neg ? "no ally adjacent to you has" : "an ally adjacent to you has") + " the " + (x.name || "(no feature named)") + " feature";
-    case "cmp": { const s = testStats("offer").find(y => y[0] === x.a), op = neg ? TEST_OP_FLIP[x.op] : x.op;
+    case "cmp": { const s = (proseCtx ? testStats(proseCtx).find(y => y[0] === x.a) : null) || testStats("offer").find(y => y[0] === x.a), op = neg ? TEST_OP_FLIP[x.op] : x.op;
       const q = (TEST_OP_PROSE[op] || (n => (op === "<" ? "less than " : "more than ") + n))(x.n || "0");
       return s ? s[2](q) : x.a + " is " + q; }
     case "not": return testProse(x.a, !neg);
@@ -780,16 +795,16 @@ function openTestPicker(anchor, parent, key, ctx) {
     ["Check what's nearby", "Creatures close to you.", [["There are at least [1] enemies within [1] squares of you", () => ({ t: "nearby", kind: "Enemies", op: ">=", n: "1", r: "1" }), "Also allies or any creatures."],
       ["An ally adjacent to you has the [ ] feature", () => ({ t: "adjFeature", name: "" }), "Such as Shield? Shield!"]]],
     ["Check the moment", "Whose turn it is, or whether you're in combat.", [["It is your turn", () => ({ t: "turn" })], ["You are in combat", () => ({ t: "combat" })]]],
-    ["Compare a number", "Victories, level, characteristics, your " + r + "...", [["Your level is at least [ ]", cmp("Level", "5")], ["Your Might is at least [ ]", cmp("Might", "2"), "Any characteristic: change Might after."],
-      ["The most " + r + " you've had this turn is at least [ ]", cmp("Heroic Resources This Turn", "4")], ["Your Victories are at least [ ]", cmp("Victories", "3")],
-      ["Your " + r + " is at least [ ]", cmp("Heroic Resources Available to Spend", "3")], ["The combat round is at least [ ]", cmp("Combat Round", "2")],
-      ["Your Recoveries left are at least [ ]", cmp("Recoveries Available to Spend", "1")], ["Your size is at most [ ]", () => ({ t: "cmp", a: "Size", op: "<=", n: "1" })]]],
+    // One entry: which number (level, Victories, a characteristic, your resource...) is picked in the block.
+    ["Compare a number", "Victories, level, characteristics, your " + r + "...", [["Your [level] is at least [ ]", cmp("Level", "5"), "Change which number in the block: Victories, a characteristic, your " + r + ", the round...", "level victories might agility reason intuition presence characteristic stamina recoveries round size " + r]]],
   ]);
   // A gain line: what the event reports (how many surges, which resource...) comes first.
   const gt = /^gain:/.test(ctx || "") ? GAIN_TRIGGERS.find(x => x.id === ctx.slice(5)) : null;
   const words = (src, w) => ({ t: "raw", src, words: w, wordsFor: src });
-  const picks = !gt ? [] : (gt.picks || []).map(([label, src, w]) => [label, () => words(src, w)]).concat((gt.symbols || []).map(([nm, ty, d]) =>
-    [ty === "number" ? nm + " is at least [ ]" : nm + " is [ ]", () => ({ t: "raw", src: ty === "number" ? nm + " >= 2" : nm + ' = ""' }), d]));
+  // One entry per value the event reports: a number becomes an ordinary "[ ] is at least [ ]" test
+  // (its value and comparison change in the block), so no fixed amounts are listed.
+  const picks = !gt ? [] : (gt.symbols || []).map(([nm, ty, d]) =>
+    [ty === "number" ? nm + " is at least [ ]" : nm + " is [ ]", ty === "number" ? cmp(nm, "1") : () => ({ t: "raw", src: nm + ' = ""' }), d]);
   if (picks.length) groups.unshift(["About this event", "What the event reports.", picks]);
   // Combining tests leads; the rest go by how often compendium formulas use them (2026-11-23 count).
   const BY_USE = ["About this event", "Combine tests", "The ability", "The target", "Compare a number", "Check health", "Check a condition", "Check effects", "Check what's nearby", "Check the moment", "The roll", "Strained (Talent)"];
@@ -1214,8 +1229,7 @@ const GAIN_TRIGGERS = [
   { id: "useresource", you: "spend a resource", other: "spends a resource", symbols: [["Resource", "text", "The resource spent, such as \"surges\""], ["Quantity", "number", "How many were spent"]] },
   { id: "gainresource", you: "gain a resource", other: "gains a resource", symbols: [["Resource", "text", "The resource gained"], ["Quantity", "number", "How many were gained"]] },
   { id: "spendsurges", you: "spend surges", other: "spends surges", engine: "useresource", base: 'Resource = "Surges"',
-    symbols: [["Quantity", "number", "How many surges were spent at once"]],
-    picks: [["At least 3 surges", "Quantity >= 3", "at least 3 of them"], ["At least 2 surges", "Quantity >= 2", "at least 2 of them"]] },
+    symbols: [["Quantity", "number", "How many surges were spent at once", "number of surges spent"]] },
   { id: "inflictcondition", you: "gain a condition", other: "gains a condition" }, { id: "creaturedeath", you: "die", other: "dies" },
   { id: "kill", you: "kill a creature", other: "kills a creature" }, { id: "earnvictory", you: "earn a Victory", other: "earns a Victory" },
   { id: "endturn", you: "end your turn", other: "ends their turn" }, { id: "beginround", fixed: "When a round starts" },
@@ -1529,7 +1543,7 @@ function compileGains() {
       triggers.push(gainLimit(r, g)); if (g.display) triggers.push(clone(g.display));
       return;
     }
-    const name = gainPhrase(g), cond = g.cond ? ", if " + testProse(g.cond) : "";
+    const name = gainPhrase(g), cond = g.cond ? ", if " + proseIn("gain:" + g.event, () => testProse(g.cond)) : "";
     const details = name + cond + ", you gain " + gainAmountText(g, res) + ".";   // the book capitalises resource names (Ferocity)
     checklist.push({ name, details, guid: g.guid, mode: g.freq, quantity: fxTable(g, "qty") });
     // Who sets it off is the trigger's subject (default: you); the line's test is its condition.

@@ -228,7 +228,7 @@ audio.SoundEvent{
     name = "Notify.Diceroll",
     mixgroup = "dice",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
-    volume = 0.25,
+    volume = 0.20,
     pitchRand = 0.2,
     ignoreDuplicates = 1,
 
@@ -361,7 +361,7 @@ audio.SoundEvent{
     name = "Notify.Status_Dying_Hero",
     mixgroup = "ui",
     sounds = {"status/Notify_Status_Start_Dying_Hero_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     ignoreDuplicates = 0.2,
 }
 
@@ -435,7 +435,7 @@ audio.SoundEvent{
     name = "Condition.Winded",
     mixgroup = "ui",
     sounds = {"status/Notify_Status_Start_Winded_v1_01.wav"},
-    volume = 0.2,
+    volume = 0.1,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
     delay = 0.5,
@@ -445,7 +445,7 @@ audio.SoundEvent{
     name = "Condition.Dazed",
     mixgroup = "ui",
     sounds = {"status/Notify_Cond_Start_Dazed_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
     delay = 0.5,
@@ -455,7 +455,7 @@ audio.SoundEvent{
     name = "Condition.Taunted",
     mixgroup = "ui",
     sounds = {"status/Notify_Cond_Start_Taunted_v1_01.wav"},
-    volume = 0.3,
+    volume = 0.2,
     pitchRand = 0.05,
     ignoreDuplicates = 0.02,
     delay = 0.5,
@@ -611,7 +611,14 @@ audio.SoundEvent{
 
 
 
-
+--Jump Begin
+audio.SoundEvent{
+    name = "Ability.Jump_Begin",
+    mixgroup = "gameplay",
+    sounds = {"abl/Abl_Jump_Begin_v1_01.wav","abl/Abl_Jump_Begin_v1_02.wav","abl/Abl_Jump_Begin_v1_03.wav","abl/Abl_Jump_Begin_v1_04.wav","abl/Abl_Jump_Begin_v1_05.wav","abl/Abl_Jump_Begin_v1_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.2,
+}
 
 
 
@@ -893,6 +900,15 @@ audio.SoundEvent{
 }
 
 audio.SoundEvent{
+    name = "Attack.Hit_Ranged",
+    mixgroup = "damage",
+    sounds = {"Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_01.wav","Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_02.wav","Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_03.wav","Atk_Hit/Atk_Hit_Gnrc_Ranged_v1_04.wav"},
+    volume = 0.7,
+    ignoreDuplicates = 0.2,
+    pitchRand = 0.2,
+}
+
+audio.SoundEvent{
     name = "Attack.Hit_acid",
     mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Acid_v1_01.wav","Atk_Hit/Atk_Hit_Acid_v1_02.wav","Atk_Hit/Atk_Hit_Acid_v1_03.wav","Atk_Hit/Atk_Hit_Acid_v1_04.wav"},
@@ -1070,6 +1086,20 @@ audio.SoundEvent{
 }
 
 
+--Radenwight version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Radenwight",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Radenwight/Dice_NumGlow_Radenwight_01.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_02.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_03.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_04.wav","dice/cust/Radenwight/Dice_NumGlow_Radenwight_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.02,
+    ignoreDuplicates = 0.01,
+    delay = 0.0,
+}
+
+
+
+
 
 
 --Spectral version of numglow
@@ -1205,6 +1235,8 @@ DiceImpactFamilies.families = {
     { id = "GlassGas",   text = "Glass Gas",        suffix = "GlassGas" },
     { id = "GlassLight",  text = "Glass Light",     suffix = "GlassLight" },
     { id = "Leafy",      text = "Leafy",            suffix = "Leafy" },
+    { id = "Squishy",      text = "Squishy",            suffix = "Squishy" },
+    { id = "Cheesy",      text = "Cheesy",            suffix = "Cheesy" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1329,6 +1361,109 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.1,
 }
+
+
+
+
+  
+
+
+
+--Cheesy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Cheesy",
+    mixgroup = "dice",
+        play = function(instance)
+        audio.FireSoundEvent("DiceImp.Hard_Cheesy_Hard_Char")
+        audio.FireSoundEvent("DiceImp.Hard_Cheesy_Hard_Trans_Wood")
+        end,      
+   }
+
+
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Cheesy",
+    mixgroup = "dice",
+     play = function(instance)
+        audio.FireSoundEvent("DiceImp.Mild_Cheesy_Hard_Char")
+        audio.FireSoundEvent("DiceImp.Mild_Cheesy_Hard_Trans_Wood")
+        end, 
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Cheesy",
+    mixgroup = "dice",
+    play = function(instance)
+        audio.FireSoundEvent("DiceImp.Soft_Cheesy_Hard_Char")
+        audio.FireSoundEvent("DiceImp.Soft_Cheesy_Hard_Trans_Wood")
+        end, 
+}
+
+
+--Cheesy Dice Impact Layers
+
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Cheesy_Hard_Char",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Hard_Char_01.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_02.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_03.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_04.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_05.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Char_06.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Cheesy_Hard_Trans_Wood",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_01.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_02.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_03.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_04.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_05.wav","dice/Cheesy/DiceImp_Cheesy_Hard_Trans_Wood_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Cheesy_Hard_Char",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Mild_Char_01.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_02.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_03.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_04.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_05.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Char_06.wav"},
+    volume = 0.07,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Cheesy_Hard_Trans_Wood",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_01.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_02.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_03.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_04.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_05.wav","dice/Cheesy/DiceImp_Cheesy_Mild_Trans_Wood_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Cheesy_Hard_Char",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Soft_Char_01.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_02.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_03.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_04.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_05.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Char_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+}
+
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Cheesy_Hard_Trans_Wood",
+    mixgroup = "dice",
+    sounds = {"dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_01.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_02.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_03.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_04.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_05.wav","dice/Cheesy/DiceImp_Cheesy_Soft_Trans_Wood_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1523,6 +1658,43 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.01,
 }
+
+
+
+--Squishy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Squishy",
+    mixgroup = "dice",
+    sounds = {"dice/Squishy/DiceImp_Squishy_Hard_01.wav","dice/Squishy/DiceImp_Squishy_Hard_02.wav","dice/Squishy/DiceImp_Squishy_Hard_03.wav","dice/Squishy/DiceImp_Squishy_Hard_04.wav","dice/Squishy/DiceImp_Squishy_Hard_05.wav","dice/Squishy/DiceImp_Squishy_Hard_06.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Squishy",
+    mixgroup = "dice",
+    sounds = {"dice/Squishy/DiceImp_Squishy_Mild_01.wav","dice/Squishy/DiceImp_Squishy_Mild_02.wav","dice/Squishy/DiceImp_Squishy_Mild_03.wav","dice/Squishy/DiceImp_Squishy_Mild_04.wav","dice/Squishy/DiceImp_Squishy_Mild_05.wav","dice/Squishy/DiceImp_Squishy_Mild_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Squishy",
+    mixgroup = "dice",
+    sounds = {"dice/Squishy/DiceImp_Squishy_Soft_01.wav","dice/Squishy/DiceImp_Squishy_Soft_02.wav","dice/Squishy/DiceImp_Squishy_Soft_03.wav","dice/Squishy/DiceImp_Squishy_Soft_04.wav","dice/Squishy/DiceImp_Squishy_Soft_05.wav","dice/Squishy/DiceImp_Squishy_Soft_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.01,
+}
+
+
+
+
+
+
+
+
+
 
 --MetalTiny Dice Impacts
 

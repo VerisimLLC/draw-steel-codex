@@ -78,4 +78,15 @@ check(not blocked(strike), "a non-trigger ability is untouched")
 baseMessage = "You are grabbed"
 check(hesitation:AbilityFilterFailureMessage(hero) == "You are grabbed", "the authored filter message comes first")
 
+--cast gates refuse real abilities, never a test's card or a trigger prompt.
+baseMessage = nil
+ActivatedAbility.RegisterCastGate("test-gate", function() return "Not yet" end)
+check(strike:AbilityFilterFailureMessage(hero) == "Not yet", "a gate refuses an ordinary ability")
+check(not blocked(ability{name = "Might Test", isTest = true}), "a gate leaves a synthetic test alone")
+check(not blocked(prompt), "a gate leaves a trigger prompt alone")
+check(blocked(ability{name = "Test Ability", behaviors = {{isTest = true}}}), "an ability whose behavior is a test is still gated")
+check(not blocked(ability{name = "Healing Potion", _tmp_ignoreCastGates = true}), "a use marked as allowed is not gated")
+ActivatedAbility.RegisterCastGate("test-gate", nil)
+check(not blocked(strike), "a removed gate refuses nothing")
+
 print("strict manual trigger: " .. checks .. " checks passed")

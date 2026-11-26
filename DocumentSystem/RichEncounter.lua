@@ -1313,10 +1313,7 @@ local function PartyStyles(pal)
 
     if pal ~= nil then
         styles[#styles + 1] = { selectors = {"label", "~button"}, color = pal.ink }
-        styles[#styles + 1] = { selectors = {"dropdown"}, bgcolor = pal.page, borderColor = pal.border }
-        styles[#styles + 1] = { selectors = {"dropdown-option"}, bgcolor = pal.page, color = pal.ink }
-        styles[#styles + 1] = { selectors = {"dropdown-option", "hover"}, bgcolor = pal.wash }
-        styles[#styles + 1] = { selectors = {"dropdownLabel"}, color = pal.ink }
+        styles = table.append_arrays(styles, MarkdownDocument.PageSkinDropdownStyles(pal))
     end
 
     return ThemeEngine.MergeTokens(styles)

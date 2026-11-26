@@ -286,7 +286,7 @@ local function ArrivalTiles(encounter, count)
     local result = {}
     local taken = {}
     local function Free(loc)
-        local key = string.format("%d,%d,%d", loc.x, loc.y, loc.floorIndex or 0)
+        local key = string.format("%d,%d,%d", loc.x, loc.y, loc.floor)
         if taken[key] then
             return false
         end

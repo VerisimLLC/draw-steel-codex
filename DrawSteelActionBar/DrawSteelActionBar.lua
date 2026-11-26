@@ -1245,7 +1245,7 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
 end
 
 --Flight wheel: while a creature that is flying, or can fly and is walking, picks where an
---ability's pathfound move (Advance and the like) ends, the mouse wheel sets how far above or
+--ability's pathfound move or shift (Advance, Disengage and the like) ends, the mouse wheel sets how far above or
 --below its current altitude the move ends, as it does when dragging the token (a walker
 --takes off for a move that ends in the air). The hover handler turns it on for such a
 --pick (active), the poller panel inside the ability controller reads the wheel, and the
@@ -1272,11 +1272,12 @@ function DrawSteelActionBar._flight.CreatureCanDial()
 end
 
 --- Whether the flight wheel applies to the current pick: a creature that can dial (see
---- CreatureCanDial) on an ordinary (not shift) pathfound move. Shifting keeps its own rules.
+--- CreatureCanDial) on a pathfound move or shift (Disengage and the like). The engine keeps
+--- a shift a shift while it climbs, so it still provokes no opportunity attacks.
 --- @param movementType nil|string from ActivatedAbility:GetMovementType
 --- @return boolean
 function DrawSteelActionBar._flight.Applies(movementType)
-    return movementType ~= "shift" and DrawSteelActionBar._flight.CreatureCanDial()
+    return DrawSteelActionBar._flight.CreatureCanDial()
 end
 
 --Bottom-of-screen reminder that the wheel flies up or down (InputHint, GameHud.lua): while
@@ -1344,6 +1345,68 @@ function DrawSteelActionBar._flight.CreatePoller()
                 g_abilityController:FireEvent("maphover", g_abilityController.data.lastHoverLoc,
                     g_abilityController.data.lastHoverPoint)
             end
+        end,
+    }
+end
+
+--Hidden watch: a creature can stop being Hidden while a target is being picked (a charging
+--hero lands next to a hidden monster, and the host's reveal arrives after the attack prompt
+--opened). The target list is built once, so rebuild it when anyone's Hidden state changes.
+DrawSteelActionBar._hiddenWatch = {
+    signature = nil, --Hidden state of the map when the target list was last built
+    pending = false, --a rebuild is already scheduled
+}
+
+--- Lists every creature on the map that is Hidden ("h") or invisible to this client ("!"),
+--- as one string, so two calls can be compared to see whether either changed for anyone.
+--- @return string
+function DrawSteelActionBar._hiddenWatch.Signature()
+    local parts = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        if token.valid and not token.isObject and token.properties ~= nil then
+            local hidden = token.properties:IsHidden()
+            local invisible = token.hiddenFromLocalViewer
+            if hidden or invisible then
+                parts[#parts + 1] = token.charid .. (hidden and "h" or "") .. (invisible and "!" or "")
+            end
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, ",")
+end
+
+--- Rebuilds the target list of the ability being cast, if one still is.
+function DrawSteelActionBar._hiddenWatch.Rebuild()
+    if g_currentAbility ~= nil and g_token ~= nil and g_token.valid then
+        CalculateSpellTargeting()
+    end
+end
+
+--- A tiny panel in the ability controller that watches creature changes while a target is
+--- being picked, and rebuilds the target list when someone's Hidden state changed.
+--- @return Panel
+function DrawSteelActionBar._hiddenWatch.CreateWatcher()
+    return gui.Panel {
+        width = 1,
+        height = 1,
+        monitorGame = "/characters",
+        refreshGame = function(element)
+            local watch = DrawSteelActionBar._hiddenWatch
+            if g_currentAbility == nil or watch.pending or watch.signature == nil then
+                return
+            end
+            watch.pending = true
+            --Compares a moment later, not now: the engine decides who this client can see in
+            --its own token refresh, which can run after this change arrives.
+            dmhub.Schedule(0.1, function()
+                watch.pending = false
+                if mod.unloaded or g_currentAbility == nil or watch.signature == nil then
+                    return
+                end
+                if watch.Signature() ~= watch.signature then
+                    watch.Rebuild()
+                end
+            end)
         end,
     }
 end
@@ -8584,6 +8647,415 @@ local function BuildOverviewColumns()
     return columns
 end
 
+--The Movement panel at the top of the Move drawer's menu: one button per
+--movement mode (unusable ones dimmed, with the reason as a tooltip), the
+--current mode and speed, and up/down buttons for modes that change height.
+--Kept on DrawSteelActionBar, not a local: this file's main chunk is at Lua's
+--200-local limit. The menu fires "showMoveModes" when the Move drawer opens;
+--while it is up the panel polls the token so it follows moves and effects.
+--- @return Panel
+function DrawSteelActionBar._MovementModePanel()
+    local T = UIText.T
+    local resultPanel
+
+    --The token the panel is showing. Set by "showMoveModes".
+    --- @type CharacterToken|nil
+    local m_token = nil
+    local m_signature = nil
+
+    local function Controllable()
+        return m_token ~= nil and m_token.valid and m_token.properties ~= nil and m_token.canControl
+    end
+
+    local m_modeButtons = {}
+    for _, moveType in ipairs(creature.selectableMoveTypes) do
+        local info = creature.movementTypeById[moveType]
+        m_modeButtons[#m_modeButtons + 1] = gui.Panel {
+            classes = { "moveModeButton" },
+            data = { moveType = moveType, reason = nil },
+            gui.Panel {
+                classes = { "moveModeIcon" },
+                bgimage = info.icon,
+                interactable = false,
+            },
+            hover = function(element)
+                local tip = element.data.reason or info.name
+                gui.Tooltip { text = tip, valign = "top" }(element)
+            end,
+            press = function(element)
+                if element.data.reason ~= nil or not Controllable() then
+                    return
+                end
+                ---@cast m_token -nil
+                --Walk and swim both mean "on the ground": CurrentMoveType picks
+                --between them from the water under the token.
+                local setType = moveType
+                if moveType == "swim" then
+                    setType = "walk"
+                end
+                if m_token.properties:CurrentMoveType() ~= moveType then
+                    m_token.properties:SetAndUploadCurrentMoveType(setType)
+                end
+                m_signature = nil
+                resultPanel:FireEvent("refreshMoveModes")
+            end,
+        }
+    end
+
+    local m_nameLabel = gui.Label { classes = { "moveModeName" }, text = "" }
+    local m_speedLabel = gui.Label { classes = { "moveModeSpeed" }, text = "" }
+    local m_altitudeTitle = gui.Label { classes = { "moveModeAltitudeTitle" }, text = "" }
+    local m_altitudeValue = gui.Label { classes = { "moveModeAltitudeValue" }, text = "0" }
+
+    --Up (dir 1) or down (dir -1) one square in the current mode.
+    local function AltitudeButton(dir)
+        return gui.Label {
+            classes = { "moveModeAltitudeButton" },
+            text = cond(dir > 0, "+", "-"),
+            data = { reason = nil },
+            hover = function(element)
+                local tip = element.data.reason or cond(dir > 0, T("movemode.up"), T("movemode.down"))
+                gui.Tooltip { text = tip, valign = "top" }(element)
+            end,
+            press = function(element)
+                if element.data.reason ~= nil or not Controllable() then
+                    return
+                end
+                ---@cast m_token -nil
+                local token = m_token
+                local target = token.floorAltitude + dir
+                if dir < 0 and token.properties:CurrentMoveType() == "burrow" then
+                    --a creature that can't drag grabbed creatures underground lets
+                    --go first; that waits a game update, hence the coroutine.
+                    dmhub.Coroutine(function()
+                        ActivatedAbilityDigVerticalBehavior.ReleaseGrabsBeforeGoingUnderground(token)
+                        if token.valid then
+                            token:MoveVertical(target)
+                        end
+                    end)
+                else
+                    token:MoveVertical(target)
+                end
+            end,
+        }
+    end
+
+    local m_upButton = AltitudeButton(1)
+    local m_downButton = AltitudeButton(-1)
+
+    local m_altitudePanel = gui.Panel {
+        classes = { "moveModeAltitude" },
+        gui.Panel {
+            classes = { "moveModeAltitudeText" },
+            m_altitudeTitle,
+            m_altitudeValue,
+        },
+        gui.Panel {
+            classes = { "moveModeAltitudeButtons" },
+            m_upButton,
+            m_downButton,
+        },
+    }
+
+    resultPanel = gui.Panel {
+        classes = { "moveModePanel", "collapsed" },
+        styles = {
+            {
+                selectors = { "moveModePanel" },
+                width = 205,
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                valign = "bottom",
+                hmargin = 16,
+                bmargin = 8,
+                bgimage = true,
+                bgcolor = Styles.Ability.blurColor,
+            },
+            {
+                selectors = { "moveModeCard" },
+                width = 205,
+                height = "auto",
+                flow = "vertical",
+                vmargin = 4,
+                hpad = 8,
+                vpad = 6,
+                borderBox = true,
+                bgimage = true,
+                bgcolor = "#00000077",
+                borderColor = "#606060",
+                borderWidth = 1.5,
+            },
+            {
+                selectors = { "moveModeButtonRow" },
+                width = "100%",
+                height = 33,
+                flow = "horizontal",
+            },
+            {
+                selectors = { "moveModeButton" },
+                width = 33,
+                height = 33,
+                halign = "center",
+                bgimage = true,
+                bgcolor = "#1D1D1D",
+                borderColor = "#606060",
+                borderWidth = 1.5,
+            },
+            {
+                selectors = { "moveModeButton", "hover" },
+                borderColor = "white",
+                brightness = 1.5,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = { "moveModeButton", "selected" },
+                borderColor = Styles.Ability.accentColor,
+                bgcolor = "#2A2116",
+            },
+            {
+                selectors = { "moveModeButton", "unavailable" },
+                bgcolor = "#161616",
+                borderColor = "#3A3A3A",
+            },
+            {
+                selectors = { "moveModeButton", "unavailable", "hover" },
+                borderColor = "#3A3A3A",
+                brightness = 1,
+            },
+            {
+                selectors = { "moveModeIcon" },
+                width = 22,
+                height = 22,
+                halign = "center",
+                valign = "center",
+                bgcolor = Styles.textColor,
+            },
+            {
+                selectors = { "moveModeIcon", "parent:selected" },
+                bgcolor = Styles.Ability.accentColor,
+            },
+            {
+                --Grey out the icon itself: the button's opacity does not reach its children.
+                selectors = { "moveModeIcon", "parent:unavailable" },
+                bgcolor = "#555555",
+            },
+            {
+                selectors = { "moveModeStatusRow" },
+                width = "100%",
+                height = 32,
+                flow = "horizontal",
+                tmargin = 6,
+            },
+            {
+                selectors = { "moveModeStatusText" },
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                valign = "center",
+            },
+            {
+                selectors = { "moveModeName" },
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+                bold = true,
+                color = Styles.Ability.accentColor,
+            },
+            {
+                selectors = { "moveModeSpeed" },
+                width = "auto",
+                height = "auto",
+                maxWidth = 120,
+                fontSize = 11,
+                color = Styles.textColor,
+            },
+            {
+                selectors = { "moveModeAltitude" },
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+            },
+            {
+                selectors = { "moveModeAltitudeText" },
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                valign = "center",
+                rmargin = 6,
+            },
+            {
+                selectors = { "moveModeAltitudeTitle" },
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                fontSize = 11,
+                color = Styles.textColor,
+            },
+            {
+                selectors = { "moveModeAltitudeValue" },
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                fontSize = 16,
+                bold = true,
+                color = "white",
+            },
+            {
+                selectors = { "moveModeAltitudeButtons" },
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                valign = "center",
+            },
+            {
+                selectors = { "moveModeAltitudeButton" },
+                width = 20,
+                height = 15,
+                vmargin = 1,
+                fontSize = 12,
+                bold = true,
+                textAlignment = "center",
+                color = Styles.textColor,
+                bgimage = true,
+                bgcolor = "#1D1D1D",
+                borderColor = "#606060",
+                borderWidth = 1,
+            },
+            {
+                selectors = { "moveModeAltitudeButton", "hover" },
+                borderColor = "white",
+                brightness = 1.5,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = { "moveModeAltitudeButton", "unavailable" },
+                opacity = 0.3,
+            },
+            {
+                selectors = { "moveModeAltitudeButton", "unavailable", "hover" },
+                borderColor = "#606060",
+                brightness = 1,
+            },
+        },
+
+        showMoveModes = function(element, token)
+            m_token = token
+            m_signature = nil
+            element:FireEvent("refreshMoveModes")
+        end,
+
+        thinkTime = 0.2,
+        think = function(element)
+            --the menu (our parent) hides itself when closed; stop polling then.
+            local menu = element.parent
+            if element:HasClass("collapsed") or (menu ~= nil and menu:HasClass("hidden")) then
+                return
+            end
+            element:FireEvent("refreshMoveModes")
+        end,
+
+        refreshMoveModes = function(element)
+            if m_token == nil or not m_token.valid or m_token.properties == nil then
+                return
+            end
+            local props = m_token.properties
+            local current = props:CurrentMoveType()
+
+            local reasons = {}
+            for i, button in ipairs(m_modeButtons) do
+                reasons[i] = props:MoveTypeUnavailableReason(button.data.moveType)
+            end
+
+            local depthMode = current == "swim" or current == "burrow"
+            local showAltitude = current == "climb" or depthMode or (current == "fly" and props:CanFlyVertically())
+            local altitude = 0
+            if depthMode then
+                altitude = m_token.distanceBelowGround
+            elseif showAltitude then
+                altitude = props:HeightAboveGround()
+            end
+
+            local speed = props:GetSpeed(current)
+            local doubled = false
+            if speed <= 0 then
+                speed = props:WalkingSpeed()
+                doubled = current == "swim"
+            end
+
+            --Rebuild only when something shown has changed (this runs 5 times a second).
+            local signature = string.format("%s|%s|%s|%s|%s", current, tostring(showAltitude), tostring(altitude), tostring(speed), tostring(doubled))
+            for i = 1, #m_modeButtons do
+                signature = signature .. "|" .. (reasons[i] or "")
+            end
+            if signature == m_signature then
+                return
+            end
+            m_signature = signature
+
+            for i, button in ipairs(m_modeButtons) do
+                button.data.reason = reasons[i]
+                button:SetClass("unavailable", reasons[i] ~= nil)
+                button:SetClass("selected", button.data.moveType == current)
+            end
+
+            local info = creature.movementTypeById[current] or creature.movementTypeById["walk"]
+            m_nameLabel.text = info.verb
+            if doubled then
+                m_speedLabel.text = T("movemode.speed_doubled", { speed = tostring(speed) })
+            else
+                m_speedLabel.text = T("movemode.speed", { speed = tostring(speed) })
+            end
+
+            m_altitudePanel:SetClass("hidden", not showAltitude)
+            m_altitudeTitle.text = cond(depthMode, T("movemode.depth"), T("movemode.altitude"))
+            m_altitudeValue.text = tostring(math.floor(altitude + 0.5))
+
+            --Swimming or burrowing can't rise above the surface; flying or climbing
+            --can't go below the ground.
+            local upReason = nil
+            local downReason = nil
+            if depthMode and altitude <= 0 then
+                upReason = T("movemode.at_surface")
+            end
+            if (not depthMode) and altitude <= 0 then
+                downReason = T("movemode.on_ground")
+            end
+            m_upButton.data.reason = upReason
+            m_upButton:SetClass("unavailable", upReason ~= nil)
+            m_downButton.data.reason = downReason
+            m_downButton:SetClass("unavailable", downReason ~= nil)
+        end,
+
+        gui.Panel {
+            classes = { "moveModeCard" },
+            gui.Panel {
+                classes = { "moveModeButtonRow" },
+                children = m_modeButtons,
+            },
+            gui.Panel {
+                classes = { "moveModeStatusRow" },
+                gui.Panel {
+                    classes = { "moveModeStatusText" },
+                    m_nameLabel,
+                    m_speedLabel,
+                },
+                m_altitudePanel,
+            },
+        },
+
+        gui.Label {
+            classes = { "submenuHeading" },
+            text = T("movemode.heading"),
+        },
+    }
+
+    return resultPanel
+end
+
 ActionMenu = function()
     local m_submenus = {}
     --Pooled per-statblock columns for the director overview ("unique"
@@ -8626,6 +9098,9 @@ ActionMenu = function()
             }
         end,
     }
+
+    --The Move drawer's Movement panel, above the ability columns.
+    local m_moveModePanel = DrawSteelActionBar._MovementModePanel()
 
     local m_containerPanel = gui.Panel {
         width = "auto",
@@ -9145,6 +9620,15 @@ ActionMenu = function()
 
             m_args = args
 
+            --Only the Move drawer shows the Movement panel. Its menu drops the
+            --container's minimum height so its abilities sit right under it.
+            local isMove = args.type == "move"
+            m_moveModePanel:SetClass("collapsed", not isMove)
+            m_containerPanel.selfStyle.minHeight = cond(isMove, 0, 200)
+            if isMove then
+                m_moveModePanel:FireEvent("showMoveModes", g_token)
+            end
+
             --Director multi-monster overview: one column per statblock in
             --the selection, each chip casting for that statblock's
             --representative token (AbilityHeading casterToken override).
@@ -9276,7 +9760,9 @@ ActionMenu = function()
                 triggers = g_token.properties:GetTriggeredActions()
             end
 
-            if #abilities == 0 and #triggers == 0 then
+            --The Move menu opens even with no move abilities: it still has the
+            --Movement panel.
+            if #abilities == 0 and #triggers == 0 and args.type ~= "move" then
                 DrawSteelActionBar._diag("menu-empty", "drawer=" .. tostring(args.type))
                 element:SetClass("hidden", true)
                 element:HaltEventPropagation()
@@ -9411,6 +9897,7 @@ ActionMenu = function()
             end
         end,
 
+        m_moveModePanel,
         m_containerPanel,
         m_lensBar,
         g_manualSetResourcePanel,
@@ -9625,6 +10112,24 @@ local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     return effective
 end
 
+-- Obstruction descriptions the engine gives to ordinary geometry and creatures.
+-- Anything else came from an aura's GetCoverDescription (its name).
+DrawSteelActionBar.GenericObstructions = {
+    none = true, wall = true, floor = true, ridge = true,
+    Creature = true, ["Area of Effect"] = true,
+}
+
+-- "No Line of Effect", or "Blocked by X" naming the aura in the way when one blocks it.
+-- Kept short: arrow labels truncate at TargetingArrow.MaxLabelChars (28).
+--- @param description string|nil the engine's obstruction description
+--- @return string
+function DrawSteelActionBar.NoLineOfEffectText(description)
+    if type(description) == "string" and description ~= "" and not DrawSteelActionBar.GenericObstructions[description] then
+        return string.format("Blocked by %s", description)
+    end
+    return "No Line of Effect"
+end
+
 -- Why targetToken is outside line of effect, or nil when the ability can reach
 -- it. originToken is where the ability reaches from (the caster, or a
 -- casting-origin relay); sourceToken is the caster. The arrow label and the
@@ -9636,7 +10141,8 @@ function DrawSteelActionBar.LineOfEffectFailReason(sourceToken, targetToken, ori
 
     local pierceWalls = originToken.properties:GetPierceWalls()
     if originToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
-        return "No Line of Effect"
+        local coverInfo = dmhub.GetCoverInfo(originToken, targetToken, pierceWalls)
+        return DrawSteelActionBar.NoLineOfEffectText(coverInfo ~= nil and coverInfo.description or nil)
     end
 
     -- Per-creature line-of-effect cap (e.g. the Dazzled condition's "line of
@@ -9938,6 +10444,169 @@ local ClearCastingTriggers = function()
     end
 
     m_castingTriggers = nil
+    DrawSteelActionBar._castingTriggerCards.Refresh()
+end
+
+--Casting-trigger cards: a prompt this cast raised on ANOTHER creature the local
+--user controls (Harmonize on a Troubadour while you cast with a second hero) is
+--offered in the targeting controls. Otherwise it sits in that creature's trigger
+--panel, which nobody can open mid-cast because selection is locked.
+--Kept on a table, not in locals: this file's main chunk is at Lua's 200-local limit.
+--- @class ActionBarCastingTriggerCards
+--- @field panel nil|Panel The row of cards in the ability controller.
+DrawSteelActionBar._castingTriggerCards = { panel = nil }
+
+--- True if a casting trigger owned by this token should get a card in the local
+--- user's cast controls. A Director does not get cards for heroes another player
+--- owns: that player answers in their own trigger panel.
+--- @param owner CharacterToken
+--- @return boolean
+function DrawSteelActionBar._castingTriggerCards.ShowsFor(owner)
+    if not owner.canControlAsUser then
+        return false
+    end
+    if dmhub.isDM and owner.playerControlled and owner.ownerId ~= dmhub.userid then
+        return false
+    end
+    return true
+end
+
+--- Builds the card for one pending (or just used) casting trigger.
+--- @param owner CharacterToken The creature the trigger belongs to.
+--- @param trigger ActiveTrigger The live prompt on that creature.
+--- @return Panel
+function DrawSteelActionBar._castingTriggerCards.CreateCard(owner, trigger)
+    local name = trigger:GetText() or ""
+    local cost = trigger.heroicResourceCost
+    local costText = ""
+    if cost ~= nil and cost ~= 0 then
+        costText = string.format(" (%d %s)", cost, owner.properties:GetHeroicResourceName())
+    elseif (trigger.epicResourceCost or 0) ~= 0 then
+        costText = string.format(" (%d)", trigger.epicResourceCost)
+    end
+
+    local used = trigger.triggered and true or false
+    local triggerid = trigger.id
+    local ownerid = owner.charid
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        valign = "center",
+        hmargin = 4,
+        gui.CreateTokenImage(owner, {
+            width = 32,
+            height = 32,
+            halign = "left",
+            valign = "center",
+            rmargin = 4,
+        }),
+        gui.Button{
+            classes = {cond(used, "selected")},
+            width = "auto",
+            minWidth = 140,
+            hpad = 12,
+            borderBox = true,
+            text = cond(used, string.format("%s used", name), name .. costText),
+            --The owner's full triggered-action card (cost, distance, trigger,
+            --effect), as the character sheet shows it.
+            hover = function(element)
+                local tok = dmhub.GetTokenById(ownerid)
+                local action = nil
+                if tok ~= nil and tok.valid then
+                    action = tok.properties:GetTriggeredActionInfo(name)
+                end
+                if action ~= nil then
+                    element.tooltip = gui.TooltipFrame(action:Render{token = tok}, {width = 500, halign = "center", valign = "top", pad = 8})
+                else
+                    gui.Tooltip(string.format("%s's triggered action.", owner.name or name))(element)
+                end
+            end,
+            press = function(element)
+                if used then
+                    return
+                end
+                local tok = dmhub.GetTokenById(ownerid)
+                if tok == nil or not tok.valid then
+                    return
+                end
+                --The same write the trigger panel's Activate makes: the cast's own
+                --character watcher (refreshCharacters) then applies the trigger, and
+                --the roll charges its owner when it completes.
+                tok:ModifyProperties{
+                    undoable = false,
+                    description = "Trigger",
+                    execute = function()
+                        local live = (tok.properties:GetAvailableTriggers() or {})[triggerid]
+                        if live == nil or live.triggered then
+                            return
+                        end
+                        live.triggered = true
+                        live.dismissed = live:DismissOnTrigger()
+                        tok.properties:DispatchAvailableTrigger(live)
+                    end,
+                }
+            end,
+        },
+    }
+end
+
+--- Rebuilds the cards from the cast's casting triggers. Cheap to call often: it
+--- only rebuilds when the set of prompts or their used state changes.
+function DrawSteelActionBar._castingTriggerCards.Refresh()
+    local cards = DrawSteelActionBar._castingTriggerCards
+    local panel = cards.panel
+    if panel == nil or not panel.valid then
+        return
+    end
+
+    local entries = {}
+    local signature = {}
+    if m_castingTriggers ~= nil and g_token ~= nil and g_token.valid then
+        for _, castingTrigger in ipairs(m_castingTriggers) do
+            local owner = dmhub.GetTokenById(castingTrigger.charid)
+            if owner ~= nil and owner.valid and owner.charid ~= g_token.charid and cards.ShowsFor(owner) then
+                local live = (owner.properties:GetAvailableTriggers() or {})[castingTrigger.id]
+                if live ~= nil and (live.triggered or not live.dismissed) then
+                    entries[#entries+1] = {owner = owner, trigger = live}
+                    signature[#signature+1] = string.format("%s:%s", live.id, tostring(live.triggered))
+                end
+            end
+        end
+    end
+
+    local key = table.concat(signature, ",")
+    if panel.data.key == key then
+        return
+    end
+    panel.data.key = key
+
+    local children = {}
+    for _, entry in ipairs(entries) do
+        children[#children+1] = cards.CreateCard(entry.owner, entry.trigger)
+    end
+    panel.children = children
+    panel:SetClass("collapsed", #children == 0)
+end
+
+--- The ability controller's row of casting-trigger cards.
+--- @return Panel
+function DrawSteelActionBar._castingTriggerCards.CreatePanel()
+    local panel = gui.Panel{
+        classes = {"collapsed"},
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        vmargin = 4,
+        data = {
+            key = "",
+        },
+    }
+    DrawSteelActionBar._castingTriggerCards.panel = panel
+    return panel
 end
 
 
@@ -10043,6 +10712,13 @@ local function CreateTargetInfo(spell)
                         end
                     end
                 end
+            end
+
+            --An object marked only to say why this ability can't target it: hovering shows
+            --the reason, and a click does nothing, even for the Director.
+            if targetToken.sheet ~= nil and targetToken.sheet.data.targetBlocked == true
+                and not list_contains(g_targetsChosen, targetToken.id) then
+                return
             end
 
             -- Strict-targeting: players cannot select invalid targets (out of
@@ -10600,7 +11276,7 @@ end
 function DrawSteelActionBar.TeleportLineOfEffectFailReason(mover, loc)
     local info = mover:GetLineOfSightToSpaceInfo(loc, mover.properties:GetPierceWalls())
     if info.cover == 0 then
-        return "No Line of Effect", info.obstructionDist
+        return DrawSteelActionBar.NoLineOfEffectText(info.description), info.obstructionDist
     end
 
     local limit = mover.properties:CalculateNamedCustomAttribute("Line Of Effect Limit") or 0
@@ -12581,6 +13257,9 @@ CreateAbilityController = function()
         --reads the wheel while a flier picks an ability move destination.
         DrawSteelActionBar._flight.CreatePoller(),
 
+        --rebuilds the target list when a creature is revealed or hides mid-targeting.
+        DrawSteelActionBar._hiddenWatch.CreateWatcher(),
+
         g_ammoChoicePanel,
         g_synthesizedSpellsPanel,
         g_castChargesInput,
@@ -12591,6 +13270,8 @@ CreateAbilityController = function()
         g_castModesPanel,
 
         g_castControlsPanel,
+
+        DrawSteelActionBar._castingTriggerCards.CreatePanel(),
 
         gui.Panel {
             width = "auto",
@@ -12969,6 +13650,7 @@ CreateAbilityController = function()
                     m_castingTriggersOwnerPanel = element
                     m_castingTriggersCache = {}
                     element.monitorGame = "/characters"
+                    DrawSteelActionBar._castingTriggerCards.Refresh()
                 end
             end
         end,
@@ -13006,6 +13688,7 @@ CreateAbilityController = function()
                 end
             end
             m_castingTriggers = keptTriggers
+            DrawSteelActionBar._castingTriggerCards.Refresh()
         end,
         clearCastingTriggers = function(element)
             element.monitorGame = nil
@@ -13035,6 +13718,9 @@ CreateAbilityController = function()
             --Director overview (slice (e)): whatever ended this cast, the
             --pending implicit-claim record dies with it.
             g_overviewCastPending = nil
+
+            --no target list any more, so the Hidden watch has nothing to rebuild.
+            DrawSteelActionBar._hiddenWatch.signature = nil
 
             ClearCastingTriggers()
 
@@ -13301,6 +13987,7 @@ CreateAbilityController = function()
                     if tok ~= nil and tok.valid and tok.sheet ~= nil then
                         tok.sheet.data.targetInfo = nil
                         tok.sheet.data.targetValid = nil
+                        tok.sheet.data.targetBlocked = nil
                         tok.sheet:FireEvent("untarget")
                     end
                 end
@@ -13392,6 +14079,7 @@ CreateAbilityController = function()
                     tok.sheet.data.targetInfo = targetInfo
                     local reason = reasons[tok.charid]
                     tok.sheet.data.targetValid = reason == nil
+                    tok.sheet.data.targetBlocked = nil
                     if reason ~= nil then
                         tok.sheet:FireEvent("target", { valid = false, reason = reason, classes = { 'invalid' } })
                     else
@@ -14136,9 +14824,6 @@ CreateAbilityController = function()
 
                             local collideWith = movementInfo.collideWith or {}
 
-                            --implement increase of collide damage if we collide into an object.
-                            local collideDamage = overshoot
-
                             local isObject = true
                             for _, collideToken in ipairs(collideWith) do
                                 if not collideToken.isObject then
@@ -14147,9 +14832,11 @@ CreateAbilityController = function()
                                 end
                             end
 
-                            if isObject then
-                                collideDamage = collideDamage + 2
-                            end
+                            --what the Collision rule deals: the force left, 2 more into an object or
+                            --wall plus the pusher's bonus for that, less the creature's reduction.
+                            local pusher = g_currentSymbols.invoker ~= nil and Utils.ResolveGoblinScriptObject(g_currentSymbols.invoker) or nil
+                            local movementType = g_currentAbility:try_get("forcedMovement", "slide")
+                            local collideDamage = g_token.properties:PredictedCollisionDamage(overshoot, isObject, pusher, movementType)
 
                             --objects flagged "No Collision Damage" run their own collision
                             --behavior, so no standard collision damage is dealt in either
@@ -14184,9 +14871,15 @@ CreateAbilityController = function()
                                 }
 
                                 if not suppressDamage then
+                                    --a creature it hits takes its own share (no object bonus unless the
+                                    --mover is an object); an object is labelled with the mover's.
+                                    local hitDamage = collideDamage
+                                    if not collideToken.isObject then
+                                        hitDamage = collideToken.properties:PredictedCollisionDamage(overshoot, g_token.isObject, pusher, movementType)
+                                    end
                                     newTextLabels[#newTextLabels + 1] = {
                                         point = collideToken:PosAtLoc(),
-                                        text = string.format("-%d<color=#00000000>-</color>", collideDamage),
+                                        text = string.format("-%d<color=#00000000>-</color>", hitDamage),
                                     }
                                 end
                             end
@@ -14196,13 +14889,21 @@ CreateAbilityController = function()
                         if movementInfo.bounceCollisions ~= nil and #movementInfo.bounceCollisions > 0 and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                             newPathEndShapes = newPathEndShapes or {}
 
+                            local pusher = g_currentSymbols.invoker ~= nil and Utils.ResolveGoblinScriptObject(g_currentSymbols.invoker) or nil
+                            local movementType = g_currentAbility:try_get("forcedMovement", "slide")
+
                             for _, collision in ipairs(movementInfo.bounceCollisions) do
                                 local bounceCollideWith = collision.collideWith or {}
-                                local bounceDamage = collision.speed
+                                --a wall, or any object among what it hit, as AbilityRelocateCreature
+                                --reports a bounce to the Collision rule.
                                 local bounceIsObject = #bounceCollideWith == 0
-                                if bounceIsObject then
-                                    bounceDamage = bounceDamage + 2
+                                for _, collideToken in ipairs(bounceCollideWith) do
+                                    if collideToken.isObject then
+                                        bounceIsObject = true
+                                        break
+                                    end
                                 end
+                                local bounceDamage = g_token.properties:PredictedCollisionDamage(collision.speed, bounceIsObject, pusher, movementType)
 
                                 --see the note on suppressDamage above.
                                 local suppressBounceDamage = #bounceCollideWith > 0
@@ -14243,9 +14944,15 @@ CreateAbilityController = function()
                                         radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
                                     }
                                     if not suppressBounceDamage then
+                                        --a creature it hits takes its own share; an object is labelled
+                                        --with the mover's.
+                                        local hitDamage = bounceDamage
+                                        if not collideToken.isObject then
+                                            hitDamage = collideToken.properties:PredictedCollisionDamage(collision.speed, bounceIsObject, pusher, movementType)
+                                        end
                                         newTextLabels[#newTextLabels + 1] = {
                                             point = collideToken:PosAtLoc(),
-                                            text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                            text = string.format("-%d<color=#00000000>-</color>", hitDamage),
                                         }
                                     end
                                 end
@@ -15445,10 +16152,19 @@ local function CalculateSpellTargetFocusing(symbols)
 
                 local canTarget = true
 
+                --An attackable object this ability can't pick (it can't target objects, or object
+                --targeting is switched off). Shown as invalid with a reason, only within range,
+                --so a strike doesn't light up every object on the map.
+                local objectReason = nil
+                if spell.targetType == "target" and range ~= nil
+                    and targetToken:Distance(g_token) <= range + dmhub.unitsPerSquare then
+                    objectReason = g_currentAbility:ObjectTargetingReason(g_token, targetToken, symbols)
+                end
+
                 -- For objectTarget abilities, respect the Creatures/Objects/Both setting.
                 -- Object-only abilities (targetAllegiance == "none") don't show that
                 -- slider at all, so a stale preference must not filter their candidates.
-                if g_currentAbility.objectTarget == true and g_currentAbility.targetAllegiance ~= "none" then
+                if objectReason == nil and g_currentAbility.objectTarget == true and g_currentAbility.targetAllegiance ~= "none" then
                     local treatAsObject = (not targetToken.isObject) and
                                           targetToken.properties ~= nil and
                                           targetToken.properties:try_get("treatAsObject", false)
@@ -15456,6 +16172,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         -- "Creatures" mode: exclude creature-objects.
                         canTarget = false
                     elseif targeting == false and targetToken.isObject
+                        and (not ActivatedAbility.ObjectShownWithCreatures(targetToken))
                         and (not g_currentAbility:ObjectGrantsTargeting(g_token, targetToken, symbols)) then
                         -- "Creatures" mode: exclude plain objects.
                         canTarget = false
@@ -15518,30 +16235,40 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 local failReason = nil
+                --set when failReason is a line of effect reason, shown on the arrow, not the token.
+                local failIsLineOfEffect = false
 
-                if canTarget then
-                    canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
+                --true when the target is shown only to explain why it can't be picked:
+                --unlike a range or filter reason, the Director can't click past it.
+                local blocked = false
+
+                --The Hidden warning is the least important reason: it is held here and
+                --shown only if range, line of effect and the other checks below all pass.
+                local hiddenReason = nil
+
+                if canTarget and objectReason ~= nil then
+                    failReason = objectReason
+                    blocked = true
+                elseif canTarget then
+                    local warningKind
+                    --true: the player sees the reason, so rank it against the other checks.
+                    canTarget, failReason, warningKind = spell:TargetPassesFilter(g_token, targetToken, symbols, nil, true)
                     if failReason ~= nil then
                         canTarget = true
                     end
+                    if warningKind == "hidden" then
+                        hiddenReason = failReason
+                        failReason = nil
+                    end
                 end
 
-                if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike") then
-                    local ignoreRange = g_token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-                    local bypass = false
-                    if ignoreRange > 0 then
-                        local dist = g_token:Distance(targetToken)
-                        if dist <= ignoreRange then
-                            bypass = true
-                        end
-                    end
-                    --Shadowmeld: a caster in front of the wall the target melded into can see it.
-                    if (not bypass) and RuleUtils.WallMeldSeesTarget(g_token, targetToken) then
-                        bypass = true
-                    end
-                    if not bypass then
-                        failReason = "Cannot target a hidden creature with a strike"
-                    end
+                --The targeting rule treats Hidden creatures as hidden from enemies only, but an
+                --ally may not be able to see a hidden friend either, so warn before a strike on one.
+                if canTarget and hiddenReason == nil and targetToken.charid ~= g_token.charid
+                    and g_token:IsFriend(targetToken) and g_currentAbility:HasKeyword("Strike")
+                    and targetToken.properties:HasNamedCondition("Hidden")
+                    and not RuleUtils.SeesPastHidden(g_token, targetToken) then
+                    hiddenReason = "Cannot target a hidden creature with a strike"
                 end
 
                 if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then
@@ -15607,6 +16334,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         and targetToken.charid ~= g_token.charid and not SquadStrikeActive() then
                         failReason = DrawSteelActionBar.LineOfEffectFailReason(g_token, targetToken,
                             targetProximityOrigin or DrawSteelActionBar.RangeMeasureOrigin(g_currentAbility, g_token, targetToken))
+                        failIsLineOfEffect = failReason ~= nil
                     end
 
                     --Target-first abilities (Heal): a creature in reach that no mode can be
@@ -15615,6 +16343,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         failReason = spell:TargetFirstUnavailableReason(g_token, targetToken)
                     end
 
+                    failReason = failReason or hiddenReason
                     local valid = failReason == nil
 
                     if targetToken.valid and targetToken.sheet ~= nil then
@@ -15643,9 +16372,10 @@ local function CalculateSpellTargetFocusing(symbols)
                         --record validity so click handlers can reject invalid
                         --targets when strict-targeting is enforced for players.
                         targetToken.sheet.data.targetValid = valid
+                        targetToken.sheet.data.targetBlocked = blocked
                         --out-of-range and line of effect are shown as arrow labels instead of a token tooltip.
                         local tooltipReason = failReason
-                        if tooltipReason ~= nil and (string.starts_with(tooltipReason, "Out of range")
+                        if tooltipReason ~= nil and (failIsLineOfEffect or string.starts_with(tooltipReason, "Out of range")
                             or string.find(tooltipReason, "Line of Effect", 1, true) ~= nil) then
                             tooltipReason = nil
                         end
@@ -15676,6 +16406,7 @@ local function CalculateSpellTargetFocusing(symbols)
                     end
                     tok.sheet.data.targetInfo = g_targetInfo
                     tok.sheet.data.targetValid = true
+                    tok.sheet.data.targetBlocked = nil
                     tok.sheet:FireEvent("target", { valid = true })
                 end
             end
@@ -15700,6 +16431,9 @@ local function CalculateSpellTargetFocusing(symbols)
         g_lastTargetDiagLine = diagLine
         print(string.format("%s T=%.2f", diagLine, dmhub.Time()))
     end
+
+    --what the Hidden watch compares against to notice a reveal mid-targeting.
+    DrawSteelActionBar._hiddenWatch.signature = DrawSteelActionBar._hiddenWatch.Signature()
 
     return potentialTargetTokens
 end
@@ -16152,6 +16886,32 @@ dmhub.RegisterEventHandler("restoreFromBackup", function()
         g_abilityController:FireEvent("cancelCasting")
     end
 end)
+
+--- Called just before these creatures' turn ends on this client. If the player picked an
+--- ability from the bar for one of them and is still targeting it (never cast), cancel it,
+--- as Escape would. Left armed, it kept IsCastingSpell() true after the turn passed, and
+--- every later invoke waits for that to clear: the next save card or Monster AI cast
+--- waited forever (3VAQJS4A, YYK97NNG). Invoked prompts are left alone: End Turn already
+--- waits for those to be answered.
+--- @param tokens CharacterToken[]
+function DrawSteelActionBar.CancelUncastAbilityForEndingTurn(tokens)
+    if g_currentAbility == nil or g_abilityController == nil or not g_abilityController.valid then
+        return
+    end
+    if g_currentSymbols ~= nil and g_currentSymbols.invoked then
+        return
+    end
+    if g_token == nil or not g_token.valid then
+        return
+    end
+    for _,tok in ipairs(tokens or {}) do
+        if tok ~= nil and tok.valid and tok.charid == g_token.charid then
+            printf("ENDTURN:: cancelling %s's uncast %s", tostring(g_token.name or g_token.charid), tostring(g_currentAbility.name))
+            g_abilityController:FireEvent("cancelCasting")
+            return
+        end
+    end
+end
 --RegisterCustomActionBar(nil)
 
 -- =============================================================================

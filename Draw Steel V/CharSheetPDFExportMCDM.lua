@@ -899,7 +899,7 @@ local function CleanText(s)
         return nil
     end
     s = tostring(s)
-    s = string.gsub(s, "<[^>]*>", "")        -- Unity rich-text tags
+    s = string.gsub(s, "</?%a[^>]*>", "")    -- Unity rich-text tags (not a "P < 2" gate)
     s = string.gsub(s, "%*%*(.-)%*%*", "%1") -- markdown **bold**
     s = string.gsub(s, "__(.-)__", "%1")     -- markdown __bold__
     for _,pair in ipairs(g_textReplacements) do

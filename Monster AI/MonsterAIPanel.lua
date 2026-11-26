@@ -65,14 +65,15 @@ local g_relayedTriggerWaitSeconds = 10
 
 --Whether this hero prompt makes the monsters wait before taking a turn. Any
 --prompt the player has not answered counts (Showdown at the start of a round,
---Hesitation Is Weakness, a custom class's trigger), except harm forced on the
---hero, roll modifiers (they belong to a roll in progress) and the hidden
---members of a merged prompt. Dismissing the prompt releases the wait.
+--Hesitation Is Weakness, a custom class's trigger), except roll modifiers (they
+--belong to a roll in progress) and the hidden members of a merged prompt.
+--Hostile prompts (Bleeding's Stamina loss, a lava roll) count too, so a player
+--cannot put off harm by never answering. Dismissing the prompt releases the
+--wait; under strict action economy a hostile one can only be accepted.
 ---@param trigger ActiveTrigger
 ---@return boolean
 local function PromptHoldsMonsterTurn(trigger)
     return not trigger.dismissed
-        and not trigger:try_get("hostile", false)
         and trigger:try_get("powerRollModifier", false) == false
         and trigger:try_get("mergedInto", false) == false
 end
@@ -91,8 +92,7 @@ local function HasRelayedTriggerInFlight(token)
 end
 
 --An accepted prompt's cast holds the monsters too: its card is gone, but a
---turn-claim cast (Hesitation Is Weakness) has not moved initiative yet. The
---rule lives in creature:TurnClaimResolving, shared with the end-of-turn handoff.
+--turn-claim cast (Hesitation Is Weakness) has not moved initiative yet.
 ---@param token CharacterToken
 ---@return string|nil
 local function AcceptedTriggerResolving(token)
@@ -364,8 +364,11 @@ local function MonsterAIThread(process)
                             local triggerHandled = false
                             local ok = true
                             local err = nil
+                            --false for a body's expired prompt: it is left alone, not dismissed below.
+                            local attempted = false
                             if not failedTriggers[triggerKey]
                                 and (live or MonsterAI.IsRecentPrompt(trigger)) then
+                                attempted = true
                                 ok, err = ai:RunYieldingFunction(function()
                                     triggerHandled = ai:HandleAvailableTrigger(token, trigger)
                                 end)
@@ -400,7 +403,7 @@ local function MonsterAIThread(process)
                             elseif triggerHandled then
                                 handledTrigger = true
                                 break
-                            elseif not failedTriggers[triggerKey] then
+                            elseif attempted then
                                 --No handler took it: with no Director to leave it
                                 --to, decline it rather than strand it on the host.
                                 local dismissOk, dismissed = pcall(MonsterAI.DismissUnhandledDirectorlessTrigger, ai, token, trigger)

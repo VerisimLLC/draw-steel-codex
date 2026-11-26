@@ -484,6 +484,32 @@ function EncounterOfTheWeekGame.TargetHeroLevel()
     return level
 end
 
+--What happens to a hero who dies in this game: "retreat" (home, healed, no
+--Victory or treasure), "death" (buried) or "lost" (in the Graveyard for
+--good). The current part's line for the mode being played ("Consequence in
+--Deadly Mode: Lost"), else its "Consequence:" line, else Retreat. Deadly Mode
+--with no line of its own is always Death.
+---@return string
+function EncounterOfTheWeekGame.Consequence()
+    local mode = "normal"
+    if EncounterOfTheWeekGame.IsDeadly() then
+        mode = "deadly"
+    elseif EncounterOfTheWeekGame.IsChallenge() then
+        mode = "challenge"
+    end
+    local consequence, fromModeLine = EncounterScript.DEFAULT_CONSEQUENCE, false
+    pcall(function()
+        local montage = rawget(_G, "EncounterMontage")
+        if montage ~= nil then
+            consequence, fromModeLine = EncounterScript.FindConsequence(montage.FindMapScript().parse, mode)
+        end
+    end)
+    if mode == "deadly" and not fromModeLine then
+        return "death"
+    end
+    return consequence
+end
+
 --The average Level of the heroes on the map, or nil when there are none.
 ---@return number|nil
 function EncounterOfTheWeekGame.PartyLevel()
@@ -1699,9 +1725,6 @@ end
 --state doc) the confinement never returns -- a resume mid- or post-combat is
 --not confined.
 
---The Start-zone outline drawn while confinement is active.
-local START_ZONE_COLOR = "#79d2a0"
-
 --Seconds between the victory screen dismissing and this client leaving for
 --the titlescreen: covers the screen's 0.7s fade plus the 1-3s GameDetails
 --write coalescing, so the host's end-of-combat writes flush before the
@@ -1709,6 +1732,7 @@ local START_ZONE_COLOR = "#79d2a0"
 local EXIT_DELAY = 4
 
 local m_restrictionInstalled = false
+--- @type LuaMultiObjectReference[]|nil
 local m_zoneMarker = nil
 --defined with the beat machine below; see there.
 local MontageStageExpected
@@ -1720,6 +1744,8 @@ local MontageStageExpected
 --the first map's starting area.
 local m_restrictionMapId = nil
 local m_restrictionZonesSeq = nil
+--when a Start-zone outline that failed to draw may be tried again.
+local m_zoneMarkerRetryAt = 0
 local m_outcomeSeen = false
 local m_exitScheduled = false
 --set the moment THIS user presses Proceed on the victory/defeat screen; the
@@ -1733,10 +1759,10 @@ local function ClearStartZoneConfinement()
     end
     m_restrictionMapId = nil
     m_restrictionZonesSeq = nil
-    if m_zoneMarker ~= nil then
-        pcall(function() m_zoneMarker:Destroy() end)
-        m_zoneMarker = nil
+    for _, marker in ipairs(m_zoneMarker or {}) do
+        pcall(function() marker:Destroy() end)
     end
+    m_zoneMarker = nil
     GameHud.SetTooltipsSuppressed("eotw", false)
 end
 
@@ -1790,12 +1816,14 @@ local function UpdateStartZoneConfinement()
     end)
 
     if m_restrictionInstalled then
-        if m_restrictionMapId == mapid and m_restrictionZonesSeq == zonesSeq then
+        if m_restrictionMapId == mapid and m_restrictionZonesSeq == zonesSeq
+           and (m_zoneMarker ~= nil or dmhub.Time() < m_zoneMarkerRetryAt) then
             return
         end
         --the map changed under us (EnsureOnEncounterMap travelling to the
-        --chosen encounter, or a resume landing elsewhere) or the zones were
-        --edited: tear down and rebuild for what is now on screen.
+        --chosen encounter, or a resume landing elsewhere), the zones were
+        --edited, or the outline failed to draw: tear down and rebuild for what
+        --is now on screen.
         ClearStartZoneConfinement()
         GameHud.SetTooltipsSuppressed("eotw", true)
     end
@@ -1814,11 +1842,38 @@ local function UpdateStartZoneConfinement()
     --teleportBetweenAreas: when the start zones are separate areas, a hero
     --dragged onto another one hops there (older engines ignore the flag).
     pcall(function() dmhub.SetMovementRestriction{ locs = locs, teleportBetweenAreas = true } end)
-    m_zoneMarker = dmhub.MarkLocs{
-        locs = locs,
-        color = START_ZONE_COLOR,
-        style = "dashed",
-    }
+    --One outline per floor: the engine draws a whole MarkLocs call on one
+    --floor, so a start zone on another floor would appear on the wrong one.
+    --Read the floor with loc.floor: floorIndex is only a core.Loc{} argument,
+    --and reading it back gives nil.
+    local markers = {}
+    local ok, err = pcall(function()
+        local byFloor = {}
+        for _, loc in ipairs(locs) do
+            local floorLocs = byFloor[loc.floor]
+            if floorLocs == nil then
+                floorLocs = {}
+                byFloor[loc.floor] = floorLocs
+            end
+            floorLocs[#floorLocs + 1] = loc
+        end
+        for _, floorLocs in pairs(byFloor) do
+            markers[#markers + 1] = dmhub.MarkLocs{
+                locs = floorLocs,
+                color = "#79d2a0",
+                style = "dashed",
+            }
+        end
+    end)
+    --m_zoneMarker stays nil on a failure, so the next retry draws it again.
+    if not ok then
+        for _, marker in ipairs(markers) do
+            pcall(function() marker:Destroy() end)
+        end
+        m_zoneMarkerRetryAt = dmhub.Time() + 10
+        error(err, 0)
+    end
+    m_zoneMarker = markers
 end
 
 --- coming home ---------------------------------------------------------
@@ -1864,13 +1919,60 @@ end
 --The extra Victory Challenge Mode is worth; the script validator reads it too.
 EncounterOfTheWeekGame.CHALLENGE_VICTORIES = 1
 
+--Famous Relative (complication): a hero who summons their relative earns no
+--Victory from the encounter, and can't summon them again until they gain a
+--Level. The summon stamps the hero with this encounter's run id; the outcome
+--carries the spent charge home, since the next encounter starts from the
+--town's copy of the hero (EotwRoster ApplyOutcome).
+EncounterOfTheWeekGame.FAMOUS_RELATIVE_ABILITY = "b20bf63a-3bca-4c37-ac9a-b1708c89a2f3"
+EncounterOfTheWeekGame.RELATIVE_FIELD = "eotwRelativeSummoned"
+
+--Duplicate hook: stamp a hero who just summoned their famous relative.
+---@param casterToken CharacterToken
+---@param ability ActivatedAbility
+function EncounterOfTheWeekGame.NoteRelativeSummoned(casterToken, ability)
+    if not EncounterOfTheWeekGame.IsEotwGame() or casterToken == nil or casterToken.properties == nil then
+        return
+    end
+    if ability:try_get("guid") ~= EncounterOfTheWeekGame.FAMOUS_RELATIVE_ABILITY and ability.name ~= "Summon Famous Relative" then
+        return
+    end
+    local stamp = { runid = Series.RunId(), resourceid = ability:GetUsageLimitOptions().resourceid }
+    casterToken:ModifyProperties{
+        description = "Summoned famous relative",
+        execute = function()
+            casterToken.properties[EncounterOfTheWeekGame.RELATIVE_FIELD] = stamp
+        end,
+    }
+    printf("EotW: %s summoned their famous relative; no Victory from this encounter", tostring(casterToken.name))
+end
+ActivatedAbilitySummonBehavior.RegisterDuplicateHook("eotw-famous-relative", function(casterToken, token, ability)
+    EncounterOfTheWeekGame.NoteRelativeSummoned(casterToken, ability)
+end)
+
+--This hero's famous-relative stamp if they summoned the relative in THIS
+--encounter (an earlier series part played in this game does not count), else nil.
+---@param charid string
+---@return nil|{runid: string, resourceid: string}
+function EncounterOfTheWeekGame.RelativeSummoned(charid)
+    local stamp = nil
+    pcall(function()
+        local tok = dmhub.GetCharacterById(charid)
+        local s = tok ~= nil and tok.properties ~= nil and rawget(tok.properties, EncounterOfTheWeekGame.RELATIVE_FIELD) or nil
+        if type(s) == "table" and s.runid == Series.RunId() then
+            stamp = s
+        end
+    end)
+    return stamp
+end
+
 --The Victories this hero's win is worth: the encounter's Victories the first
 --time; in Challenge Mode one more for the challenge's first win -- both at
 --once for a hero who never won the normal mode, and nothing for one who has
 --won the challenge.
 function EncounterOfTheWeekGame.VictoryAward(charid)
     local CHALLENGE_VICTORIES = EncounterOfTheWeekGame.CHALLENGE_VICTORIES
-    if AlreadyCompletedHeroes()[charid] then
+    if AlreadyCompletedHeroes()[charid] or EncounterOfTheWeekGame.RelativeSummoned(charid) ~= nil then
         return 0
     end
     local encounterVictories = EncounterVictories()
@@ -2029,6 +2131,8 @@ local function AutoAwardVictories(live, now)
             exemptions[token.charid] = ""
         elseif completed[token.charid] then
             exemptions[token.charid] = UIText.T("encounter.victory.already_completed")
+        elseif EncounterOfTheWeekGame.RelativeSummoned(token.charid) ~= nil then
+            exemptions[token.charid] = UIText.T("encounter.victory.famous_relative")
         else
             amounts[token.charid] = EncounterOfTheWeekGame.VictoryAward(token.charid)
         end
@@ -2102,6 +2206,98 @@ local function EnsureArrivalItems()
 end
 
 EncounterOfTheWeekGame.EnsureArrivalItems = EnsureArrivalItems
+
+--- the end-of-combat sweep ---------------------------------------------------
+--User direction 2026-11-23 (survey: Dazed, Slowed, Snared, Wet and bleeding
+--carried into the next part of a series): when an EotW fight ends, every
+--condition and every combat-length ongoing effect comes off every creature.
+--Kept: effects that last until a respite, effects a hero brought from town
+--(the arrival record below), and effects with their own end-of-encounter
+--trigger (Doomed: the hero dies then), which are left for that trigger.
+--Fields, not locals: this file is at Lua's 200-local limit.
+
+--Host, once per game: the ongoing effects each hero arrived with,
+--arrivalEffects[charid] = { [effectid] = true }.
+function EncounterOfTheWeekGame.EnsureArrivalEffects()
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    if doc.data.arrivalEffects ~= nil then
+        return
+    end
+    local snapshot = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        pcall(function()
+            if token.valid and token.properties ~= nil and token.properties:IsHero() then
+                --_snapshot keeps the table non-empty, as in arrivalItems.
+                local ids = { _snapshot = true }
+                for _, inst in ipairs(token.properties:try_get("ongoingEffects", {})) do
+                    ids[inst.ongoingEffectid] = true
+                end
+                snapshot[token.charid] = ids
+            end
+        end)
+    end
+    doc:BeginChange()
+    doc.data.arrivalEffects = snapshot
+    doc:CompleteChange("Encounter of the Week: effects on arrival", {undoable = false})
+end
+
+--Whether an ongoing effect is one the sweep keeps, whoever has it: it lasts
+--until a respite, or it acts at the end of the encounter itself.
+function EncounterOfTheWeekGame.SweepKeepsEffect(inst)
+    if inst.removeOnShortRest or inst.removeOnLongRest then
+        return true
+    end
+    local keep = false
+    pcall(function()
+        local def = GetTableCached("characterOngoingEffects")[inst.ongoingEffectid]
+        for _, modifier in ipairs(def:try_get("modifiers", {})) do
+            local trigger = modifier:try_get("triggeredAbility")
+            if trigger ~= nil and trigger:try_get("trigger") == "endcombat" then
+                keep = true
+            end
+        end
+    end)
+    return keep
+end
+
+--Host, when a fight ends. A hero with an arrival record also sheds effects
+--with no duration (Wet) they did not bring; a creature without one
+--(monsters, allies, a hero who joined late) keeps those, since a monster's
+--own no-duration effects can be part of its stat block.
+function EncounterOfTheWeekGame.SweepCombatEffects()
+    local arrival = mod:GetDocumentSnapshot(STATE_DOC_ID).data.arrivalEffects
+    if type(arrival) ~= "table" then
+        arrival = {}
+    end
+    ElevateToHostPermissions()
+    for _, token in ipairs(dmhub.allTokens) do
+        local ok, err = pcall(function()
+            if not token.valid or token.properties == nil then
+                return
+            end
+            local props = token.properties
+            local brought = arrival[token.charid]
+            props:RemoveMatchingCondition(function() return true end)
+            props:RemoveMatchingOngoingEffects(function(inst)
+                if EncounterOfTheWeekGame.SweepKeepsEffect(inst) then
+                    return false
+                end
+                local timed = inst.removeOnSave or inst.removeOnEoE or inst.removeOnEoEOrDying
+                    or inst.removeAtNextTurnEnd ~= false or inst.removeAtRoundEnd ~= false
+                    or inst:try_get("duration") ~= nil
+                if timed then
+                    return true
+                end
+                return type(brought) == "table" and not brought[inst.ongoingEffectid]
+            end)
+        end)
+        if not ok then
+            printf("EotW: end-of-combat sweep failed for %s: %s", tostring(token.charid), tostring(err))
+        end
+    end
+    DropHostPermissions()
+    printf("EotW: the fight is over; conditions and combat effects cleared")
+end
 
 --The treasure a hero gained in this game: non-consumable items they hold
 --now beyond what they arrived with, { { itemid, name, quantity }, ... }
@@ -2255,6 +2451,29 @@ pcall(function()
             return nil
         end
         return UIText.T("encounter.victory.treasure_note", { treasure = DescribeTreasure(treasure) })
+    end)
+end)
+
+--A hero who died says what that means for them, unless it is Death (their
+--card already shows them dead). Nothing in the Proving Pits.
+pcall(function()
+    DSVictoryScreen.RegisterHeroCardNote("eotw-consequence", function(live, token)
+        if token == nil or token.properties == nil or not EncounterOfTheWeekGame.IsEotwGame()
+            or EncounterOfTheWeekGame.IsPracticeGame() then
+            return nil
+        end
+        local dead = false
+        pcall(function() dead = token.properties:IsDead() end)
+        if not dead then
+            return nil
+        end
+        local consequence = EncounterOfTheWeekGame.Consequence()
+        if consequence == "retreat" then
+            return UIText.T("encounter.victory.retreat_note")
+        elseif consequence == "lost" then
+            return UIText.T("encounter.victory.lost_note")
+        end
+        return nil
     end)
 end)
 
@@ -2437,7 +2656,10 @@ end
 --{ { heroid, outcome }, ... } (heroid = the town roster id), for the town to
 --apply once the player is home (see eotw:pendingOutcomes). `result` is
 --"victory" or "defeat". A hero who is fully dead (not merely dying) at the
---end is buried: outcome.died, at a victory or a defeat. A survivor of a
+--end meets the encounter's consequence (EncounterOfTheWeekGame.Consequence),
+--at a victory or a defeat: Death buries them (outcome.died); Lost buries them
+--for good (outcome.died + outcome.lost); Retreat sends them home at full
+--Stamina and Recoveries with nothing else (outcome.retreated). A survivor of a
 --victory takes the Victory home (0 if they had won it before); every
 --survivor, of a victory or a defeat, takes their wounds home
 --(outcome.wounds). The player's own client sends these home; for a
@@ -2466,8 +2688,16 @@ local function OutcomesFor(userid, encounter, result)
                 alive = not dead
             end
         end)
-        if dead then
-            printf("EotW: %s fell in %s", tostring(tok ~= nil and tok.name or heroid), tostring(encounter))
+        local consequence = dead and EncounterOfTheWeekGame.Consequence() or nil
+        if consequence == "retreat" then
+            printf("EotW: %s fell in %s and retreats to town", tostring(tok ~= nil and tok.name or heroid), tostring(encounter))
+            --no Victory, no treasure; healed in town: no damage, no Recoveries spent.
+            entries[#entries + 1] = {
+                heroid = heroid,
+                outcome = { encounter = encounter, result = result, retreated = true, wounds = { damage = 0, recoveriesUsed = 0 } },
+            }
+        elseif dead then
+            printf("EotW: %s fell in %s (%s)", tostring(tok ~= nil and tok.name or heroid), tostring(encounter), tostring(consequence))
             local outcome = {
                 encounter = encounter,
                 result = result,
@@ -2476,6 +2706,8 @@ local function OutcomesFor(userid, encounter, result)
                 --win by it even when this hero fell winning.
                 challenge = cond(EncounterOfTheWeekGame.IsChallenge(), true, nil),
                 deadly = cond(EncounterOfTheWeekGame.IsDeadly(), true, nil),
+                --Lost: the City digs a grave nothing can raise them from.
+                lost = cond(consequence == "lost", true, nil),
             }
             for key, value in pairs(EncounterOfTheWeekGame.DeathFacts(tok)) do
                 outcome[key] = value
@@ -2518,6 +2750,11 @@ local function OutcomesFor(userid, encounter, result)
         local montage = rawget(_G, "EncounterMontage")
         if #entries > before and montage ~= nil and montage.AssassinSent(charid) then
             entries[#entries].outcome.assassinMet = true
+        end
+        --Famous Relative summoned here: the town spends the charge on its copy.
+        local relative = EncounterOfTheWeekGame.RelativeSummoned(charid)
+        if #entries > before and relative ~= nil then
+            entries[#entries].outcome.relativeSummoned = relative.resourceid
         end
         ::continue::
     end
@@ -2776,6 +3013,10 @@ end
 --A character's still portrait image id, or nil ("#..." ids are live renders
 --of a token on this machine, and "anim:" ids are animations; neither loads
 --in town).
+--A custom avatar is a cloud asset id only its owner's games can resolve, so
+--it is recorded as its public "md5:<blob>" form, which any client loads
+--(as AdventurePage.PortableImageId does). Videos keep their asset id: an
+--md5: id loads as a still image.
 local function StillPortrait(tok)
     local portrait = nil
     pcall(function()
@@ -2785,6 +3026,15 @@ local function StillPortrait(tok)
             end
         end
     end)
+    if portrait ~= nil and string.sub(portrait, 1, 4) ~= "md5:" then
+        pcall(function()
+            local asset = assets.imagesTable[portrait]
+            local blob = asset ~= nil and not asset.isVideo and asset.imageid or nil
+            if type(blob) == "string" and blob ~= "" then
+                portrait = "md5:" .. blob
+            end
+        end)
+    end
     return portrait
 end
 
@@ -3194,12 +3444,15 @@ end
 
 --What this player's heroes came out with, for eotw_run_end.
 local function AnalyticsHeroOutcomes(result)
-    local died, survived, victories, treasures = 0, 0, 0, 0
+    local died, survived, victories, treasures, retreated, lost = 0, 0, 0, 0, 0, 0
     pcall(function()
         for _, entry in ipairs(OutcomesFor(dmhub.loginUserid, "", result)) do
             local o = entry.outcome or {}
-            if o.died then
+            --heroesDied counts every hero who fell, whatever the consequence.
+            if o.died or o.retreated then
                 died = died + 1
+                retreated = retreated + cond(o.retreated, 1, 0)
+                lost = lost + cond(o.lost, 1, 0)
             else
                 survived = survived + 1
             end
@@ -3207,7 +3460,10 @@ local function AnalyticsHeroOutcomes(result)
             treasures = treasures + #(o.treasures or {})
         end
     end)
-    return { heroesDied = died, heroesSurvived = survived, victoriesEarned = victories, treasuresEarned = treasures }
+    return {
+        heroesDied = died, heroesSurvived = survived, victoriesEarned = victories, treasuresEarned = treasures,
+        heroesRetreated = retreated, heroesLost = lost, consequence = EncounterOfTheWeekGame.Consequence(),
+    }
 end
 
 --Close this client's run. outcome "victory" | "defeat" | "abandoned"; how
@@ -3286,6 +3542,23 @@ function Series.NoteOutcome(live, outcome)
             OfferAbsentOutcomes(outcome)
         end
     end
+    --and in the game itself, so a client that quits after the fight and
+    --resumes the game (combat already torn down, nothing left in memory)
+    --still reaches the conclusion: the next-part offer or the trip home
+    --(J8N2HK6N). Keyed by run, so a part played on in this game starts
+    --undecided. An authoring test is reset by EndTest instead.
+    if outcome ~= nil and not EncounterOfTheWeekGame.IsTestPlayer() then
+        pcall(function()
+            local runId = Series.RunId()
+            local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+            local decided = doc.data.decided
+            if type(decided) ~= "table" or decided.runId ~= runId or decided.outcome ~= outcome then
+                doc:BeginChange()
+                doc.data.decided = { runId = runId, outcome = outcome }
+                doc:CompleteChange("Encounter of the Week: encounter decided", {undoable = false})
+            end
+        end)
+    end
     --the Victory has landed: note it for the town now, not only on the
     --way out, so a crash on the victory screen does not lose it. A
     --defeat waits for the way out: a hero's Recovery on Death prompt can
@@ -3320,6 +3593,21 @@ local function UpdateEncounterConclusion()
             end
         end)
         return
+    end
+
+    --a resumed game whose fight was decided before this client left: the
+    --outcome and this player's Proceed were only in memory, so take them
+    --back from the state doc and carry on to the conclusion (J8N2HK6N).
+    if not m_outcomeSeen and not testing then
+        local decided = nil
+        pcall(function() decided = mod:GetDocumentSnapshot(STATE_DOC_ID).data.decided end)
+        if type(decided) == "table" and decided.runId == Series.RunId()
+            and (decided.outcome == "victory" or decided.outcome == "defeat") then
+            printf("EotW: resumed after the encounter was decided (%s); picking up at its conclusion", decided.outcome)
+            m_outcomeSeen = true
+            m_outcomeKind = decided.outcome
+            m_localProceeded = true
+        end
     end
 
     --a won fight with script beats after it: they play on the stage first,
@@ -3724,19 +4012,26 @@ EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS = {
     ["8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6"] = true, --Null Field (Null class feature)
 }
 
---While the heroes arrange, a player's hero may prepare but not fight: every
---other ability is greyed with the reason below (core cast gate; binds only
---players under strict rules, which EotW forces). Catch Breath is limited only
---by Recoveries: with no initiative queue a maneuver is never used up.
+--Until combat starts (arrival, waiting for players, montages, the arrangement),
+--a player's hero may prepare but not fight: every other ability is greyed with
+--the reason below (core cast gate; binds only players under strict rules,
+--which EotW forces). Without this a hero could teleport-strike the monsters
+--before initiative. Catch Breath is limited only by Recoveries:
+--with no initiative queue a maneuver is never used up.
 ActivatedAbility.RegisterCastGate("eotw-arrange", function(ability, casterCreature, casterToken)
-    local state = ArrangeState()
-    if state == nil or state.phase ~= "arranging" then
-        return nil
-    end
-    --an "arranging" doc with a live queue is stale (see UpdateArrangePanel).
+    --any live queue means combat is on (an "arranging" doc with one is stale).
     local queue = dmhub.initiativeQueue
     if queue ~= nil and not queue.hidden then
         return nil
+    end
+    --Real games and authoring tests are gated until combat starts; the
+    --/eotwencounter dev command only while the heroes arrange.
+    local preCombat = EncounterOfTheWeekGame.IsEotwGame() and not EncounterOfTheWeekGame.CombatStarted()
+    if not preCombat then
+        local state = ArrangeState()
+        if state == nil or state.phase ~= "arranging" then
+            return nil
+        end
     end
     local guid = ability:try_get("guid")
     if guid ~= nil and EncounterOfTheWeekGame.ARRANGE_ABILITY_IDS[guid] then
@@ -3983,43 +4278,52 @@ end
 --The per-client driver: a cheap 1s poll self-heals across Lua reloads, the
 --late IsEotwGame flip (the host stamps the doc during setup), and map loads.
 dmhub.Coroutine(function()
+    --One step's error must not stop the others. Each distinct error is logged
+    --once per Lua load, as the driver runs every second.
+    local logged = {}
+    local function Step(name, fn)
+        local ok, err = pcall(fn)
+        if not ok then
+            local line = string.format("EotW: %s failed: %s", name, tostring(err))
+            if not logged[line] then
+                logged[line] = true
+                printf("%s", line)
+            end
+        end
+    end
+
     while true do
         coroutine.yield(1)
         if mod.unloaded then
             ClearStartZoneConfinement()
             return
         end
-        pcall(UpdateDirectorUIHatch)
+        Step("Director UI hatch", UpdateDirectorUIHatch)
         --EotW allows no undo but Turn Rewind: the ordinary undo stack is per client
         --and blind to other players' writes, so one Ctrl+Z could delete the whole
         --combat (FM2VP7AK). Follows IsEotwGame, so it lifts when an authoring test ends.
-        pcall(function()
+        Step("undo lock", function()
             local want = EncounterOfTheWeekGame.IsEotwGame()
             if dmhub.undoDisabled ~= want then
                 dmhub.undoDisabled = want
             end
         end)
-        pcall(UpdateStartZoneConfinement)
-        pcall(UpdateArrangePanel)
-        pcall(UpdateBusyMirror)
-        pcall(UpdateEncounterConclusion)
+        Step("start zone", UpdateStartZoneConfinement)
+        Step("arrange panel", UpdateArrangePanel)
+        Step("busy mirror", UpdateBusyMirror)
+        Step("encounter conclusion", UpdateEncounterConclusion)
         --a won series part going straight on to the next one in this game.
-        do
-            local ok, err = pcall(function() Series.ContinueTick() end)
-            if not ok then
-                printf("EotW: next-part tick failed: %s", tostring(err))
-            end
-        end
-        pcall(UpdatePlayClock)
-        pcall(EnsureAnalyticsRun)
-        pcall(MirrorAnalyticsPhase)
-        pcall(function() EncounterOfTheWeekGame.EnsureMapScriptRunning() end)
+        Step("next-part tick", function() Series.ContinueTick() end)
+        Step("play clock", UpdatePlayClock)
+        Step("analytics run", EnsureAnalyticsRun)
+        Step("analytics phase", MirrorAnalyticsPhase)
+        Step("map script", function() EncounterOfTheWeekGame.EnsureMapScriptRunning() end)
         --an authoring test waiting to be set up after its player-host refresh.
-        pcall(function() EncounterOfTheWeekGame.ConsumePendingTest() end)
+        Step("pending test", function() EncounterOfTheWeekGame.ConsumePendingTest() end)
         --a montage turn that is this user's to roll (the stage's own think
         --also polls this; the driver is the backstop when the stage is not
         --mounted yet).
-        pcall(function()
+        Step("montage tick", function()
             local montage = rawget(_G, "EncounterMontage")
             if montage ~= nil then
                 montage.ClientTick()
@@ -4030,7 +4334,7 @@ dmhub.Coroutine(function()
             end
         end)
         --zones the script revealed: this client's zone overlay shows them.
-        pcall(function()
+        Step("revealed zones", function()
             local zones = rawget(_G, "EncounterZones")
             if zones ~= nil then
                 zones.ClientTick()
@@ -4051,7 +4355,8 @@ end)
 pcall(function()
     DSVictoryScreen.RegisterProceedOverride{
         canProceed = function()
-            return EncounterOfTheWeekGame.IsEotwGame()
+            --an observer gets the button once a player has ended the combat.
+            return EncounterOfTheWeekGame.IsEotwGame() and not EncounterNarrative.LocalUserIsObserver()
         end,
         holdUntilLocalProceed = function()
             --once this user has pressed Proceed the screen may close with
@@ -4061,6 +4366,9 @@ pcall(function()
         proceed = function(defaultProceed, alreadyEnded)
             if not EncounterOfTheWeekGame.IsEotwGame() then
                 return false
+            end
+            if not alreadyEnded and EncounterNarrative.LocalUserIsObserver() then
+                return true
             end
             m_localProceeded = true
             if alreadyEnded then
@@ -6864,6 +7172,12 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         --combat just ended: stand the AI down. A won fight with beats after
         --it plays them now ("aftermath"); otherwise the script goes idle.
         EnsureAIStopped()
+        do
+            local ok, err = pcall(EncounterOfTheWeekGame.SweepCombatEffects)
+            if not ok then
+                printf("EotW: end-of-combat sweep failed: %s", tostring(err))
+            end
+        end
         local after = nil
         if m_outcomeKind == "victory" then
             pcall(function()
@@ -6917,6 +7231,8 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     --what every hero carries before the script hands anything out, so the
     --end of the game knows what treasure they won.
     pcall(EnsureArrivalItems)
+    --and the effects they bring from town, which the end-of-combat sweep keeps.
+    pcall(EncounterOfTheWeekGame.EnsureArrivalEffects)
 
     --Once per part, a few seconds after the last player arrived (so their own
     --placement repairs have settled): any hero still off the start tiles is
@@ -7616,6 +7932,7 @@ local function OpenOpeningBeatWhenPartyIn()
         end
         if EncounterOfTheWeekGame.AllPlayersArrived() then
             pcall(EnsureArrivalItems)
+            pcall(EncounterOfTheWeekGame.EnsureArrivalEffects)
             local ok, err = pcall(function()
                 local montage = rawget(_G, "EncounterMontage")
                 local script = montage.FindMapScript()
@@ -8363,6 +8680,7 @@ function Series.StartNextPartNow(nextPart, continuing)
     data.combatStarted = nil
     data.proceedRequested = nil
     data.arrivalItems = nil
+    data.arrivalEffects = nil
     data.autoEquip = nil
     data.alreadyCompleted = nil
     data.completedNormal = nil
@@ -8675,8 +8993,53 @@ local function TestMode(id)
     return nil
 end
 
+--A test can also start at one narrative section. Its mode id is
+--"section:<beat index>:<section id>", e.g. "section:2:s3-the-crossroads".
+--Returns the beat index and section id, or nil for any other mode.
+--- @param modeid any
+--- @return integer|nil, string|nil
+function EncounterOfTheWeekGame.ParseSectionTestMode(modeid)
+    if type(modeid) ~= "string" then
+        return nil, nil
+    end
+    local index, sectionId = string.match(modeid, "^section:(%d+):(.+)$")
+    if index == nil then
+        return nil, nil
+    end
+    return tonumber(index), sectionId
+end
+
+--One "Start at" choice per section of every narrative in this script, in
+--script order: { {id, text}, ... }. The test dialog lists them after the
+--fixed modes.
+function EncounterOfTheWeekGame.NarrativeSectionTestModes(script)
+    local result = {}
+    local beats = script ~= nil and script.parse ~= nil and script.parse.beats or {}
+    for index, beat in ipairs(beats) do
+        if beat.kind == "narrative" then
+            for _, section in ipairs(EncounterScript.GauntletSections(beat)) do
+                result[#result + 1] = {
+                    id = string.format("section:%d:%s", index, section.id),
+                    text = UIText.T("encounter.test.mode_section", { section = section.name or section.id }),
+                }
+            end
+        end
+    end
+    return result
+end
+
 --The beat a test of this mode starts on: index, beat -- or nil, reason.
+--A section mode (see ParseSectionTestMode) also returns the section id.
 function EncounterOfTheWeekGame.TestStartBeat(script, modeid)
+    local sectionBeat, sectionId = EncounterOfTheWeekGame.ParseSectionTestMode(modeid)
+    if sectionBeat ~= nil then
+        local beats = script ~= nil and script.parse ~= nil and script.parse.beats or {}
+        local beat = beats[sectionBeat]
+        if beat ~= nil and beat.kind == "narrative" and EncounterScript.FindGauntletSection(beat, sectionId) ~= nil then
+            return sectionBeat, beat, sectionId
+        end
+        return nil, UIText.T("encounter.test.no_section")
+    end
     local mode = TestMode(modeid)
     if mode == nil then
         return nil, UIText.T("encounter.test.unknown_mode")
@@ -8987,6 +9350,7 @@ local function ClearTestArrival(data)
     data.combatStarted = nil
     data.proceedRequested = nil
     data.arrivalItems = nil
+    data.arrivalEffects = nil
     data.autoEquip = nil
     data.alreadyCompleted = nil
     data.completedNormal = nil
@@ -9005,7 +9369,7 @@ local function TestArrival(pending)
     --region and start tiles) until data.test carries it.
     Series.testPart = tonumber(pending.part) or 1
     local script = montage.FindMapScript(true)
-    local index, beat = EncounterOfTheWeekGame.TestStartBeat(script, pending.mode)
+    local index, beat, startSection = EncounterOfTheWeekGame.TestStartBeat(script, pending.mode)
     if index == nil then
         error(beat)
     end
@@ -9108,7 +9472,8 @@ local function TestArrival(pending)
     if beat.kind == "montage" then
         montage.Begin(script, beat, index)
     elseif beat.kind == "narrative" and narrative ~= nil then
-        narrative.Begin(script, beat, index)
+        --a section test opens the narrative on that section instead of its first.
+        narrative.Begin(script, beat, index, { startSection = startSection })
     elseif beat.kind == "negotiation" and rawget(_G, "EncounterNegotiation") ~= nil then
         EncounterNegotiation.Begin(script, beat, index)
     end

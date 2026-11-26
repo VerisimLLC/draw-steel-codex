@@ -2745,10 +2745,12 @@ local function CardRegion(ctx)
             local who = cond(d.mine, T("herosheet.card.epitaph_you"), f.playedBy or d.ownerName or "")
             --the week comes from the City's schedule; without one the line ends
             --at the encounter
+            --a Lost hero reads "Lost in ..." (the encounter's consequence).
+            local key = cond(f.lost == true, "herosheet.card.epitaph_lost", "herosheet.card.epitaph")
             if f.week ~= nil then
-                epitaphLabel.text = T("herosheet.card.epitaph_week", { encounter = f.encounter or "", week = tostring(f.week), who = who })
+                epitaphLabel.text = T(key .. "_week", { encounter = f.encounter or "", week = tostring(f.week), who = who })
             else
-                epitaphLabel.text = T("herosheet.card.epitaph", { encounter = f.encounter or "", who = who })
+                epitaphLabel.text = T(key, { encounter = f.encounter or "", who = who })
             end
         end
     end
@@ -5272,7 +5274,8 @@ end
 ---   review   true for the Builder's Review: read only, with no top bar
 ---            (switcher, owner buttons, Close), backdrop or Escape of its own.
 ---   fallen   for a fallen Hero opened from the Graveyard: { encounter =
----            where they fell, week = n, playedBy = player name }. Greys the
+---            where they fell, week = n, playedBy = player name, lost = true for
+---            a Lost hero }. Greys the
 ---            art and shows the epitaph in place of the vitals.
 --- @param args table
 --- @return Panel|nil sheet the open sheet, or nil if there was nowhere to mount it

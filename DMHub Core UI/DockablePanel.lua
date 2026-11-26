@@ -2254,6 +2254,11 @@ local PanelPermittedForUser = function(p)
 	if p.devonly and not devmode() then
 		return false
 	end
+	--a panel behind a setting: available() says whether it exists right now. It runs
+	--several times a second on the rails, so keep it cheap.
+	if p.available ~= nil and not p.available() then
+		return false
+	end
 	--DirectorUIVisible rather than dmhub.isDM so dmonly panels also hide for
 	--a Director presenting as a player (Encounter of the Week host). Panel
 	--background processes (DockablePanel.StartProcess) are independent of
@@ -2278,6 +2283,21 @@ local PanelPermittedForUser = function(p)
 		end
 	end
 	return true
+end
+
+--The panel a dock shows for a registration: itself, or, when it can't show for this user,
+--the panel registered to stand in for it (standsInFor). A dock saved with the Action Log
+--shows History instead, and the other way round. Nil when nothing can show.
+local function DockStandIn(registration)
+	if registration == nil or PanelPermittedForUser(registration) then
+		return registration
+	end
+	for _, candidate in pairs(dockablePanels) do
+		if candidate.standsInFor ~= nil and string.lower(candidate.standsInFor) == string.lower(registration.name) and PanelPermittedForUser(candidate) then
+			return candidate
+		end
+	end
+	return nil
 end
 
 DockablePanel = {}
@@ -2310,7 +2330,8 @@ DockablePanel = {
 	--make the window vertically unresizable), dmonly, devonly, ...
 	--Standalone-window extras: resizableWidth/resizableHeight = false
 	--lock window resizing on that axis (default: both freely resizable);
-	--minWidth/maxWidth bound the window's width.
+	--minWidth/maxWidth bound the window's width; defaultWidth is the width
+	--a new window opens at (PanelDocument.DefaultWidth otherwise).
 	--popoutHeight (content px) gives the panel's native OS popout window
 	--its own default height, instead of inheriting the in-app window's
 	--footprint when popping out.
@@ -2325,6 +2346,9 @@ DockablePanel = {
 	--gets an icon, menu placement, dmonly/devonly gating, and rail
 	--membership like any panel. First client: the Body Banks, which
 	--launches the companion app.
+	--available = function() hides the panel from every list while it returns false.
+	--standsInFor = "<panel name>": a dock that saved that panel shows this one while that
+	--one is not available (History and the old Action Log).
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return
@@ -2472,13 +2496,16 @@ DockablePanel = {
 
 		dock:FireEvent("clearPanels")
 
+		local added = {}
 		for _,name in ipairs(names) do
-			for k,p in pairs(dockablePanels) do
-				if string.lower(p.name) == string.lower(name) and PanelPermittedForUser(p) then
-					local instance = existing[p.identifier]
-					existing[p.identifier] = nil
+			for _,registered in pairs(dockablePanels) do
+				local shown = string.lower(registered.name) == string.lower(name) and DockStandIn(registered) or nil
+				if shown ~= nil and not added[shown.identifier] then
+					added[shown.identifier] = true
+					local instance = existing[shown.identifier]
+					existing[shown.identifier] = nil
 					if instance == nil or not instance.valid then
-						instance = CreateDockablePanelInstance(p)
+						instance = CreateDockablePanelInstance(shown)
 					end
 					local newPanel = CreateDockablePanelTabbedContainer{
 						panelInstances = {instance},
@@ -2700,12 +2727,16 @@ DockablePanel = {
         if rawget(_G, "gamehud") == nil or rawget(gamehud,"leftDock") == nil then
             return nil
         end
+		--a HUD torn down while changing games leaves gamehud pointing at
+		--destroyed docks, whose data is nil: those hold nothing to find.
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
-			if dock ~= nil then
+			if dock ~= nil and dock.valid and dock.data ~= nil then
 				for _,child in ipairs(dock.data.GetChildren()) do
-					for _,instance in ipairs(child.data.GetPanelInstances()) do
-						if instance.data.identifier == identifier then
-							return instance
+					if child.valid and child.data ~= nil then
+						for _,instance in ipairs(child.data.GetPanelInstances()) do
+							if instance.valid and instance.data ~= nil and instance.data.identifier == identifier then
+								return instance
+							end
 						end
 					end
 				end
@@ -2801,15 +2832,21 @@ DockablePanel = {
 				for _,panelInfo in ipairs(dockInfo.panels) do
 					
 					local panelInstances = {}
+					--a container saved with both the Action Log and History shows the one in use once.
+					local shownIds = {}
 
 					--try to find the panel with this identifier and create it.
 					
-					for _,panelid in ipairs(panelInfo.tabs) do
+					for _,savedid in ipairs(panelInfo.tabs) do
 
 						--Skipping rather than dropping the entry: any live
 						--instance stays in existingInstances and is destroyed
-						--by the cleanup at the end of this function.
-						if PanelPermittedForUser(dockablePanels[panelid]) then
+						--by the cleanup at the end of this function. A panel
+						--that can't show may have one standing in for it.
+						local shown = DockStandIn(dockablePanels[savedid])
+						local panelid = shown ~= nil and shown.identifier or savedid
+						if (dockablePanels[savedid] == nil or shown ~= nil) and not shownIds[panelid] then
+							shownIds[panelid] = true
 							if existingInstances[panelid] ~= nil then
 								panelInstances[#panelInstances+1] = existingInstances[panelid]
 								existingInstances[panelid] = nil
@@ -2898,6 +2935,15 @@ DockablePanel = {
 		end
 	end,
 }
+
+--- The registration shown in place of one that can't show for this user: the registration
+--- itself when it can, else the one registered to stand in for it (standsInFor). Nil when
+--- neither can show. The icon rail uses it as the docks do.
+--- @param registration table|nil
+--- @return table|nil
+DockablePanel.StandIn = function(registration)
+	return DockStandIn(registration)
+end
 
 --=============================================================================
 --Panel background processes.

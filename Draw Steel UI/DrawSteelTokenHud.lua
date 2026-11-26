@@ -1287,7 +1287,7 @@ TokenHud.RegisterPanel{
                 --DrawSteelActionBar's pathfind targeting (AbilityRelocate). teleport/shift/forced
                 --do not provoke OAs so they fall through to the clear branch.
                 local provokes = (movementType == "walk" or movementType == "move" or movementType == "jump")
-                if movingToken == nil or path == nil or not provokes or token:IsFriend(movingToken) or dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+                if movingToken == nil or path == nil or not provokes or (not IsEnemyOf(token, movingToken)) or dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
                     m_cache = nil
                     m_calculationCache = nil
                     element:FireEvent("clearOpportunityAttackLocal")
@@ -1573,13 +1573,23 @@ TokenHud.RegisterPanel{
     end
 }
 
---Hovering a token you control shows a small character-panel icon in the
---token's bottom-left corner; clicking it opens that character's ad-hoc
---panel window (ShowCharacterPanelDocument -- the same per-character
---window the journal's Characters section opens). The Party Member
---Controls game setting can extend the icon to party members a player
---doesn't control (CharacterPanel.CanViewToken); the panel itself then
---opens read-only when the setting only grants View access.
+--Hovering a token you control shows a small character icon in the token's
+--bottom-right corner; clicking it toggles that character's panel window, or
+--with dev:tokenlaunchercard on, its card on the table beside the token
+--(Tabletop.ToggleLauncherCard; with no table, such as the lobby, it is the
+--window either way). The Party Member Controls game setting can extend the
+--icon to party members a player doesn't control
+--(CharacterPanel.CanViewToken).
+
+--Dev switch, no editor so it is in no settings menu: flip with
+--/toggle dev:tokenlaunchercard.
+local g_launcherCardSetting = setting{
+    id = "dev:tokenlaunchercard",
+    description = "Token icon opens the character's card instead of the character panel.",
+    default = false,
+    storage = "preference",
+}
+
 local g_characterPanelLauncherStyles = {
     gui.Style{
         selectors = {"characterPanelLauncher"},
@@ -1609,6 +1619,31 @@ local g_characterPanelLauncherStyles = {
         brightness = 0.7,
     },
 }
+
+--Opens the launcher's card for a character just beside the mouse (the
+--launcher sits on the token, so the card lands next to it), on whichever
+--side has room, or closes it when it is already open (Tabletop.
+--ToggleLauncherCard). A card dragged off onto the table is the table's own
+--and is left alone. Returns false when there is no table to put it on.
+--- @param charid string
+--- @return boolean
+local function OpenCardBesideLauncher(charid)
+    local tabletop = rawget(_G, "Tabletop")
+    if tabletop == nil or not tabletop.IsActive() then
+        return false
+    end
+    local gap = 24
+    local mouse = dmhub.mouseScreenPosition
+    local mx, my = tabletop.ScreenToTable(mouse.x, mouse.y)
+    local cw, ch = tabletop.CardSize()
+    local lw, lh = tabletop.LayerSize()
+    local x = mx + gap
+    if x + cw > lw then
+        x = mx - gap - cw
+    end
+    local y = math.max(0, math.min(my - ch / 2, lh - ch))
+    return tabletop.ToggleLauncherCard(charid, math.floor(x), math.floor(y))
+end
 
 TokenHud.RegisterPanel{
     id = "characterPanelLauncher",
@@ -1687,6 +1722,10 @@ TokenHud.RegisterPanel{
 
             press = function(element)
                 if not CharacterPanel.CanViewToken(token) then
+                    return
+                end
+                if g_launcherCardSetting:Get() == true and OpenCardBesideLauncher(token.charid) then
+                    audio.FireSoundEvent("Mouse.Click")
                     return
                 end
                 --toggles: a second click while the window is open closes it.

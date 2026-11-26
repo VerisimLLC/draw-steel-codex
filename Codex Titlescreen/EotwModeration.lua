@@ -824,14 +824,24 @@ end
 --Context-menu rows for a town chat line written by `userid` (admins only;
 --empty otherwise). Used by the town's chat drawer.
 function EotwModeration.ChatLineMenu(userid, name)
-    if not dmhub.isAdminAccount or type(userid) ~= "string" or userid == "" or userid == dmhub.loginUserid then
+    if not dmhub.isAdminAccount or type(userid) ~= "string" or userid == "" then
         return {}
     end
-    return {
-        {
+    local entries = {}
+    --admins can't be warned or banned, so that option is left off your own lines.
+    if userid ~= dmhub.loginUserid then
+        entries[#entries + 1] = {
             text = string.format("Warn or Ban %s...", tostring(name or "?")),
             click = function()
                 EotwModeration.ShowIssueDialog{ userid = userid, name = name }
+            end,
+        }
+    end
+    return table.append_arrays(entries, {
+        {
+            text = string.format("Achievements for %s...", tostring(name or "?")),
+            click = function()
+                EotwModeration.ShowAchievementsDialog{ userid = userid, name = name }
             end,
         },
         {
@@ -840,7 +850,273 @@ function EotwModeration.ChatLineMenu(userid, name)
                 dmhub.CopyToClipboard(userid)
             end,
         },
-    }
+    })
+end
+
+---- achievements ---------------------------------------------------------
+
+--The player's counts shown at the top of the achievements dialog, in this order, with their labels.
+local ACHIEVEMENT_COUNTERS = {
+    { id = "wins", text = "Wins" },
+    { id = "encountersPlayed", text = "Played" },
+    { id = "defeats", text = "Defeats" },
+    { id = "projectPoints", text = "Project points" },
+    { id = "challengeWins", text = "Challenge wins" },
+    { id = "deadlyWins", text = "Deadly wins" },
+    { id = "ritesAided", text = "Rites helped" },
+}
+
+--Admin: one player's achievements, each with Grant or Take Away. Most are
+--earned automatically; Grant also gives the ones only admins can hand out.
+--Take Away is permanent: the player never earns that one again.
+--args: userid (nil shows a box to enter one), name.
+function EotwModeration.ShowAchievementsDialog(args)
+    local root = Root()
+    if root == nil or not dmhub.isAdminAccount then
+        return
+    end
+    args = args or {}
+    local userid = args.userid
+    local name = args.name
+    local busy = false
+    local listPanel = nil
+    local statusLabel = nil
+    local idInput = nil
+
+    local function SetStatus(text, isError)
+        if statusLabel ~= nil and statusLabel.valid then
+            statusLabel.text = text or ""
+            statusLabel.selfStyle.color = cond(isError, "#ff8888", Styles.textColor)
+        end
+    end
+
+    local Load
+
+    --One achievement: its badge, how it is earned, where the player stands,
+    --and the button that changes it.
+    local function Row(def, row)
+        local active = row ~= nil and row.revoked ~= true
+        local status = "Not earned"
+        if row ~= nil and row.revoked == true then
+            status = "Taken away"
+        elseif row ~= nil and row.via == "admin" then
+            status = "Granted by an admin"
+        elseif row ~= nil then
+            status = "Earned"
+        end
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            vmargin = 3,
+            pad = 8,
+            borderBox = true,
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffff0a",
+            cornerRadius = 6,
+            gui.Panel{
+                width = 240,
+                height = "auto",
+                valign = "center",
+                EotwPlayerTags.Badge(def.id, { fontSize = 13, maxWidth = 240, dim = not active }),
+            },
+            gui.Label{
+                text = def.description or "",
+                fontSize = 14,
+                color = "#c9bfa9",
+                width = "100%-500",
+                height = "auto",
+                valign = "center",
+                textWrap = true,
+                lmargin = 8,
+            },
+            gui.Label{
+                text = status,
+                fontSize = 14,
+                bold = active,
+                color = cond(active, "#d9b56a", "#b8ad96"),
+                width = 130,
+                height = "auto",
+                valign = "center",
+                textAlignment = "right",
+            },
+            gui.Button{
+                text = cond(active, "Take Away", "Grant"),
+                fontSize = 15,
+                width = 110,
+                height = 32,
+                lmargin = 8,
+                valign = "center",
+                data = { confirming = false },
+                resetConfirm = function(element)
+                    element.data.confirming = false
+                    element.text = cond(active, "Take Away", "Grant")
+                end,
+                click = function(element)
+                    if busy then
+                        return
+                    end
+                    --taking one away is permanent: confirm it.
+                    if active and not element.data.confirming then
+                        element.data.confirming = true
+                        element.text = "Confirm"
+                        element:ScheduleEvent("resetConfirm", 4)
+                        return
+                    end
+                    busy = true
+                    SetStatus("Sending...")
+                    local action = cond(active, "admin-revoke-tag", "admin-grant-tag")
+                    EncounterOfTheWeek.CityRequest(action, { userid = userid, tagid = def.id }, function(ok, result)
+                        busy = false
+                        if not ok then
+                            SetStatus("Could not change it: " .. tostring(result), true)
+                            return
+                        end
+                        printf("EotW achievements: %s %s for %s (%s)", action, def.id, tostring(name), tostring(userid))
+                        Load()
+                    end)
+                end,
+            },
+        }
+    end
+
+    --Ask the city for the player's achievements and counters, and list them.
+    Load = function()
+        if userid == nil or userid == "" then
+            SetStatus("Enter the player's user id.", true)
+            return
+        end
+        busy = true
+        SetStatus("Looking them up...")
+        EncounterOfTheWeek.CityRequest("admin-list-tags", { userid = userid }, function(ok, result)
+            busy = false
+            if listPanel == nil or not listPanel.valid then
+                return
+            end
+            if not ok then
+                SetStatus("Could not look them up: " .. tostring(result), true)
+                return
+            end
+            local byId = {}
+            for _, tagRow in ipairs(result.tags or {}) do
+                byId[tagRow.id] = tagRow
+            end
+            local counts = {}
+            for _, counter in ipairs(ACHIEVEMENT_COUNTERS) do
+                counts[#counts + 1] = string.format("%s %d", counter.text, tonumber((result.counters or {})[counter.id]) or 0)
+            end
+            local rows = {
+                Text("Account: " .. Plain(userid), 15, "#b8ad96"),
+                Text(table.concat(counts, "  -  "), 15, "#b8ad96"),
+            }
+            for _, def in ipairs(EotwPlayerTags.Defs()) do
+                rows[#rows + 1] = Row(def, byId[def.id])
+            end
+            listPanel.children = rows
+            SetStatus("")
+        end)
+    end
+
+    local dlg
+    local function Close()
+        if dlg ~= nil and dlg.valid then
+            dlg:DestroySelf()
+        end
+    end
+    dlg = Overlay(root, {
+        title = "Achievements" .. cond(name ~= nil and name ~= "", " for " .. Plain(name or ""), ""),
+        width = 980,
+        escape = Close,
+        children = {
+            Text("Earned achievements arrive on their own; Grant also gives the admin-only ones. Taking one away is permanent: the town never awards it to them again. The player sees a new achievement the next time their roster loads in town.", 15, "#b8ad96"),
+            gui.Panel{
+                classes = { cond(userid ~= nil, "collapsed", nil) },
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                vmargin = 6,
+                gui.Input{
+                    width = "100%-260",
+                    height = 36,
+                    fontSize = 17,
+                    placeholderText = "Player's user id (right-click their chat line > Copy User Id)",
+                    create = function(element)
+                        idInput = element
+                    end,
+                },
+                gui.Button{
+                    text = "Look Up",
+                    fontSize = 17,
+                    width = 120,
+                    height = 36,
+                    lmargin = 10,
+                    click = function()
+                        if busy or idInput == nil or not idInput.valid then
+                            return
+                        end
+                        userid = string.trim(idInput.text or "")
+                        Load()
+                    end,
+                },
+                --your own account, for testing grants on yourself.
+                gui.Button{
+                    text = "Me",
+                    fontSize = 17,
+                    width = 110,
+                    height = 36,
+                    lmargin = 10,
+                    click = function()
+                        if busy then
+                            return
+                        end
+                        userid = dmhub.loginUserid
+                        if idInput ~= nil and idInput.valid then
+                            idInput.text = userid
+                        end
+                        Load()
+                    end,
+                },
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                create = function(element)
+                    listPanel = element
+                end,
+            },
+            gui.Label{
+                text = "",
+                fontSize = 16,
+                color = Styles.textColor,
+                width = "100%",
+                height = "auto",
+                minHeight = 22,
+                textWrap = true,
+                textAlignment = "center",
+                vmargin = 4,
+                create = function(element)
+                    statusLabel = element
+                    --opened on a player: load them now that the list and this
+                    --status line both exist, so "Looking them up..." shows.
+                    if userid ~= nil then
+                        Load()
+                    end
+                end,
+            },
+        },
+        buttons = {
+            gui.Button{
+                text = "Close",
+                fontSize = 20,
+                width = 160,
+                height = 44,
+                hmargin = 8,
+                click = Close,
+            },
+        },
+    })
+    root:AddChild(dlg)
 end
 
 ---- scrubbing a hero ------------------------------------------------------
@@ -995,6 +1271,12 @@ function EotwModeration.HeroMenu(args)
             end,
         }
     end
+    entries[#entries + 1] = {
+        text = string.format("Achievements for %s...", tostring(owner)),
+        click = function()
+            EotwModeration.ShowAchievementsDialog{ userid = args.userid, name = args.ownerName }
+        end,
+    }
     entries[#entries + 1] = {
         text = "Copy Owner's User Id",
         click = function()

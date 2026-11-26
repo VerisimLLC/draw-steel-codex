@@ -487,6 +487,28 @@ RuleUtils = {
         return cosine >= math.cos(math.rad(math.min(angle, 180)))
     end,
 
+    --- True when `targetToken`'s Hidden condition does not hide it from `viewerToken`: the
+    --- target is within the viewer's "Ignore Hidden Within Range" (the boomdog, demons'
+    --- Soulsight), or it is wall-melded and the viewer stands in front of that wall.
+    --- The range counts height, so a creature 4 squares straight up is out of a range of 3.
+    --- Use it before treating a Hidden creature as hidden from a particular viewer.
+    --- @param viewerToken CharacterToken
+    --- @param targetToken CharacterToken
+    --- @return boolean
+    SeesPastHidden = function(viewerToken, targetToken)
+        if viewerToken == nil or targetToken == nil or viewerToken.properties == nil then return false end
+
+        local ignoreRange = viewerToken.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
+        if ignoreRange > 0 then
+            local heightGap = RuleUtils.VerticalGapInTiles(viewerToken, targetToken) * dmhub.unitsPerSquare
+            if math.max(viewerToken:Distance(targetToken), heightGap) <= ignoreRange * dmhub.unitsPerSquare then
+                return true
+            end
+        end
+
+        return RuleUtils.WallMeldSeesTarget(viewerToken, targetToken)
+    end,
+
     --Prompt shown when a retarget picker (Goaded, Meat Shield) is limited to the
     --original strike's range. Names the striker and its reach so the player can
     --see why some tokens are greyed out. allowOriginal (the modifier's
@@ -519,6 +541,58 @@ RuleUtils = {
         local unit = "squares"
         if range == 1 then unit = "square" end
         return string.format("Choose a new target within %s %s and line of effect of %s", rangeText, unit, sourceName)
+    end,
+
+    --Where a retarget's range is measured from and how far it reaches, per the
+    --trigger's "Retarget Range" setting: the trigger's own range from its owner,
+    --the strike's own reach from the attacker, or a fixed distance from the owner.
+    --- @param triggerModifier CharacterModifier the powertabletrigger modifier
+    --- @param ownerToken CharacterToken the trigger's owner
+    --- @param casterToken CharacterToken the creature making the strike
+    --- @param abilityRange number the strike's own range
+    --- @param symbols table
+    --- @return CharacterToken sourceToken
+    --- @return number|nil range
+    --- @return string rangeType "none", "ability" or "distance"
+    RetargetRange = function(triggerModifier, ownerToken, casterToken, abilityRange, symbols)
+        --Only retarget triggers reach here, and those always carry a power roll modifier.
+        local powerMod = triggerModifier.powerRollModifier --[[@as CharacterModifier]]
+        local rangeType = powerMod:try_get("changeTargetRange", "none")
+        if rangeType == "ability" then
+            return casterToken, abilityRange, rangeType
+        elseif rangeType == "distance" then
+            return ownerToken, powerMod:try_get("changeTargetDistance", 10), rangeType
+        end
+        local range = tonumber(ExecuteGoblinScript(triggerModifier:try_get("range", 10), ownerToken.properties:LookupSymbol(symbols), 10))
+        return ownerToken, range, rangeType
+    end,
+
+    --The candidate list for a trigger that changes a strike's target. Every token
+    --passing powerMod's changeTargetFilter is in `targets`; one that also fails a
+    --"reasoned" filter stays listed but gets a tooltip in `reasons` (keyed by
+    --charid) and can't be picked. symbols carries current/triggerer/caster.
+    --- @param powerMod CharacterModifier the trigger's "power" modifier
+    --- @param symbols table
+    --- @return CharacterToken[] targets
+    --- @return table<string, string> reasons
+    BuildRetargetCandidates = function(powerMod, symbols)
+        local filterFormula = powerMod:try_get("changeTargetFilter")
+        local reasonedFilters = powerMod:try_get("changeTargetReasonedFilters", {})
+        local targets = {}
+        local reasons = {}
+        for _, potential in ipairs(dmhub.allTokens) do
+            symbols.target = potential.properties:LookupSymbol{}
+            if trim(filterFormula or "") == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
+                targets[#targets+1] = potential
+                for _, reasonedFilter in ipairs(reasonedFilters) do
+                    if trim(reasonedFilter.formula or "") ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, potential.properties:LookupSymbol(symbols), 1)) then
+                        reasons[potential.charid] = ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
+                        break
+                    end
+                end
+            end
+        end
+        return targets, reasons
     end,
 
     --Greys out retarget candidates the striker could not actually hit. Adds a

@@ -417,6 +417,11 @@ function HeroBuild.Create(options)
     --change the player makes to the culture clears it.
     Build.AUTO_CULTURE_FIELD = "eotwAutoCulture"
 
+    --The name the builder gave the Hero from their ancestry's name table, and
+    --that table's id, as {name, table}. While the Hero still has that name,
+    --an ancestry change with a new table may rename them.
+    Build.AUTO_NAME_FIELD = "builderAutoName"
+
     --The options for a step's main pick, as {id, name, item} sorted by name.
     --Culture returns the typical cultures; Appearance has none.
     ---@param hero character
@@ -1792,9 +1797,9 @@ function HeroBuild.Create(options)
         hero:Invalidate()
     end
 
-    --Set the class, at the Hero's current Level (Level 1 for a new Hero; EotW
-    --Heroes are always Level 1). Clears the old class's picks, kit and
-    --characteristics.
+    --Set the class, at the Hero's current Level. A new Hero starts at the
+    --Level picked in Build at Level (EotW Heroes are always Level 1). Clears
+    --the old class's picks, kit and characteristics.
     ---@param hero character
     ---@param classid string
     function Build.hero.SetClass(hero, classid)
@@ -1802,7 +1807,7 @@ function HeroBuild.Create(options)
         if current ~= nil and current.id == classid then
             return
         end
-        local level = 1
+        local level = hero:try_get("levelOverride", 1)
         local classes = hero:try_get("classes")
         if type(classes) == "table" and classes[1] ~= nil and type(classes[1].level) == "number" then
             level = classes[1].level

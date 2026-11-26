@@ -95,6 +95,18 @@ function GameHud.TokenMoving(self, token, path)
 				text = string.format(tr("%s; %s %s in difficult terrain"), text, MeasurementSystem.NativeToDisplayString(difficultDistance), string.lower(MeasurementSystem.UnitName()))
 			end
 
+			local fastSteps = 0
+			for i=1,path.numSteps do
+				for _,flag in ipairs(path:GetStepFlags(i) or {}) do
+					if flag == "Fast" then
+						fastSteps = fastSteps + 1
+					end
+				end
+			end
+			if fastSteps > 0 then
+				text = string.format(tr("%s; %s %s in fast terrain"), text, MeasurementSystem.NativeToDisplayString(fastSteps*dmhub.unitsPerSquare), string.lower(MeasurementSystem.UnitName()))
+			end
+
             if difficultDistance > 0 and path.shifting then
                 local canNavigate = token.properties:CanNavigateDifficultTerrain{shifting = true}
                 if not canNavigate then

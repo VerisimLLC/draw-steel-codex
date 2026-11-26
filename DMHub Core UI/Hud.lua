@@ -472,6 +472,8 @@ end
 --- @field panel nil|Panel An arbitrary panel to display in the center.
 --- @field options nil|{text: string, execute?: function}[] a list of buttons that will be displayed at the bottom.
 --- @field owner nil|Panel The element this message concerns. If it lives in a native popout window, the message appears in THAT window instead of the main one.
+--- @field width nil|number|string Dialog width; default "60%". A short question reads better in a small dialog, e.g. width = 520 with height = "auto".
+--- @field height nil|number|string Dialog height; default "60%". "auto" fits the dialog to its title, message and buttons.
 
 --- Display a modal message dialog.
 --- @param args ModalMessageArgs
@@ -545,8 +547,8 @@ function Hud:ModalMessage(args)
 			styles = ThemeEngine.GetStyles(),
 			halign = 'center',
 			valign = 'center',
-			width = '60%',
-			height = '60%',
+			width = args.width or '60%',
+			height = args.height or '60%',
 			flow = 'vertical',
 			children = {
 				titleText,

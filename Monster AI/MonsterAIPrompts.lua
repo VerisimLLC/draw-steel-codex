@@ -394,13 +394,30 @@ local function CopyForcedMovementSymbols(symbols, invokerToken, range)
     return result
 end
 
-local function ForcedMovementArrowOptions(forcedMovement, range)
-    return {
+--Options for the forced-move preview arrow. Pass the mover and the ability so the
+--preview takes the same path the cast will (AbilityRelocateCreature): through
+--creatures, straight up, and the mover's rebounds all change where it lands and
+--what it hits.
+local function ForcedMovementArrowOptions(forcedMovement, range, moverToken, abilityClone)
+    local options = {
         straightline = true,
         ignorecreatures = false,
         forcedMovementDistance = range,
         slide = forcedMovement == "vertical_slide",
     }
+    if abilityClone ~= nil then
+        options.ignorecreatures = abilityClone.targetType == "line"
+            or abilityClone:try_get("forcedMovementThroughCreatures", false) == true
+        if abilityClone:try_get("forcedMovementStraightUp", false) then
+            options.slide = true
+        end
+    end
+    if moverToken ~= nil and moverToken.properties ~= nil and not moverToken.isObject then
+        local pushOptions = moverToken.properties:GetForcedPushOptions()
+        options.rebound = pushOptions.rebound
+        options.maxBounces = pushOptions.maxBounces
+    end
+    return options
 end
 
 --A vertical push/pull target carries an absolute altitude (the ability's own
@@ -412,6 +429,140 @@ local function ArrowLoc(moverToken, forcedMovement, loc)
         return ActivatedAbility.VerticalForcedMovementEngineLoc(loc, moverToken.loc.altitude)
     end
     return loc
+end
+
+--Damage one creature takes from one collision, per the Collision global rule.
+local function ForcedCollisionDamage(invokerToken, token, speed, withobject, isPush)
+    local pusher = invokerToken ~= nil and invokerToken.properties or nil
+    return token.properties:PredictedCollisionDamage(speed, withobject, pusher, isPush and "push" or nil)
+end
+
+--True when everything in collideWith is an object that runs its own collision
+--behavior ("No Collision Damage"), so nobody takes collision damage. A wall
+--(empty list) or a mixed pile still deals it.
+local function CollisionDamageSuppressed(collideWith)
+    if #collideWith == 0 then
+        return false
+    end
+    for _,tok in ipairs(collideWith) do
+        if not TargetableObject.TokenSuppressesCollisionDamage(tok) then
+            return false
+        end
+    end
+    return true
+end
+
+local function CollisionIsWithObject(collideWith)
+    if #collideWith == 0 then
+        return true
+    end
+    for _,tok in ipairs(collideWith) do
+        if tok.isObject then
+            return true
+        end
+    end
+    return false
+end
+
+--The damage a forced move would deal, read from its preview arrow (movementInfo,
+--aimed at targetLoc) the way the cast reads it (AbilityRelocateCreature): the
+--collision at the end, creatures passed through, rebound bounces, and a fall.
+--Returns net damage (to the invoker's enemies, minus to its friends) and the total.
+--The AI picks forced moves by net damage first, so it shoves heroes into walls,
+--into each other and off ledges, and avoids slamming them into its own allies.
+local function PredictForcedMoveDamage(invokerToken, moverToken, abilityClone, targetLoc, movementInfo, range, forcedMovement)
+    local path = movementInfo.path
+    local isPush = forcedMovement == "push"
+    local net = 0
+    local total = 0
+    local function Deal(token, amount)
+        if amount <= 0 or token == nil or token.isObject or token.properties == nil or token.properties:IsDead() then
+            return
+        end
+        total = total + amount
+        if token:IsFriend(invokerToken) then
+            net = net - amount
+        else
+            net = net + amount
+        end
+    end
+
+    --The collision at the end of the move: the force left when it stopped.
+    local requestDist = math.min(targetLoc:DistanceInTiles(path.origin), range)
+    if path.hasCollision and requestDist < range then
+        requestDist = range
+    end
+    local speed = requestDist - path.freeMovementSteps
+    local hasCollision = speed > 0
+    local collisionForce = path.collisionForce
+    if collisionForce ~= nil then
+        if collisionForce >= 0 then
+            hasCollision = true
+            speed = collisionForce
+        elseif not path.hasCollision then
+            hasCollision = false
+        end
+    end
+
+    local collideWith = {}
+    local hadCollideTokens = false
+    for _,tok in ipairs(movementInfo.collideWith or {}) do
+        hadCollideTokens = true
+        if tok.properties == nil or tok.properties:CalculateNamedCustomAttribute("Passthrough") == 0 then
+            collideWith[#collideWith+1] = tok
+        end
+    end
+    if hadCollideTokens and #collideWith == 0 then
+        --only creatures it passes through were in the way.
+        hasCollision = false
+    end
+
+    if hasCollision and speed >= 0 and not CollisionDamageSuppressed(collideWith) then
+        Deal(moverToken, ForcedCollisionDamage(invokerToken, moverToken, speed, CollisionIsWithObject(collideWith), isPush))
+        for _,tok in ipairs(collideWith) do
+            if not tok.isObject then
+                Deal(tok, ForcedCollisionDamage(invokerToken, tok, speed, moverToken.isObject, isPush))
+            end
+        end
+    end
+
+    --Creatures passed through each take 1, and so does the mover.
+    if abilityClone:try_get("forcedMovementThroughCreatures", false) and path.steps ~= nil then
+        local hit = {}
+        for _,step in ipairs(path.steps) do
+            for _,tok in ipairs(game.GetTokensAtLoc(step) or {}) do
+                if tok.charid ~= moverToken.charid and not hit[tok.charid] then
+                    hit[tok.charid] = true
+                    if not TargetableObject.TokenSuppressesCollisionDamage(tok) then
+                        Deal(tok, ForcedCollisionDamage(invokerToken, tok, 1, false, isPush))
+                        Deal(moverToken, ForcedCollisionDamage(invokerToken, moverToken, 1, false, isPush))
+                    end
+                end
+            end
+        end
+    end
+
+    --Each rebound bounce is another collision.
+    for _,bounce in ipairs(movementInfo.bounceCollisions or {}) do
+        local bounceWith = bounce.collideWith or {}
+        if not CollisionDamageSuppressed(bounceWith) then
+            local withobject = CollisionIsWithObject(bounceWith)
+            Deal(moverToken, ForcedCollisionDamage(invokerToken, moverToken, bounce.speed, withobject, isPush))
+            for _,tok in ipairs(bounceWith) do
+                if not tok.isObject then
+                    Deal(tok, ForcedCollisionDamage(invokerToken, tok, bounce.speed, withobject, isPush))
+                end
+            end
+        end
+    end
+
+    --A fall at the end (pushed off a ledge, or lifted and dropped).
+    local fallDist = path.fallDistance or 0
+    if fallDist > 0 and not moverToken.isObject and not moverToken.properties:CanFly() then
+        Deal(moverToken, moverToken.properties:PredictedFallDamage(fallDist, path.landsInWater))
+    end
+
+    return net, total
 end
 
 local function PreferForcedMovementCandidate(candidateAltitude, candidateScore, bestAltitude, bestScore, higherScoreIsBetter)
@@ -432,6 +583,201 @@ local function PreferForcedMovementCandidate(candidateAltitude, candidateScore, 
     return candidateScore < bestScore
 end
 
+--Pull scoring weights for what the target is slammed into, shared by pulls
+--that move it and pulls that leave it in place.
+local pullCollideEnemyValue = 3
+local pullCollideObjectValue = 4
+local pullCollideAllyPenalty = 4
+
+--Collision damage a creature takes when force moved into something with
+--`speed` squares left, per the Collision global rule (speed, less Forced
+--Movement Damage Reduction; none with No Damage From Forced Movement).
+--- @param token CharacterToken the creature taking the hit
+--- @param speed number squares of forced movement left at the collision
+--- @return number
+local function ExpectedCollisionDamage(token, speed)
+    local props = token.properties
+    if props:CalculateNamedCustomAttribute("No Damage From Forced Movement") >= 1 then
+        return 0
+    end
+    return math.max(0, speed - props:CalculateNamedCustomAttribute("Forced Movement Damage Reduction"))
+end
+
+--Whether pulling an enemy into the puller is worth it: both take the squares
+--left as damage. Never for minions (the hit comes off the squad's Stamina and
+--can kill members) or when the puller would drop. Yes when the puller takes
+--nothing or the hit drops the target; otherwise only while the puller stays
+--above half its Stamina. Returns the decision and the target's damage.
+--- @param pullerToken CharacterToken
+--- @param movedToken CharacterToken the enemy being pulled
+--- @param speed number squares of pull left at the collision
+--- @return boolean worthIt
+--- @return number dealt damage the target would take
+local function SelfCollisionWorthIt(pullerToken, movedToken, speed)
+    if pullerToken.isObject or movedToken.isObject then
+        return false, 0
+    end
+    local puller = pullerToken.properties
+    if puller.minion then
+        return false, 0
+    end
+    local dealt = ExpectedCollisionDamage(movedToken, speed)
+    if dealt <= 0 then
+        return false, 0
+    end
+    local taken = ExpectedCollisionDamage(pullerToken, speed)
+    local staminaAfter = puller:CurrentHitpoints() - taken
+    if staminaAfter <= 0 then
+        return false, dealt
+    end
+    --Temporary Stamina soaks the hit first. A hero already dying has 0 or
+    --less Stamina, so hitting them drops nobody.
+    local targetStamina = movedToken.properties:CurrentHitpoints()
+    if targetStamina > 0 then
+        targetStamina = targetStamina + movedToken.properties:TemporaryHitpoints()
+    end
+    if taken == 0 or (targetStamina > 0 and dealt >= targetStamina) then
+        return true, dealt
+    end
+    return staminaAfter > puller:MaxHitpoints()/2, dealt
+end
+
+--Value of a pull that leaves the target where it is (it is next to the puller,
+--or blocked at once): only the collision counts. nil when it is not worth
+--doing; the second result is true when a pull into the puller was turned down.
+--- @param invokerToken CharacterToken the puller
+--- @param casterToken CharacterToken the enemy being pulled
+--- @param movementInfo table the result of MarkMovementArrow for this pull
+--- @param range number squares the pull moves at most
+--- @return number|nil value
+--- @return boolean declinedSelfCollision
+local function StandingPullCollisionValue(invokerToken, casterToken, movementInfo, range)
+    local path = movementInfo.path
+    local value = 0
+    for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+        if collideToken.charid == invokerToken.charid then
+            --Squares of pull left when the target hits the puller. When the engine
+            --does not report it, the real pull counts every square, so do the same.
+            local speed = path.collisionForce
+            if speed == nil or speed < 0 then
+                speed = cond(path.hasCollision, range, 0)
+            end
+            local worth, dealt = SelfCollisionWorthIt(invokerToken, casterToken, speed)
+            if not worth then
+                return nil, true
+            end
+            value = value + pullCollideEnemyValue + dealt
+        elseif collideToken.isObject then
+            value = value + pullCollideObjectValue
+        elseif collideToken:IsFriend(invokerToken) then
+            value = value - pullCollideAllyPenalty
+        else
+            value = value + pullCollideEnemyValue
+        end
+    end
+    if value <= 0 then
+        return nil, false
+    end
+    return value, false
+end
+
+--Most net damage wins; equal damage falls back to altitude, then the caller's
+--positioning score. best is nil or {damage, altitude, score}.
+local function BetterForcedMoveCandidate(damage, altitude, score, best, higherScoreIsBetter)
+    if best == nil then
+        return true
+    end
+    if damage ~= best.damage then
+        return damage > best.damage
+    end
+    return PreferForcedMovementCandidate(altitude, score, best.altitude, best.score, higherScoreIsBetter)
+end
+
+--The standard "Forced Movement: push" (or pull/slide) ability as the Push!
+--prompt would cast it, kept per type and distance until the tables change.
+local g_forcedMoveAbilityCache = {}
+local function ForcedMoveAbility(invokerToken, forcedMovement, distance)
+    local key = string.format("%s:%d:%s", forcedMovement, distance, tostring(dmhub.tablesUpdateId))
+    local ability = g_forcedMoveAbilityCache[key]
+    if ability == nil then
+        local standard = MCDMUtils.GetStandardAbility("Forced Movement: " .. forcedMovement)
+        if standard == nil then
+            return nil
+        end
+        ability = DeepCopy(standard)
+        MCDMUtils.DeepReplace(ability, "<<range>>", string.format("%d", distance))
+        ability.name = string.gsub(forcedMovement, "^%l", string.upper) .. "!"
+        ability.range = distance
+        g_forcedMoveAbilityCache[key] = ability
+    end
+    ability.invoker = invokerToken.properties
+    return ability
+end
+
+--- The most net damage (see PredictForcedMoveDamage) a horizontal push, pull or
+--- slide of moverToken by `distance` squares could deal, with invokerToken
+--- standing at originLoc (where it stands now when nil). For planning: which
+--- target to knock back, and from which square. Returns damage, landing loc;
+--- 0 when no line moves the target at all.
+--- @param invokerToken CharacterToken
+--- @param moverToken CharacterToken
+--- @param forcedMovement string "push", "pull" or "slide"
+--- @param distance number
+--- @param originLoc? Loc
+--- @return number damage, Loc|nil loc
+function MonsterAI.BestForcedMoveDamage(invokerToken, moverToken, forcedMovement, distance, originLoc)
+    if distance <= 0 or moverToken.properties == nil then
+        return 0, nil
+    end
+    local abilityClone = ForcedMoveAbility(invokerToken, forcedMovement, distance)
+    if abilityClone == nil then
+        return 0, nil
+    end
+    local symbols = {
+        invoker = invokerToken.properties,
+        forcedmovement = forcedMovement,
+        forcedMovementOrigin = originLoc or invokerToken.loc,
+        forcedMovementOriginTokenId = invokerToken.charid,
+    }
+    ---@type fun(loc: Loc): boolean
+    local filter = abilityClone:TargetLocPassesFilterPredicate(moverToken, symbols)
+        or function() return true end
+
+    --aim at the ring `distance` away (every square within it for a pull, which
+    --stops short of the puller); the arrow stops where the move really ends.
+    local origin = moverToken.loc
+    local best = nil
+    local bestLoc = nil
+    for dx = -distance,distance do
+        for dy = -distance,distance do
+            local onRing = math.max(math.abs(dx), math.abs(dy)) == distance
+            if (dx ~= 0 or dy ~= 0) and (onRing or forcedMovement == "pull") then
+                local testLoc = origin:dir(dx, dy):WithAltitude(0)
+                if filter(testLoc) then
+                    local movementInfo = moverToken:MarkMovementArrow(testLoc,
+                        ForcedMovementArrowOptions(forcedMovement, distance, moverToken, abilityClone))
+                    --a bump against something already adjacent still counts.
+                    if movementInfo ~= nil and (movementInfo.path.destination:DistanceInTiles(origin) > 0
+                        or movementInfo.path.hasCollision) then
+                        local damage = PredictForcedMoveDamage(invokerToken, moverToken, abilityClone,
+                            testLoc, movementInfo, distance, forcedMovement)
+                        if best == nil or damage > best then
+                            best = damage
+                            bestLoc = testLoc
+                        end
+                    end
+                end
+            end
+        end
+    end
+    moverToken:ClearMovementArrow()
+    return best or 0, bestLoc
+end
+
+--Returns the best target square (nil when none), the net damage a pull that
+--moves the target deals there (nil for a pull that leaves it in place), and
+--true when no pull works and a pull into the puller was turned down as not
+--worth the damage.
 local function FindBestPullLocation(invokerToken, casterToken, abilityClone, symbols, range, forcedMovement, preferAltitude)
     ---@type fun(loc: Loc): boolean
     local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
@@ -442,18 +788,34 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
         radius = range,
         checklos = false,
     }
-    local bestLoc = nil
-    local bestScore = nil
-    local bestAltitude = nil
+    local best = nil
+    --A pull that leaves the target in place is only used when no pull moves
+    --it, only on an enemy creature (never to slam an ally or an object), and
+    --only by a creature: a pull by an object (a trap) still goes to a Director.
+    local pullingAnEnemy = not invokerToken.isObject and not casterToken.isObject
+        and not casterToken:IsFriend(invokerToken)
+    local bestStandingLoc = nil
+    local bestStandingValue = nil
+    local declinedSelfCollision = false
 
     for _,testLoc in ipairs(shape.locations) do
         if filterTargetPredicate(testLoc) then
             testLoc = preferAltitude(testLoc)
             local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
-                ForcedMovementArrowOptions(forcedMovement, range))
+                ForcedMovementArrowOptions(forcedMovement, range, casterToken, abilityClone))
             if movementInfo ~= nil then
                 local path = movementInfo.path
                 local dist = path.destination:DistanceInTiles(path.origin)
+                if dist == 0 and pullingAnEnemy then
+                    local value, declined = StandingPullCollisionValue(invokerToken, casterToken, movementInfo, range)
+                    if declined then
+                        declinedSelfCollision = true
+                    end
+                    if value ~= nil and (bestStandingValue == nil or value > bestStandingValue) then
+                        bestStandingValue = value
+                        bestStandingLoc = testLoc
+                    end
+                end
                 if dist > 0 then
                     local collideWithAllies = 0
                     local collideWithEnemies = 0
@@ -485,22 +847,22 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
                         fallDistance = 0
                     end
 
-                    -- Prefer using as much of the available pull as the board
-                    -- permits. Then value hazardous collisions/falls and an end
-                    -- position threatened by the puller's allies. Avoid colliding
-                    -- with those allies.
+                    -- Damage decides first (PredictForcedMoveDamage). Among equal
+                    -- damage, prefer using as much of the pull as the board
+                    -- permits, then an end position threatened by the puller's
+                    -- allies. Avoid colliding with those allies.
+                    local damage = PredictForcedMoveDamage(invokerToken, casterToken, abilityClone,
+                        testLoc, movementInfo, range, forcedMovement)
                     local score = dist*10
-                        + collideWithEnemies*3
-                        + cond(collideWithObject, 4, 0)
+                        + collideWithEnemies*pullCollideEnemyValue
+                        + cond(collideWithObject, pullCollideObjectValue, 0)
                         + fallDistance*2
                         + adjacentAllies
-                        - collideWithAllies*4
+                        - collideWithAllies*pullCollideAllyPenalty
                         - invokerToken:Distance(path.destination)*0.01
                     local altitude = cond(verticalForcedMovementTypes[forcedMovement], testLoc.altitude, nil)
-                    if PreferForcedMovementCandidate(altitude, score, bestAltitude, bestScore, true) then
-                        bestScore = score
-                        bestAltitude = altitude
-                        bestLoc = testLoc
+                    if BetterForcedMoveCandidate(damage, altitude, score, best, true) then
+                        best = {damage = damage, altitude = altitude, score = score, loc = testLoc}
                     end
                 end
             end
@@ -508,7 +870,13 @@ local function FindBestPullLocation(invokerToken, casterToken, abilityClone, sym
     end
 
     casterToken:ClearMovementArrow()
-    return bestLoc
+    if best ~= nil then
+        return best.loc, best.damage, false
+    end
+    if bestStandingLoc ~= nil then
+        return bestStandingLoc, nil, false
+    end
+    return nil, nil, declinedSelfCollision
 end
 
 --Zone directive "Force Into": when an enemy can be moved so it ends inside a
@@ -571,8 +939,9 @@ local function FindForceIntoLocation(invokerToken, casterToken, abilityClone, sy
 end
 
 --Answer a forced-move prompt with loc, showing the AI's arrow for a moment first.
-local function AnswerForcedMoveLoc(moverToken, loc, forcedMovement, range)
-    moverToken:MarkMovementArrow(ArrowLoc(moverToken, forcedMovement, loc), ForcedMovementArrowOptions(forcedMovement, range))
+local function AnswerForcedMoveLoc(moverToken, loc, forcedMovement, range, abilityClone)
+    moverToken:MarkMovementArrow(ArrowLoc(moverToken, forcedMovement, loc),
+        ForcedMovementArrowOptions(forcedMovement, range, moverToken, abilityClone))
     MonsterAI.Sleep(1)
     moverToken:ClearMovementArrow()
     return {
@@ -586,17 +955,27 @@ local objectMissileReach = 3
 
 --A slid object is a missile (Paranormal Fling, AME33M5U): aim it to hit an enemy
 --within reach, nearest first. The victim scoring below would rate a wall hit higher.
---nil when no enemy is in reach or no line moves the object at all.
-local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPredicate)
+--Returns the square to slide it at, or nil when no line hits an enemy without also
+--hitting one of friendToken's allies. The second result is true when some enemy is
+--in reach at all. The undead Malice choice uses this too, so it only pays for
+--objects that will hit.
+---@param friendToken CharacterToken the side doing the throwing
+---@param candidateEnemies CharacterToken[]
+---@param objectToken CharacterToken
+---@param range number
+---@param filterTargetPredicate nil|fun(loc: any): boolean
+---@return any|nil loc
+---@return boolean enemyInReach
+function MonsterAI.FindObjectMissileHit(friendToken, candidateEnemies, objectToken, range, filterTargetPredicate)
     local enemies = {}
-    for _,enemy in ipairs(ai.enemyTokens or {}) do
+    for _,enemy in ipairs(candidateEnemies or {}) do
         if MonsterAI.TokenIsLiveCombatant(enemy) and not enemy.isObject
             and enemy:Distance(objectToken.loc) <= objectMissileReach then
             enemies[#enemies+1] = enemy
         end
     end
     if #enemies == 0 then
-        return nil
+        return nil, false
     end
     table.sort(enemies, function(a, b)
         return a:Distance(objectToken.loc) < b:Distance(objectToken.loc)
@@ -615,7 +994,7 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
             for dx = -1,1 do
                 for dy = -1,1 do
                     local loc = occupied:dir(dx, dy):WithAltitude(0)
-                    if not seen[loc.str] and filterTargetPredicate(loc) then
+                    if not seen[loc.str] and (filterTargetPredicate == nil or filterTargetPredicate(loc)) then
                         seen[loc.str] = true
                         candidates[#candidates+1] = loc
                     end
@@ -625,7 +1004,7 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
     end
 
     local bestLoc = nil
-    local bestScore = nil
+    local bestRank = nil
     for _,testLoc in ipairs(candidates) do
         local movementInfo = objectToken:MarkMovementArrow(testLoc, ForcedMovementArrowOptions("slide", range))
         if movementInfo ~= nil then
@@ -637,21 +1016,15 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
                     local rank = enemyRank[collideToken.charid]
                     if rank ~= nil then
                         hitRank = math.min(hitRank or rank, rank)
-                    elseif not collideToken.isObject and collideToken:IsFriend(ai.token) then
+                    elseif not collideToken.isObject and collideToken:IsFriend(friendToken) then
                         hitAlly = true
                     end
                 end
-                --Never throw into an ally. Hitting the nearest enemy beats a farther one;
-                --a line that hits no one ends as close to the nearest enemy as it can.
-                if not hitAlly then
-                    local score
-                    if hitRank ~= nil then
-                        score = 1000 - hitRank
-                    else
-                        score = -enemies[1]:Distance(destination)
-                    end
-                    if bestScore == nil or score > bestScore then
-                        bestScore = score
+                --Never throw into an ally, and never settle for a line that hits no one
+                --(the object would only land beside the enemy). The nearest enemy first.
+                if not hitAlly and hitRank ~= nil then
+                    if bestRank == nil or hitRank < bestRank then
+                        bestRank = hitRank
                         bestLoc = testLoc
                     end
                 end
@@ -660,7 +1033,7 @@ local function FindObjectMissileLocation(ai, objectToken, range, filterTargetPre
     end
 
     objectToken:ClearMovementArrow()
-    return bestLoc
+    return bestLoc, true
 end
 
 MonsterAI:RegisterPrompt{
@@ -697,10 +1070,16 @@ MonsterAI:RegisterPrompt{
         local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
 
         --Before Force Into: that zone is for creatures, and would take a thrown object off its enemy.
+        --With an enemy in reach but no clean hit, leave the object where it is: the
+        --victim scoring below once sent it into a wall or an ally instead.
         if forcedMovement == "slide" and casterToken.isObject then
-            local missileLoc = FindObjectMissileLocation(ai, casterToken, range, filterTargetPredicate)
+            local missileLoc, enemyInReach = MonsterAI.FindObjectMissileHit(ai.token, ai.enemyTokens,
+                casterToken, range, filterTargetPredicate)
             if missileLoc ~= nil then
                 return AnswerForcedMoveLoc(casterToken, missileLoc, forcedMovement, range)
+            end
+            if enemyInReach then
+                return {decline = true, reason = "no line hits an enemy without hitting an ally"}
             end
         end
 
@@ -716,10 +1095,27 @@ MonsterAI:RegisterPrompt{
         end
 
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
-            local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
+            local bestLoc, bestDamage, declinedSelfCollision = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
             if bestLoc ~= nil then
-                return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range)
+                ai:LogDecision("FORCED MOVE", {
+                    targets = ai.TargetsLogName({{token = casterToken}}),
+                    to = ai.LocLogName(bestLoc),
+                    plan = forcedMovement,
+                    damage = bestDamage,
+                })
+                return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range, abilityClone)
+            end
+            --Every pull left would slam the target into the puller, and that
+            --trade is not worth it: leave the target where it is rather than
+            --ask a Director.
+            if declinedSelfCollision then
+                ai:LogDecision("PULL DECLINED", {
+                    ability = abilityClone.name,
+                    targets = ai.TargetsLogName({{token = casterToken}}),
+                    reason = "only a pull into the puller remained, and the collision is not worth taking",
+                })
+                return {targets = {}}
             end
             return nil
         end
@@ -765,13 +1161,11 @@ MonsterAI:RegisterPrompt{
             loc = loc.north
         end
 
-        local bestLoc = nil
-        local bestScore = nil
-        local bestAltitude = nil
+        local best = nil
         for _,testLoc in ipairs(possibleLocs) do
             testLoc = preferAltitude(testLoc)
             local movementInfo = casterToken:MarkMovementArrow(ArrowLoc(casterToken, forcedMovement, testLoc),
-                ForcedMovementArrowOptions(forcedMovement, range))
+                ForcedMovementArrowOptions(forcedMovement, range, casterToken, abilityClone))
             if movementInfo ~= nil then
                 local path = movementInfo.path
                 local dist = path.destination:DistanceInTiles(path.origin)
@@ -797,23 +1191,31 @@ MonsterAI:RegisterPrompt{
                     end
                 end
 
+                --Damage decides first; this positioning score only breaks ties.
                 --lower score is better.
+                local damage = PredictForcedMoveDamage(invokerToken, casterToken, abilityClone,
+                    testLoc, movementInfo, range, forcedMovement)
                 local score = dist + 2*collideWithAllies - 2*collideWithEnemies - 2*fallDistance
                 if collideWithObjects then
                     score = score - 4
                 end
 
                 local altitude = cond(isVertical, testLoc.altitude, nil)
-                if PreferForcedMovementCandidate(altitude, score, bestAltitude, bestScore, false) then
-                    bestScore = score
-                    bestAltitude = altitude
-                    bestLoc = testLoc
+                if BetterForcedMoveCandidate(damage, altitude, score, best, false) then
+                    best = {damage = damage, altitude = altitude, score = score, loc = testLoc}
                 end
             end
         end
+        casterToken:ClearMovementArrow()
 
-        if bestLoc ~= nil then
-            return AnswerForcedMoveLoc(casterToken, bestLoc, forcedMovement, range)
+        if best ~= nil then
+            ai:LogDecision("FORCED MOVE", {
+                targets = ai.TargetsLogName({{token = casterToken}}),
+                to = ai.LocLogName(best.loc),
+                plan = forcedMovement,
+                damage = best.damage,
+            })
+            return AnswerForcedMoveLoc(casterToken, best.loc, forcedMovement, range, abilityClone)
         end
     end,
 }
@@ -875,25 +1277,9 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
---Hurl Grabbed Creature (Ogre Goon "People Bowling", AbilityRelocateAura.lua):
---two picks. The creature pick carries its candidates in _tmp_hurlCandidates;
---throw the first (the goon normally grabs only one creature anyway). The
---landing pick carries the equally-near free squares in _tmp_restrictLocs;
---any of them satisfies the rule, so take the first.
-MonsterAI:RegisterPrompt{
-    prompts = {"Hurl Grabbed Creature"},
-
-    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
-        local candidates = abilityClone:try_get("_tmp_hurlCandidates")
-        if candidates == nil or #candidates == 0 then
-            return nil
-        end
-        return {
-            targets = { {token = candidates[1]} }
-        }
-    end,
-}
-
+--Where a hurled creature lands (Ogre Goon's People Bowling). When several free
+--squares tie for nearest to the line's end they arrive in _tmp_restrictLocs,
+--and any of them follows the rule, so take the first.
 MonsterAI:RegisterPrompt{
     prompts = {"Hurl Landing Square"},
 

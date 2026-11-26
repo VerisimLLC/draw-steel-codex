@@ -6,13 +6,18 @@ local mod = dmhub.GetModLoading()
 --  * Each respite at the inn earns ONE carouse. While the player has leads
 --    left to learn, the inn card offers Carouse: one hero spends the evening
 --    in the common room and makes a Presence test.
---  * Each lead is ranked tier 1, 2 or 3 (EotwLeads.TIERS). The roll learns
---    the next lead of its tier, else of the tier below, and so on down; with
---    none left at or below it, nothing. A lead is told in a conversation
---    with whoever knows it (the old Elementalist, for the Arcane Market).
---  * A lead opens a project (EotwDowntime.PROJECTS, `lead`). The Arcane
---    Market's is Find the Arcane Market; completing it puts the market on
---    the player's town map (EotwRoster.MarketUnlocked).
+--  * Each lead is ranked tier 1, 2 or 3 (EotwLeads.TIERS). The City picks
+--    a random lead of the roll's tier, else of the tier below, and so on
+--    down; with none left at or below it, nothing. A lead is told in a
+--    conversation with whoever knows it (the old Elementalist, for the
+--    Arcane Market).
+--  * A lead opens a project (EotwDowntime.PROJECTS, `lead`) or a town
+--    location (CITY_LOCATIONS' `lead`). The Arcane Market's is Find the
+--    Arcane Market; completing it puts the market on the player's town map
+--    (EotwRoster.MarketUnlocked). The tier 1 leads put the Graveyard and the
+--    town's first three buildings on the map, as building sites or built.
+--  * A lead whose community project an admin has hidden is no rumour until
+--    the project is shown (EotwLeads.Available).
 --
 --The City (cloudflare-game-server src/city-core.ts, "Leads") holds the
 --learned leads and which respite's carouse is still open, so a carouse can
@@ -35,10 +40,11 @@ EotwLeads.CAROUSE_SKILLS = { "Brag", "Flirt", "Gamble", "Music", "Perform", "Rum
 --Dev (/eotwleads crit): the next carouse counts as a natural 20.
 EotwLeads.forceCritical = false
 
---The leads by the carouse tier that learns them, each list in learning
---order. Must match the City's CITY_LEADS (city-core.ts), which decides.
+--The leads by the carouse tier that learns them. Must match the City's
+--CITY_LEADS (city-core.ts), which decides and picks among a tier at random.
+--Accounts that existed before the tier 1 leads were added already know them.
 EotwLeads.TIERS = {
-    [1] = {},
+    [1] = { "graveyard", "hall-of-heroes", "town-hall", "training-grounds" },
     [2] = { "temple" },
     [3] = { "arcane-market" },
 }
@@ -56,6 +62,8 @@ end
 --A lead opens a project (`project`, offered once the conversation ends),
 --or a town location (`location`: the CITY_LOCATIONS row with `lead` set to
 --this id stays off the map until the lead is learned), or both.
+--`buildProject` is the community project that builds the location: while an
+--admin hides it, the lead is no rumour (the City's leadAvailable).
 EotwLeads.LEADS = {
     ["arcane-market"] = {
         id = "arcane-market",
@@ -85,6 +93,7 @@ EotwLeads.LEADS = {
         id = "temple",
         title = T("leads.temple.title"),
         location = "temple",
+        buildProject = "restore-temple",
         npc = {
             name = T("leads.temple.npc_name"),
             title = T("leads.temple.npc_title"),
@@ -106,6 +115,102 @@ EotwLeads.LEADS = {
             }
         end,
     },
+    --The tier 1 leads. PLACEHOLDER tellers: invented names, portraits
+    --borrowed from the bestiary's off-token art.
+    --Puts the Graveyard on the map. A player's first fallen hero also does
+    --(the City learns it for them), so an Awaken is never out of reach.
+    ["graveyard"] = {
+        id = "graveyard",
+        title = T("leads.graveyard.title"),
+        location = "graveyard",
+        npc = {
+            name = T("leads.graveyard.npc_name"),
+            title = T("leads.graveyard.npc_title"),
+            --the bestiary's Human Knave art.
+            portrait = "261d1f2b-45f1-4bf0-9936-d39e5c984c56",
+        },
+        conversation = function(heroName)
+            return {
+                { who = "npc", text = T("leads.graveyard.npc") },
+                { who = "narration", text = T("leads.graveyard.narration") },
+            }
+        end,
+    },
+    --Puts the Hall of Heroes on the map: the construction site, or the Hall once built.
+    ["hall-of-heroes"] = {
+        id = "hall-of-heroes",
+        title = T("leads.hall.title"),
+        location = "hall",
+        buildProject = "build-hall-of-heroes",
+        npc = {
+            name = T("leads.hall.npc_name"),
+            title = T("leads.hall.npc_title"),
+            --the bestiary's Human Rogue art.
+            portrait = "75069f99-e52d-4b03-9a4a-433001838ef1",
+        },
+        conversation = function(heroName)
+            if EotwRoster.HallBuilt() then
+                return {
+                    { who = "npc", text = T("leads.hall.built_npc") },
+                    { who = "narration", text = T("leads.hall.built_narration") },
+                }
+            end
+            return {
+                { who = "npc", text = T("leads.hall.site_npc") },
+                { who = "narration", text = T("leads.hall.site_narration") },
+            }
+        end,
+    },
+    --Puts the Town Hall on the map: its building site, or the Town Hall once built.
+    ["town-hall"] = {
+        id = "town-hall",
+        title = T("leads.town_hall.title"),
+        location = "townhall",
+        buildProject = "build-town-hall",
+        npc = {
+            name = T("leads.town_hall.npc_name"),
+            title = T("leads.town_hall.npc_title"),
+            --the bestiary's Human Apprentice Mage art.
+            portrait = "75d2f365-f494-4808-b9eb-616ca6f7f010",
+        },
+        conversation = function(heroName)
+            if EotwRoster.TownHallBuilt() then
+                return {
+                    { who = "npc", text = T("leads.town_hall.built_npc") },
+                    { who = "narration", text = T("leads.town_hall.built_narration") },
+                }
+            end
+            return {
+                { who = "npc", text = T("leads.town_hall.site_npc") },
+                { who = "narration", text = T("leads.town_hall.site_narration") },
+            }
+        end,
+    },
+    --Puts the Training Grounds on the map: their building site, or the Grounds once built.
+    ["training-grounds"] = {
+        id = "training-grounds",
+        title = T("leads.training_grounds.title"),
+        location = "traininggrounds",
+        buildProject = "build-training-grounds",
+        npc = {
+            name = T("leads.training_grounds.npc_name"),
+            title = T("leads.training_grounds.npc_title"),
+            --the bestiary's Human Guard art.
+            portrait = "d7dac4d3-7c58-46d4-91cb-abdfbb727769",
+        },
+        conversation = function(heroName)
+            if EotwRoster.TrainingGroundsBuilt() then
+                return {
+                    { who = "npc", text = T("leads.training_grounds.built_npc") },
+                    { who = "narration", text = T("leads.training_grounds.built_narration") },
+                }
+            end
+            return {
+                { who = "npc", text = T("leads.training_grounds.site_npc") },
+                { who = "narration", text = T("leads.training_grounds.site_narration") },
+            }
+        end,
+    },
 }
 
 --Has the player learned this lead?
@@ -119,27 +224,37 @@ local function Bump()
     EotwDowntime.revision = EotwDowntime.revision + 1
 end
 
---The leads this player has not learned yet, in order.
+--Can a carouse learn this lead now? Not while an admin hides the community
+--project that builds its location (the City's leadAvailable decides).
+--- @param leadid string
+--- @return boolean
+function EotwLeads.Available(leadid)
+    local lead = EotwLeads.LEADS[leadid]
+    return lead == nil or lead.buildProject == nil or not EotwDowntime.CommunityProjectHidden(lead.buildProject)
+end
+
+--The available leads this player has not learned yet, in order.
 function EotwLeads.LeadsLeft()
     local known = EotwRoster.LearnedLeads()
     local result = {}
     for _, id in ipairs(EotwLeads.ORDER) do
-        if not known[id] then
+        if not known[id] and EotwLeads.Available(id) then
             result[#result+1] = id
         end
     end
     return result
 end
 
---The lead a carouse of this tier would learn now, or nil: the next unlearned
---lead of that tier, else of each lower tier in turn (the City's pickLead).
+--A lead a carouse of this tier could learn now, or nil: an unlearned,
+--available lead of that tier, else of each lower tier in turn. The City
+--(pickLead) chooses which at random; this only says whether there is one.
 --- @param tier integer
 --- @return string|nil
 function EotwLeads.NextLead(tier)
     local known = EotwRoster.LearnedLeads()
     for t = math.min(tier, 3), 1, -1 do
         for _, id in ipairs(EotwLeads.TIERS[t]) do
-            if not known[id] then
+            if not known[id] and EotwLeads.Available(id) then
                 return id
             end
         end
@@ -169,6 +284,16 @@ local function SendCarouse(entry, onDone)
     local conn = EotwRoster.Connection()
     if conn == nil or not conn.connected then
         onDone(false, T("leads.carouse.offline"))
+        return
+    end
+    --the carouse shows before the respite reaches the City; wait for it, or
+    --the City would refuse a carouse it has not opened yet.
+    if EotwDowntime.RespiteBusy() then
+        dmhub.Schedule(0.5, function()
+            if not mod.unloaded then
+                SendCarouse(entry, onDone)
+            end
+        end)
         return
     end
     conn:Request{
@@ -909,14 +1034,15 @@ end
 
 --- the carouse dialog ----------------------------------------------------------------
 
---What each tier of a carouse means, shown in the tier table: "learn a lead"
---on any tier that would learn one now, else that tier's nothing-learned text.
+--What each tier of a carouse means, shown in the tier table: that tier's
+--learn-a-lead text if it would learn one now, else its nothing-learned text.
 local function CarouseTierTexts()
     local nothing = { T("leads.carouse.tier1"), T("leads.carouse.tier2"), T("leads.carouse.tier3") }
+    local learn = { T("leads.carouse.tier1_lead"), T("leads.carouse.tier2_lead"), T("leads.carouse.tier3_lead") }
     local result = {}
     for tier = 1, 3 do
         if EotwLeads.NextLead(tier) ~= nil then
-            result[tier] = T("leads.carouse.tier3")
+            result[tier] = learn[tier]
         else
             result[tier] = nothing[tier]
         end
@@ -1104,6 +1230,18 @@ function EotwLeads.ShowCarouseDialog(host)
         end
     end
 
+    --Close the carouse and play the learned lead's conversation, then offer its project.
+    local function ListenToLead()
+        local leadid = state.leadid
+        local heroid = state.heroid
+        CloseDialog()
+        if leadid ~= nil and heroid ~= nil then
+            EotwLeads.ShowConversation(host, leadid, heroid, function()
+                OfferLeadProject(host, leadid, 0)
+            end)
+        end
+    end
+
     local Render
 
     local function ArmDice(signature)
@@ -1173,8 +1311,14 @@ function EotwLeads.ShowCarouseDialog(host)
                         state.tier = tonumber(result.tier) or state.tier
                         state.leadid = result.leadid
                         if state.leadid ~= nil then
-                            local lead = EotwLeads.LEADS[state.leadid]
-                            EotwDowntime.UI.ShowBanner(host, T("leads.carouse.new_lead_banner"), lead ~= nil and lead.title or "", "Notify.BigBanner_Pos")
+                            --a moment to read the result, then the conversation opens by
+                            --itself (skipped if the player closed or clicked Listen first).
+                            dmhub.Schedule(1.5, function()
+                                if mod.unloaded or dlg == nil or not dlg.valid then
+                                    return
+                                end
+                                ListenToLead()
+                            end)
                         end
                     end
                     Render()
@@ -1590,14 +1734,7 @@ function EotwLeads.ShowCarouseDialog(host)
                     height = 54,
                     hmargin = 8,
                     click = function()
-                        local leadid = state.leadid
-                        local heroid = state.heroid
-                        CloseDialog()
-                        if leadid ~= nil and heroid ~= nil then
-                            EotwLeads.ShowConversation(host, leadid, heroid, function()
-                                OfferLeadProject(host, leadid, 0)
-                            end)
-                        end
+                        ListenToLead()
                     end,
                 },
                 gui.Button{
@@ -1743,7 +1880,7 @@ end
 local DEV_USAGE = [[Usage: /eotwleads <command> (open the town first)
   crit       the next carouse counts as a natural 20 (learns a lead)
   reset      forget your leads and carouses; the latest respite's carouse opens again (city admins)
-  talk [id]  replay a lead's conversation, default arcane-market (temple, ...; needs a hero at home)
+  talk [id]  replay a lead's conversation, default arcane-market (temple, graveyard, hall-of-heroes, town-hall, training-grounds; needs a hero at home)
   state      print the leads learned, the open carouse and the market
 To restart the hunt: /eotwleads reset, then /eotwdowntime resetproject find-arcane-market.]]
 

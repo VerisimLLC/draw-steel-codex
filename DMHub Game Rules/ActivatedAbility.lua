@@ -37,7 +37,11 @@ end
 --- @field excludedTargetTokenIds nil|table<string, boolean> Charids this clone may not target (the creatures the first use already hit).
 --- @field aimCasterAtTarget boolean An object caster turns to face its target while this is aimed, and keeps that facing (a Field Ballista's Release Bolt).
 --- @field _tmp_boundCaster nil|creature The creature a temporary clone was generated for.
+--- @field _tmp_partOfAbility nil|string On the clone of an invoked Custom Ability: the name of the ability that invoked it, whose step it is.
+--- @field _tmp_usedAsAbility nil|boolean On the clone of an invoked ability that is one of the creature's own (named, or chosen from a list), used as part of the invoker.
+--- @field _tmp_forcedMoveStability nil|{requested: number, stability: number, ignored: boolean} On a forced-movement clone: the push before stability and what stability took off, for play observers (see ActivatedAbilityInvokeAbilityBehavior.NoteStability).
 --- @field forcedMovementStraightUp boolean A forced-movement clone that moves its creature straight up ("vertical push straight up N").
+--- @field promptDeciderId nil|string Charid of the creature who picks the answer to this ability's prompt, when that is not the invoker (Behold the Face of Justice!'s push). Usually unset: read with try_get.
 --- @field stolenStamp nil|string Fresh guid on each ability copied by Steal Ability, so the action bar flags every steal as new.
 --- @field lineDistance number|string Length for line-area targeting: a number or a GoblinScript formula.
 --- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
@@ -102,7 +106,6 @@ end
 --- @field _tmp_isNewAbility? boolean Transient: set on abilities freshly created in the editor.
 --- @field _tmp_payInvokedCost? boolean Transient: an invoked clone pays its own cost.
 --- @field _tmp_restrictLocs? Loc[] Transient: explicit whitelist of target squares for a pick prompt.
---- @field _tmp_hurlCandidates? table Transient: the grabbed-creature candidates of a hurl's creature pick.
 --- @field _tmp_fromKit? boolean Transient: set by Kit:SignatureAbilities on a kit's signature ability.
 --- @field keywords table<string, boolean> Keyword set (e.g. Strike=true). The class default is one shared empty table, so copy it before writing (AddKeyword does).
 --- @field targetAllegiance? false|string Restricts targets: "ally", "enemy", "none" (objects only) or "dead"; false/nil means any creature.
@@ -1690,8 +1693,9 @@ end
 --- @param targetToken CharacterToken
 --- @param symbols table
 --- @param filterOverride nil|string
---- @return boolean, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter.
-function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
+--- @param rankReasons nil|boolean True when the caller shows the reason to the user (the action bar). A target with only a warning, such as Hidden, then still runs every other check, so a more important reason replaces the warning. Without it the warning is returned at once, which keeps yes/no callers like the Monster AI cheap.
+--- @return boolean, nil|string, nil|string The first value is true if the target passes the filter, false otherwise. The second value can be a reason why the target does not match the filter. The third is "hidden" when that reason is only the Hidden warning (see GameSystem.AllowTargeting).
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride, rankReasons)
 
 	local conditionid = self:PrimaryConditionID()
 
@@ -1709,8 +1713,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		end
 	end
 
-	if not GameSystem.AllowTargeting(casterToken, targetToken, self) then
-		return false
+	--A refusal with a reason (a Hidden enemy) is a warning the Director or a player may
+	--override. When the reason will be shown, keep checking so any hard refusal below still
+	--wins, and return the warning at the end.
+	local allowed, warningReason, warningKind = GameSystem.AllowTargeting(casterToken, targetToken, self)
+	if not allowed then
+		if warningReason == nil then
+			return false
+		end
+		if not rankReasons then
+			return false, warningReason, warningKind
+		end
 	end
 
 	--An ability an object grants to the creatures adjacent to it (a Field
@@ -1845,17 +1858,23 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     end
 
     if filterOverride == nil then
-        for _,filter in ipairs(self:try_get("customTargetFilters", {})) do
-            local passes = self:TargetPassesFilter(casterToken, targetToken, symbols, filter)
-            if not passes then
-                return false
-            end
+        local passes, filterReason = self:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+        if not passes then
+            return false, filterReason
         end
+        if warningReason ~= nil then
+            return false, warningReason, warningKind
+        end
+        return true
     end
 
-    local filter = filterOverride or self.targetFilter
+    --A caller's own filter formula replaces the ability's custom filters and target filter.
+    local filter = filterOverride
     local reasonedFilters = self:try_get("reasonedFilters", {})
     if filter == "" and #reasonedFilters == 0 then
+        if warningReason ~= nil then
+            return false, warningReason, warningKind
+        end
         return true
     end
 
@@ -1879,6 +1898,10 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         if not result then
             return false, ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
         end
+    end
+
+    if warningReason ~= nil then
+        return false, warningReason, warningKind
     end
 
     return result
@@ -3174,13 +3197,18 @@ function ActivatedAbility:FinishCast(casterToken, options)
         end
 	end
 
+	GameSystem.NotifyPlayObservers("finished", self, casterToken, options)
+
 	if self:has_key("OnFinishCast") then
 		self.OnFinishCast(self, options)
 	end
 
 	GameSystem.OnEndCastActivatedAbility(casterToken, self, options)
 
-	if self:CountsAsRegularAbilityCast() and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+	--A cast cancelled before it paid was never used, so it must not set off "when you
+	--use an ability" triggers such as Bleeding. A cast that paid and then stopped still counts.
+	local cancelledUnpaid = options ~= nil and options.abort and not options.pay
+	if self:CountsAsRegularAbilityCast() and not cancelledUnpaid and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
         casterToken.properties:DispatchEvent("finishability", {usedability = self, cast = options.symbols and options.symbols.cast, partofanotherability = self:IsPartOfAnotherAbility(casterToken, options)})
     end
 end
@@ -3564,6 +3592,8 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 		}
 	end
 
+	GameSystem.NotifyPlayObservers("began", self, casterToken, targets, options)
+
 	if self:has_key("OnBeginCast") then
 		--Pass options so OnBeginCast wrappers can install OnFinishCastHandlers that
 		--survive engine serialization stripping function fields off the ability mid-cast.
@@ -3792,8 +3822,12 @@ function ActivatedAbility.GetActiveCastSnapshot()
 end
 
 function ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
-    for co,_ in pairs(ActivatedAbility.coroutineStorage) do
-        if coroutine.status(co) ~= "dead" and (snapshot == nil or snapshot[co] == nil) then
+    for co,info in pairs(ActivatedAbility.coroutineStorage) do
+        --A creature removal parked until every other cast ends (waitsForAllCasts, set in
+        --AbilityRemoveCreature) is waiting on the caller, so the caller must not wait on
+        --it back. That deadlock held a hero's queued Gravitic Disruption slides behind a
+        --dying Umbral Stalker's Monster Death, which waited on those same slides (3DPN6VF2).
+        if coroutine.status(co) ~= "dead" and (snapshot == nil or snapshot[co] == nil) and not info.waitsForAllCasts then
             return true
         end
     end
@@ -4182,8 +4216,9 @@ end
 
 --- The record ActivatedAbility.coroutineStorage keeps for the running cast coroutine. startTime and
 --- lastProgress are dmhub.Time() stamps; activity names what the cast is waiting on (e.g. "reaping"),
---- which CountActiveCasts can exclude. Kept an inline type so callers' structural casts still match.
---- @return {ability: ActivatedAbility, casterToken: CharacterToken, targets: {token: CharacterToken}[], options: table, startTime?: number, lastProgress?: number, activity?: string}|nil
+--- which CountActiveCasts can exclude. waitsForAllCasts marks a cast parked until every other cast
+--- ends, which HasCoroutinesNotInSnapshot skips. Kept an inline type so callers' structural casts still match.
+--- @return {ability: ActivatedAbility, casterToken: CharacterToken, targets: {token: CharacterToken}[], options: table, startTime?: number, lastProgress?: number, activity?: string, waitsForAllCasts?: boolean}|nil
 function ActivatedAbility.CurrentCastInfo()
     local co = coroutine.running()
     if co ~= nil then
@@ -5478,6 +5513,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 				for _,target in ipairs(targets) do
 					ability.RecordTokenMessage(target.token, options, msg)
 				end
+				GameSystem.NotifyPlayObservers("typedmessage", msg)
 			end
 
 			if options ~= nil and options.complete ~= nil then

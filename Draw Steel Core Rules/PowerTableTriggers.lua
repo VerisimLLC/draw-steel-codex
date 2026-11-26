@@ -252,8 +252,8 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     return
                 end
             else
-                local friends = token:IsFriend(triggerTarget)
-                if not friends then
+                --Allegiance, not just sides: under Memory Thief a creature's own side may not count as its allies.
+                if not IsAllyOf(token, triggerTarget) then
                     return
                 end
             end
@@ -261,8 +261,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             if selfIsTarget then
                 return
             end
-            local friends = token:IsFriend(triggerTarget)
-            if friends then
+            if not IsEnemyOf(token, triggerTarget) then
                 return
             end
         end
@@ -270,7 +269,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         if not selfIsTarget and self.range ~= "" then
             --range check (with Modify Abilities range mods applied).
             local effectiveRange = ComputeTriggerRange(self, token.properties)
-            local distance = token:Distance(triggerTarget)
+            local distance = TokenDistance3D(token, triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return
             end
@@ -295,6 +294,9 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 
         if self.type == "trigger" then
             selfClone.powerRollModifier.resourceCost = g_triggerResourceId
+            --The roll charges this modifier's Drama (resourceCostType) and would
+            --otherwise skip resourceCost, so the triggered action never got spent.
+            selfClone.powerRollModifier.alsoConsumeResourceCost = true
         end
 
         if selfClone.powerRollModifier:try_get("resourceCostType") == "cost" then
@@ -393,8 +395,8 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     return false
                 end
             else
-                local friends = token:IsFriend(triggerTarget)
-                if not friends then
+                --Allegiance, not just sides: under Memory Thief a creature's own side may not count as its allies.
+                if not IsAllyOf(token, triggerTarget) then
                     return false
                 end
             end
@@ -402,8 +404,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             if selfIsTarget then
                 return false
             end
-            local friends = token:IsFriend(triggerTarget)
-            if friends then
+            if not IsEnemyOf(token, triggerTarget) then
                 return false
             end
         end
@@ -411,7 +412,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         if not selfIsTarget and self.range ~= "" then
             --range check (with Modify Abilities range mods applied).
             local effectiveRange = ComputeTriggerRange(self, token.properties)
-            local distance = token:Distance(triggerTarget)
+            local distance = TokenDistance3D(token, triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return false
             end
@@ -553,6 +554,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                 },
             }
 
+            local autoActivateCheck = nil
             if modifier.type ~= "passive" then
                 children[#children+1] = gui.Check{
                     styles = ThemeEngine.GetStyles(),
@@ -564,6 +566,21 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                         Refresh()
                     end,
                 }
+            else
+                --Only shown while Change Target is ticked; the power roll editor below
+                --calls changeTargetChanged when that box flips.
+                autoActivateCheck = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    classes = {cond(modifier.powerRollModifier:try_get("changeTarget", false), nil, "collapsed")},
+                    text = "Apply Automatically",
+                    hover = gui.Tooltip("Applies by itself before the roll, with the attacker choosing the new target (no choice when only one qualifies). Its owner is never asked."),
+                    value = modifier:try_get("autoActivate", false),
+                    change = function(element)
+                        modifier.autoActivate = element.value
+                        Refresh()
+                    end,
+                }
+                children[#children+1] = autoActivateCheck
             end
 
             children[#children+1] = gui.Panel{
@@ -979,7 +996,14 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             children[#children+1] = rollModifierEditor
 
         	local rollModifierTypeInfo = CharacterModifier.TypeInfo[modifier.powerRollModifier.behavior]
-            rollModifierTypeInfo.createEditor(modifier.powerRollModifier, rollModifierEditor, {triggered = true})
+            rollModifierTypeInfo.createEditor(modifier.powerRollModifier, rollModifierEditor, {
+                triggered = true,
+                changeTargetChanged = function()
+                    if autoActivateCheck ~= nil and autoActivateCheck.valid then
+                        autoActivateCheck:SetClass("collapsed", not modifier.powerRollModifier:try_get("changeTarget", false))
+                    end
+                end,
+            })
 
             for index,powerRollModifier in ipairs(modifier:try_get("additionalCostModifiers", {})) do
                 children[#children+1] = gui.Label{

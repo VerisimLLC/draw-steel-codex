@@ -698,7 +698,8 @@ GameSystem.RegisterGoblinScriptField{
 
 			local nearbyTokens = targetToken:GetNearbyTokens(1)
 			for i,nearby in ipairs(nearbyTokens) do
-				if nearby.charid ~= ourToken.charid and (not nearby:IsFriend(targetToken)) then
+				--Allegiance, not just sides: a creature under Guise isn't an enemy here.
+				if nearby.charid ~= ourToken.charid and IsEnemyOf(targetToken, nearby) then
                     return true
 				end
 			end
@@ -710,7 +711,11 @@ GameSystem.RegisterGoblinScriptField{
 
 --Shortest 3D distance in squares between two tokens: the horizontal distance, or the
 --vertical gap between their altitude ranges (touching vertically counts as adjacent).
-local function TokenDistance3D(a, b)
+--Global so triggered-action range checks (PowerTableTriggers.lua) use it too.
+---@param a CharacterToken
+---@param b CharacterToken
+---@return number
+function TokenDistance3D(a, b)
     local horizontal = a:Distance(b)
     local aTop = (a.floorAltitude or 0) + (a.tileSize or 1)
     local bTop = (b.floorAltitude or 0) + (b.tileSize or 1)
@@ -1493,7 +1498,13 @@ TriggeredAbility.RegisterTrigger{
             name = "Quantity",
             type = "number",
             desc = "The number of resources used.",
-        }
+        },
+        -- Other resources send "" rather than leaving it out, so a condition reading Spent On always gets a string.
+        spenton = {
+            name = "Spent On",
+            type = "string",
+            desc = "For surges: what they were spent on, \"damage\", \"potency\" or \"other\". Empty for other resources.",
+        },
     }
 }
 
@@ -1604,19 +1615,32 @@ ActivatedAbility.RegisterCastStartHandler(function(ability, casterToken, options
 	}
 end, 10)
 
+--- Whether casterToken may target targetToken with ability. A refusal that comes with a
+--- reason is a warning: the action bar shows the reason and still lets the target be
+--- picked, unless strict targeting is on and the user is not the Director. A refusal
+--- without one is absolute. Callers that read only the first value (the Monster AI,
+--- scripted casts) treat both as a refusal. The third value is "hidden" when the only
+--- problem is that the target is Hidden, so callers can rank that warning below others.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param ability ActivatedAbility
+--- @return boolean allowed
+--- @return string|nil reason
+--- @return "hidden"|nil warningKind
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	-- Hidden: "While you are hidden from another creature, the creature can't
 	-- target you with abilities that don't have the Area keyword." A creature
-	-- with the Hidden condition is treated as hidden from all its enemies:
-	-- enemies lose non-Area targeting (including free strikes), while allies
-	-- can still target them normally. Area abilities are unaffected, so a
-	-- hidden creature standing in a swept area is still hit.
+	-- with the Hidden condition is treated as hidden from all its enemies and
+	-- from none of its allies (who has spotted whom is not tracked). Enemies are
+	-- refused non-Area targeting, including free strikes. Area abilities are
+	-- unaffected, so a hidden creature standing in a swept area is still hit.
 	-- Map-wide effects (targetType "map", e.g. goblin malice "Swamp Stink") are
 	-- area effects that carry no keywords in their stat block, so the Area
 	-- keyword alone does not recognise them. They affect everyone on the map
 	-- and target no one in particular, so Hidden must not exempt a creature.
-	-- Exception: a creature melded against a wall (Shadowmeld's "Wall Meld Angle") can
-	-- still be seen, and so targeted, by creatures standing in front of that wall.
+	-- Exceptions: a caster within its "Ignore Hidden Within Range", or in front of the
+	-- wall a Shadowmelded creature is flattened against.
+	local hiddenReason = nil
 	-- Triggered abilities have no keywords, so an area-shaped one (a War Dog's Loyalty
 	-- Collar bursting on each adjacent enemy) counts as Area by its shape.
 	local isAreaAbility = ability:HasKeyword("Area") or ability.targetType == "map"
@@ -1624,8 +1648,18 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	if (not targetToken.isObject) and (not isAreaAbility)
 		and (not casterToken:IsFriend(targetToken))
 		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false
-		and not RuleUtils.WallMeldSeesTarget(casterToken, targetToken) then
-		return false
+		and not RuleUtils.SeesPastHidden(casterToken, targetToken) then
+		-- A player who can't see the creature at all ("Hidden Creatures are Invisible")
+		-- gets no reason, so nothing hints that it is there.
+		if targetToken.hiddenFromLocalViewer then
+			return false
+		end
+		-- Otherwise it is only a warning: the action bar shows it but still lets the target be picked.
+		if ability:HasKeyword("Strike") then
+			hiddenReason = "Cannot target a hidden creature with a strike"
+		else
+			hiddenReason = "Cannot target a hidden creature except with an Area ability"
+		end
 	end
 
 	-- Untargetable By Strikes (Shadow Veil and similar): a creature with a non-zero
@@ -1649,6 +1683,11 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	local targetGroup = targetToken.properties:CalculateNamedCustomAttribute("Targeting Group")
 	if (casterGroup ~= 0 or targetGroup ~= 0) and casterGroup ~= targetGroup then
 		return false
+	end
+
+	-- Reported last, so a hard refusal above still wins for a creature that is also Hidden.
+	if hiddenReason ~= nil then
+		return false, hiddenReason, "hidden"
 	end
 
 	return true

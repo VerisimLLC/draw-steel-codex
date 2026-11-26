@@ -93,3 +93,78 @@ text("symbol.unoccupiedadjacentspaces.desc", [[The number of squares adjacent to
 --creature that used the parent ability (e.g. land a teleported ally next to the shadow
 --who brought it). Short: a menu item, alongside "Parent's Primary Target".
 text("invoke.editor.range_origin.parent_caster", [[Parent's Caster]])
+
+----------------------------------------------------------------------------
+-- THE MOVEMENT PANEL in the Move drawer of the action bar
+-- (DrawSteelActionBar/DrawSteelActionBar.lua, Draw Steel Core Rules/MCDMCreature.lua)
+----------------------------------------------------------------------------
+
+--Heading under the panel, like the headings under each group of abilities.
+text("movemode.heading", [[Movement]])
+
+--Under the current movement mode's name. {speed} is a number of squares.
+text("movemode.speed", [[Speed {speed}]])
+--The same, for a creature swimming without a swim speed: each square costs an extra square.
+text("movemode.speed_doubled", [[Speed {speed}, each square costs 2]])
+
+--Labels over the number next to the up/down buttons: height above the ground, or
+--how far down the creature is under water or underground.
+text("movemode.altitude", [[Altitude]])
+text("movemode.depth", [[Depth]])
+
+--Tooltips on the up/down buttons, and why one of them can't be used.
+text("movemode.up", [[Up 1 square]])
+text("movemode.down", [[Down 1 square]])
+text("movemode.at_surface", [[You are at the surface]])
+text("movemode.on_ground", [[You are on the ground]])
+
+--Tooltip on a movement mode the creature can't switch to right now: the reason.
+text("movemode.reason.cannot_walk", [[You cannot walk]])
+text("movemode.reason.cannot_fly", [[You cannot fly]])
+text("movemode.reason.cannot_burrow", [[You cannot burrow]])
+text("movemode.reason.not_in_water", [[You can only swim when in water]])
+text("movemode.reason.nothing_to_climb", [[There is nothing to climb]])
+text("movemode.reason.prone", [[You cannot climb while prone]])
+text("movemode.reason.in_air", [[You are in the air]])
+text("movemode.reason.in_deep_water", [[You are in deep water]])
+text("movemode.reason.underwater", [[You are underwater]])
+text("movemode.reason.underground", [[You are underground]])
+
+----------------------------------------------------------------------------
+-- THE PERSISTENT MAGIC DIALOG: start of the turn of a hero with persistent abilities
+-- (Draw Steel Ability Behaviors/AbilityPersistentCast.lua)
+----------------------------------------------------------------------------
+
+--Under the dialog's title.
+text("persistence.instruction", [[Select abilities to persist.]])
+
+--What an ability costs to keep up, next to its name. {resource} is e.g. "Essence".
+text("persistence.cost", [[{cost} {resource}]])
+
+--At the right of each ability's row: whether it will be kept up or end.
+text("persistence.persisting", [[Persisting]])
+text("persistence.ending", [[Ending]])
+
+--Shown under strict resource rules while the kept abilities cost more than the hero
+--gains; the dialog can't be confirmed until enough are ended.
+text("persistence.must_end", [[You must end some abilities so you do not lose essence]])
+
+--The dialog's button.
+text("persistence.confirm", [[Confirm]])
+
+----------------------------------------------------------------------------
+-- TRIGGERS THAT ACT DURING A MOVE: the Tactician's Overwatch
+-- (Draw Steel Ability Behaviors/AbilityMidMoveTriggers.lua)
+----------------------------------------------------------------------------
+
+--Floats over a creature put back along its path because being slowed cut its move short.
+text("midmove.cut_short.float", [[Stopped]])
+
+--Bottom of the screen while the Tactician picks who strikes. {target} is the moving
+--enemy's name, or the unnamed_target text when the player can't see its name.
+text("midmove.direct_ally.choose", [[Choose an ally to free strike {target}]])
+text("midmove.direct_ally.no_allies", [[No ally can free strike {target}]])
+text("midmove.direct_ally.unnamed_target", [[the moving enemy]])
+
+--An ally's button when they can't reach the enemy from where they stand. {name} is the ally.
+text("midmove.direct_ally.out_of_reach", [[{name} (out of reach)]])

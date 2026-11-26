@@ -88,6 +88,19 @@ function HeroModules.IsAdded(moduleid)
 	return entry ~= nil and entry.added > 0
 end
 
+--- The ids of the free modules the player added, for the module browser's
+--- My Modules tab. Owned premium modules are not listed: they are purchases.
+--- @return string[]
+function HeroModules.GetAddedIds()
+	local result = {}
+	for id, entry in pairs(GetEntries()) do
+		if entry.added > 0 then
+			result[#result+1] = id
+		end
+	end
+	return result
+end
+
 --- True unless the player switched this module off. An added module is always
 --- on: removing it is how it stops applying. Only meaningful for a module in
 --- the inventory.
@@ -553,9 +566,10 @@ if dmhub.inGame then
 	HeroModules.ServeOwnerRequests()
 end
 
---- True if this hero was built with a class or ancestry that is not in this
---- game (its Hero module was not installed here). The hero then has no class
---- -- 0 Stamina, no Recoveries -- or falls back to the default ancestry.
+--- True if this hero was built with a class, subclass or ancestry that is not
+--- in this game (its Hero module was not installed here). The hero then has no
+--- class -- 0 Stamina, no Recoveries -- no subclass features, or falls back to
+--- the default ancestry.
 --- @param token CharacterToken
 --- @return boolean
 function HeroModules.HeroIsMissingContent(token)
@@ -566,9 +580,25 @@ function HeroModules.HeroIsMissingContent(token)
 			return
 		end
 		local classesTable = GetTableCached("classes")
+		local subclassesTable = GetTableCached("subclasses")
+		local choices = props:GetLevelChoices()
 		for _, entry in ipairs(props:try_get("classes", {})) do
-			if entry.classid ~= nil and classesTable[entry.classid] == nil then
+			local classInfo = entry.classid ~= nil and classesTable[entry.classid] or nil
+			if entry.classid ~= nil and classInfo == nil then
 				missing = true
+			elseif classInfo ~= nil then
+				--A subclass picked from a module that isn't here: the hero keeps
+				--the class but silently loses the subclass (Class:GetSubclasses skips it).
+				local levels = {}
+				classInfo:FillLevelsUpTo(entry.level, props:ExtraLevelInfo(), false, levels)
+				for _, levelInfo in ipairs(levels) do
+					for _, feature in ipairs(levelInfo.features) do
+						local chosen = feature.typeName == "CharacterSubclassChoice" and choices[feature.guid] or nil
+						if chosen ~= nil and chosen[1] ~= nil and subclassesTable[chosen[1]] == nil then
+							missing = true
+						end
+					end
+				end
 			end
 		end
 		local raceid = props:try_get("raceid")
@@ -631,7 +661,7 @@ ShowMissingContentWarning = function(charids)
 
 	gui.ModalMessage{
 		title = "Hero Module Not Added",
-		message = string.format("%s %s missing content from a Hero module that could not be added to this game, so %s may have no class (0 Stamina) or the wrong ancestry.\n\n%s",
+		message = string.format("%s %s missing content from a Hero module that could not be added to this game, so %s may have no class (0 Stamina), no subclass, or the wrong ancestry.\n\n%s",
 			table.concat(heroNames, ", "),
 			#heroNames == 1 and "is" or "are",
 			#heroNames == 1 and "this hero" or "these heroes",
@@ -641,6 +671,8 @@ end
 
 --- Brings the player's enabled Hero modules into the current (non-lobby) game,
 --- so the classes and ancestries their heroes were built with exist there.
+--- Only Encounter of the Week games call it; in other games the player's
+--- inventory is just listed under My Modules in the module browser.
 --- Called on the arriving player's own client just before their heroes are
 --- pasted in. Only installs, never uninstalls; a module already installed at a
 --- usable version is left alone. Calls done() once, after every install has
@@ -822,7 +854,12 @@ end
 --- the public index. Admins also get unlisted ones, including their own
 --- unpublished test modules. Calls back with the list sorted by name, or with
 --- nil and a message if the index can't be read.
---- @param callback fun(items: nil|ModuleLua[], error: nil|string)
+---
+--- For admins the callback runs twice: first with the public modules
+--- (morePending = true), then with the full list. Their own modules are read
+--- one record each (hundreds for an MCDM admin, ~30 s), so the public ones
+--- are shown without waiting for them.
+--- @param callback fun(items: nil|ModuleLua[], error: nil|string, morePending: nil|boolean)
 function HeroModules.QueryFreeModules(callback)
 	local admin = dmhub.isAdminAccount
 	SearchIndexForFreeModules("new", function(publicItems, err)
@@ -840,15 +877,21 @@ function HeroModules.QueryFreeModules(callback)
 			end
 		end
 
-		local Finish = function()
+		--- @param morePending boolean
+		local Report = function(morePending)
 			table.sort(items, function(a, b)
 				return string.lower(a.name or "") < string.lower(b.name or "")
 			end)
-			callback(items, nil)
+			--a copy, so the caller may keep the first list while the second is built.
+			local list = {}
+			for i, info in ipairs(items) do
+				list[i] = info
+			end
+			callback(list, nil, morePending)
 		end
 
+		Report(admin)
 		if not admin then
-			Finish()
 			return
 		end
 
@@ -859,7 +902,7 @@ function HeroModules.QueryFreeModules(callback)
 					seen[info.fullid] = true
 				end
 			end
-			Finish()
+			Report(false)
 		end)
 	end)
 end

@@ -464,7 +464,10 @@ function buildRetainerList()
         if node and not node.hidden then
             if node.monster then
                 local m = node.monster
-                if m.info and m.info.properties and m.info.properties:IsRetainer() then
+                --skip entries whose creature type never registered (a module's
+                --data without its code): every method read on them raises (DBVJBNJT).
+                local props = m.info and m.info.properties
+                if props and not IsPlaceholderGameType(props.typeName) and props:IsRetainer() then
                     retainerTypes[#retainerTypes + 1] = {
                         id = node.id,
                         text = m.info.description

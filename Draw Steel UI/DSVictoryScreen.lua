@@ -3663,6 +3663,12 @@ function DSVictoryScreen.Create(options)
                     --until its own Proceed press. The cards are already built,
                     --so nothing here needs the live encounter any more.
                     element.data.held = true
+                    --someone who could not end the combat (see canProceed)
+                    --still needs the button to close the screen.
+                    if proceedButton:HasClass("collapsed") then
+                        proceedButton:SetClass("collapsed", false)
+                        proceedButton:SetClass("shown", true)
+                    end
                 else
                     element.data.shown = false
                     element:FireEvent("hideVictory")

@@ -63,6 +63,18 @@ local FRIENDS_MAX = 340
 local GAMES_MAX = 250
 local CHAT_MIN = 330
 
+--Whether the Friends and Public Games sections are open, kept between sessions.
+local g_friendsOpenSetting = setting{
+    id = "eotw:rail:friendsopen",
+    storage = "preference",
+    default = true,
+}
+local g_gamesOpenSetting = setting{
+    id = "eotw:rail:gamesopen",
+    storage = "preference",
+    default = true,
+}
+
 --The account lookup, kept for the session: { [steamId] = uid } and
 --{ [discordId] = uid }, which ids were asked about, and when.
 local g_lookup = {
@@ -626,6 +638,12 @@ local function FriendRow(friend, status)
         textOverflow = "ellipsis",
         valign = "center",
     } }
+    --their Player Tag, while they are in town (capped so the name keeps room).
+    local badge = EotwPlayerTags.Badge(EotwPlayerTags.TagOf(friend.uid), { fontSize = 11, maxWidth = cond(hasButtons, 80, 120) })
+    if badge ~= nil then
+        badge.selfStyle.lmargin = 6
+        nameRow[#nameRow+1] = badge
+    end
     for _,icon in ipairs(SourceIcons(friend)) do
         nameRow[#nameRow+1] = icon
     end
@@ -718,8 +736,8 @@ function EotwSocialRail.Create(ctx)
 
     local state = {
         collapsed = false,
-        friendsOpen = true,
-        gamesOpen = true,
+        friendsOpen = g_friendsOpenSetting:Get() ~= false,
+        gamesOpen = g_gamesOpenSetting:Get() ~= false,
         showOffline = false,
         signature = nil,
         cityRevision = 0,
@@ -1196,6 +1214,7 @@ function EotwSocialRail.Create(ctx)
 
         SectionTitle("friends", state.friendsOpen, function()
             state.friendsOpen = not state.friendsOpen
+            g_friendsOpenSetting:Set(state.friendsOpen)
             friendsTitle.parent:FireEventTree("refreshCaret", state.friendsOpen)
             Layout()
         end, function(element)
@@ -1230,6 +1249,7 @@ function EotwSocialRail.Create(ctx)
 
         SectionTitle("games", state.gamesOpen, function()
             state.gamesOpen = not state.gamesOpen
+            g_gamesOpenSetting:Set(state.gamesOpen)
             gamesTitle.parent:FireEventTree("refreshCaret", state.gamesOpen)
             Layout()
         end, function(element)

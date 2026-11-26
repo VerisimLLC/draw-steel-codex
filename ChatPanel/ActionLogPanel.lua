@@ -92,6 +92,16 @@ end
 DockablePanel.Register{
 	name = "Action Log",
 	icon = "icons/standard/Icon_App_ActivityLog.png",
+	--History replaced it; it shows only for a user who chose it back (History's
+	--"Use Old Action Log" setting), or where History is not loaded at all, or loaded
+	--without its window (HistoryTray failed), so there is always a log to open.
+	available = function()
+		local history = rawget(_G, "History")
+		return history == nil or history.UsingOldLog == nil or history.UsingOldLog()
+			or DockablePanel.GetRegistration("History") == nil
+	end,
+	--a dock saved with History shows the Action Log in its place.
+	standsInFor = "History",
 	minHeight = 200,
 	vscroll = false,
 	content = function()
@@ -212,7 +222,7 @@ function CreateActionLogCard(options)
     if not options.hideName then
         local name = options.nameOverride
         if name == nil and token ~= nil and token.valid then
-            name = token.name
+            name = creature.TokenDisplayName(token)
             if not token.canLocalPlayerSeeName then
                 name = "Unknown"
             end

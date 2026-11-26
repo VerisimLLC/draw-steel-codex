@@ -1069,7 +1069,8 @@ TokenHud.RegisterPanel{
                                     --this icon has a 'bond' to several other creatures.
                                     local tokens = creature.GetTokensWithBoundOngoingEffect(element.data.bondid)
                                     for i,tok in ipairs(tokens) do
-                                        if tok ~= nil and tok.valid and tok.charid ~= token.charid then
+                                        --As for the caster lines below: no line to a creature this viewer can't see.
+                                        if tok ~= nil and tok.valid and tok.charid ~= token.charid and (dmhub.isDM or tok.canSee) then
                                             local casterPos = token.pos
                                             if casterPos ~= nil then
                                                 element.data.highlight = element.data.highlight or {}
@@ -1085,7 +1086,9 @@ TokenHud.RegisterPanel{
 
                                 for casterid,_ in pairs(element.data.casteridSet or {}) do
 									local caster = dmhub.GetTokenById(casterid)
-									if caster ~= nil then
+									--A line to a caster this viewer can't see (hidden, or out of
+									--sight) would point straight at where it is.
+									if caster ~= nil and (dmhub.isDM or caster.canSee) then
 										local casterPos = caster.pos
 										if casterPos ~= nil then
                                             element.data.highlight = element.data.highlight or {}
@@ -1621,6 +1624,7 @@ function CreateTokenHud(token)
 					local itemInfo = gearTable[itemid]
 					local icon = itemInfo:GetIcon()
 					local panel = gui.Panel{
+						interactable = false,
 						classes = {"animatedItem", "fadein"},
 						bgimage = icon,
 
@@ -1663,6 +1667,7 @@ function CreateTokenHud(token)
 					local itemInfo = gearTable[itemid]
 					if itemInfo ~= nil then
 						local panel = gui.Panel{
+							interactable = false,
 							classes = {"animatedItemLose"},
 							bgimage = itemInfo:GetIcon(),
 
@@ -1878,6 +1883,7 @@ function CreateTokenHud(token)
                 local strikeThrough = nil
                 if icon.clear then
                     strikeThrough = gui.Panel{
+                        interactable = false,
                         styles = {
                             {
                                 bgcolor = "white",
@@ -1923,6 +1929,7 @@ function CreateTokenHud(token)
 
 				local children = element.children
 				children[#children+1] = gui.Panel{
+                    interactable = false, --per panel, not inherited, so each child sets it too.
                     flow = "horizontal",
                     width = "auto",
                     height = "auto",
@@ -1948,6 +1955,7 @@ function CreateTokenHud(token)
 					},
 
                     gui.Panel{
+                        interactable = false,
                         width = 32,
                         height = 32,
                         bgimage = icon.icon,
@@ -1966,6 +1974,7 @@ function CreateTokenHud(token)
                         }
                     },
                     gui.Label{
+                        interactable = false,
                         styles = {
                             {
                                 color = "white",
@@ -2023,6 +2032,7 @@ function CreateTokenHud(token)
 
 				local children = element.children
 				children[#children+1] = gui.Label{
+					interactable = false,
 					text = text,
 					floating = true,
                     markdown = true,
@@ -2068,6 +2078,7 @@ function CreateTokenHud(token)
 			floateffect = function(element, effect)
 				element:AddChild(
 					gui.Panel{
+						interactable = false,
 						styles = {
 							{
 								width = 64,
@@ -2200,6 +2211,7 @@ function CreateTokenHud(token)
                 local ndelay = 0
 
                 local speechBalloon = gui.Label{
+                    interactable = false,
                     styles = {
                         {
                             opacity = 0,
@@ -2807,6 +2819,39 @@ function CreateTokenHud(token)
                                 className = 'radial-menu-icon',
                                 width = 40,
                                 height = 40,
+                            }
+                        },
+                    }
+                end
+
+                --History (Draw Steel): opens History showing only this creature. Looked
+                --up with rawget like Monster Info; not for someone on the old Action Log.
+                local history = rawget(_G, "History")
+                if history ~= nil and not history.UsingOldLog() and history.OpenFor ~= nil then
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(0),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(0),
+                            },
+                        },
+                        events = {
+                            click = function(element)
+                                parentElement.popup = nil
+                                history.OpenFor(token)
+                            end,
+                            hover = function(element)
+                                gui.Tooltip("History")(element)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'phosphor/clock-counter-clockwise-bold.png',
+                                className = 'radial-menu-icon',
+                                width = 32,
+                                height = 32,
                             }
                         },
                     }

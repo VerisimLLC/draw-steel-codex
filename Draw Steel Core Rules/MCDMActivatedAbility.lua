@@ -200,6 +200,61 @@ function ActivatedAbility:GetTargetingMode()
     return mode, false
 end
 
+--- Why the player can't pick targetToken with this ability because it is an
+--- object, or nil. Only objects a strike could hit count (attackable objects and
+--- creatures treated as objects), so the action bar can show them as invalid with
+--- this reason instead of leaving them unlit and the player guessing.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbility:ObjectTargetingReason(casterToken, targetToken, symbols)
+    local treatAsObject = (not targetToken.isObject) and targetToken.properties ~= nil
+        and targetToken.properties:try_get("treatAsObject", false)
+    local attackableObject = targetToken.isObject and targetToken.isAttackableObject
+    if not (treatAsObject or attackableObject) then
+        return nil
+    end
+
+    --abilities set to "conditional" already list every object and decide with their own filter.
+    if self.objectTarget == "conditional" then
+        return nil
+    end
+
+    if self.objectTarget ~= true then
+        --some objects let any strike target them (a setting on the object); those are fine.
+        if attackableObject and self:ObjectGrantsTargeting(casterToken, targetToken, symbols or {}) then
+            return nil
+        end
+        return "Ability cannot target objects. Select an Ability with Object Targeting"
+    end
+
+    --an object-only ability has no slider, so nothing can be switched off.
+    if self.targetAllegiance == "none" then
+        return nil
+    end
+
+    local objectMode = self:GetTargetingMode()
+    if objectMode == false and not ActivatedAbility.ObjectShownWithCreatures(targetToken) then
+        return "Object Targeting is Off. Select correct Targeting in Roll Dialog."
+    end
+    return nil
+end
+
+--- True for an object flagged "Show With Creatures" on its Targetable
+--- component (a scenario objective): an ability that can target objects offers
+--- it under every slider position, so players need not switch to "Objects".
+--- It changes no rules: an ability that cannot target objects still cannot.
+--- @param targetToken CharacterToken
+--- @return boolean
+function ActivatedAbility.ObjectShownWithCreatures(targetToken)
+    if not (targetToken.isObject and targetToken.isAttackableObject) then
+        return false
+    end
+    local props = targetToken.properties
+    return props ~= nil and props:try_get("showWithCreatures", false) == true
+end
+
 -- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT
 -- gui.Style objects) because they are routed through ThemeEngine.MergeStyles,
 -- which iterates each rule with pairs() to resolve @tokens. All colors use
@@ -839,7 +894,21 @@ end
 --with the invoker's action type. Critical Hit depends on this.
 local function IsMainActionAbility(c)
     local actionid = c:try_get("invokerActionResourceId") or c:ActionResource()
-    return actionid == "d19658a2-4d7b-4504-af9e-1a5410fb17fd" --id of action
+    if actionid ~= CharacterResource.actionResourceId then
+        return false
+    end
+    --A maneuver made with the main action (Use Maneuver) pays the main action but is
+    --still a maneuver, so it must not set off "uses a main action" effects like Bleeding.
+    return c:try_get("baseActionResourceId") ~= CharacterResource.maneuverResourceId
+end
+
+--- True if this is a maneuver, including one made with the main action through
+--- Use Maneuver (it then costs the main action but is still a maneuver).
+--- @param c ActivatedAbility
+--- @return boolean
+local function IsManeuverAbility(c)
+    return c:ActionResource() == CharacterResource.maneuverResourceId
+        or c:try_get("baseActionResourceId") == CharacterResource.maneuverResourceId
 end
 
 --- True if a natural roll at or above the Critical Threshold on this ability is a Critical Hit.
@@ -890,7 +959,7 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     desc = "Returns true if this ability is a maneuver.",
     seealso = { "action" },
     calculate = function(c)
-        return c:ActionResource() == "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b" --id of maneuver
+        return IsManeuverAbility(c)
     end,
 
 })
@@ -1357,9 +1426,11 @@ end
 --Heroes" allows only Catch Breath and Null Field). A gate is
 --fn(ability, casterCreature, casterToken) returning a reason string to
 --refuse, or nil to allow. Gates bind only player-controlled casters, only
---under Strictly Enforce Action Economy, and never a TriggeredAbility, so
---the Director, the Monster AI and trigger prompts are never refused. The
---action bar greys a refused chip, shows the reason and ignores the press.
+--under Strictly Enforce Action Economy, and never a TriggeredAbility or a
+--test, so the Director, the Monster AI, trigger prompts and test rolls are
+--never refused. The action bar greys a refused chip, shows the reason and
+--ignores the press. A clone with _tmp_ignoreCastGates is not gated: a game
+--mode sets it on a use its own rules allow (an item in an EotW montage).
 --- @type table<string, fun(ability: ActivatedAbility, casterCreature: creature, casterToken: CharacterToken): string|nil>
 local g_castGates = {}
 
@@ -1382,7 +1453,13 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
         return nil
     end
 
-    if next(g_castGates) ~= nil and StrictActionEconomyEnforced() then
+    --a synthetic test (isTest on the ability itself, not on a behavior) only
+    --carries a roll's card; it is not something a player casts.
+    if self:try_get("isTest", false) then
+        return nil
+    end
+
+    if next(g_castGates) ~= nil and not self:try_get("_tmp_ignoreCastGates", false) and StrictActionEconomyEnforced() then
         local casterToken = dmhub.LookupToken(casterCreature)
         if casterToken ~= nil and casterToken.playerControlled then
             for _,gate in pairs(g_castGates) do
@@ -4205,25 +4282,40 @@ function ActivatedAbility:CanTargetAdditionalTimes(casterToken, symbols, targets
         return true
     end
 
-    if self:UsesSquadStrike(casterToken) then
-        --signature abilities can 'stack' targeting up to three times. Summoner
-        --minions and similar bypass this via the "Ignore Minion Target Limit"
-        --custom attribute, letting any number of minions hit the same creature.
-        if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
-            return true
-        end
-
-        local currentTimes = 0
-        for _, target in ipairs(targets) do
-            if target == targetToken.id then
-                currentTimes = currentTimes + 1
-            end
-        end
-
-        return currentTimes < 3
+    --A creature with extra free strikes (Sprite Dandeknight) can pick the same
+    --creature once per free strike. The picks combine into one hit when cast.
+    local freeStrikeCount = 1
+    if self.categorization == "Basic Attack" and casterToken ~= nil and casterToken.properties ~= nil then
+        freeStrikeCount = casterToken.properties:FreeStrikeCount()
     end
 
-    return false
+    local currentTimes = 0
+    for _, target in ipairs(targets) do
+        if target == targetToken.id then
+            currentTimes = currentTimes + 1
+        end
+    end
+
+    if self:UsesSquadStrike(casterToken) then
+        local stackLimit = ActivatedAbility.SquadStackLimit(casterToken, freeStrikeCount)
+        return stackLimit == nil or currentTimes < stackLimit
+    end
+
+    return freeStrikeCount > 1 and currentTimes < freeStrikeCount
+end
+
+--- The most strikes a squad may stack on one creature: three, or three per free
+--- strike for minions that make extra free strikes (six for two). Returns nil for
+--- squads with the "Ignore Minion Target Limit" attribute (summoner minions),
+--- where any number of minions may hit the same creature.
+--- @param casterToken CharacterToken a minion in the squad
+--- @param strikeCount integer strikes each minion makes with this ability
+--- @return integer|nil
+function ActivatedAbility.SquadStackLimit(casterToken, strikeCount)
+    if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
+        return nil
+    end
+    return 3 * strikeCount
 end
 
 --A minion squad's critical hit gives every participating minion another main
@@ -5908,13 +6000,17 @@ local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
         local cache = g_includedInAreaCache
         local frame = dmhub.FrameCount()
         if cache.frame ~= frame or cache.area ~= targetArea or cache.ability ~= ability or cache.caster ~= casterToken then
+            --Fill the cache entry before the loop, not after: for an ability with custom target
+            --filters the base filter calls back into TargetPassesFilter and so into this
+            --function for the same area, which would otherwise miss the cache and recurse
+            --until the stack overflows. The nested call sees the set as filled so far.
             local charids = {}
+            cache.frame, cache.area, cache.ability, cache.caster, cache.charids = frame, targetArea, ability, casterToken, charids
             for _, tok in pairs(dmhub.tokenInfo.TokensInShape(targetArea) or {}) do
                 if tok.valid and tok.properties ~= nil and g_baseTargetPassesFilter(ability, casterToken, tok, symbols) then
                     charids[tok.charid] = true
                 end
             end
-            cache.frame, cache.area, cache.ability, cache.caster, cache.charids = frame, targetArea, ability, casterToken, charids
         end
         included = cache.charids
     end
@@ -5931,14 +6027,16 @@ local function IncludedTargetCharids(ability, casterToken, symbols, floorIndex)
     return included
 end
 
-function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
-    local result, reason = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
-    if not result then
-        return result, reason
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride, rankReasons)
+    local result, reason, warningKind = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride, rankReasons)
+    --When the reason will be shown, a Hidden target still gets the line-of-effect checks
+    --below: "no line of effect" matters more than "hidden", so it is the reason the player sees.
+    if not result and (warningKind ~= "hidden" or not rankReasons) then
+        return result, reason, warningKind
     end
 
     if casterToken == nil or targetToken == nil or targetToken.isObject then
-        return result, reason
+        return result, reason, warningKind
     end
 
     --Area abilities are exempt from the caster's own line-of-effect denial: they need line
@@ -5974,7 +6072,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc,
         IncludedTargetCharids(self, casterToken, symbols, floorIndex))
     if blocker == nil then
-        return result, reason
+        return result, reason, warningKind
     end
 
     return false, string.format("%s blocks line of effect to this creature.", RuleUtils.LineOfEffectBlockerName(blocker))

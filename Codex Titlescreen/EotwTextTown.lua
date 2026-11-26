@@ -189,12 +189,14 @@ text("eotw.chat.tab_game", [[Game Chat]])
 text("eotw.chat.tab_new", [[NEW]])
 --The small red marker on the line between read and unread messages.
 text("eotw.chat.new_divider", [[NEW]])
---The line above the messages: who is in town. {count} is how many, {names}
---their names.
-text("eotw.chat.presence_town", [[Here now ({count}): {names}]])
+--The line above the messages: how many are in town. {count} is how many;
+--hovering it lists their names (with any achievement badges).
+text("eotw.chat.presence_town.one", [[{count} player here now]])
+text("eotw.chat.presence_town.other", [[{count} players here now]])
 text("eotw.chat.presence_empty", [[Nobody is here yet.]])
---On the Game Chat tab: who is in the party.
-text("eotw.chat.presence_party", [[In this party ({count}): {names}]])
+--On the Game Chat tab: how many are in the party.
+text("eotw.chat.presence_party.one", [[{count} player in this party]])
+text("eotw.chat.presence_party.other", [[{count} players in this party]])
 --After a party member's name when they are not in town.
 text("eotw.chat.presence_away", [[(away)]])
 --The message box's placeholder.
@@ -270,11 +272,13 @@ text("eotw.status.connecting", [[Connecting to the town...]])
 text("eotw.gate.board_title", [[Encounter of the Week]])
 --The small line at the top of the week's banner.
 text("eotw.gate.week_overline", [[This Week's Encounter]])
+--The same line when the account has not yet defeated an earlier week's encounter, so the banner shows that one.
+text("eotw.gate.earlier_week_overline", [[Week {week}'s Encounter]])
 --In the banner before an encounter is set.
 text("eotw.gate.week_not_posted", [[The guild has not posted this week's encounter yet. Check back soon.]])
 --The board's buttons. Short: buttons.
 text("eotw.gate.form_party_button", [[Form a Party]])
-text("eotw.gate.past_button", [[Past Encounters]])
+text("eotw.gate.all_button", [[All Encounters]])
 --The error after Form a Party before an encounter is set.
 text("eotw.gate.week_not_posted_error", [[This week's encounter has not been posted yet.]])
 --When nobody is forming a party at the Gate.
@@ -542,10 +546,13 @@ text("eotw.quit.body", [[Quitting will close Draw Steel Codex and leave the town
 text("eotw.quit.cancel_button", [[Cancel]])
 text("eotw.quit.quit_button", [[Quit]])
 
---Past Encounters (the Town Gate's button).
-text("eotw.past.title", [[Past Encounters]])
-text("eotw.past.none", [[There are no past Encounters of the Week yet.]])
-text("eotw.past.form_party_button", [[Form a Party]])
+--All Encounters (the Town Gate's button): every Encounter of the Week so far.
+text("eotw.all.title", [[All Encounters]])
+--The small line above each encounter (shown in capitals).
+text("eotw.all.week", [[Week {week}]])
+text("eotw.all.week_defeated", [[Week {week} - Defeated]])
+text("eotw.all.defeated", [[Defeated]])
+text("eotw.all.form_party_button", [[Form a Party]])
 
 --Feedback on Your Encounters (the Proving Pits' button for creators).
 text("eotw.feedback.title", [[Feedback on Your Encounters]])
@@ -611,6 +618,10 @@ text("eotw.away.hero_line", [[<b>{hero}</b>: {results}]])
 text("eotw.away.hero_line_nothing", [[<b>{hero}</b>]])
 --The pieces of a hero's line.
 text("eotw.away.hero_fell", [[fell in battle]])
+--The encounter's consequence was Lost: in the Graveyard, never to return.
+text("eotw.away.hero_lost", [[lost in battle]])
+--The encounter's consequence was Retreat: the hero died but came home healed.
+text("eotw.away.hero_retreated", [[retreated to Blackbottom]])
 text("eotw.away.hero_victories.one", [[{count} Victory]])
 text("eotw.away.hero_victories.other", [[{count} Victories]])
 text("eotw.away.hero_no_victory", [[no Victory (already completed)]])
@@ -623,6 +634,8 @@ text("eotw.away.item_fallback", [[an item]])
 --The hint under the heroes: a win, a loss, a win where some heroes fell.
 text("eotw.away.hint_victory", [[Claim the victory for your heroes, or count the game as abandoned and leave it be.]])
 text("eotw.away.hint_defeat", [[Accept the defeat, and your fallen heroes are laid to rest in the Graveyard; or count the game as abandoned and leave it be.]])
+--A defeat where no hero is buried (they retreated, or survived).
+text("eotw.away.hint_defeat_none_fell", [[Accept the defeat, or count the game as abandoned and leave it be.]])
 text("eotw.away.hint_victory_fallen", [[Claim the victory for your heroes, and your fallen heroes are laid to rest in the Graveyard; or count the game as abandoned and leave it be.]])
 --The buttons. Short: buttons.
 text("eotw.away.claim_victory_button", [[Claim the Victory]])
@@ -884,6 +897,8 @@ text("guild.row.active", [[Active in town]])
 --{party} is the name of the party the hero is with.
 text("guild.row.away", [[Away: {party}]])
 text("guild.row.loading", [[Loading...]])
+text("guild.row.joining", [[Joining the guild...]])
+text("guild.row.dismissing", [[Dismissing...]])
 --Captions under the hero's numbers. Short: a few letters each.
 text("guild.stats.stamina", [[Stamina]])
 text("guild.stats.recoveries", [[Recov.]])
@@ -959,6 +974,8 @@ text("graveyard.status_ready", [[This hero does not stay dead. Awaken them to br
 text("graveyard.status_no_slot", [[Ready to awaken, but you have no free hero slot. Expand the Guild, or dismiss a hero.]])
 text("graveyard.status_fire", [[Fire destroyed this hero's body. Only a Rite of Return at the Temple of Saint Llewellyn can bring them back.]])
 text("graveyard.status_beyond", [[This hero met their doom. Nothing can bring them back.]])
+--A hero Lost in an encounter whose consequence is Lost.
+text("graveyard.status_lost", [[The hero's body is not recovered. They cannot be revived.]])
 text("graveyard.status_temple", [[This hero can be raised by a Rite of Return at the Temple of Saint Llewellyn.]])
 text("graveyard.status_restore_temple", [[Restore the Destroyed Temple, and this hero can be raised there.]])
 text("graveyard.status_risen", [[Returned from this grave {when}.]])
@@ -976,6 +993,11 @@ text("graveyard.fell", [[Fell]])
 text("graveyard.fell_in", [[Fell in {where}]])
 text("graveyard.fell_on", [[Fell, {when}]])
 text("graveyard.fell_in_on", [[Fell in {where}, {when}]])
+--The same lines for a Lost hero (missing, never to return).
+text("graveyard.lost", [[Lost]])
+text("graveyard.lost_in", [[Lost in {where}]])
+text("graveyard.lost_on", [[Lost, {when}]])
+text("graveyard.lost_in_on", [[Lost in {where}, {when}]])
 --{player} is the name of the player who played the hero.
 text("graveyard.played_by", [[Played by {player}]])
 --At the bottom of the list when there are more graves. Short: a button.
@@ -1014,6 +1036,9 @@ text("roster.hall.hero_fallback", [[Hero]])
 text("roster.hall.encounter_fallback", [[An Encounter of the Week]])
 --{players} is the players' names, separated by commas.
 text("roster.hall.played_by", [[Played by {players}]])
+--The same line when the players show achievement badges: this heading, then
+--each name with its badge.
+text("roster.hall.played_by_heading", [[Played by]])
 --Under the names: the encounter and when it was won. {encounter} is the
 --encounter's name, {when} the date.
 text("roster.hall.encounter_when", [[{encounter}, {when}]])
@@ -1128,6 +1153,40 @@ text("inn.respite.not_connected", [[not connected]])
 --whose past catches up with them.
 text("inn.secret_twin.banner_title", [[Secret Twin]])
 text("inn.secret_twin.banner_subtitle", [[You sense your past will soon catch up with you...]])
+
+----------------------------------------------------------------------------
+-- THE BLUE FISH INN: respite activities (EotwRespiteActivities.lua)
+----------------------------------------------------------------------------
+
+--The section heading, over one row per hero ability.
+text("inn.activity.heading", [[RESPITE ACTIVITIES]])
+--A row's second line. {hero} uses the ability.
+text("inn.activity.row_paid", [[{hero} - costs 1 Downtime Activity]])
+text("inn.activity.row_free", [[{hero} - free with a respite]])
+text("inn.activity.use_button", [[Use]])
+text("inn.activity.cancel_button", [[Cancel]])
+text("inn.activity.hero_fallback", [[Hero]])
+--Why the Use button is dimmed (tooltips).
+text("inn.activity.busy", [[Working...]])
+text("inn.activity.resting", [[A respite is under way.]])
+text("inn.activity.away", [[This hero is away in a party.]])
+text("inn.activity.used", [[Already used this respite.]])
+text("inn.activity.no_downtime", [[No Downtime Activities left.]])
+text("inn.activity.gone", [[This hero no longer has that ability.]])
+--The dialog. {hero} is the caster.
+text("inn.activity.dialog_caster", [[Used by {hero}]])
+text("inn.activity.choose_heroes.one", [[Choose a hero]])
+text("inn.activity.choose_heroes.other", [[Choose up to {count} heroes]])
+text("inn.activity.targets_heading", [[Affects]])
+text("inn.activity.mode_heading", [[Choose one]])
+--{count} is the caster's Downtime Activities before this one.
+text("inn.activity.cost_paid", [[Costs 1 of {hero}'s {count} Downtime Activities.]])
+text("inn.activity.cost_free", [[Free: part of a respite.]])
+text("inn.activity.pick_target", [[Choose a hero.]])
+--The banner after a use. {heroes} lists who it affects.
+text("inn.activity.banner", [[{heroes}]])
+--On a hero's inn row, for an effect another hero gave them.
+text("inn.activity.gift_from", [[{ability} (from {hero})]])
 
 ----------------------------------------------------------------------------
 -- THE BLUE FISH INN: where to spend Downtime (under the respite)
@@ -1453,7 +1512,7 @@ text("downtime.lines.town_hall.done_3", [[Let the town gather and decide. The To
 -- lead (Codex Titlescreen/EotwLeads.lua)
 ----------------------------------------------------------------------------
 
---The Arcane Market lead: its name, shown on the "A New Lead!" banner and the
+--The Arcane Market lead: its name, shown in the carouse result and on the
 --inn card.
 text("leads.arcane_market.title", [[The Arcane Market]])
 --Who tells it. The speaker line reads "{name}, {title}".
@@ -1470,8 +1529,8 @@ text("leads.arcane_market.line5_npc", [[Just the right set of contacts. An alche
 text("leads.arcane_market.line6_npc", [[Ask around, {hero}. And mind the gnome tinkerers: half of them are mad, and the other half are worse.]])
 text("leads.arcane_market.line7_hero", [[Then I know what I'm doing with my downtime.]])
 
---The Temple lead (tier 2): puts the Temple on the player's map. Its name, on
---the "A New Lead!" banner and the carouse result.
+--The Temple lead (tier 2): puts the Temple on the player's map. Its name, in
+--the carouse result.
 text("leads.temple.title", [[The Temple]])
 --Who tells it. The speaker line reads "{name}, {title}".
 text("leads.temple.npc_name", [[The Dawn Breaks over Whitest of Snow]])
@@ -1482,6 +1541,41 @@ text("leads.temple.built_narration", [[You can now visit the Temple to revive yo
 --Heard while the Temple is still being rebuilt (Restore the Temple).
 text("leads.temple.site_npc", [[I hear a Temple is being built that will allow restoring of the dead. I do wonder if one such as yourself would like to help build it?]])
 text("leads.temple.site_narration", [[You may now access the project to build the temple.]])
+
+--The tier 1 leads: each puts a place on the player's map. DRAFT text and
+--PLACEHOLDER tellers. Each has a name (the carouse result), a teller
+--("{name}, {title}"), and the teller's line plus a narration line: one pair
+--for a building still being built (site_) and one once built (built_).
+--The Graveyard (no project; also learned when a hero first falls).
+text("leads.graveyard.title", [[The Graveyard]])
+text("leads.graveyard.npc_name", [[Mother Ash]])
+text("leads.graveyard.npc_title", [[Gravedigger]])
+text("leads.graveyard.npc", [[Every hero who falls in this town ends up with me, sooner or later. The Graveyard's past the southern river, if you want to pay your respects.]])
+text("leads.graveyard.narration", [[You can now visit the Graveyard.]])
+--The Hall of Heroes.
+text("leads.hall.title", [[The Hall of Heroes]])
+text("leads.hall.npc_name", [[Wren Lightfingers]])
+text("leads.hall.npc_title", [[Storyteller]])
+text("leads.hall.built_npc", [[They've finished the Hall of Heroes. Every party that beat the Encounter of the Week is up on its walls.]])
+text("leads.hall.built_narration", [[You can now visit the Hall of Heroes.]])
+text("leads.hall.site_npc", [[The town is raising a Hall of Heroes, to remember every party that wins the Encounter of the Week. They could use a strong back.]])
+text("leads.hall.site_narration", [[You may now help build the Hall of Heroes.]])
+--The Town Hall.
+text("leads.town_hall.title", [[The Town Hall]])
+text("leads.town_hall.npc_name", [[Clerk Odril]])
+text("leads.town_hall.npc_title", [[Town Clerk]])
+text("leads.town_hall.built_npc", [[The Town Hall is open. Vote on the town's business, or bring a petition of your own.]])
+text("leads.town_hall.built_narration", [[You can now visit the Town Hall.]])
+text("leads.town_hall.site_npc", [[Blackbottom needs a Town Hall, somewhere folk can have their say. The site is between the Gate and the Proving Pits.]])
+text("leads.town_hall.site_narration", [[You may now help build the Town Hall.]])
+--The Training Grounds.
+text("leads.training_grounds.title", [[The Training Grounds]])
+text("leads.training_grounds.npc_name", [[Sergeant Holt]])
+text("leads.training_grounds.npc_title", [[Veteran]])
+text("leads.training_grounds.built_npc", [[Heroes go to the Training Grounds in the east district to grow stronger. You look like you could use it.]])
+text("leads.training_grounds.built_narration", [[You can now visit the Training Grounds.]])
+text("leads.training_grounds.site_npc", [[There's talk of Training Grounds in the east district, where heroes can grow stronger. They need hands to build them.]])
+text("leads.training_grounds.site_narration", [[You may now help build the Training Grounds.]])
 
 --The name above an NPC's line in a conversation.
 text("leads.conversation.npc_speaker", [[{name}, {title}]])
@@ -1497,6 +1591,10 @@ text("leads.carouse.roll_name", [[Carouse at the Blue Fish Inn]])
 text("leads.carouse.tier1", [[A sore head and no new friends. Nothing learned.]])
 text("leads.carouse.tier2", [[Good company and tall tales, but nothing worth chasing.]])
 text("leads.carouse.tier3", [[Someone in the corner knows a thing or two: learn a lead.]])
+--A tier's row when that tier would learn a lead.
+text("leads.carouse.tier1_lead", [[You listen and learn a useful morsel of information.]])
+text("leads.carouse.tier2_lead", [[You learn something of import.]])
+text("leads.carouse.tier3_lead", [[You bump into exactly the right person tonight.]])
 text("leads.carouse.who_heading", [[Who carouses]])
 --A hero to choose; {bonus} is like +2.
 text("leads.carouse.hero_choice", [[{hero}  (Presence {bonus})]])
@@ -1521,8 +1619,6 @@ text("leads.carouse.hint_roll", [[Click or throw the dice to carouse. One carous
 text("leads.carouse.listen_button", [[Listen...]])
 text("leads.carouse.close_button", [[Close]])
 text("leads.carouse.close_tooltip", [[Close]])
---The banner when a carouse learns a lead (the lead's name is under it).
-text("leads.carouse.new_lead_banner", [[A New Lead!]])
 --When the town is offline after the dice have landed.
 text("leads.carouse.offline", [[Not connected to the town. The carouse is saved and will be recorded when you reconnect.]])
 
@@ -1912,3 +2008,37 @@ text("moderation.ban.length_days.other", [[for {count} more days]])
 text("moderation.ban.come_back_note", [[You are welcome back in town once the ban ends.]])
 --The button that closes it. Short: a button.
 text("moderation.ban.ok_button", [[OK]])
+
+----------------------------------------------------------------------------
+-- ACHIEVEMENTS: badges players earn and show beside their name. Players see
+-- them as "achievements"; the code calls them Player Tags (EotwPlayerTags.lua,
+-- the list itself in EotwPlayerTagDefs.lua).
+----------------------------------------------------------------------------
+
+--The Hero's Guild button that opens the achievements list. Short: a button.
+text("tags.guild_button", [[Achievements]])
+--Its tooltip.
+text("tags.guild_tooltip", [[Pick the achievement that shows beside your name around town.]])
+--The list's heading and the line under it.
+text("tags.picker.title", [[Your Achievements]])
+text("tags.picker.subtitle", [[Pick one to show beside your name. Everyone in town will see it.]])
+--The first row of the list: show no achievement at all.
+text("tags.picker.none", [[Show nothing]])
+--Beside the achievement being shown.
+text("tags.picker.showing", [[Showing]])
+--Beside an achievement not yet earned (only you see these).
+text("tags.picker.locked", [[Not yet]])
+--When nothing has been earned yet.
+text("tags.picker.empty", [[Nothing here yet. Win an encounter or lend a hand on a town project, and your first one will turn up.]])
+--The button that closes the list. Short: a button.
+text("tags.picker.close_button", [[Close]])
+--When the town could not change the shown achievement.
+text("tags.select_failed", [[That didn't take. Give it another try in a moment.]])
+--The banner when one achievement is earned: its heading (its description is shown under it).
+text("tags.banner.title_one", [[Achievement Earned!]])
+--The banner when several are earned at once.
+text("tags.banner.title_many", [[{count} Achievements Earned!]])
+--The banner's buttons. Short: buttons.
+text("tags.banner.show_button", [[Show It Off]])
+text("tags.banner.choose_button", [[Take a Look]])
+text("tags.banner.later_button", [[Not Now]])

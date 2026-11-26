@@ -1473,9 +1473,21 @@ mod.shared.ShowCreateMapDialog = function(options)
         vscroll = true,
     }
 
+    --until the first sync finishes the library is empty; a first sync on
+    --an empty cache downloads every pack's index, so show how far it is.
     packStatus = gui.Label{
         classes = {"mapPackStatus"},
         text = "Syncing map packs...",
+        thinkTime = cond(mappacks.synced, nil, 0.25),
+        think = function(element)
+            if mappacks.synced then
+                element.thinkTime = nil
+                return
+            end
+            if mappacks.syncTotal > 0 then
+                element.text = string.format("Syncing map packs... %d/%d", mappacks.syncLoaded, mappacks.syncTotal)
+            end
+        end,
     }
 
     --what the grid ranks by: m_rankMarkup[pack] is the set of that pack's

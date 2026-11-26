@@ -12,10 +12,12 @@ local mod = dmhub.GetModLoading()
 --    NegotiationScene / NegotiationSceneStage (Draw Steel V), from the script
 --    in EotwTextForgeNegotiation.lua;
 --  * the City (city-core.ts "The Great Forge workshop") keeps the result:
---    interest 4 opens the Forge, 5 also puts 100 points into the account's
---    first treasure, anything lower locks the Forge to this player for a
---    while (3: 1 hour, 2: 4 hours, 0-1: 24 hours), shown on the town map as a
---    clock and countdown. A visit after the lock goes straight to the talk.
+--    interest 3 opens the Forge, 4 also puts 100 points into the account's
+--    first treasure and 5 puts 150, anything lower locks the Forge to this
+--    player for a while (2: 1 hour, 1: 4 hours, 0: 24 hours), shown on the
+--    town map as a clock and countdown. A visit after the lock goes straight
+--    to the talk. "Take the deal" only shows from interest 3, so a player
+--    cannot stop on an offer that turns them away.
 --Once in, each hero crafts one treasure at a time: Gold echelon 1 treasures
 --with a project goal, rolled with Downtime Activities on the hero's
 --"forge-craft" project, collected into their pack when done.
@@ -65,7 +67,7 @@ local function SetStatus(status)
 end
 
 --The account's Forge as last fetched (nil before the first answer):
---{built, standing, access, bonus, lastInterest, tries, remainingMs, crafts}.
+--{built, standing, access, bonus, bonusPoints, lastInterest, tries, remainingMs, crafts}.
 function EotwForge.Status()
     if m_statusUser ~= dmhub.loginUserid then
         return nil
@@ -400,6 +402,8 @@ function EotwForge.ShowNegotiation(host, opts, onDone)
             return beat
         end,
         Heroes = Speakers,
+        --offers below 3 turn the player away (city-core.ts forgeLockoutMs).
+        minDealInterest = 3,
         ShowRoll = function(args)
             ShowRoll(args, overlay, rollDialog)
         end,
@@ -665,8 +669,46 @@ local function ProjectGoal(item)
     return math.floor(n)
 end
 
+--Leveled treasures rated Silver or Bronze overall that are fully automated
+--through 4th level (David 2026-11-18). Each one's implementationDetails says
+--what is missing at 5th and 9th level. Reviewed 2026-11-18.
+EotwForge.GOLD_BELOW_5TH = {
+    ["aba29226-030c-4c1c-baa9-318c366b9b6d"] = true, --Abjurer's Bastion
+    ["9e8eea25-436a-4a04-975e-d28a87dca2e8"] = true, --Bloodbound Band
+    ["158b8282-86cd-48a4-bb23-9ea6d4c724fc"] = true, --Bloody Hand Wraps
+    ["403089f6-e0d6-4b23-9e76-1b68e1f35445"] = true, --Brittlebreaker
+    ["df49e435-f1e4-4a48-bba2-5f4b22db0307"] = true, --Chain of the Sea and Sky
+    ["4f0bb297-f296-4c8b-a3c8-52b0b7fa4333"] = true, --Horned Champion (beastheart only)
+    ["02d796d9-2e7f-4ab6-8125-b4e291e77af2"] = true, --Icemaker Maul
+    ["3cc6178c-ff64-4c19-aa07-3a9ccf64f528"] = true, --Knife of Nine
+    ["0fab2312-e2ab-4bf4-bb14-d71dfd9bd678"] = true, --Molten Constrictor
+    ["5b591629-185c-4451-86d1-60e7c0ffc919"] = true, --Onerous Bow
+    ["7ad4f615-5b3b-47ae-9c41-c2f0faed324d"] = true, --Steeltongue
+    ["021fbd10-0dff-40af-94ca-629a700715f1"] = true, --Third Eye Seeker
+    ["37303870-6a01-4f63-9111-dbd1a6fe6c0e"] = true, --Thunderhead Bident
+    ["c3c028c1-d3ce-452a-84d7-440c18010012"] = true, --Wetwork
+}
+
+--Silver echelon 1 consumables and trinkets whose gaps don't matter with no
+--Director (David 2026-11-19), like EotwMarket.EXTRA_STOCK. Each one's gap is
+--in its implementationDetails. Reviewed 2026-11-19. Deadweight is left out:
+--its free strike while falling is not built, so it only adds fall damage.
+EotwForge.EXTRA_TREASURES = {
+    ["5969d015-13fd-40e2-b2d5-be67a4169f5a"] = true, --Catapult Dust
+    ["19280d26-b619-4441-90d5-1d23d0deb9da"] = true, --Giant's-Blood Flame
+    ["b4ff06aa-75ae-4ed5-86e5-e6e22a29e09e"] = true, --Imp's Tongue
+    ["a6d7f43e-fb4d-488c-b588-2aaa58c54a28"] = true, --Mirror Token
+    ["229966c5-e4d5-419d-94e6-18dc9aba8159"] = true, --Portable Cloud
+    ["d71a0de3-99de-4a96-b3f3-0a65a21ff9db"] = true, --Snapdragon
+    ["b2f04f55-0275-4e4e-a6b4-23dc3ffce594"] = true, --Color Cloak - Red
+    ["cf2b74c7-e511-45c2-b0be-517eddf0bdcc"] = true, --Divine Vine
+    ["d20ae94a-9917-43be-b69b-38113b36fc97"] = true, --Gecko Gloves
+    ["15987441-aa72-4fad-bc72-85b841c53e2b"] = true, --Speaking Scarab (companion only)
+}
+
 --What the Forge can craft (David 2026-11-15: Gold echelon 1 treasures for
---now, prerequisites ignored; imbuements left out): { {itemid, item, goal}, ... } by name.
+--now, prerequisites ignored; imbuements left out; plus GOLD_BELOW_5TH and
+--EXTRA_TREASURES): { {itemid, item, goal}, ... } by name.
 function EotwForge.Treasures()
     local result = {}
     local gear = dmhub.GetTable("tbl_Gear") or {}
@@ -678,7 +720,7 @@ function EotwForge.Treasures()
             and item:try_get("imbueTargetType") == nil
             and item:try_get("hiddenFromPlayers", false) ~= true
             and (tonumber(item:try_get("echelon", 1)) or 1) == 1
-            and (tonumber(item:try_get("implementation", 1)) or 1) >= gui.ImplementationStatus.Gold then
+            and (EotwForge.GOLD_BELOW_5TH[itemid] or EotwForge.EXTRA_TREASURES[itemid] or (tonumber(item:try_get("implementation", 1)) or 1) >= gui.ImplementationStatus.Gold) then
             result[#result+1] = { itemid = itemid, item = item, goal = goal }
         end
     end
@@ -1621,6 +1663,111 @@ function EotwForge.Collect(heroid, onDone)
     end)
 end
 
+--Project Points per Downtime Activity a cancelled craft gives back (the
+--City's FORGE_CANCEL_POINTS_PER_ROLL; the City decides, this only previews).
+local CANCEL_POINTS_PER_ROLL = 40
+
+--Downtime Activities cancelling this craft gives back: 1 per 40 points, partials nothing.
+function EotwForge.CancelRefund(craft)
+    return math.floor((tonumber(craft.points) or 0) / CANCEL_POINTS_PER_ROLL)
+end
+
+--Give up a hero's unfinished treasure. onDone(ok, resultOrMessage), result =
+--{refunded, points, downtime, forge}.
+function EotwForge.CancelCraft(heroid, onDone)
+    local craft = EotwForge.Craft(heroid)
+    Request("forge-cancel-craft", { heroid = heroid }, function(ok, result)
+        if ok then
+            SetStatus(result.forge)
+            EotwRoster.SetListedDowntime(heroid, result.downtime)
+            EotwAnalytics.Track("eotw_forge_cancel", { heroid = heroid, itemid = craft ~= nil and craft.itemid or nil,
+                points = result.points, refunded = result.refunded })
+        end
+        onDone(ok, result)
+    end)
+end
+
+--Asks before cancelling a hero's treasure, saying what comes back.
+--onConfirm() runs on Yes.
+local function ShowCancelConfirm(host, heroName, craft, onConfirm)
+    if host == nil or not host.valid then
+        return
+    end
+    local refund = EotwForge.CancelRefund(craft)
+    local dlg
+    local function Close()
+        if dlg ~= nil and dlg.valid then
+            dlg:DestroySelf()
+        end
+    end
+    local function Button(text, run)
+        return gui.Button{
+            text = text,
+            fontSize = 18,
+            width = 180,
+            height = 42,
+            hmargin = 8,
+            click = function()
+                audio.FireSoundEvent("Mouse.Click")
+                Close()
+                if run ~= nil then
+                    run()
+                end
+            end,
+        }
+    end
+    dlg = gui.Panel{
+        floating = true,
+        width = 560,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#14110dff",
+        borderWidth = 2,
+        borderColor = "#8c7a55",
+        cornerRadius = 10,
+        flow = "vertical",
+        pad = 24,
+        borderBox = true,
+        styles = { Styles.Default },
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            Close()
+        end,
+        gui.Label{
+            text = T("great_forge.workshop.cancel_title", { item = craft.itemName or "" }),
+            fontSize = 26,
+            bold = true,
+            color = TEXT,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+        },
+        gui.Label{
+            text = cond(refund > 0,
+                UIText.Plural("great_forge.workshop.cancel_refund", refund, { hero = heroName }),
+                T("great_forge.workshop.cancel_no_refund", { hero = heroName })),
+            fontSize = 17,
+            color = DIM,
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            vmargin = 14,
+        },
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            Button(T("great_forge.workshop.cancel_confirm_button"), onConfirm),
+            Button(T("great_forge.workshop.cancel_keep_button"), nil),
+        },
+    }
+    host:AddChild(dlg)
+end
+
 --A hero's craft as last fetched, or nil.
 function EotwForge.Craft(heroid)
     local status = EotwForge.Status()
@@ -1783,6 +1930,37 @@ local function HeroRow(host, hero, busy, setBusy)
         }
     end
 
+    --right-click an unfinished treasure to give it up for some Downtime back.
+    local rightClick = nil
+    if craft ~= nil and not craft.completed and tok ~= nil and not away then
+        rightClick = function(element)
+            if busy then
+                return
+            end
+            element.popup = gui.ContextMenu{
+                width = 220,
+                entries = {
+                    {
+                        text = T("great_forge.workshop.cancel_menu"),
+                        click = function()
+                            element.popup = nil
+                            ShowCancelConfirm(host, name, craft, function()
+                                setBusy(true)
+                                EotwForge.CancelCraft(hero.heroid, function(ok, result)
+                                    setBusy(false)
+                                    if not ok then
+                                        EotwDowntime.UI.ShowBanner(host, T("great_forge.workshop.error_banner"), tostring(result))
+                                    end
+                                end)
+                            end)
+                        end,
+                    },
+                },
+                click = function() element.popup = nil end,
+            }
+        end
+    end
+
     return gui.Panel{
         width = "100%",
         height = 84,
@@ -1794,6 +1972,7 @@ local function HeroRow(host, hero, busy, setBusy)
         bgcolor = "#1d1913",
         cornerRadius = 6,
         opacity = cond(away, 0.5, 1),
+        rightClick = rightClick,
         children = {
             Portrait(tok),
             itemBox or gui.Panel{ width = 0, height = 0 },
@@ -1885,7 +2064,9 @@ function EotwForge.Panel(host, opts, close)
             end
         else
             if status.bonus then
-                rows[#rows+1] = gui.Label{ text = T("great_forge.workshop.bonus"), fontSize = 15, bold = true, color = GREEN, width = "100%", height = "auto", bmargin = 6 }
+                --a server from before bonusPoints only gave 100.
+                local points = tonumber(status.bonusPoints) or 100
+                rows[#rows+1] = gui.Label{ text = T("great_forge.workshop.bonus", { points = points }), fontSize = 15, bold = true, color = GREEN, width = "100%", height = "auto", bmargin = 6 }
             end
             for _, hero in ipairs(EotwRoster.GetHeroes() or {}) do
                 rows[#rows+1] = HeroRow(host, hero, busy, SetBusy)

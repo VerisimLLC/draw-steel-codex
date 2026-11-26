@@ -1750,6 +1750,27 @@ function MarkdownDocument.PageSkinPalette(doc)
     }
 end
 
+--Style rules that repaint a dropdown (the closed box and its open menu) in a
+--journal page's colors. Add them to a widget's styles; the open menu is drawn
+--inside the widget, so these rules reach it too. Priority 60 is needed to beat
+--the app theme's own dropdown rules, the highest of which is 55.
+--- @param pal table A palette from MarkdownDocument.PageSkinPalette.
+--- @return table[] styles
+function MarkdownDocument.PageSkinDropdownStyles(pal)
+    return {
+        { selectors = {"dropdown"}, priority = 60, bgcolor = pal.page, borderColor = pal.border },
+        { selectors = {"dropdown", "hover"}, priority = 60, bgcolor = pal.wash },
+        { selectors = {"label", "dropdownLabel"}, priority = 60, color = pal.ink },
+        { selectors = {"dropdownTriangle"}, priority = 60, bgcolor = pal.ink },
+        { selectors = {"dropdownBorder"}, priority = 60, bgcolor = pal.page, borderColor = pal.border },
+        { selectors = {"dropdownOption"}, priority = 60, bgcolor = pal.page, color = pal.ink },
+        { selectors = {"dropdownOption", "hover"}, priority = 60, bgcolor = pal.wash, color = pal.ink },
+        --Keep after the hover rule: on a tie the later rule wins, so a hovered
+        --disabled option stays muted.
+        { selectors = {"dropdownOption", "disabled"}, priority = 60, color = pal.muted },
+    }
+end
+
 --Redaction hides text by drawing it in the same colour as its own highlight, so
 --`ink` must feed both; the app theme's pale @fg leaves a washed-out bar on a page.
 --A deterministic letter permutation, one per language. NOT cryptography and not meant
@@ -3117,6 +3138,13 @@ end
 ---@field tiers string[]
 ---@field preset? string
 
+--Size of the easy/medium/hard cycler beside a test's title. The title's width
+--limit reserves this much, so change them here, not on the label.
+local PRESET_CYCLER_WIDTH = 120
+local PRESET_CYCLER_MARGIN = 8
+--The title's widest size when a cycler sits beside it.
+local TITLE_MAX_WIDTH_WITH_CYCLER = string.format("100%%-%d", PRESET_CYCLER_WIDTH + PRESET_CYCLER_MARGIN)
+
 --getDocument() must RESOLVE the document, not be handed it. This panel is pooled
 --(ctx.pools.powerTables) and the pool lives on the render context, which persists
 --across renders, while a cloud update REPLACES the document's table row -- so
@@ -3144,17 +3172,24 @@ local function PowerRollDisplay(getDocument)
         halign = "left",
         valign = "top",
 
+        --The header row spans the card so the title can wrap inside it. The card
+        --is auto-width, and an auto-width title used to widen it past the page.
         gui.Panel{
             height = "auto",
-            width = "auto",
+            width = "100%",
             flow = "horizontal",
             halign = "left",
             gui.Label {
                 classes = { "link", "bold" },
                 halign = "left",
+                width = "auto",
+                height = "auto",
                 refreshPowerRoll = function(element, info)
                     m_info = info
                     element.text = string.format("%s: %s", info.name, info.attr)
+                    --A short title stays its own width; a long one wraps, leaving
+                    --room for the difficulty cycler beside it when the test has one.
+                    element.selfStyle.maxWidth = cond(info.preset == nil, "100%", TITLE_MAX_WIDTH_WITH_CYCLER)
                 end,
                 press = function(element)
                     local attr = string.lower(m_info.attr)
@@ -3208,11 +3243,14 @@ local function PowerRollDisplay(getDocument)
 
             gui.Label{
                 classes = {"fg", "link"},
-                lmargin = 8,
+                lmargin = PRESET_CYCLER_MARGIN,
                 fontSize = 16,
-                width = 120,
+                width = PRESET_CYCLER_WIDTH,
                 height = 18,
                 valign = "center",
+                --Without this the label centers itself in the row's empty space,
+                --far from a short title. Left alignment keeps it right after the title.
+                halign = "left",
                 text = "",
                 refreshPowerRoll = function(element, token)
                     if token.preset == nil then
@@ -4637,6 +4675,9 @@ local function RenderMarkdownTokens(ctx, tokens)
                             rollProperties = RollOnTableProperties.new{
                                 tableRef = ref,
                             },
+                            completeRoll = function(rollInfo)
+                                RollOnTableProperties.NotifyRolled(charToken and charToken.properties or nil, ref, rollInfo)
+                            end,
                         }
 
                         GameHud.instance.rollDialog.data.ShowDialog(rollArgs)

@@ -3883,6 +3883,34 @@ local function CreateCreatorOrganizationsSection()
 			children[#children+1] = titleLabel
 		end
 
+		--every member can open the org's hero module analytics on
+		--draw-steel-codex.com. orgAnalyticsLink (cloud-functions
+		--org-analytics.js) checks membership and returns a link that signs the
+		--browser in.
+		children[#children+1] = gui.Button{
+			width = 170,
+			height = 30,
+			fontSize = 14,
+			vmargin = 4,
+			text = "View Analytics",
+			click = function(element)
+				net.Post{
+					url = dmhub.cloudFunctionsBaseUrl .. "/orgAnalyticsLink",
+					data = { orgid = org.id },
+					success = function(data)
+						if type(data) == "table" and data.ok and type(data.url) == "string" then
+							dmhub.OpenURL(data.url)
+						else
+							ErrorModal("View Analytics", type(data) == "table" and data.error or nil)
+						end
+					end,
+					error = function(msg)
+						ErrorModal("View Analytics", msg)
+					end,
+				}
+			end,
+		}
+
 		children[#children+1] = gui.Label{
 			width = "100%",
 			height = "auto",
@@ -6799,6 +6827,17 @@ function CreateSettingsScreen(dialog, args)
 		return editor
 	end
 
+	--The merge option shows only where the engine can merge the title bar: not on
+	--Mac, and not under Wine/Proton, where it froze the app on the splash screen.
+	--An empty collapsed panel stands in so the row is absent from search too.
+	local MergedTitleBarSetting = function()
+		local ok, available = pcall(function() return dmhub.mergedTitleBarAvailable end)
+		if ok and available == true then
+			return Setting("mergedtitlebar")
+		end
+		return gui.Panel{ classes = {"collapsed"} }
+	end
+
 	local SettingsHeading = function(title)
 		return gui.Label{
 			width = "100%",
@@ -7425,7 +7464,9 @@ function CreateSettingsScreen(dialog, args)
 		id = "settingsDialog",
 		classes = {"dialog"},
 
-		width = 1140,
+		--9 tabs (Director, with Shortcuts) at the 130px "tab" style width = 1170px,
+		--plus the dialog's padding and a little margin each side.
+		width = 1240,
 		height = 900,
 		halign = "center",
 		valign = "center",
@@ -7680,7 +7721,7 @@ function CreateSettingsScreen(dialog, args)
 						--Setting('perf:hideftextures'),
 						Setting('perf:castshadows'),
                         Setting("graphics:uiblur"),
-                        Setting("mergedtitlebar"),
+                        MergedTitleBarSetting(),
 
 						SettingsSection("Graphics"),
 

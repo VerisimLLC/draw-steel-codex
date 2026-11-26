@@ -1249,7 +1249,10 @@ end
 --table (kind "placeobjects", "bystanders" or "victory"; `label` is the
 --word before the colon).
 function E.SetupLine(ins)
-    if ins.kind == "victory" then
+    if ins.kind == "consequence" then
+        local c = tostring(ins.consequence or EncounterScript.DEFAULT_CONSEQUENCE)
+        return "Consequence: " .. string.upper(string.sub(c, 1, 1)) .. string.sub(c, 2)
+    elseif ins.kind == "victory" then
         local who = "enemy"
         if ins.who ~= nil and ins.who ~= "" then
             who = E.LineText(ins.whoText or ins.who)

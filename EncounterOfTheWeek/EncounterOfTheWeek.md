@@ -126,6 +126,7 @@ The per-hero Victory award is not yet seen. See "Challenge Mode".
 
 | Change | Files | State |
 |---|---|---|
+| **Encounter consequence: Retreat / Death / Lost** (2026-11-23, user direction; see "The consequence: what happens to a hero who dies") | Codex: `EncounterScript.lua` (`Consequence:` line, `ParseConsequenceInstruction`, `FindConsequence`, `CONSEQUENCES`, `DEFAULT_CONSEQUENCE`), `EncounterScriptValidator.lua` (row per encounter beat), `EncounterZones.lua` (setup entry), `EncounterScriptEdit.lua` (`E.SetupLine` kind `consequence`), `EncounterScriptBuilder.lua` ("If a hero dies" dropdown), `EncounterOfTheWeek.lua` (`EncounterOfTheWeekGame.Consequence`, `OutcomesFor`, `eotw-consequence` card note, analytics `heroesRetreated` / `heroesLost` / `consequence`), `EncounterText.lua`, `EncounterAuthoringText.lua`; town `Codex Titlescreen/EotwRoster.lua` (Lost graves), `EotwHeroSheet.lua` (Lost epitaph), `EotwTemple.lua`, `EncounterOfTheWeek.lua` (While You Were Away lines), `EotwTextTown.lua`, `EotwTextHeroes.lua`, `EotwTextTemple.lua`; `tests/encounter_script_test.lua`; skill `script-reference.md`. Server: `cloudflare-game-server/src/city-core.ts` (`epitaph.lost`, grave state `lost`, `start-rite` refuses it), `test/city-core.test.ts` | luac + typing clean; parser test 1250, edit test 1006, city-core 161 pass. Server DEPLOYED to staging 2026-11-23 (version `ac7a23b9`), NOT release. NOT run in the app (needs a RESTART). Check: in a game with no line a hero who dies shows "Retreats to Blackbottom" on the victory/defeat card and comes home at full Stamina and Recoveries with no Victory or treasure; `Consequence: Lost` gives a Graveyard row "Lost in ..." with "The hero's body is not recovered. They cannot be revived.", no Awaken button and no Temple rite; Deadly Mode buries; the builder dropdown writes and rewrites the line. UNCOMMITTED |
 | **Beastheart companions deploy at the start** (2026-10-24, user direction; see "Beastheart companions" under "Start-zone confinement"): a beastheart's companion is summoned onto the free Start-zone tile nearest its hero when the hero is placed | core `Draw Steel Beastheart/DSBeastheart.lua` (new `creature:SummonCompanionAt(beastheartToken, destination)`; the Call button's `CallCompanion` now calls it), `EncounterOfTheWeek.lua` (`EncounterOfTheWeekGame.DeployMyCompanions` -- a table field because the file is at the 200-local limit; called after `UnstackPlacedHeroes` in `SetupOnArrival` and after `PlaceMyHeroes` in `TestArrival`; End Test also deletes companions summoned by the hero copies) | luac + typing clean. NOT run in the app (needs a RESTART; no Beastheart in the authoring game yet). Check: an authoring test with a Beastheart puts the companion in the Start zone, owned by the player and sharing the hero's initiative entry; it can move inside the confinement; End Test removes it; a resume does not re-summon a dead companion; a Large companion fits. UNCOMMITTED |
 | **Spend a Recovery out of combat** (2026-10-26, user direction): on the montage, narrative and prep stages a hero may spend a Recovery freely (no action; it is not combat). A small green "+" sits beside the recoveries circle on the stage's hero cards, shown only while the local user controls the hero (`canControlAsUser`, falling back to `canControl`), the hero is below max Stamina and has a Recovery left, and is not dead. Pressing it heals Recovery-value Stamina and spends one Recovery (`ModifyProperties`, undoable). The narrative stage covers the screen before a fight and its "Draw steel!" screen. Hero cards everywhere else (roster, town, tabletop) do not get the button | core `Codex Titlescreen/EotwHeroCard.lua` (new `opts.spendRecovery`; `SpendableRecovery`, `CreateSpendRecoveryButton`, `eotwSpendRecovery` styles; `CreateStaminaRow` shrinks the bar 17 px while the button shows), `Codex Titlescreen/EotwTextHeroes.lua` (`herocard.recoveries.spend_tooltip`); `EncounterMontageStage.lua` (`spendRecovery = true` on the montage, narrative and prep hero cards) | luac + typing clean. NOT run in the app (needs a RESTART). Check: the "+" shows on a hurt hero you control and not at full Stamina, at 0 Recoveries, or on another player's hero; pressing it heals and the circle counts down; the button and its narrower bar look right on the card; no click falls through to the card's select / character panel. UNCOMMITTED |
 | **Spending Hero Tokens** (2026-10-22, user direction; see "Hero Token spends"): the Hero Tokens pool cell opens a spend menu on the local player's hero's turn (1 token: 2 surges; 2 tokens: Recovery-value Stamina), and the character panel's Hero Token icon opens the same menu in every game | core `Draw Steel Core Rules/DSResources.lua` (`CharacterResource.HeroTokenSpendOptions`, `HeroTokenSpendMenuEntries`), `Draw Steel Core Rules/MCDMCharacterPanel.lua` (`TacPanel.HeroTokenBox` icon press + tooltip line); `EncounterOfTheWeekHud.lua` (`SpendingHero`, `CanSpendHeroTokens`, the cell's `spendable` class, `refreshPools`/`press`, tooltip hint), `EncounterText.lua` (`hud.pool.herotokens.spend_hint`) | luac + typing + `uitext_check` clean. VERIFIED live 2026-10-22 in the Dwarvish Bandits authoring test (`1e3c159e`, player host, strict rules, High Elf Tactician's turn): outline + tooltip hint; the menu hangs under the cell (`popupPositioning = "panel"`, tooltip cleared on press); Gain 2 Surges took 1 token and gave 2 surges; with 1 token only the surge row showed; Regain 11 Stamina took 2 tokens and healed 25 -> 33; at 0 tokens the cell did not open; at full Stamina only the surge row. As Director (strict off) the character panel's token icon listed both, the Stamina row greyed "already at full Stamina", and Gain 2 Surges worked. NOT seen: a turn other than the hero's (the cell should not open), multi-client. The save-side "Succeed Instead" needed no change: VERIFIED live 2026-10-22 in an authoring test (a failed save vs Slowed showed the button under strict rolls; it spent 1 token and ended Slowed). UNCOMMITTED |
@@ -408,7 +409,7 @@ luac/typing/UIText clean, NOT run in the app. Uncommitted. See "Moderation: warn
 | Publisher (official module) | `tools/eotw_publish/` (`publish_eotw.py`, README) |
 | Community Encounter of the Week modules (publish-dialog type + checks) | `DMHub Core Panels/ModShare.lua` (`eotw` in `g_moduleTypes`, `CheckEncounterModule`) |
 | Encounter pool, encounter keys, admin pull | `Codex Titlescreen/EncounterOfTheWeek.lua` ("the encounter pool" section, `ShowPoolDialog`) |
-| The week's schedule, the Gate and Proving Pits boards, Past Encounters, the debrief, the admin week dialog | `Codex Titlescreen/EncounterOfTheWeek.lua` ("the week's schedule" section, `ShowWeekDialog`; in `CreateScreen`: `PartyBoard`, `BoardChildren`, `WeekBanner`, `DangerEncounterRow`, `ShowPastEncountersDialog`, `ShowCreatorFeedbackDialog`, `ShowDebriefDialog`) |
+| The week's schedule, the Gate and Proving Pits boards, All Encounters, the debrief, the admin week dialog | `Codex Titlescreen/EncounterOfTheWeek.lua` ("the week's schedule" section, `ShowWeekDialog`; in `CreateScreen`: `PartyBoard`, `BoardChildren`, `WeekBanner`, `DangerEncounterRow`, `ShowAllEncountersDialog`, `ShowCreatorFeedbackDialog`, `ShowDebriefDialog`) |
 | The schedule, debriefs, nominations and unlocks on the server | `cloudflare-game-server/src/city-core.ts` ("The Encounter of the Week and the Proving Pits"), `src/city.ts` |
 | Weekly assessment + rotation tooling | `tools/eotw_week.py` (admin HTTP), `.claude/skills/eotw-rotate/` (MCP) |
 | Authoring content | `C:\dev\eotw` (git repo, no remote) + the Local authoring game `e96656f3-a11c-477b-89f1-978452983324` |
@@ -724,8 +725,8 @@ All in `Codex Titlescreen/EncounterOfTheWeek.lua`, mounted on
   record whose host is gone expires 5 minutes after its last heartbeat.
 - **Choosing the encounter.** Since 2026-10-06 the party's encounter is
   chosen by WHERE it is formed, not from a dropdown: the Gate's Form a Party
-  sets out for the Encounter of the Week, Past Encounters for an earlier
-  one, and a Proving Pits row for that encounter (see "The Encounter of the
+  sets out for the encounter it presents, All Encounters for any
+  other scheduled one, and a Proving Pits row for that encounter (see "The Encounter of the
   Week and the Proving Pits"). The maps are still found by name: a map named
   exactly `Encounter` is a module's default and any map named
   `Encounter: <title>` is another; the **encounter pool** is the official
@@ -1302,10 +1303,16 @@ graveyard.
       (the stage) and `NegotiationSceneText.lua` (`negscene.*`). Motivations
       Greed and Discovery, pitfalls Brag and Flirt; starting attitude Open /
       Neutral / Suspicious by standing (David). The players may take the offer
-      on the table at any time; there is no Refuse in town. Interest 4 gives a
-      station; 5 a station plus 100 points on the first craft any of the
-      account's heroes starts (David: the first only); 3 locks the
-      Forge for 1 h, 2 for 4 h, 1 or 0 for 24 h. Leaving before anyone argued
+      on the table once interest is 3 or more ("Take the deal" is hidden
+      below that: host option `minDealInterest`); there is no Refuse in town.
+      Interest 3 gives a station; 4 a station plus 100 points on the first
+      craft any of the account's heroes starts (David: the first only), 5 plus
+      150; 2 locks the Forge for 1 h, 1 for 4 h, 0 for 24 h (David
+      2026-11-23, made easier after analytics showed 13% of talks reaching
+      the old 4: `eotw_forge_negotiation_end`). The City stores the waiting
+      bonus as points in `city_forge.bonus`; an old row's 1 reads as 100.
+      Patience running out still ends the talk on the final offer whatever
+      the interest. Leaving before anyone argued
       reports nothing; leaving after reports the interest reached. The report
       (`forge-negotiated`, idempotent per negotiation guid) is saved locally
       first (`eotw:pendingForgeTalk`) and resent on the next status fetch.
@@ -1595,7 +1602,7 @@ configs; city id for the town: `blackbottom`):
   | `put-hero {heroid, baseRev, summary, record, assets?}` | owner | `baseRev` 0 creates (12 living max); otherwise must equal the stored `rev` (conflict -> reload and retry). A fallen hero cannot be changed |
   | `delete-hero {heroid}` | owner | dismiss; refused while the hero is in a party |
   | `set-active {heroids}` | owner | replace the active set (max 4, living, own) |
-  | `record-outcome {heroid, gameid, outcome, died?}` | owner | append to the hero's adventure log, idempotent per (hero, game). `died` sets the hero fallen and inactive and digs a grave whose epitaph comes from the summary + `outcome.encounter` + owner name. `outcome.completed` (with `outcome.encounter`, not dying) records that the hero won that encounter (`city_completions`) |
+  | `record-outcome {heroid, gameid, outcome, died?}` | owner | append to the hero's adventure log, idempotent per (hero, game). `died` sets the hero fallen and inactive and digs a grave whose epitaph comes from the summary + `outcome.encounter` + owner name; with `outcome.lost` the epitaph is marked `lost` and the grave's state is `lost` (no awakening, no Rite of Return; see "The consequence"). `outcome.completed` (with `outcome.encounter`, not dying) records that the hero won that encounter (`city_completions`) |
   | `list-outcomes {userid?, heroid}` | anyone | the hero's adventure log |
   | `list-graveyard {before?, limit?, mine?}` | anyone | graves newest first, paged (50 default, 100 max), `more` flag; `mine` = the caller's only (the Graveyard's Your Fallen tab) |
   | `awaken-hero {heroid}` | owner | a fallen Hakaan / Revenant / Vampire (summary ancestry) back to the roster, living and inactive, if a slot is free; deletes its grave, keeps the outcome log. Record = the last one pushed from town (the fatal game never pushed). Graveyard Awaken button (added 2026-11-11) |
@@ -1821,8 +1828,9 @@ holds.
   the card's body (it was the `ShowGuild` dialog).
 - **Gate**: since 2026-10-06 a "This Week's Encounter" banner (title,
   creator credit, the `# Town Gate` blurb), then "Parties Forming" and
-  "Encounters Underway" for Gate parties; Form a Party (this week's) and
-  Past Encounters along the bottom. The Proving Pits are a second board of
+  "Encounters Underway" for Gate parties; Form a Party and All Encounters
+  along the bottom (since 2026-11-22 the banner is the newest encounter the
+  account has not defeated; see "The Town Gate"). The Proving Pits are a second board of
   the same kind; see "The Encounter of the Week and the Proving Pits". The add-hero picker lists your living roster heroes that are
   neither claimed nor away, active ones first, as `{kind = "roster"}`.
   - **Active heroes join by default** (user direction 2026-10-03). Forming a
@@ -2157,8 +2165,9 @@ progression rules can be applied after the fact. Run the design with the
 User direction (2026-10-06): at any time there is ONE specific encounter that
 is **the** Encounter of the Week. It stays so until it is rotated by hand
 (a script or a Claude skill). The Town Gate describes it from its published
-blurb and parties form for it; a **Past Encounters** option offers the
-earlier ones, but this week's is the default and focus. User-made encounters
+blurb and parties form for it; an **All Encounters** option offers every
+one up to this week. Since 2026-11-22 the Gate presents each account the
+newest Encounter of the Week it has not defeated (see "The Town Gate"). User-made encounters
 never appear at the Gate: they play in a new town location, the **Danger
 Rooms** -- experimental, no Victories, no treasure, nothing durable, otherwise
 a normal encounter (a practice ground). After a Proving Pits game each player
@@ -2210,16 +2219,45 @@ first Encounter of the Week; Angry Dwarves is retired.
 
 ## The Town Gate
 
-- The board opens with a **"This Week's Encounter"** banner: the title (the
+- **Which encounter the Gate presents** (user direction 2026-11-22): the
+  newest Encounter of the Week (current, then past, newest first) that this
+  ACCOUNT has not defeated; once it has defeated them all, this week's.
+  Defeated = any of the account's heroes has won it (`EotwRoster.AccountCompleted`,
+  dismissed and fallen heroes included). A series is defeated only when every
+  part played at the Gate is won: parts still "Coming soon" there, or played
+  only in the Proving Pits, are not counted. Before the pool has loaded a
+  series reads as its first part. `EncounterOfTheWeek.GatePresentedEncounter()`
+  (key, week) in `Codex Titlescreen/EncounterOfTheWeek.lua`, with
+  `ScheduledEncounters()` and `AccountDefeated(key)` beside it. Each player
+  sees their own; a party plays what its leader picked. Everything else that
+  asks "is this the Encounter of the Week" (`IsScheduledEncounter`, the Proving
+  Pits exclusion, the Pits unlock, the admin dialog) still reads the real
+  `current`.
+- **Week numbers** count from 1 for the oldest scheduled encounter, so week N
+  offers N encounters. The City's own `week` counter also counts re-sets and
+  repairs and runs ahead of the list (5 for 3 encounters on 2026-11-22), so
+  the Gate does not show it. (The graveyard's `GraveWeek` in `EotwRoster.lua`
+  still uses the counter.)
+- The board opens with the presented encounter's banner: "This Week's
+  Encounter" for the current one, "Week N's Encounter" for an earlier one
+  (`eotw.gate.earlier_week_overline`). The banner re-checks every second and
+  rebuilds the board when the account's wins (which arrive from `list-heroes`
+  after the board is built, and change after a game) move it on. Then the
+  title (the
   pool entry's, so the module record must be loaded), the creator credit for
   a community encounter, and the `# Town Gate` blurb, which reaches the town
   through the module record (`publishingProperties.eotwEncounters`, written
   by the publisher / ModShare) -- a script edit shows only after a publish.
 - Then "Parties Forming" / "Encounters Underway" for Gate parties only.
-- Bottom: **Form a Party** (this week's; an error line if none is posted)
-  and **Past Encounters** (a dialog of every past encounter, newest first,
-  with title, credit, blurb and its own Form a Party). Past encounters award
-  the Victory as before (once per hero per key).
+- Bottom: **Form a Party** (the presented encounter; an error line if none
+  is posted) and **All Encounters** (`ShowAllEncountersDialog`, shown once a
+  week is set): every Encounter of the Week up to this week, newest first,
+  each with "Week N" (or "Week N - Defeated"), title, credit, series chips,
+  blurb and its own Form a Party. It replaced Past Encounters on 2026-11-22.
+  Every one awards the Victory as before (once per hero per key). Verified
+  2026-11-22 in the live town: week 3 Bound Minotaur and week 1 Goblin Ambush
+  defeated, Aixco Hollow part 3 not, so the Gate showed "Week 2's Encounter:
+  Aixco Hollow" and the dialog listed all three. UNCOMMITTED.
 - **Form a Party** no longer has an encounter dropdown: `ShowCreateDialog(key)`
   shows where the party is going (title, credit, blurb, and for a Danger
   Room the practice note). The key rides `create-game` as before.
@@ -4374,6 +4412,8 @@ Inn").
 
 - **Free**: Wealth is a count, not a price.
 - **One of each** offered treasure (no duplicates, even with Wealth 2+).
+- **Perishable** (2026-11-24): what a hero buys lasts for one encounter (see
+  "Consumables perish").
 - **Town Gate encounters only** reset the market. A Proving Pits game keeps
   nothing, so it does not refresh the stalls either (no farming).
 - **Live pool** (the rule above) plus Imp's Tongue.
@@ -4453,6 +4493,113 @@ built once per run):
 
 ---
 
+# Respite activities at the inn (BUILT 2026-11-23; staging only, UNCOMMITTED)
+
+Hero abilities that run "as a respite activity" or "when you finish a
+respite" (Sanctified Weapon, Revitalizing Ritual, Mindlink, Oracular
+Warning...) are usable from the Blue Fish Inn.
+
+## Design (David, 2026-11-23)
+
+- **Which abilities:** any activated ability whose `actionResourceId` is
+  `CharacterResource.respiteActivityId` (categorization not `Hidden`). There
+  is no per-ability list: a new one works if its behaviors are supported.
+- **One generic interface for all of them:** an inn section, "Respite
+  Activities", has one row per hero ability. It has a Use button, or, when it
+  is blocked, the reason as text. Use opens one dialog built from the
+  ability's data:
+  - the targets: a self ability names the caster; an "all" ability lists
+    everyone at home; a "target" ability is chosen from chips, up to
+    `numTargets` (GoblinScript on the caster), and the caster is offered only
+    with `selfTarget`;
+  - the modes, from `modeList` (Melee / Ranged / Both), with the mode's rules
+    text;
+  - the cost.
+- **Cost:** an ability whose description says "as a respite activity" costs 1
+  of the caster's Downtime Activities. The rest are free, part of the
+  respite, and use the same interface (David: the triggers "should use the
+  same interface but not take up a downtime activity").
+- **Once per respite:** each ability can be used once per caster respite,
+  stamped `properties.eotwRespiteUsed[ability name] = longRestId`. Every
+  `creature:Rest` sets a new `longRestId`, so the stamp lapses at the
+  caster's next respite.
+- **Expiry: the effect ends when the hero who has it rests** (David). The
+  effects are `until_rest` ongoing effects, which `creature:Rest` removes.
+- **"Not if they rest at the same time" (David).** Nothing is granted while a
+  respite is being written (`EotwDowntime.RespiteBusy()`) or while one is
+  left half-written in `eotw:pendingRespite`. A resumed activity waits for a
+  resuming respite. So a grant always lands after its target's rest in that
+  respite, and lasts until their next one.
+- **Supported behaviors:**
+  - apply ongoing effect (specific effect, no save/DC), filtered by
+    `modesSelected`;
+  - grant temporary Stamina (GoblinScript on the caster).
+
+  An ability with any other behavior (a power roll, a script, a summon) is
+  hidden. Hidden for this reason: Blessing of Fortunate Weather, Studied
+  Commander, Study the Notebook, Among Our Ranks, Return to the Source.
+- **Who can be a target:** any living roster hero at home (not away, record
+  loaded), not only heroes resting in the same respite. This is a deliberate
+  simplification; revisit if it is abused.
+- **The target's inn row** shows what it was given in amber, e.g. "Sanctified
+  Weapon (from Wenna)". The list is `properties.eotwRespiteGifts[activityid] =
+  {ability, caster, effects, restid, at}`. A gift shows while one of its
+  effects is still active. A temporary-Stamina-only gift shows until the
+  target's next rest.
+
+## How a use runs (`EotwRespiteActivities.lua`)
+
+Machine-local `eotw:pendingRespiteActivity` (preference) holds `{activityid,
+casterid, ability, paid, targets, mode, charged, applied, pushed}`. Every
+step is idempotent and resumes on connect (`EotwDowntime.ResumePending` ->
+`EotwRespiteActivities.ResumePending`).
+
+1. If it is paid, the City action `respite-activity {activityid, heroid,
+   ability}` (`city-core.ts` `applyRespiteActivity`, table
+   `city_respite_activities`) charges 1 Downtime. It is idempotent per
+   activityid and refuses a hero who is not the caller's, has fallen, is away
+   or has 0 Downtime.
+2. `ApplyOngoingEffect` / `GrantTemporaryStamina` on each target, with the
+   gift stamp, then the caster's used stamp.
+3. `PushHero` each hero it touched, one at a time.
+
+Analytics: `eotw_downtime` with `activity = "respite_activity"`.
+
+## Status
+
+- **Server:** built, unit tests pass (`test/city-core.test.ts`, "respite
+  activities"). Deployed to **staging** 2026-11-23 (version 787c515d).
+  **Release is NOT deployed:** the release server must ship before this
+  codex code does.
+- **Client:** `Codex Titlescreen/EotwRespiteActivities.lua` (new; registered
+  in the Codex Titlescreen CodeMod after EotwLeads.lua). Hooks in
+  `EotwDowntime.lua`: InnPanel mounts the section after the leads panel;
+  InnRow adds the gift line (row 68 -> 84 px when present); ResumePending.
+  Strings: `inn.activity.*` in `EotwTextTown.lua`, drafts awaiting David's
+  review.
+- **Tested live on staging, 2026-11-23** (David's account, in a second app
+  instance):
+  - Wenna's Sanctified Weapon, Both, on Cadwyr: Downtime went 5 -> 4, and
+    Cadwyr got "Sanctified Weapon - Melee and Ranged" (removeOnLongRest).
+  - Both heroes were pushed, the pending entry cleared, and it all survived a
+    restart (read back from the City).
+  - The row showed "Already used this respite".
+  - `Rest("long")` on a deep copy of Cadwyr removed the effect and changed
+    `longRestId`.
+- **Not tested:**
+  - a free ability, a temporary Stamina ability, or a multi-target ability
+    (no hero on that account has one);
+  - a real respite ending a gift through the inn;
+  - the resume path after a crash;
+  - the "resting" block (code path only).
+- **Known gaps:**
+  - Saint's Epiphany applies its effect, but town project rolls do not read
+    its `project_roll` modifier.
+  - Free abilities do not check that the caster actually took part in a
+    respite, only that the ability has not been used since their last one.
+
+---
+
 # Leads: carousing at the Blue Fish Inn (BUILT 2026-10-11; not run live)
 
 User direction (2026-10-11):
@@ -4494,11 +4641,46 @@ User direction (2026-10-11):
   Victories leaves an unused carouse open.
 - **Lead tiers** (David 2026-11-17): every lead is ranked tier 1, 2 or 3
   (`CITY_LEADS` in city-core.ts, mirrored by `EotwLeads.TIERS`). A carouse
-  learns the next unlearned lead of its own tier; with none left there, the
-  next of the tier below, and so on down to tier 1; with none at or below
-  it, nothing. Never up a tier. The Arcane Market is tier 3 and the Temple
-  tier 2, so a tier 1 roll still learns nothing. The tier table shows
-  "learn a lead" on every tier that would learn one now.
+  learns an unlearned lead of its own tier; with none left there, one of
+  the tier below, and so on down to tier 1; with none at or below it,
+  nothing. Never up a tier. Within a tier the City picks **at random**
+  (David 2026-11-19; `pickLead`'s `random`). The Arcane Market is tier 3
+  and the Temple tier 2. The tier table shows "learn a lead" on every tier
+  that would learn one now.
+- **The town's buildings are tier 1 leads** (David 2026-11-19): the
+  **Graveyard**, **Hall of Heroes**, **Town Hall** and **Training Grounds**
+  (`graveyard`, `hall-of-heroes`, `town-hall`, `training-grounds`). Each
+  works like the Temple: off the map until heard, then the building site
+  (and its community project) if still being built, or the building if
+  done. The three build projects carry `requiresLead`, so rolls on them
+  are refused without the lead, and the Town Hall's ballots and petitions
+  need it too (`townHallRefusal`). Decisions (David 2026-11-19):
+  - **Only a rumour while shown**: a lead whose community project an
+    admin has hidden is not in the carouse pool (`leadAvailable` /
+    `EotwLeads.Available`, via the lead's `buildProject`). This applies to
+    the Temple too: `restore-temple` is `defaultHidden`, so on a server
+    where it is still hidden a tier 2 roll falls through to tier 1.
+  - **Existing accounts are grandfathered**: a one-time migration in the
+    City's schema setup (`grandfatherTier1Leads`, flag
+    `city_meta.tier1LeadsGrandfathered`) gives every account in
+    `city_accounts` or `city_heroes` all four, on each server the first
+    time the new code wakes. Only new accounts carouse for them.
+  - **The Graveyard is also learned on a player's first death**
+    (`applyRecordOutcome`), so a fallen Hakaan's Awaken is never out of
+    reach.
+  - **Tellers are PLACEHOLDERS**: invented names and borrowed bestiary
+    off-token art (Human Knave, Rogue, Apprentice Mage, Guard), draft
+    lines in `EotwTextTown.lua` (`leads.graveyard.*`, `leads.hall.*`,
+    `leads.town_hall.*`, `leads.training_grounds.*`), awaiting David's
+    text and portraits. The Human Guard art is a square painting with its
+    background, not a cutout, so it shows as a card in the conversation.
+  - Built 2026-11-19: server tests pass (495), City **deployed to staging
+    only** (`899a5f1b`); there the grandfathering ran (David's account has
+    all four), the map hides all four without the leads (client-faked),
+    and the training-grounds conversation plays. Not yet seen: a real new
+    account carousing them. **Release must get the server before the
+    codex ships**: the new client against the old release server hides
+    all four buildings from everyone.
 - **Leads that open a location** (David 2026-11-17): a lead may open a
   project (`project`), a town location (`location`), or both. A
   `CITY_LOCATIONS` row with `lead = "<id>"` stays off that player's map until
@@ -5914,7 +6096,9 @@ they belong in Blackbottom (the town), not here.
   `ca322ca9-4729-46b2-81bc-d3ac4098fc47` (global rule mod) and Null Field
   `8dbe876d-7e72-4e8c-8d11-ab51bffe9bd6` (Null class feature; Null Field -
   Effect is NOT included). Everything else reads
-  `encounter.arrange.cast_blocked`. Outside the arrangement nothing changed.
+  `encounter.arrange.cast_blocked`. Since 2026-11-23 the gate covers the
+  whole pre-combat stretch, not just the arrangement (see "The whole
+  pre-combat stretch is gated" below).
   Catch Breath is unlimited (only Recoveries limit it), because with no
   queue a `"turn"` refresh id is a fresh guid on every call
   (`creature:GetResourceRefreshId`, `Resource.lua`), so a maneuver is never
@@ -5949,10 +6133,24 @@ NOT seen: a won initiative (same code path), multi-client (a second
 player's cast holding combat through its `abilityBusy` stamp), the 30s
 overtime cap.
 
-Known gap, not fixed (outside the ask): before the arrangement (arrival,
-waiting for players, after a montage) nothing gates casting. With no queue
-every action and maneuver is affordable, so a hero in range could strike a
-monster. A surprised party never arranges, so it gets no preparation.
+**The whole pre-combat stretch is gated (BUILT 2026-11-23, reported working,
+UNCOMMITTED; reports 4MX3CSDV, A64QQXVS).** Before this, nothing gated
+casting before the arrangement (arrival, waiting for players, after a
+montage). With no queue every action is affordable, so a Conduit chained
+Lightfall (burst 2, teleport plus damage) across the map and cleared an
+encounter before initiative. The `eotw-arrange` gate now applies whenever
+`IsEotwGame()` (which includes an authoring test player) and not
+`EncounterOfTheWeekGame.CombatStarted()`; the bare `/eotwencounter` dev
+command, where `IsEotwGame()` is false, keeps the old arrangement-only rule.
+A live queue always lets everything through. `cast_blocked` now reads "Until
+combat starts you can only use Catch Breath and Null Field." A surprised
+party never arranges, but it can now Catch Breath and raise Null Field during
+the earlier stretch.
+
+The start-zone outline is now one `dmhub.MarkLocs` per floor
+(`m_zoneMarker` is a list). The engine's `HighlightPerimeterAroundLocs`
+draws every segment on the floor of the last tile it read, so a start zone
+on another floor was outlined on the wrong floor.
 
 Respite activities, for when Blackbottom takes them up: abilities whose
 `actionResourceId` is `CharacterResource.respiteActivityId`. The Actions
@@ -6012,6 +6210,21 @@ them compete.
   name, quantity}}`; the town's `ApplyOutcome` gives the items to the roster
   hero inside the same stamped `ModifyProperties` as the Victories, so a retry
   never doubles them. The City server stores the outcome opaquely.
+- **Consumables perish** (user direction 2026-11-24; logic-tested, not run in
+  the app). When an encounter ends or is abandoned, EVERY consumable its heroes
+  hold is destroyed in town, used or not, wherever it came from (market, Forge).
+  `EotwRoster.PurgeConsumables` runs inside `ApplyOutcome`'s write (victory,
+  defeat, Retreat). Games with no outcome (abandoned, replaced, deleted,
+  Proving Pits) are covered by the `eotw:trips` preference: `EnterWorld` notes the heroes going
+  in, `DestroyPreviousGame` ends the trip (`EndTrip`), and `ApplyTrips` purges
+  and pushes; a trip also ends when the account's slot holds another game. A
+  fallen hero who is raised is purged in `ApplyReturns`.
+  `properties.eotwPerished[gameid]` makes it once per game, so a late result
+  ("While You Were Away") cannot take newer purchases. Leaving to resume later
+  purges nothing unless a series part already won is brought home. Parts played
+  on in one game keep their consumables until the heroes are home. Proving Pits
+  games purge too (user decision 2026-11-24), though they do not reopen the
+  Arcane Market.
 - **Treasure found is worn** (user direction 2026-10-19). An equippable
   treasure (trinket, leveled treasure, artifact: `EquipmentCategory.
   IsEquippable`) a hero gains in the game is equipped at once when they have
@@ -6102,7 +6315,9 @@ Town Gate text said "sort"; it was written as "sought".
   `{userid: {"<gameid>|<heroid>": {gameid, heroid, stage, outcome}}}`) for
   each of its own town heroes **alive at the end**:
   `outcome = {encounter, result = "victory", victories = 1 or 0, completed
-  = true}`. Dead heroes and defeats record nothing yet, because
+  = true}`. (Superseded: dead heroes now meet the encounter's consequence,
+  and a defeat's survivors send their wounds; see "The consequence: what
+  happens to a hero who dies".) Dead heroes and defeats record nothing yet, because
   `record-outcome` is idempotent per (hero, game) and the burial
   write-back must still be able to send `died` for that game.
 - The town applies it after every roster sync
@@ -6130,6 +6345,61 @@ automatically, with the note on that hero and nothing on a dead one; the
 Conclusion screen, and the Defeat screen on a defeat; back in town the
 roster hero's Victories went up by one, and a second win of the same
 encounter adds none.
+
+## The consequence: what happens to a hero who dies (BUILT 2026-11-23, not run in the app)
+
+User direction (2026-11-23): every hero dying for good was too punishing for
+new players, so each encounter chooses what death means. Decisions (asked):
+
+- **The field** is a setup line under `# Encounter`: `Consequence: Retreat`
+  / `Death` / `Lost` (labels `Consequence`, `If a hero falls`, `If a hero
+  dies`; the parser finds the word, and "die"/"dead" read as Death).
+  Each series part reads its own line. The Encounter Builder's encounter
+  editor has an "If a hero dies" dropdown above the setup lines that writes
+  or rewrites the line (`E.SetupLine{kind = "consequence"}`); the setup list
+  does not show the line again. The validator shows the effective
+  consequence on every encounter beat.
+- **Default: Retreat.** No line means Retreat, so every encounter published
+  before this (all of them) became forgiving at once. Authors write
+  `Consequence: Death` to keep the old stakes.
+- **Retreat**: the hero goes home to Blackbottom at full Stamina **and**
+  Recoveries, with no Victory and no treasure. Outcome `{encounter, result,
+  retreated = true, wounds = {damage = 0, recoveriesUsed = 0}}`, applied by
+  the town's normal survivor path (`ApplyOutcome` -> `SetWounds`); no grave.
+  A won siege still credits the account (as it did for a hero who fell
+  winning it). On the map nothing changes: the Hero Death rule still
+  removes the hero and leaves a corpse.
+- **Death**: as before (`outcome.died`; undying ancestries can awaken, a
+  Rite of Return can raise them).
+- **Lost**: buried like Death (`died = true` plus `outcome.lost = true`); the
+  City marks the epitaph `lost`, `graveState` returns `lost` before anything
+  else, `awaken-hero` and `start-rite` refuse it. The Graveyard row reads
+  "Lost in X, when" and, on everyone's view, "The hero's body is not
+  recovered. They cannot be revived." (David's text; the Temple says the same); the memorial sheet's epitaph reads "Lost in X"; the Temple's
+  fallen list says the hero is Lost. A Lost hero frees their roster slot,
+  as a dead one does.
+- **Deadly Mode is always Death**, whatever the script says
+  (`EncounterOfTheWeekGame.Consequence`). Normal and Challenge Mode use the
+  script's consequence.
+- **Survivors of a defeat** are untouched by the consequence: they come home
+  with their wounds, as before. (Not asked; the consequence is about heroes
+  who die. A whole-party wipe is every hero dying, so each meets it.)
+- **Players see it** on the victory/defeat screen: a dead hero's card says
+  "Retreats to Blackbottom" (Retreat) or "Lost" (Lost); Death adds no note.
+  The While You Were Away dialog says "retreated to Blackbottom" / "lost in
+  battle", and a defeat where nobody was buried gets a hint that does not
+  mention the Graveyard.
+- **Analytics**: `eotw_run_end` keeps `heroesDied` (every hero who fell) and
+  adds `heroesRetreated`, `heroesLost` and `consequence`.
+- **Proving Pits** games send nothing home, as before, so the consequence
+  does not apply there.
+
+**Not done:** players are not told the stakes BEFORE the fight (Town Gate /
+Form a Party, or the narrative stage). The town would need the publisher to
+copy the line into `publishingProperties.eotwEncounters[...]` as it does the
+Town Gate text. The server change is on staging (2026-11-23, `ac7a23b9`), not
+release; on release a Lost hero gets an ordinary grave (awakenable if
+undying, rite-able) until it ships.
 
 ## Dead heroes leave the battlefield
 
@@ -6694,6 +6964,15 @@ The EotW provider (`EncounterOfTheWeekHud.lua`), active in an EotW game
   a short rule, Measuring Tool and Whiteboard buttons (playtest 2026-10-19 N4;
   the takeover hides the map rail that normally carries them). The two share
   one folder window, so pressing the one not on screen switches its tab.
+  The strip stays up through montages and narratives too (user direction
+  2026-11-22): the stage is a full-screen presented dialog on the same
+  documents layer, so the strip's think lifts its rail to just above the
+  stage (`SetAsSiblingAbove`; the right rail stays under, the stage draws
+  its own pools). A window a corner button opens over the stage is raised
+  in front of it, and pressing the button of a window the stage buried
+  raises that window instead of closing it (it does not light as open
+  while buried). Verified live 2026-11-22 (Horizon's Grave montage),
+  UNCOMMITTED.
 - **Encounter Rules book** (user direction 2026-10-20): when the encounter
   has an Encounter Rules document (see "The document, discovery and
   sub-documents"), a book button (`phosphor/book-bookmark.png`, tooltip

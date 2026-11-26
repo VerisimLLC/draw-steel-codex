@@ -2424,6 +2424,74 @@ do
 	}
 end
 
+-- DualityDiceMaterial: everything PBRTexturedDiceMaterial has, plus a fire / ice split (see
+-- Duality.shader). Balance slides the line between the sides (0 all ice, 1 all fire) and is
+-- meant to be driven by the set's dice script: die.surface:SetFloat("_Balance", x).
+-- Built from the PBRTextured list above so the shared rows never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	local dualityFields = {
+		-- The split line.
+		{ name = "_Balance", type = "Range", min = 0, max = 1, default = 0.5, description = "Balance" },
+		{ name = "_SplitTilt", type = "Range", min = 0, max = 180, default = 40, description = "Split Tilt" },
+		{ name = "_SplitTurn", type = "Range", min = 0, max = 360, default = 30, description = "Split Turn" },
+		{ name = "_SplitWobble", type = "Range", min = 0, max = 1, default = 0.4, description = "Line Wobble" },
+		{ name = "_SplitWobbleScale", type = "Range", min = 0.5, max = 6, default = 1.7, description = "Wobble Detail" },
+		{ name = "_SplitDrift", type = "Range", min = 0, max = 2, default = 0.25, description = "Line Drift" },
+		-- The glowing band along the line: a colour per side and a thin bright core between them.
+		{ name = "_SeamFireColor", type = "Color", description = "Seam Fire Color" },
+		{ name = "_SeamIceColor", type = "Color", description = "Seam Ice Color" },
+		{ name = "_SeamColor", type = "Color", description = "Seam Core Color" },
+		{ name = "_SeamCore", type = "Range", min = 0, max = 2, default = 0.6, description = "Seam Core" },
+		{ name = "_SeamGlow", type = "Range", min = 0, max = 8, default = 2, description = "Seam Glow" },
+		{ name = "_SeamWidth", type = "Range", min = 0.005, max = 0.2, default = 0.05, description = "Seam Width" },
+		{ name = "_SteamColor", type = "Color", description = "Steam Color" },
+		{ name = "_SteamAmount", type = "Range", min = 0, max = 1, default = 0.25, description = "Steam" },
+		{ name = "_QuenchWidth", type = "Range", min = 0, max = 0.6, default = 0.18, description = "Cooled Edge" },
+		{ name = "_MeltWidth", type = "Range", min = 0, max = 0.6, default = 0.15, description = "Wet Edge" },
+
+		-- The fire side: cooling lava.
+		{ name = "_FireIntensity", type = "Range", min = 0, max = 8, default = 2, description = "Fire Intensity" },
+		{ name = "_FireColorDeep", type = "Color", description = "Fire Deep Color" },
+		{ name = "_FireColorHot", type = "Color", description = "Fire Hot Color" },
+		{ name = "_FireColorCore", type = "Color", description = "Fire Core Color" },
+		{ name = "_FireScale", type = "Range", min = 0.5, max = 8, default = 2.2, description = "Fire Detail" },
+		{ name = "_FireSpeed", type = "Range", min = 0, max = 4, default = 0.25, description = "Fire Flow Speed" },
+		{ name = "_CrustAmount", type = "Range", min = 0, max = 1, default = 0.7, description = "Rock Crust" },
+		{ name = "_CrustColor", type = "Color", description = "Rock Color" },
+		{ name = "_CrustBump", type = "Range", min = 0, max = 2, default = 1, description = "Rock Bumpiness" },
+		{ name = "_CrackWidth", type = "Range", min = 0, max = 1, default = 0.5, description = "Crack Width" },
+		{ name = "_FireDepth", type = "Range", min = 0, max = 0.3, default = 0.08, description = "Crack Depth" },
+		{ name = "_EmberGlow", type = "Range", min = 0, max = 2, default = 1, description = "Ember Glow" },
+		{ name = "_FirePulse", type = "Range", min = 0, max = 1, default = 0.4, description = "Heat Pulse" },
+
+		-- The ice side: glacial ice.
+		{ name = "_IceDeep", type = "Color", description = "Ice Deep Color" },
+		{ name = "_IceMid", type = "Color", description = "Ice Color" },
+		{ name = "_IceLight", type = "Color", description = "Frost Color" },
+		{ name = "_IceClarity", type = "Range", min = 0, max = 1, default = 0.65, description = "Clarity" },
+		{ name = "_IceFrost", type = "Range", min = 0, max = 1, default = 0.35, description = "Frost" },
+		{ name = "_IceCracks", type = "Range", min = 0, max = 1, default = 0.6, description = "Inner Cracks" },
+		{ name = "_IceCrackScale", type = "Range", min = 0.5, max = 8, default = 2.2, description = "Crack Detail" },
+		{ name = "_IceCrackColor", type = "Color", description = "Crack Color" },
+		{ name = "_IceBubbles", type = "Range", min = 0, max = 1, default = 0.4, description = "Bubbles" },
+		{ name = "_IceDepth", type = "Range", min = 0, max = 0.6, default = 0.3, description = "Ice Depth" },
+		{ name = "_IceReflect", type = "Range", min = 0, max = 2, default = 0.9, description = "Reflection" },
+		{ name = "_IceRimColor", type = "Color", description = "Ice Rim Color" },
+		{ name = "_IceRimStrength", type = "Range", min = 0, max = 4, default = 0.5, description = "Ice Rim Strength" },
+		{ name = "_IceRimPower", type = "Range", min = 0.5, max = 8, default = 3, description = "Ice Rim Falloff" },
+	}
+	for _, field in ipairs(dualityFields) do
+		fields[#fields + 1] = field
+	end
+
+	g_materialFields.DualityDiceMaterial = fields
+end
+
 local CreateDicePanel
 
 -- Builds a panel that edits the tuned shader properties of a dice material.
@@ -5589,6 +5657,7 @@ end
 			{ id = "spark", text = "Spark" },
 			{ id = "glint", text = "Glint" },
 			{ id = "ember", text = "Ember" },
+			{ id = "cinder", text = "Cinder" },
 			{ id = "bubble", text = "Bubble" },
 		}
 
@@ -5713,7 +5782,7 @@ end
 					TrailSlider("Hue Variation:", 0, 1, 0,
 						function() return dicestudio.trailHueVariation end,
 						function(v) dicestudio.trailHueVariation = v end),
-					TrailSlider("Fall Speed:", 0, 2, 0.4,
+					TrailSlider("Fall Speed:", -2, 2, 0.4,
 						function() return dicestudio.trailFall end,
 						function(v) dicestudio.trailFall = v end),
 					TrailSlider("Spread:", 0, 1, 0.35,

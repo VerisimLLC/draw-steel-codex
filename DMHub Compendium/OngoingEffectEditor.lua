@@ -212,6 +212,18 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
                     end,
                 }
 
+                children[#children+1] = gui.Check{
+                    text = "Hidden from History",
+                    halign = "left",
+                    value = ongoingEffect.hiddenFromHistory,
+                    hover = gui.Tooltip("Hide this effect's start and end in History."),
+                    change = function(element)
+                        ongoingEffect.hiddenFromHistory = element.value
+                        UploadOngoingEffect()
+                        SetOngoingEffect(ongoingEffectid)
+                    end,
+                }
+
 
                 local associationOptions = {}
                 local associationRules = ongoingEffect:get_or_add("association", {})

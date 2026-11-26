@@ -20,6 +20,7 @@ local mod = dmhub.GetModLoading()
 --- @field display table Icon display settings (bgcolor/hueshift/saturation/brightness).
 --- @field difficultTerrain boolean If true, an area marked with this keyword counts as difficult terrain. Uses the same terrain rule flag name as tiles (asset.rules.difficultTerrain).
 --- @field terrainKeywords table<string, boolean>|nil Ability keywords (keyword -> true, e.g. {Magic = true}) attached to the difficult terrain of areas marked with this keyword. Folded onto the aura's difficultTerrainKeywords by ApplyToAura; a creature whose Ignore Difficult Terrain modifier names any of them ignores that difficult terrain. No class default: absent = none.
+--- @field fastTerrain boolean If true, an area marked with this keyword is Fast Terrain: entering its squares on foot or swimming costs half, and half a square left over at the end of a move is lost. Engine: Aura.fastTerrain, read by CharacterToken.GetMoveCostFn.
 --- @field water boolean If true, an area marked with this keyword counts as water. Uses the same terrain rule flag name as tiles (asset.rules.water).
 --- @field concealment boolean If true, an area marked with this keyword grants concealment. Uses the same terrain rule flag name as tiles (asset.rules.concealment).
 --- @field coversSky boolean If true, an area marked with this keyword shelters creatures from the sky (a tree canopy, an awning): a creature in it is not "Exposed To Sky" even on a floor with no ceiling. No terrain effect of its own.
@@ -35,6 +36,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
 --- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry. Same field name as Aura; a non-normal keyword mode is copied additively onto zone auras that do not already have a non-normal mode.
+--- @field powerRollEnterOnly boolean If true, the entry power roll fires only when a creature enters the area, not at the start of a turn spent in it. Same field name as Aura; copied onto zone auras along with the roll.
 --- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
 --- @field creatureFilter string GoblinScript evaluated against each creature to decide whether the keyword affects it at all. Empty (the class default) affects everyone. Applies to the whole keyword -- modifiers, triggers, the entry power roll, the move damage, AND the terrain rules (difficult terrain, water, concealment, climbable). The terrain half needs the engine: an aura reporting a filter is left out of FloorController.GetTileRulesAtLoc unless the caller names the creature it is asking about, and Aura.ApplyTo consults the filter for everything else, evaluating this script through AuraInstance:CreaturePassesFilterForToken and caching the verdict per creature per game update. Merged onto an aura's own creatureFilter with an "and" rather than skipped like the other fields, because a filter is a restriction -- dropping it would WIDEN who the keyword affects.
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
@@ -59,6 +61,7 @@ EnvironmentalKeyword.tableName = "environmentalKeywords"
 EnvironmentalKeyword.source = "Environmental Keyword"
 EnvironmentalKeyword.iconid = "ui-icons/skills/1.png"
 EnvironmentalKeyword.difficultTerrain = false
+EnvironmentalKeyword.fastTerrain = false
 EnvironmentalKeyword.water = false
 EnvironmentalKeyword.concealment = false
 EnvironmentalKeyword.coversSky = false
@@ -72,6 +75,7 @@ EnvironmentalKeyword.movementDamageFilter = "all"
 EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
 EnvironmentalKeyword.powerRollShiftEntryMode = "normal"
+EnvironmentalKeyword.powerRollEnterOnly = false
 EnvironmentalKeyword.includeAdjacent = false
 EnvironmentalKeyword.creatureFilter = ""
 
@@ -200,6 +204,9 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 		end
 		--keywords on the terrain (e.g. Magic), matched by Ignore Difficult Terrain modifiers.
 		Aura.AddDifficultTerrainKeywords(auraDef, keyword:try_get("terrainKeywords"))
+		if keyword:try_get("fastTerrain", false) == true then
+			auraDef.fastTerrain = true
+		end
 		if keyword:try_get("water", false) == true then
 			auraDef.water = true
 		end
@@ -272,6 +279,9 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 				auraDef.powerRollEnabled = true
 				auraDef.powerRollBonus = keyword:try_get("powerRollBonus", 0)
 				auraDef.powerRollTiers = dmhub.DeepCopy(tiers)
+				if keyword:try_get("powerRollEnterOnly", false) == true then
+					auraDef.powerRollEnterOnly = true
+				end
 			end
 		end
 	end)
@@ -2067,6 +2077,19 @@ local SetData = function(tableName, keywordPanel, keyid)
 
 	children[#children+1] = terrainKeywordsRow
 
+	--an area marked with this keyword is fast terrain.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("fastTerrain", false),
+			text = "Fast Terrain",
+			change = function(element)
+				keyword.fastTerrain = element.value
+				UploadKeyword()
+			end,
+		},
+	}
+
 	--an area marked with this keyword is water.
 	children[#children+1] = gui.Panel{
 		classes = {"formStackedRow"},
@@ -3582,11 +3605,12 @@ function EnvironmentalKeyword.SpreadZonesAtEndOfRound()
 end
 
 --Round watcher for the zone spread. Every client polls the initiative round;
---only the elected host (LiveEncounter.IsElectedHost: Director or player host,
---the same election encounter scripts use) acts. The last round handled is
---kept in a shared document keyed by the combat's queue guid, so the spread
---fires once per round boundary even across a host handover or a reload, and
---the client that advanced the round never runs it itself.
+--only the elected host (LiveEncounter.IsElectedMapHost: Director or player host
+--on this map, the same election encounter scripts use) acts. The last round
+--handled is kept per map in a shared document with the combat's queue guid, so
+--combats on two maps stay apart and the spread fires once per round boundary
+--even across a host handover or a reload, and the client that advanced the
+--round never runs it itself.
 local g_zoneSpreadDocId = "zoneSpreadRounds"
 
 function EnvironmentalKeyword.ZoneSpreadRoundTick()
@@ -3595,16 +3619,18 @@ function EnvironmentalKeyword.ZoneSpreadRoundTick()
 		return
 	end
 	--MCDMEncounter loads after this file; resolve at call time.
-	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedHost")
+	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedMapHost")
 	if electedHost == nil or not electedHost() then
 		return
 	end
 
+	local mapid = game.currentMapId
 	local queueGuid = tostring(q:try_get("guid"))
 	local round = q.round or 0
 	local doc = mod:GetDocumentSnapshot(g_zoneSpreadDocId)
-	local seenGuid = doc.data.queueGuid
-	local seenRound = doc.data.round
+	local seen = type(doc.data.maps) == "table" and doc.data.maps[mapid] or {}
+	local seenGuid = seen.queueGuid
+	local seenRound = seen.round
 	if seenGuid == queueGuid and seenRound == round then
 		return
 	end
@@ -3616,8 +3642,10 @@ function EnvironmentalKeyword.ZoneSpreadRoundTick()
 
 	--watermark first, so an error in the spread cannot refire it every tick.
 	doc:BeginChange()
-	doc.data.queueGuid = queueGuid
-	doc.data.round = round
+	if type(doc.data.maps) ~= "table" then
+		doc.data.maps = {}
+	end
+	doc.data.maps[mapid] = { queueGuid = queueGuid, round = round }
 	doc:CompleteChange("Zone spread round", { undoable = false })
 
 	if fire then
@@ -3652,7 +3680,7 @@ function EnvironmentalKeyword.ObjectKeywordZoneTick()
 		return
 	end
 
-	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedHost")
+	local electedHost = rawget(rawget(_G, "LiveEncounter") or {}, "IsElectedMapHost")
 	if electedHost == nil or not electedHost() then
 		return
 	end

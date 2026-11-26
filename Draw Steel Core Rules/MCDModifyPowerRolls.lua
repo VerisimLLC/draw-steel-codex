@@ -826,7 +826,8 @@ CharacterModifier.TypeInfo.power = {
                 ability = GenerateSymbols(options.ability),
                 target = GenerateSymbols(options.target),
                 caster = GenerateSymbols(options.caster),
-                cast = options.symbols and GenerateSymbols(options.symbols.cast),
+                --No cast yet (the ability menu building the card): an empty cast, so cast.mode reads 0.
+                cast = (options.symbols and GenerateSymbols(options.symbols.cast)) or GenerateSymbols(nil, {mode = 0}),
                 title = options.title or "",
             }
 
@@ -878,7 +879,7 @@ CharacterModifier.TypeInfo.power = {
             ability = GenerateSymbols(options.ability),
             target  = GenerateSymbols(options.target),
             caster  = GenerateSymbols(options.caster),
-            cast    = options.symbols and GenerateSymbols(options.symbols.cast),
+            cast    = (options.symbols and GenerateSymbols(options.symbols.cast)) or GenerateSymbols(nil, {mode = 0}),
             title   = options.title or "",
         })
 

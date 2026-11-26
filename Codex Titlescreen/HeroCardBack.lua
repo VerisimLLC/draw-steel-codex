@@ -28,8 +28,8 @@ local COLOR_BLUE = "#6fa8ff"
 local COLOR_TEMP = "#9cc4ff"
 local COLOR_STAMINA = "#4caf6a"
 local COLOR_RESOURCE = "#ffc98f"
---the separator in "Winded 22 · dies at -22", as the hero sheet's {dot}: a
---hyphen there reads as a minus sign.
+--the middle dot between "Winded 22" and "dies at -22", as the hero sheet's
+--{dot}: a hyphen there reads as a minus sign.
 local MIDDOT = "\u{00B7}"
 
 --dying: a lighter red than the condition chips' #cc2222 border, so it reads
@@ -2498,10 +2498,17 @@ local RESOURCE_FONT_SIZE = FONT_STAT
 
 --- A resource on one line in Stats: the amount, then its name. Edited where it
 --- stands while current() gives a number; hover shows its history.
---- @param args {name: string, value: number, holder: CharacterToken, resourceid: string, current: (fun(): number|nil)|nil, apply: fun(amount: integer)|nil}
+--- With max, the amount reads "left/max" and an edit types what is left.
+--- @param args {name: string, value: number, max: number|nil, holder: CharacterToken, resourceid: string, current: (fun(): number|nil)|nil, apply: fun(amount: integer)|nil}
 --- @return Panel
 local function ResourceLine(args)
-    local valueLabel = Text{ text = tostring(args.value), width = "auto", fontSize = RESOURCE_FONT_SIZE, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 6 }
+    local function AmountText(value)
+        if args.max == nil then
+            return tostring(value)
+        end
+        return string.format("%d/%d", math.floor(value), math.floor(args.max))
+    end
+    local valueLabel = Text{ text = AmountText(args.value), width = "auto", fontSize = RESOURCE_FONT_SIZE, bold = true, color = COLOR_RESOURCE, textWrap = false, valign = "center", rmargin = 6 }
     local card = rawget(_G, "EotwHeroCard")
     if card ~= nil and args.current ~= nil and args.current() ~= nil then
         --room for the highlight's left edge inside the scroll's clip.
@@ -2512,6 +2519,13 @@ local function ResourceLine(args)
             color = COLOR_RESOURCE,
             current = args.current,
             apply = args.apply,
+            --after an edit the label goes back to "left/max", not just the number.
+            refreshText = args.max ~= nil and function()
+                local current = args.current()
+                if current ~= nil then
+                    valueLabel.text = AmountText(current)
+                end
+            end or nil,
         }
     end
     local holder, resourceid, name = args.holder, args.resourceid, args.name
@@ -2550,7 +2564,21 @@ end
 --- @param info {name: string, resourceid: string, holder: CharacterToken}
 local function ClassResourceLine(tok, info)
     local holder, resourceid = info.holder, info.resourceid
-    local value = Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)
+    --a resource with a usage limit (so many per encounter or per rest) shows
+    --what is left of its max; one without (Rampage) shows the amount it holds.
+    local resource = dmhub.GetTable(CharacterResource.tableName)[resourceid]
+    local limit = resource ~= nil and resource.usageLimit or "unbounded"
+    --- @return number amount, number|nil max
+    local function Amount()
+        local props = holder.properties
+        if limit == "unbounded" then
+            return tonumber(Try(function() return props:GetUnboundedResourceQuantity(resourceid) end, 0)) or 0, nil
+        end
+        local max = tonumber(Try(function() return props:GetResources()[resourceid] end, 0)) or 0
+        local used = tonumber(Try(function() return props:GetResourceUsage(resourceid, limit) end, 0)) or 0
+        return math.max(0, max - used), max
+    end
+    local value, max = Amount()
     local charid = tok.charid
     local card = rawget(_G, "EotwHeroCard")
     local current = nil
@@ -2559,12 +2587,14 @@ local function ClassResourceLine(tok, info)
             if card.HeroResourceCurrent(charid) == nil or not holder.valid then
                 return nil
             end
-            return Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)
+            local amount = Amount()
+            return amount
         end
     end
     return ResourceLine{
         name = info.name,
-        value = tonumber(value) or 0,
+        value = value,
+        max = max,
         holder = holder,
         resourceid = resourceid,
         current = current,
@@ -2572,15 +2602,24 @@ local function ClassResourceLine(tok, info)
             if not holder.valid then
                 return
             end
+            local have, most = Amount()
             local n = math.max(0, amount)
-            local have = tonumber(Try(function() return holder.properties:GetUnboundedResourceQuantity(resourceid) end, 0)) or 0
+            if most ~= nil then
+                n = math.min(n, most)
+            end
             if n == have then
                 return
             end
             holder:ModifyProperties{
                 description = "Set " .. info.name,
                 execute = function()
-                    holder.properties:AddUnboundedResource(resourceid, n - have, info.name)
+                    if most == nil then
+                        holder.properties:AddUnboundedResource(resourceid, n - have, info.name)
+                    elseif n > have then
+                        holder.properties:RefreshResource(resourceid, limit, n - have, info.name)
+                    else
+                        holder.properties:ConsumeResource(resourceid, limit, have - n, info.name)
+                    end
                 end,
             }
         end,
@@ -4233,4 +4272,7 @@ HeroCardBack = {
     Decorate = Decorate,
     TurnAll = TurnAll,
     ConsumeMenuClick = ConsumeMenuClick,
+    --card entries may name a resource with a usage limit (shown as left/max).
+    --Older builds read one as 0, so a mod checks this before adding such an entry.
+    limitedClassResources = true,
 }

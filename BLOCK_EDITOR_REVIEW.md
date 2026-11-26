@@ -36,6 +36,15 @@ Checked by `ui-mockup/tests/run.js` (nine tests, all passing; see section 6 for 
 
 Still open from this review: B2, B4, B6, B7, B8 and section 2's design and Lua UI items.
 
+**Update 2026-11-26.** Decided and written into the ledger and plans: B2 (registries on `Block`,
+declared beside the types; implementation plan section 2), B7 (the ledger is authoritative; the
+coding plan is marked historical; the plans agree), B8 (the duplicate half of the class proposal
+is removed), the palette and a glyph on every block (plan section 13), "Advanced editor" as the one
+name, undo/redo with uploads (plan section 12), keyboard (mouse-first with a word list). The
+shelf keeps colour for blocks that don't fit (dashed outline), and stays on the right except on
+phones. B4 (a GoblinScript parser instead of regexes) and B6 (the drag ghost) are phase-0 work in
+the plan. Still open: phasing and rollout.
+
 ## 1. Blockers
 
 | # | Issue | Evidence | Fix |
@@ -79,7 +88,7 @@ Still open from this review: B2, B4, B6, B7, B8 and section 2's design and Lua U
 
 ## 3. Minor
 
-- IMPL cites `dmhub.SetAndUploadObject`, which does not exist; it is `SetAndUploadTableItem` (Definitions/dmhub.lua:676). **Verified.** The root CLAUDE.md "Data Tables" section names the same wrong function.
+- IMPL cited `dmhub.SetAndUploadObject`, which does not exist; it is `SetAndUploadTableItem` (Definitions/dmhub.lua:676). **Verified; fixed in the plan 2026-11-26.** The root CLAUDE.md "Data Tables" section names the same wrong function (left for the owner).
 - IMPL uploads on every save; CODING defers the upload until the author leaves the record. Pick one.
 - Line references drifted in IMPL/CODING (MainPanel.lua:770, RegisterType, TypeInfo, testGs) and in FOLLOW_UP F3-F5 (corrected there).
 - Wording differs between the editors: "+ add step" / "+ add what it does" / "+ add a block"; Remove vs Delete; load order "after Core Rules" vs "after Draw Steel UI"; prototypes use the Unicode ellipsis, Lua text must be ASCII.

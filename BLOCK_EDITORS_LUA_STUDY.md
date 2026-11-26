@@ -1,6 +1,9 @@
 # Block Editors in Lua: effort study and engine/data recommendations
 
-**Status:** planning study, 2026-11-22. Nothing in the codex was changed for this study.
+**Status:** planning study, 2026-11-22 (historical estimates). Where it differs from the decision ledger in
+[`BLOCK_EDITOR_FRAMEWORK.md`](BLOCK_EDITOR_FRAMEWORK.md) (authoritative) or
+[`BLOCK_EDITOR_IMPLEMENTATION_PLAN.md`](BLOCK_EDITOR_IMPLEMENTATION_PLAN.md), those win (for example,
+engine ask E2 is likely unnecessary: `transferDragTo` gives a drag ghost). Nothing in the codex was changed for this study.
 **Inputs:** [`ABILITY_BLOCKS_DESIGN.md`](ABILITY_BLOCKS_DESIGN.md) (sections 4-7, decision ledger),
 [`CLASS_AND_MODIFIER_EDITOR_PROPOSAL.md`](CLASS_AND_MODIFIER_EDITOR_PROPOSAL.md) (sections 0, 3, 4, 9-11),
 the prototypes `ui-mockup/ability-blocks-stack.html` (4,368 lines) and `ui-mockup/class-builder/app.js`
@@ -107,7 +110,7 @@ tiers, potency, Only if, modes, follow-ups, a generated card with per-line wordi
 reader, and "saves back unchanged unless edited".
 
 **Exists today:**
-- The full editors stay as the fallback (decision D1): `Draw Steel Ability Editor/AbilityEditor.lua`
+- The Advanced editors stay as the fallback (decision D1): `Draw Steel Ability Editor/AbilityEditor.lua`
   (5,803 lines, entry `AbilityEditor.GenerateEditor` at 5339) and the dialog host
   `ActivatedAbility:ShowEditActivatedAbilityDialog` (`DMHub Compendium/ActivatedAbilityEditor.lua:3938`,
   39 call sites). The new editor can be offered from the same dialog.
@@ -132,7 +135,7 @@ reader, and "saves back unchanged unless edited".
 | Part | Notes | Size |
 |---|---|---|
 | `AbilityModel`: load a record into blocks, compile blocks back, fingerprints | Port of the prototype's open/compile logic. Each block remembers its source record and the compiled form at open; unchanged blocks write the original. | M, 3-4 pw |
-| Sentence blocks for the ~16 common behaviours, plus Advanced | Power roll, damage, rule text, apply effect, conditions, forced movement, move a creature, heal, temp Stamina, resources, end effects, use another ability, float text, aura, modes, Only if. Advanced = summary + "Edit in full editor". | L, 4-6 pw |
+| Sentence blocks for the ~16 common behaviours, plus Advanced | Power roll, damage, rule text, apply effect, conditions, forced movement, move a creature, heal, temp Stamina, resources, end effects, use another ability, float text, aura, modes, Only if. Advanced = summary + "Edit in Advanced editor". | L, 4-6 pw |
 | Tier grammar blocks | Reuse the DrawSteelCommand parser; add the "#" tier-only steps and agreement checks. | M, 2 pw |
 | Follow-ups and hand-offs | Generate `<<name>>` and `standardAbilityParams` from what the follow-up uses; keep existing names. | M, 2 pw |
 | Card generation with per-line overrides | Book-style generation exists in `Render`; new is "basis" tracking and the rules-changed flag. Depends on R5 for lines with no field today. | M, 2-3 pw |

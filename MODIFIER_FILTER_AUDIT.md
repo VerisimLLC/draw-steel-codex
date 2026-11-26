@@ -146,8 +146,8 @@ Per BLOCK_EDITOR_CODING_PLAN.md section 4.7, Logic AND-s its test into each chil
 `abilityimprovement`, `activated`, `attribute`, `aura`, `bestowcondition`, `conditionimmunity`,
 `conditionsourcebestow`, `creaturetype`, `expandsingletarget`, `filter`, `forcedmovement`,
 `grantkeyword`, `growingresources`, `icon`, `ignoredifficultterrain`, `invisibility`,
-`journalexplanation`, `loyaltycollar`, `modcaptain`, `modcompanion`, `modifyability`,
-`modifydamageaftersave`, `modifyresourcechecklist`, `modifytrigger`, `modrider`, `modsummoner`,
+`journalexplanation`, `loyaltycollar`, `modcompanion`, `modifyability`,
+`modifydamageaftersave`, `modifyresourcechecklist`, `modifytrigger`, `modsummoner`,
 `movementcarrier`, `movementtext`, `power`, `powertableadditional`, `powertabletrigger`,
 `proficiency`, `resistance`, `resource`, `routine`, `suppressabilities`, `tokenvisual`,
 `trigger`, `triggerdisplay`.
@@ -156,7 +156,7 @@ If the block editor ever exposes the 5e types, these are also safe: `altspells`,
 `armorclasscalculation`, `attackattribute`, `damage`, `grantSpellList`, `grantSpells`,
 `rollsattacking`, `spell`, `spellcasting`.
 
-Declare **true after a fix**: `transform` (item 1), `d20` (item 3). These fixes are parked as follow-ups in [`FOLLOW_UP_ITEMS.md`](FOLLOW_UP_ITEMS.md).
+Declare **true after a fix**: `transform` (item 1), `modcaptain` and `modrider` (item 2, FOLLOW_UP F2; moved here 2026-11-26), `d20` (item 3). These fixes are parked as follow-ups in [`FOLLOW_UP_ITEMS.md`](FOLLOW_UP_ITEMS.md).
 Declare **true after an in-app test passes**: `alternateappearance`, `movementrestriction`,
 `suspended`.
 

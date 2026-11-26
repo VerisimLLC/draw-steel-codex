@@ -44,3 +44,12 @@ Content fixes, not editor work. Details in
 | # | Item | Where | Note |
 |---|---|---|---|
 | F16 | **Kit access ignores "Only if"**: the game decides kit access by scanning the feature's modifiers directly, so a false condition still grants the kit. The audit also rates `granttreasure` and `light` "partly" and `monstermodes` and `invisibility` "unsafe" without listing them here. | `Draw Steel Core Rules/MCDMCustomRules.lua:126-133`; MODIFIER_FILTER_AUDIT.md | Until fixed, the editor must not offer "Only if" around these (the prototype offers it everywhere today; see BLOCK_EDITOR_REVIEW.md). |
+
+## Core content that could be automated (found 2026-11-25, recorded 2026-11-26)
+Content work, not editor work. The class builder shows each finding on the feature's card
+(`ui-mockup/class-builder/text-audit.js`, generated from `ui-mockup/class-builder-data/TEXT_ONLY_FEATURES_AUDIT.md`).
+
+| # | Item |
+|---|---|
+| F17 | **14 text-only features could be built with existing blocks:** Censor Templar (10th), Conduit Avatar (10th), Stormwight Stormborn and Blessing of Fortunate Weather (5th), Null Discipline Mastery Improvement and Manifold Resonance (10th), Cryokinetic Synaptic Triage (8th), Metakinetic Inertial Dampener (8th), Summoner Minion Chain (4th), Circle of Storms Heart of Nature (Encounter 3), Tactician Warmaster (10th), Insurgent Covert Operations (Encounter 1), Troubadour Dramaturgy and Greatest of All Time (10th). The audit says how for each. |
+| F18 | **7 need a block the editor doesn't have yet** (editor backlog, after the core editors): Beastheart Everyone's Best Friend and the montage-aware effects; Oracle Prophecy; Green Chimeric Manifestation (merging two forms); Null Enhanced Null Field; Summoner Minions / Essence Outside of Combat; Duelist Masterwork. Also `modifytrigger` (7 records), which still opens as an advanced block. |

@@ -113,6 +113,10 @@ listed in section 6 and will be worked one at a time after D1-D3.
 
 ## 4. Proposed registration API (follows the D1-D5 recommendations)
 
+> **Superseded in part (ledger, 2026-11-26):** registries live on `Block` in `DMHub Utils/Block.lua`,
+> declared beside the game types, and a modifier's block goes inside its `TypeInfo` table (D1
+> corrected). See the implementation plan, sections 2 and 6, for the current API.
+
 ```lua
 -- Modifiers: RegisterType gains an optional third argument; the same table is merged into TypeInfo.
 CharacterModifier.RegisterType("attribute", "Modify Attribute", {
@@ -361,6 +365,8 @@ feature's text.
 
 ## 5. Phasing (proposal)
 
+> **Open (ledger, 2026-11-26):** phasing is being settled with the owner.
+
 1. **Registry and host framework, plus the modifier blocks the class builder already has.**
    Hosts: the A editors (titles, perks, complications, ancestries, careers, creature
    templates, global rules), then subclasses and classes.
@@ -498,3 +504,16 @@ today. "Advanced editor" is the name for today's form everywhere (it replaces "M
 | 2026-11-24 | **"Only if" is offered only on types that honour it.** Each modifier block declares `supportsFilter`; types that don't honour `filterCondition` either gain support or don't allow Logic around them, decided per type from `MODIFIER_FILTER_AUDIT.md`. | Some types skip the central filter (`Creature.lua:6593`, `CharacterModifier.lua:4311`). |
 | 2026-11-24 | **The editor UI lives in a new `Block Editor` mod**, loaded after Draw Steel Core Rules. `Block.lua` (declarations, no `gui`) sits in `DMHub Utils`, so it loads before `CharacterModifier.lua`. The UI files may not name any modifier, behaviour or choice id; a CI grep checks it. | Keeps the "no type names in the editor" rule easy to police. The new mod must be created and ordered in the cloud. |
 | 2026-11-24 | **Round trip by construction:** only slots the author changed are written; an unchanged block writes nothing. | A record opened and saved without edits stays identical, as well as passing the round-trip test. |
+| 2026-11-25 | **Block colours are fixed**, not theme tokens: a block's colour says what kind of block it is, so a theme recolours the ground, cards, menus and shelf but never the blocks. Shelf blocks show their full colour. | Owner. |
+| 2026-11-25 | **Shelf on the right** of the blocks at every width but a phone's, where it moves below. **Drop slots** are hidden at rest, dashed during a drag, and the one under the pointer opens to a block-sized "Drop here". | Owner: it minimises scrolling; drop targets must be apparent. |
+| 2026-11-25 | **The ability card keeps the printed book's layout** (ruled header, diamond marks, tier marks, characteristic chip), with fixed paper and ink colours, as a new card panel rather than the game's tooltip. | Owner preferred the book-correct card. |
+| 2026-11-25 | **Gain lines:** the event menu lists the 9 events core classes use most, then "Build the trigger yourself...", which opens the triggered ability editor seeded from the line. **Spending surges** saves as the Use Resource trigger with `Resource = "Surges"` joined to the line's test. | Owner; engine commit ff10c001. |
+| 2026-11-26 | **Every registry is data on `Block` (`DMHub Utils/Block.lua`), declared beside the game types**; the UI module only reads them (its one registration is `BlockEditor.RegisterSlotWidget`). Registries are keyed by id, re-registering replaces, and the editor gathers them when it opens. Hosts are declared beside their record types; there are no host-specific UI files. Supersedes D6's `BlockEditor.RegisterHost` and the Areas/Hosts files of the earlier plans. | Owner (decision 1 of the review). Adding a block, gain event, stat, test, group or host never edits the editor. |
+| 2026-11-26 | **This ledger is authoritative.** The implementation plan follows it; `BLOCK_EDITOR_CODING_PLAN.md` is historical where it differs. | Owner (decision 2). Three documents had drifted apart. |
+| 2026-11-26 | **One colour table, keyed by meaning, for both editors** (`BEStyles.BlockColors`, listed in the implementation plan section 13): every colour at least 5:1 under white text, and **every block and shelf row also shows its group's glyph** (a Phosphor mask the codex already ships), so colour is never the only cue. Same meaning, same colour in both editors. | Owner (decision 3), within what Lua can draw. Fixes the pink roll change (3.4:1) and the two prototypes' differing palettes. |
+| 2026-11-26 | **Today's editor is called the Advanced editor** everywhere. | Owner (decision 4). |
+| 2026-11-26 | **Undo and redo** work on the editor's model, one step per action and one stack across a class and its subclasses; dirty records upload whole records shortly after a change, on tab switch and on close; deletes are soft; other people's changes reload or offer "Reload theirs / Keep mine". Full plan: implementation plan section 12. | Owner (decision 5). |
+| 2026-11-26 | **Keyboard:** mouse-first, with a focusable list of each block's words as the keyboard path, and an engine ask for focus on link words. | Owner (decision 6). The engine has no per-word focus. |
+| 2026-11-26 | **Pickers: one entry per kind, never one per value.** The amount picker lists the kinds of amount with real examples (A number, A stat, A stat with math, More as you level, Depends on a test, A dice roll); the examples follow a searched stat; the stat, sign and numbers are changed on the block. | Owner. |
+| 2026-11-26 | **Class page:** one tab per level, Slow start as one tab listing its four encounters; the class is the large tab and its subclasses are smaller pills in a labelled group; the combine button shows a chain icon. | Owner. |
+| 2026-11-26 | **The `Block Editor` mod loads after Draw Steel UI and Draw Steel Ability Editor** (it embeds the triggered ability editor). Supersedes "after Draw Steel Core Rules" above. **Phasing (D10) is open** until the owner's phasing discussion. | Consistency fix. |

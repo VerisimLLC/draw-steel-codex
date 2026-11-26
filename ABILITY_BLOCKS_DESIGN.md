@@ -1,7 +1,10 @@
 # Ability Blocks: Scratch-style authoring for abilities and triggers
 
-**Status:** DISCOVERY / DRAFT, 2026-11-20. Nothing here is decided until it appears in the
-Decision ledger. Prototype: [`ui-mockup/ability-blocks-prototype.html`](ui-mockup/ability-blocks-prototype.html)
+**Status:** design record, 2026-11-20 to 2026-11-25. Decisions are in this document's ledger
+(section 7) and, for anything shared by the editors, in the authoritative ledger in
+[`BLOCK_EDITOR_FRAMEWORK.md`](BLOCK_EDITOR_FRAMEWORK.md); the build plan is
+[`BLOCK_EDITOR_IMPLEMENTATION_PLAN.md`](BLOCK_EDITOR_IMPLEMENTATION_PLAN.md). Dated sections supersede
+earlier ones. The working prototype is [`ui-mockup/ability-blocks-stack.html`](ui-mockup/ability-blocks-stack.html). Prototype: [`ui-mockup/ability-blocks-prototype.html`](ui-mockup/ability-blocks-prototype.html)
 (open it in any browser; no build step).
 
 ---
@@ -930,10 +933,10 @@ within [N] squares of you".
 Also: a damage step's "that can't be reduced" phrase shows only when set or while editing, and older steps
 without a "who" default to "to the target".
 
-## 4s. The scope line: when to say "use the full editor" (proposed, 2026-11-22)
+## 4s. The scope line: when to say "use the Advanced editor" (proposed, 2026-11-22)
 
 The simple editor never refuses content: unmodelled parts open as Advanced steps or formula blocks, save
-back untouched, and have "Edit in full editor". The standard is about two other decisions.
+back untouched, and have "Edit in Advanced editor". The standard is about two other decisions.
 
 **When something gets a sentence block** (all three):
 1. It appears 20 or more times in content.
@@ -942,17 +945,17 @@ back untouched, and have "Edit in full editor". The standard is about two other 
 Under that rule the next blocks are Modify Power Roll (130), Summon (122), Remove Creature (120), Augmented
 Ability (116), Float Text (81), Custom Trigger (62), Destroy (47), Delay (43), Manipulate Targets (30),
 Terraform Elevation (25), Remember (24); in conditions, "your companion" / "your summoner" (~45). Lua Script
-(26) and Macro never get blocks: code belongs in the full editor. The other 67 step types (318 uses) stay
+(26) and Macro never get blocks: code belongs in the Advanced editor. The other 67 step types (318 uses) stay
 Advanced.
 
-**When the editor suggests the full editor for the whole ability** (any one; it still opens):
+**When the editor suggests the Advanced editor for the whole ability** (any one; it still opens):
 - more than half its steps are Advanced (or words the blocks can't read yet);
 - it runs a script or macro;
 - follow-up abilities nest more than two deep;
 - one condition has three or more parts written as formulas.
-Shown as a banner above the header: "Most of this trigger is easier to edit in the full editor", the
+Shown as a banner above the header: "Most of this trigger is easier to edit in the Advanced editor", the
 reasons, "You can still edit it here: the marked parts are kept exactly as they are when you save", and
-"Open in full editor" / "Keep editing here". Advanced steps get a dashed outline.
+"Open in Advanced editor" / "Keep editing here". Advanced steps get a dashed outline.
 
 Today: 56 of 88 sampled abilities open fully as blocks and 5 would show the banner; 605 of 1,132 triggers
 open fully as blocks and 278 would show it (mostly monster triggers built from Remove Creature, Float Text
@@ -1109,7 +1112,7 @@ biggest groups and re-run. The reader now reads an effect sentence as "who + wha
   end of their next turn" (the condition block gained "you or the target"), and "If the target has
   R < AVERAGE, they are slowed (EoT)" (an "Only if" with the potency test).
 - **Paragraph labels.** Only "Effect" paragraphs always happen. "Strained:" steps go inside "Only if you
-  are Strained" (they used to run every time); "Persistent N:" is one item for the full editor;
+  are Strained" (they used to run every time); "Persistent N:" is one item for the Advanced editor;
   "Trigger:" and "Special:" are card words.
 
 Re-run of all 545 pages (same counting as before): sentences starting "Until ..." left 102 -> 4; resource
@@ -1153,7 +1156,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 
 ## 6. Decision map
 
-| # | Category | Question | Recommendation (not yet decided) |
+| # | Category | Question | Recommendation at the time (decisions: section 7) |
 |---|---|---|---|
 | D1 | Role | Blocks as a third view next to Form and Formula, or a replacement editor? | Third view over the same data. Replacing 13k lines of editor is high risk; a view can ship incrementally |
 | D2 | Scope order | Formula blocks first, behaviour stacks first, or both? | Formula blocks first (inside today's formula fields): GoblinScript is where errors hide, and step 1 serves it directly |
@@ -1169,11 +1172,11 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 
 | Date | Decision | Why |
 |---|---|---|
-| 2026-11-20 | **D1:** Build a new *simplified* ability editor alongside the existing one. Do not replace the old editor. | The full editor stays the power-user surface and the fallback for anything the simplified one cannot show. |
+| 2026-11-20 | **D1:** Build a new *simplified* ability editor alongside the existing one. Do not replace the old editor. | The Advanced editor stays the power-user surface and the fallback for anything the simplified one cannot show. |
 | 2026-11-20 | **D2/scope:** Activated abilities first; triggered abilities later. GoblinScript is the main focus. | Users report GoblinScript as the hardest part of authoring. |
 | 2026-11-20 | **D1/surface:** Simplified editor takes option C: one auto-laid-out block stack with a live ability card, no free-form canvas. | Keeps Scratch's visible logic and shape-checked slots; an ability is one script, so a canvas only adds tidying. |
 | 2026-11-20 | **Picker:** organised by intent (check a condition, check health, check what kind of creature, compare a number, combine tests; use a stat, scale with level, do math, roll dice), not by source. **Who** is preset per formula box and explained in the picker header, never asked up front; every block keeps a dropdown to change it. | Who is being considered is what authors trip over most; asking them to choose it first makes that worse. |
-| 2026-11-20 | **D9/regression:** Abilities using behaviours the simple editor does not model still open in it. Each such behaviour is a grey striped **Advanced** block showing its summary and an **Edit in full editor** button; its record is saved back untouched. It can be moved, and wrapped in *Only if* (AND-ed onto its own `filterTarget`). | The simple editor must never take away editing an ability could already have; no ability becomes uneditable here. |
+| 2026-11-20 | **D9/regression:** Abilities using behaviours the simple editor does not model still open in it. Each such behaviour is a grey striped **Advanced** block showing its summary and an **Edit in Advanced editor** button; its record is saved back untouched. It can be moved, and wrapped in *Only if* (AND-ed onto its own `filterTarget`). | The simple editor must never take away editing an ability could already have; no ability becomes uneditable here. |
 | 2026-11-20 | **Nested abilities: exploring A (inline)** before deciding. B (open with a breadcrumb) is a fallback; it confuses many users. | Seeing the follow-up in place keeps the whole ability readable in one stack. |
 | 2026-11-20 | ~~Hand-offs: a *Passes along* row on the follow-up step.~~ Superseded the same day by the row below. | |
 | 2026-11-20 | **Parent information is just available inside a follow-up.** No hand-off step: a follow-up's pickers offer *From <parent>* (its tier result, damage dealt, squares moved, number of targets; its first target, its target). The `<< >>` parameters are generated on save from whatever the follow-up uses. Authors never see the piping unless *Show GoblinScript* is on. | `<< >>` confuses people endlessly; the cleanest fix is that there is nothing to wire. |
@@ -1198,7 +1201,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Effect text is one paragraph per position:** an Effect paragraph before the power roll and one after it. Paragraph labels ("Effect", "Trigger") can be renamed by clicking them, e.g. to "Strained" (suggestions offered). Saved with the overrides as `<line>.label`. | Most effects are one paragraph; some cards label them Strained or similar, and some put effect text before the roll. |
 | 2026-11-21 | **Deferred: players rewording the cards of their own characters' abilities.** Revisit after the authoring design settles. | Wanted, but a separate question (whose override wins, per character storage). |
 | 2026-11-21 | **Shelf order follows usage.** Power roll first (with Potency inside it, since potency only gates tier results); then groups by total use in the compendium (Harm, Hinder, Other abilities, Effects, Logic, Help, Summon and create, Resources, Move, Show and tell, Other rolls and tests, Scripting); blocks inside each group by use. The "+" type-ahead uses the same order. | Most-used first is fewer clicks and less scanning. |
-| 2026-11-21 | **Every registered behaviour has a block** (83 more, from `ActivatedAbility.RegisterType`, minus the five Draw Steel suppresses and Debug). Those without a sentence yet show their name and a Settings button for their own settings panel. Each group shows its four most-used blocks with "Show N more"; a shelf search finds any block; usage counts are shown on the less common ones. | See the full vocabulary in place; nothing needs the full editor just to be added. |
+| 2026-11-21 | **Every registered behaviour has a block** (83 more, from `ActivatedAbility.RegisterType`, minus the five Draw Steel suppresses and Debug). Those without a sentence yet show their name and a Settings button for their own settings panel. Each group shows its four most-used blocks with "Show N more"; a shelf search finds any block; usage counts are shown on the less common ones. | See the full vocabulary in place; nothing needs the Advanced editor just to be added. |
 | 2026-11-21 | **Keywords in the shelf only while editing keywords, at the top.** Clicking the keywords line or "+ keyword" opens "editing keywords" (gold outline, Done); the shelf then shows the keyword chips first. Clicking anywhere else closes it. | Keywords are set once; they should not push the step blocks down the rest of the time. |
 | 2026-11-21 | **Condensed shelf (critique round 2).** Search pinned at the top; **Common**: the 16 most-used blocks (about 93% of all uses in content) in group order; then **every category as one compact row** (colour, name, count) in two columns, one opening at a time in place with all its blocks by use. Inside a power-roll tier, Common shows only the blocks a tier accepts, headed "Adding to tier N", and folds the rest. The shelf fits one screen at 1000px (was 2.6 screens). Short category names (Abilities, Create, Tests, Display, Scripts). | Hodent critique: fixed per-group quotas spent the first screen on rare blocks; the shelf ignored the marker; too long. |
 | 2026-11-21 | **One search for the shelf and the "+" list:** ranks name-starts, word-starts, name-contains, synonyms (push, wait, teleport...), then description; ties by usage. Enter adds the highlighted result at the marker; Esc clears; it clears itself after adding; "/" jumps to it. | The two searches disagreed and Enter could add the wrong block. |
@@ -1221,7 +1224,7 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
 | 2026-11-21 | **Second poll (60: monsters, new class abilities, triggers) passes open-and-save 60/60.** Triggers now open (and the power roll trigger condition field is fixed to `targetFilter`); monster power rolls, villain actions, saved step order in modes, and text-only abilities are handled. The book check shows the remaining card differences come from data that doesn't store the printed wording, mainly monsters: the importer should store distance, target, trigger and effect text verbatim. | Evidence for shipping the editor on existing content, and a concrete content/import task for book-first monster cards. |
 | 2026-11-21 | **Triggers: display toggle, display wording as the card, "+ Add paragraph", and all 1,148 triggers open and save identically (trigger and display).** Toggle defaults by action and opens from whether a display exists; display text is the card and edits save to it; added paragraphs are card text that saves to description / the display. Variations corrected to hold only the option's steps. | Asked for (toggle, paragraphs, trigger poll). Next: trigger conditions read as blocks only 46 of 571 times. |
 | 2026-11-22 | **Trigger conditions use each event's own symbols** (from the engine's trigger definitions): event creatures become roles, yes/no values become tests, an "About this event" picker group, and readings for attacker, distance, allies, damage type lists, condition / trigger / effect names, keywords, effects, path and free strike. Conditions as blocks: 46 to 346 of 571; all triggers still save identically. | The hardest GoblinScript for trigger authors; follows "minimise clicks" and book-like wording. |
-| 2026-11-22 | **Proposed scope line.** A pattern gets a block when it is used 20+ times, reads as one sentence, and round-trips; scripts never do. The editor suggests the full editor (banner, never a refusal) when more than half the steps are Advanced, there is a script, follow-ups nest more than two deep, or a condition has 3+ formula parts. | Asked for: a standard for when to say "use the old editor". Cutoffs to confirm. |
+| 2026-11-22 | **Proposed scope line.** A pattern gets a block when it is used 20+ times, reads as one sentence, and round-trips; scripts never do. The editor suggests the Advanced editor (banner, never a refusal) when more than half the steps are Advanced, there is a script, follow-ups nest more than two deep, or a condition has 3+ formula parts. | Asked for: a standard for when to say "use the old editor". Cutoffs to confirm. |
 | 2026-11-22 | **Standard abilities, rule text and Float Text are blocks, not Advanced.** "Use another ability" picks standard abilities by name (saved by id); rule text opens like tier text (formula amounts, "(added)", several results); Float Text is a Display block. Triggers fully as blocks 605 to 823 of 1,132; banner cases 278 to 72. | Review of the Mark: Benefit example: these are everyday steps, not advanced ones. |
 | 2026-11-22 | **New damage saves as rule text unless it needs the Damage behaviour** (dice, to you, can't be reduced). **Tiers can hold steps** ("Only if the target is already slowed: restrained"): saved as tier-only steps (`tiersSelected`) with the tier's card words after "#"; opening content puts them back in their tier. | Asked for: default to command text; and the "#" pattern for effects the tier text can't express. |
 | 2026-11-22 | **Tier agreement checks:** a condition on the card that no step on the tier applies, or a potency letter that differs from the "Only if" check, shows as "worth checking" (never blocks saving). | A real rebuild slipped on both; no false alarms across the 62 "#" abilities in content. |
@@ -1242,6 +1245,10 @@ Steps 1 and 2 are pure Lua with no UI and can run in parallel.
   sync for no gameplay value.
 
 ## 9. Open questions
+
+*(2026-11-26: the first is answered by the corpus tests in 4d and 4o; the others carry into the
+Lua build: the "if" compile target in phase 3, and the opaque block opens the Advanced editor, per
+the framework ledger D4.)*
 
 - How many compendium formulas fall outside the block vocabulary? (Answered by plan step 1.)
 - Is `filterTarget` the right compile target for every `if`, or do some authors mean a

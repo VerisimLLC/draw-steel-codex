@@ -1,9 +1,11 @@
 # Block editor: implementation plan (UI module)
 
-Status: draft for review, 2026-11-25. Builds on [`BLOCK_EDITOR_FRAMEWORK.md`](BLOCK_EDITOR_FRAMEWORK.md)
-(decisions), [`BLOCK_EDITOR_CODING_PLAN.md`](BLOCK_EDITOR_CODING_PLAN.md) (registration and
-infrastructure fit) and the class builder prototype (`ui-mockup/class-builder/`). Nothing here is
-built yet.
+Status: draft for building, updated 2026-11-26 to match the decision ledger in
+[`BLOCK_EDITOR_FRAMEWORK.md`](BLOCK_EDITOR_FRAMEWORK.md), which is **authoritative**: where this
+plan and the ledger differ, the ledger wins. [`BLOCK_EDITOR_CODING_PLAN.md`](BLOCK_EDITOR_CODING_PLAN.md)
+is kept for its infrastructure research and is historical where it differs. The worked reference
+is the prototypes (`ui-mockup/class-builder/`, `ui-mockup/ability-blocks-stack.html`) and their
+tests (`ui-mockup/tests/`). Nothing here is built yet.
 
 The owner asked for the UI to be **a module set up the way the new/old hero builder was built**.
 This plan copies that pattern, keeps what worked, and avoids the two things the older builder
@@ -23,96 +25,99 @@ hard-codes.
 What we take:
 - **A separate module** beside the editors it replaces, and **routing** that sends a record to the
   new editor when it can show it, and to today's editor otherwise. The old editor is never removed,
-  only routed around (it is also the "Advanced editor" behind a grey block).
+  only routed around. It is called the **Advanced editor** everywhere (decided 2026-11-26).
 - **THC's controller and state object** (one state, one refresh event down the tree, lazy panels,
-  hidden panels halt), and **its registry** (`RegisterSelector` becomes `RegisterHost`).
+  hidden panels halt). Not its registry: THC's `RegisterSelector` calls all sit in its own
+  `Selectors.lua`, so adding a step means editing the builder. Ours live on the rules side (below).
 - **HeroBuilder's host interface** for everything that touches data, its undo-per-change, and its
   `UIText` file with the text checker.
 
 What we avoid (both are THC-builder habits the newer builder dropped):
-- A hard-coded step enum plus per-step handlers in the controller (`SELECTOR`, `selectX`,
-  `applyCurrentX`, MainPanel.lua:770). In the block editor the controller knows **no** block,
+- A hard-coded step enum plus per-step handlers in the controller (`SELECTOR`,
+  CharacterBuilder.lua:93; `selectX` / `applyCurrentX`, MainPanel.lua:69-105). In the block editor the controller knows **no** block,
   modifier, behaviour or choice id; a CI grep enforces it (coding plan section 4).
 - Writing straight to records without one save path. Every change goes through the host's `save`.
 
-## 2. The module, organised like THC's builder
+## 2. Where things live (decided 2026-11-26)
 
-A new mod, **`Block Editor/`** (decided: framework ledger), loaded after Draw Steel Core Rules and
-Draw Steel UI. It follows the file organisation of `Draw Steel Character Builder/`:
+**Every registry is data, on the `Block` global in `DMHub Utils/Block.lua`** (no `gui`, loads
+before `CharacterModifier.lua`). Declarations sit **beside the game types they describe**, in the
+rules files. The UI module only **reads** the registries. Adding a block, a choice, a gain event,
+a stat, a test, a colour group or a whole host is one registration in a rules file and no edit to
+any `Block Editor/` file.
 
-**THC's conventions, kept exactly:**
-- **One core file** (`CharacterBuilder.lua` there, `BlockEditor.lua` here): the global, a long
-  design-doc comment at the top (overall design, events, state, helpers, optimisation notes, as
-  CharacterBuilder.lua:1-76), constants and enums, the shared `_helpers`, and the registry.
-- **Every other file defines one prefixed global** with `RegisterGameType` and a `@class`
-  annotation, under a short `--[[ purpose ]]` header. THC uses `CB` (`CBAncestryDetail`,
-  `CBSelectors`, `CBStyles`); we use **`BE`** (`BEShelf`, `BEFeatureDetail`, `BEStyles`).
-- **Helpers are aliased as locals** at the top of each file that uses them
-  (`local _fireControllerEvent = BlockEditor._fireControllerEvent`), never re-implemented.
-- **Public entry points** are `X.CreatePanel()` (UI) or `X.CreateNew(...)` (objects); private
-  functions start with `_` (`BEFeatureDetail._navPanel`).
-- **Split by role**: the controller, state, one `*Detail.lua` per area of the editor, shared widget
-  files, a right-hand panel, styles. Registration lives in its own file, loaded after what it
-  registers (as Selectors.lua is loaded after the `*Detail.lua` files).
+| Registry (on `Block`) | Declared where | What it gives the editor |
+|---|---|---|
+| `block = {...}` / `blocks = {...}` in `CharacterModifier.TypeInfo.<id>` (ledger D1 corrected) | beside each modifier type | a block: slots, sentence, claims, read/write, `supportsFilter`, `combine` |
+| `block` on `ActivatedAbility.RegisterType` | beside each behaviour | an ability step |
+| `block`, `category`, `order`, `create(ctx)` on `CharacterChoice.RegisterChoice` (moved to `DMHub Game Rules/Class.lua`) | beside each choice | a choice block; the builders read category and order from here too |
+| `Block.RegisterTrigger{ id, words, ... }` alongside `TriggeredAbility.RegisterTrigger` | beside each trigger | trigger wording; its typed `symbols` drive "About this event" |
+| `Block.RegisterGainEvent{ id, trigger, base, you, other, words, menu, order }` | beside the trigger it saves as | a way to gain a heroic resource (section 11) |
+| `Block.RegisterStat{ id, words, kind }` | beside the attribute | the stat in every stat menu and formula |
+| `Block.RegisterTest{ id, toScript, fromAst, prose }` | beside what it tests | a test in the test picker, read back by syntax tree (not regex) |
+| `Block.RegisterGroup{ id, text, color, glyph, order }` | `DMHub Utils/Block.lua` (the shared groups) | the group's fixed colour and glyph (section 13) |
+| `Block.RegisterWrapper{...}`, `Block.RegisterRecipe{...}` | beside the type they wrap / anywhere | Only if, aura, companion...; ready-made features |
+| `Block.RegisterHost{ id, tableName, claims, header, sections, related }` | beside the record type (Class.lua, Feat.lua, Titles.lua...) | an editor for that record (section 6) |
 
-**The files** (left: THC's file it mirrors):
+Rules for every registry: **keyed by id, and registering an id again replaces it** (hot reload
+is safe); the editor **gathers registrations when it opens**, not at load, so types registered by
+later mods (Draw Steel Core Rules, Beastheart...) are included. The UI module's only registration
+point is `BlockEditor.RegisterSlotWidget{ kind, create }`, for a new kind of slot control.
+
+## 2a. The module, organised like THC's builder
+
+A new mod, **`Block Editor/`**, loaded after Draw Steel UI and Draw Steel Ability Editor (it embeds
+the triggered ability editor). It follows the file organisation of `Draw Steel Character Builder/`:
+
+- **One core file** (`BlockEditor.lua`): the global, a design-doc comment at the top (as
+  CharacterBuilder.lua:1-76), constants, the shared `_helpers`.
+- **Every other file defines one prefixed global, `BE`** (`BEShelf`, `BEStack`, `BEStyles`), under a
+  short `--[[ purpose ]]` header. These are plain tables with `@class` annotations, not
+  `RegisterGameType` (nothing in the UI is saved).
+- **Helpers are aliased as locals** where used; **entry points** are `X.CreatePanel()`; private
+  functions start with `_`.
 
 | THC builder | Block editor | Global | Role |
 |---|---|---|---|
-| `CharacterBuilder.lua` | `BlockEditor.lua` | `BlockEditor` | Design doc, constants (`BlockEditor.AREA` enum like `SELECTOR`), shared `_helpers` (`_fireControllerEvent`, `_getController`, `_getState`, `_getHost`, `_getRecord`, `_confirmDialog`), `RegisterHost` / `RegisterArea` registries |
-| `State.lua` | `State.lua` | `BlockEditorState` | Dotted-key store (`record`, `view`, `area.active`, `feature.openId`, `drag`, `issues`); `CreateNew`, `Get`, `Set` (a copy of CharacterBuilderState, renamed) |
-| `MainPanel.lua` | `MainPanel.lua` | (on `BlockEditor`) | The controller panel: columns, state, controller events (`openFeature`, `addBlock`, `moveBlock`, `combine`, `showView`, `save`), fires `refreshEditorState`; the `Open` / `Routes` entry points |
-| `Selectors.lua` | `Areas.lua` | `BEAreas` | The editor's areas in one place and their `RegisterArea{ id, ord, panel }` calls (class: Basics, Heroic resource, Levels; the subclass tabs). Loaded after the `*Detail.lua` files |
-| `AncestryDetail.lua`, `ClassDetail.lua`... | `BasicsDetail.lua`, `ResourceDetail.lua`, `LevelsDetail.lua`, `FeatureDetail.lua`, `SubclassDetail.lua` | `BEBasicsDetail`... | One centre-column panel per area: the class's basics rows; how you gain the resource (gain blocks); the level lanes; an open feature (name, text, its stack); a subclass page |
-| `FeatureSelector.lua` (generic choice UI) | `BlockPanel.lua` | `BEBlockPanel` | Generic block UI: any registered block draws through it (grip, sentence, slots, the ... menu, wrapper bodies). Its file-top comment lists what a block must declare, as FeatureSelector.lua:1-27 lists what a choice must implement |
-| (part of FeatureSelector) | `Slots.lua` | `BESlots` | The slot widgets: Text, Number, Choice, Many, Formula (fx picker), Test (test picker), Ref (compendium search), Who, Blocks; `RegisterSlotType` |
-| (new) | `Stack.lua` | `BEStack` | A list of blocks: rows, insert points, drop slots, combine brackets |
-| `Selectors.lua` (left rail) | `Shelf.lua` | `BEShelf` | The shelf: groups, search, recipes, drag sources, built from the registry |
-| `FeatureCache.lua` | `RecordCache.lua` | `BERecordCache` | The open record read into blocks, and written back (calls the rules-side reader and writer); keeps the kept-record marks |
-| `SelectionStatus.lua` | `IssueStatus.lua` | `BEIssueStatus` | Things to finish / worth checking, per area and in total |
-| `CharacterPanel.lua` (right column) | `StatusPanel.lua` | `BEStatusPanel` | The right column: status, book text preview, saved data |
-| `Styles.lua` | `Styles.lua` | `BEStyles` | `BEStyles.SIZES`, `BEStyles.BlockColors`, `GetStyles()`. Chrome (ground, cards, shelf, menus) uses theme tokens only, merged with `ThemeEngine.MergeStyles` and re-applied on theme change, as MainPanel.lua:55 / 820-825. **Block colours are fixed** (decided 2026-11-25): a block's colour tells the author what kind of block it is, so `BlockColors` holds literal hex per block group (the prototype's palette), set on the block's own style with white text, never `@tokens`; a theme never changes them. A registered block names its group; a new group registers its colour here. |
-| `HeroBuilderText.lua` | `BlockEditorText.lua` | (UIText) | Every string, `UIText.Define("BlockEditorText")`; added to `tests/uitext_check.lua` |
-| (HeroBuilder's host) | `Hosts.lua` | `BEHosts` | The host interface and its `RegisterHost` calls: class (with subclass tabs), feature, title, perk; later ability |
+| `CharacterBuilder.lua` | `BlockEditor.lua` | `BlockEditor` | Design doc, constants, `_helpers` (`_fireControllerEvent`, `_getState`, `_getHost`), `RegisterSlotWidget` |
+| `State.lua` | `State.lua` | `BEState` | The editing model and the undo/redo stack (section 12) |
+| `MainPanel.lua` | `MainPanel.lua` | (on `BlockEditor`) | The controller panel: columns, events, `refreshEditorState`; `Open` / `Routes` |
+| (none: generic) | `Page.lua` | `BEPage` | Builds a host's page from its declaration: header rows (as slots), sections, the section strip and related-record pills |
+| `FeatureSelector.lua` | `BlockPanel.lua` | `BEBlockPanel` | Any registered block: grip, sentence label with link words, glyph, menu, wrapper bodies |
+| (part of FeatureSelector) | `Slots.lua` | `BESlots` | Slot widgets: text, number, choice, many, formula (amount picker), test (test picker), ref, who, blocks |
+| (new) | `Stack.lua` | `BEStack` | A list of blocks: drop slots, combine bracket |
+| `Selectors.lua` (left rail) | `Shelf.lua` | `BEShelf` | The shelf from the registry: groups, search, recipes, drag sources |
+| `FeatureCache.lua` | `RecordCache.lua` | `BERecordCache` | Opens a record into blocks and writes it back through `Block.lua` |
+| `SelectionStatus.lua` | `IssueStatus.lua` | `BEIssueStatus` | The checks |
+| `CharacterPanel.lua` | `SidePanel.lua` | `BESidePanel` | The right column: checks, book-style card / saved data |
+| `Styles.lua` | `Styles.lua` | `BEStyles` | Sizes and chrome styles from theme tokens; block styles from `Block` groups (section 13) |
+| `HeroBuilderText.lua` | `BlockEditorText.lua` | (UIText) | Every string (ASCII only), checked by `tests/uitext_check.lua` |
 
-**Load order** (registered in the mod's cloud file list in this order, as the builder's is):
-`BlockEditor.lua` -> `State.lua` -> `BlockEditorText.lua` -> `Styles.lua` -> `RecordCache.lua` ->
-`IssueStatus.lua` -> `Slots.lua` -> `BlockPanel.lua` -> `Stack.lua` -> `Shelf.lua` ->
-`*Detail.lua` -> `Areas.lua` -> `StatusPanel.lua` -> `Hosts.lua` -> `MainPanel.lua`.
+There are **no host-specific UI files** (no class, basics, levels or subclass panels): a host's
+page is built from its declaration. A host that truly needs a bespoke panel names a function in
+its declaration, defined beside the host (rules side may not use `gui`, so such a panel lives in a
+UI mod that loads after `Block Editor/` and registers with `BlockEditor.RegisterSlotWidget`).
 
-**Where THC's layout is not copied** (and why): the builder's step enum and per-step controller
-handlers (`SELECTOR`, `selectX`, `applyCurrentX`, MainPanel.lua:770) know every step by name. Our
-areas are registered the same way (`RegisterArea`), but the controller knows **no** block,
-modifier, behaviour or choice id: those come only from the registry (CI grep, coding plan
-section 4).
-
-**Rules side** (outside the module, so it loads before `CharacterModifier.lua` and has no `gui`):
-
-| File | Role | Built from (prototype) |
-|---|---|---|
-| `DMHub Utils/Block.lua` | `Block.Choice{}`, `Block.Formula{}`...; claims; the reader (record -> blocks: claims rule, engine defaults, condition matching); write-back (kept records, merge by claims, saved spellings) | `importer.js`, `mergeSrc`, `keptRecords` |
-| Beside each type | `block = {...}` / `blocks = {...}` inside `CharacterModifier.TypeInfo.<id>`, on `ActivatedAbility.RegisterType`, on each registered choice | `SENT` entries in `app.js` |
+**Load order:** `BlockEditor.lua` -> `State.lua` -> `BlockEditorText.lua` -> `Styles.lua` ->
+`RecordCache.lua` -> `IssueStatus.lua` -> `Slots.lua` -> `BlockPanel.lua` -> `Stack.lua` ->
+`Shelf.lua` -> `Page.lua` -> `SidePanel.lua` -> `MainPanel.lua`.
 
 ## 3. How the app chooses (routing)
 
-`BlockEditor.Routes(record, where)` returns true when a host is registered for that kind of record
-and the record opens (it may still contain grey blocks). The existing editors call it first and
-fall back to themselves, the way the sheet calls `HeroSheet.Routes`:
+`BlockEditor.Routes(record, where)` returns true when a registered host claims the record. Today's
+editors call it first and fall back to themselves, the way the sheet calls `HeroSheet.Routes`:
 
 ```lua
 -- in today's class editor entry point (one line added)
 if BlockEditor ~= nil and BlockEditor.Routes(classRecord, "compendium") then
-    return BlockEditor.Open(classRecord, BlockEditor.CompendiumHost)
+    return BlockEditor.Open(classRecord)
 end
--- ... today's editor, unchanged
+-- ... today's editor, unchanged: the Advanced editor
 ```
 
-- Each host decides what it claims (`claims = function(record) ... end`), like HeroSheet.Routes
-  refusing tokens a custom interface owns.
-- **Rollout question for the owner:** the hero builder has no switch. While hosts are incomplete,
-  do we want a temporary per-user setting ("Use the block editor", default off), or route only
-  the hosts that are finished? Recommendation: route finished hosts only, plus a developer
-  setting to force either editor for comparison; drop the setting once a host ships.
+Each host decides what it claims (`claims = function(record) ... end`). Today's editor stays as
+the **Advanced editor**, reached from grey blocks and from the editor's menu. Whether unfinished
+hosts are routed or held behind a setting is settled with phasing (section 7).
 
 ## 4. The host interface
 
@@ -120,83 +125,97 @@ Modelled on `HeroBuilderHost` (HeroBuilder.lua:72-101). The editor never writes 
 
 ```lua
 --- @class BlockEditorHost
---- @field record fun(): table                 the record being edited (class, feature, title...)
+--- @field record fun(): table          the record being edited (class, feature, title...)
 --- @field canWrite fun(): boolean
---- @field save fun(args: {description: string, execute: fun(record: table)}): boolean  one change, one undo step
---- @field changed fun()                       after a save: what shows the record repaints
---- @field undo fun(): boolean                 the editor's Undo button
---- @field stacks table[]                      where blocks go: { field, families, layer = "feature" | "modifiers" }
---- @field header table[]                      fixed rows (name, basics, heroic resource...)
+--- @field upload fun(record: table)    sends one record to the server (section 12)
+--- @field related nil|{tableName: string, field: string, label: string}   e.g. subclasses by primaryClassId
 ```
 
-- **Compendium host** (classes, subclasses, titles, perks): `save` edits a copy and calls
-  `dmhub.SetAndUploadObject(tableName, id, record)`; undo keeps the editor's own snapshot stack (as
-  the prototype does), since table rows are not token properties.
-- **Token host** (a monster's or hero's own features, later): `save` wraps `token:ModifyProperties`.
-- **Character sheet host**: edits directly, as the sheet manages uploads (CLAUDE.md).
-- The class host owns the subclass tabs: each subclass is its own record in `subclasses` with
-  `primaryClassId`, saved through the same `save`.
+- **Compendium host** (classes, subclasses, titles, perks): `upload` calls
+  `dmhub.SetAndUploadTableItem(tableName, record)` (Definitions/dmhub.lua:676). Undo is the
+  editor's own (section 12): table rows are not token properties.
+- **Token host** (a monster's or hero's own features, later): `upload` wraps `token:ModifyProperties`.
+- **Character sheet host**: edits directly; the sheet manages uploads (CLAUDE.md).
+- A class's subclasses are their own records in `subclasses` with `primaryClassId`, declared by
+  the class host's `related` and shown as pills set apart from the class tab.
 
 ## 5. Controller and state
 
 As THC's builder (CharacterBuilder.lua:23-60), with the editor's own names:
 
-- `BlockEditor.Open(record, host)` builds the controller with `data = { state, host }`.
-- Any change: a controller event -> `host.save{...}` -> `state:Set` -> `FireEventTree("refreshEditorState", state)`.
-- Panels that are hidden (a closed feature, another tab) return early and halt the event.
-- Big panels (a level lane's open feature, the shelf, the ability editor) are built on first use.
-- Performance (decided): only the block that changed redraws; the refresh passes the changed path
-  so other blocks halt.
+- `BlockEditor.Open(record)` finds the host, builds the controller with `data = { state, host }`.
+- Any change: a controller event -> `BEState.Change(description, fn)` (section 12) ->
+  `FireEventTree("refreshEditorState", state, changedPath)`.
+- Panels that are hidden (another tab, a collapsed section) return early and halt the event; only
+  the block on `changedPath` redraws (decided), found by a keyed lookup, not a tree walk.
+- Big panels (a section's features, the shelf, the ability editor) are built on first use.
+- Deferred work (uploads, drag auto-scroll) checks `mod.unloaded` first.
 
-## 6. Registration surface
-
-Unchanged from the coding plan; repeated here as the module's API.
+## 6. A host declaration
 
 ```lua
-BlockEditor.RegisterHost{
-    id = "class", ord = 10, tableName = "classes",
+-- DMHub Game Rules/Class.lua, beside the Class type
+Block.RegisterHost{
+    id = "class", tableName = "classes",
     claims = function(record) return record.isSubclass ~= true end,
-    header = { "name", "details", "characteristics", "stamina", "recoveries", "kits", "heroicResource" },
-    stacks = { { field = "levels", layer = "feature", families = { "modifier", "choice", "logic", "recipe" } } },
-    tabs = "subclasses",
+    header = { "name", "details", "characteristics", "stamina", "recoveries", "kits" },
+    sections = {
+        { id = "gains", label = "How you gain {resource}", stack = "gains", families = { "gain" } },
+        { id = "slowstart", label = "Slow start", lanes = { "tutoriallevel-1", "tutoriallevel-2", "tutoriallevel-3", "tutoriallevel-4" }, layer = "feature", families = { "modifier", "choice", "logic", "recipe" }, optional = true },
+        { id = "levels", lanes = "level-1..level-10", tabPerLane = true, layer = "feature", families = { "modifier", "choice", "logic", "recipe" } },
+    },
+    related = { tableName = "subclasses", field = "primaryClassId", label = "Subclasses" },
 }
 ```
 
-Blocks are declared beside their types (`TypeInfo.<id>.block = {...}`); the editor builds the shelf,
-the sentences, the slots, read-back and saving from those declarations. Combine rules, roll-option
-lines, wrappers (aura, companion, summoner) and choices are declared the same way. The prototype's
-`SENT` table and `importer.js` are the worked reference for every block (about 45 types, 1,153 core
-records read back, 0 differences on a forced rebuild).
+- **Sections** become the section strip: one tab per level, Slow start as one tab listing its four
+  encounters (decided 2026-11-26).
+- **Gain lines are blocks** of a `gain` family, declared beside Class: their event slot lists
+  `Block.RegisterGainEvent` entries, and the block writes both the class's checklist line and its
+  trigger (a "level 3" block that reads and writes the record itself, ledger D2).
+- The prototype's `SENT` table and `importer.js` are the worked reference for every block (about
+  45 types; every core class and subclass opens and saves back unchanged).
 
 ## 7. Build order
 
+**To be settled with the owner (next conversation).** Two orders are on the table: the ledger's D10
+(one-list editors such as titles and perks first, then subclasses and classes) and the order
+below (one feature end to end, then the class). Whichever is chosen goes into the ledger and
+replaces this section. Phase 0 is the same in both:
+
 | Phase | What | Done when |
 |---|---|---|
-| 0 | Module skeleton: `BlockEditor.lua`, `State.lua`, `MainPanel.lua`, `Styles.lua`, `BlockEditorText.lua`; register the mod in the cloud after Draw Steel UI; `DMHub Utils/Block.lua` with slot types and claims; choice registry moved to `Class.lua` (decided) | The empty editor opens from a developer command; type check clean |
-| 1 | One host (Feature) and one modifier block end to end (coding plan's thin slice: `conditionimmunity`, then `attribute`), grey blocks for everything else | Open a saved feature -> save unchanged -> identical record; edit one value -> only that field changes |
-| 2 | Shelf, stack, drag and drop zones, Status, Logic wrapper, test picker, fx picker | The prototype's interaction tests pass against the Lua editor |
-| 3 | Roll blocks with combine, gains, growing table, wrappers, option choices | The prototype's readers ported; every core class opens with the counts in section 31 of the proposal |
-| 4 | Class host with subclass tabs, routed from today's class editor | All 11 classes and 45 subclasses round-trip unchanged in the app |
+| 0 | Module skeleton; `DMHub Utils/Block.lua` with the registries and the claims reader/writer; choice registry moved to `Class.lua`; **proofs in the app**: drag with a ghost via `transferDragTo` and pointer-based drop slots, one sentence label with many link words at 80-140% font size, fixed-colour blocks with hover/selected, the book card fonts, panel counts for the largest class | The empty editor opens from a developer command; the proofs pass; type check clean |
+| 1 | One host and one modifier block end to end (`conditionimmunity`, then `attribute`); grey blocks for the rest | Open -> save unchanged -> identical; edit one value -> only that field changes |
+| 2 | Shelf, stack, Logic, test picker, amount picker, undo/redo with uploads (section 12) | The prototype's interaction tests pass against the Lua editor |
+| 3 | Roll blocks with combine, gains, growing table, wrappers, option choices | Every core class opens with the prototype's counts |
+| 4 | Class host with subclass pills, routed from today's class editor | All 11 classes and 45 subclasses round-trip unchanged in the app |
 | 5 | Title and Perk hosts | Same round trip for their tables |
-| 6 | Ability steps (the ability editor as a host) | The ability editor's 1,148-ability round trip in the app |
-
-Each phase keeps today's editor routed for everything not finished.
+| 6 | Ability steps (the ability editor as a host) | The 1,019 core abilities round-trip in the app |
 
 ## 8. Testing
 
-- **Round trip per table** (the prototype's proof, run in the app over MCP): open every record,
-  save unchanged, compare; then force every block to rebuild and compare.
-- **Interaction tests** from the prototype (`scratchpad/cb*.js`) become UI-harness scripts.
-- **Text:** `tests/uitext_check.lua` covers `BlockEditorText.lua`.
-- **Type check:** zero problems (TYPING.md); `@class BlockEditorHost`, `@class BlockDecl`.
+- **Round trip per table** (run in the app over MCP): open every record, save unchanged, compare;
+  then force every block to rebuild and compare. The prototype suite (`node ui-mockup/tests/run.js`)
+  states the invariants the port must keep.
+- **Modularity gate (G6):** a second developer adds a block by editing only that type's file, with
+  no `Block Editor/` change. Run it in phase 1.
+- **Plain-Lua tests of `Block.lua`** (claims, read/write, condition parsing), runnable without the app.
+- **Interaction tests** from the prototype become UI-harness scripts.
+- **Text:** `tests/uitext_check.lua` covers `BlockEditorText.lua`; rules-side block text is checked
+  for ASCII by the same test.
+- **Type check:** zero problems (TYPING.md); run the full check after typing `TypeInfo`, not `-Changed`.
 - **CI grep:** no type ids in `Block Editor/*.lua`.
 
-## 9. Decisions needed from the owner
+## 9. Decisions
 
-1. **Rollout switch:** route finished hosts only (recommended), or a per-user "Use the block editor" setting?
-2. **First host:** Feature (smallest, proves the slice) then Class (recommended), or Class first?
-3. **Compendium undo:** an editor-owned undo stack (recommended, as the prototype), or wait for an engine undo for table rows?
-4. **Who builds what:** the rules side (`Block.lua`, declarations beside types) and the UI module can proceed in parallel once phase 0 lands.
+Decided 2026-11-26 (ledger): registries on `Block`, declared beside the types; the ledger is
+authoritative and the plans follow it; one contrast-checked palette with a group glyph, within what
+Lua can draw (section 13); the old editor is the **Advanced editor**; undo and redo with server
+uploads as in section 12; mouse-first, with a per-block word list for the keyboard and an engine
+ask for focus on link words.
+
+Still open: **phasing and rollout** (section 7), and who builds which side in parallel.
 
 ## 10. Web prototype features to carry into Lua (checked 2026-11-25)
 
@@ -208,13 +227,13 @@ only the items in 10.1 change because of the toolkit. Each later row names where
 
 | Web prototype | In Lua | Note |
 |---|---|---|
-| Typing in place: a line of the card, a block's text value, a label (e.g. "Strained") turns into a text box where it sits | A small `gui.Input` popup opened at the word (`element.popup`) | A sentence is one label with link regions, so nothing can sit inside the line. Feels nearly the same; needs the popup placed at the word, not the whole label (`popupPositioning` takes `{x, y}`). |
-| Keyboard: Tab to each clickable word, Enter opens its menu | **Needs checking.** Link regions inside a label have no focus of their own | Fallback: arrow keys move a "current word" kept by the editor, drawn as the hover style. Without it the editors are mouse-only. |
+| Typing in place: a line of the card, a block's text value, a label (e.g. "Strained") turns into a text box where it sits | A small `gui.Input` popup opened at the word (`element.popup`) | A sentence is one label with link regions, so nothing can sit inside the line. Feels nearly the same; needs the popup placed at the word, not the whole label (`popupPositioning = "mouse"`). |
+| Keyboard: Tab to each clickable word, Enter opens its menu | **Decided (2026-11-26):** mouse-first; each block has a focusable "words in this block" list as the keyboard path; engine ask for focus on link words | Link regions inside a label have no focus of their own, and the engine has no keydown event. |
 | Chips with an x inside a sentence (keywords, skill groups) | `gui.Multiselect` chips on their own row after the sentence, or "Melee x" as link text | Chips are panels, so they can't sit inside a label. |
-| Drag ghost from the shelf | A floating copy moved in the `dragging` event | Engine ask E2 would make it built in. |
+| Drag ghost from the shelf | A small floating copy that takes over the drag (`element:transferDragTo(ghost)`, as DockablePanel.lua:1524) | The engine finds drop targets under the dragged panel, not the pointer, so a panel that stays put never reaches a slot. The drop slot is worked out from the pointer against cached block midpoints. |
 | Combine bracket drawn as a curve | Three 1px panels and a button | Looks plainer; works the same. |
 | Shape shows type (round values, pointed tests; first prototype) | Colour, and slots that only accept what fits (`canDragOnto`) | The stack editor had already dropped shapes for pickers. A 9-slice image with notches is possible if wanted. |
-| Card in the Bitter font | The bundled `Book` font, tier marks in `DrawSteelGlyphs` | Book look kept; face differs slightly. |
+| Card in the Bitter font | The bundled `Book` font, tier marks in `DrawSteelGlyphs` | Book look kept (decided); face differs slightly. |
 | Recipes and drafts kept in the browser | Need a home: a settings value per user, or a compendium table to share | Decide with the recipe shelf (CLASS_AND_MODIFIER_EDITOR_PROPOSAL.md). |
 
 ### 10.2 Ability editor: designed, not drawn in the mockup
@@ -225,7 +244,7 @@ only the items in 10.1 change because of the toolkit. Each later row names where
 | Hover a dotted formula to see its GoblinScript (`hoverLink` + tooltip) | 4i |
 | "Show GoblinScript" switch and the "Saved data" view | 4c, 4g |
 | Open an existing ability; Paste text dialog with a sample; "Try to turn this into blocks"; "Keep as card text" | 4l, 4n, 4u, 4v |
-| Scope line: "Open in full editor" / "Keep editing here", and "Edit in full editor" on grey blocks | 4s |
+| Scope line: "Open in Advanced editor" / "Keep editing here", and "Edit in Advanced editor" on grey blocks | 4s |
 | Triggered ability: the trigger card, "+ when...", trigger conditions; Test Trigger | 4h, 4q, 4r; Test Trigger from TRIGGERED_ABILITY_EDITOR_DESIGN.md |
 | Choose one when used (options), each option its own steps | 4n |
 | Requirements ("Can only be used when") with tests | 4y |
@@ -319,3 +338,90 @@ one dice entry, and one entry per value an event reports. Entries are only separ
 are different tests ("You are winded", "There are at least [1] enemies within [1] squares").
 Stats come from one list (`Block.RegisterStat`, or the trigger's own `symbols`), so a new stat
 appears in every picker at once.
+
+## 12. Undo, redo and saving to the server (decided 2026-11-26)
+
+**How saving works today.** Compendium editors keep the record in memory, mark it changed, and
+upload the whole record with `dmhub.SetAndUploadTableItem(tableName, record)`. The class editor
+uploads 20 seconds after the first change, and again when the author switches record or closes
+the editor (`DoUploadIfNeeded`, Draw Steel UI/DSClassEditor.lua:1186-1205, 1514-1525). Table edits
+are not on DMHub's own undo (that is `token:ModifyProperties`, for token properties), so undo for
+compendium records has to be the editor's.
+
+**The rule: undo works on the editor's model; the server only ever receives whole records.**
+
+1. **One step per action.** Every author action goes through `BEState.Change(description, fn)`:
+   it copies the model of each record the action touches, runs `fn`, pushes one undo entry
+   `{ description, before = { [recordId] = copy } }`, clears redo, and marks those records dirty.
+   Typing in a text or number field is one step when it is committed (Enter or leaving the field),
+   not one per keystroke. The model copies are the block model (small, plain tables), never panels.
+2. **One stack for the editor, across tabs.** A class and each of its subclasses are separate
+   records, and some actions touch two (adding a subclass changes the class page and creates a
+   subclass record). So the editor keeps one undo stack and one redo stack; each entry lists the
+   records it touched. Undoing an entry for a tab that isn't shown first switches to that tab and
+   flashes the change, so nothing changes out of sight. Limit: 100 entries.
+3. **Uploads follow the model, not the stack.** A dirty record is compiled (the claims writer) and
+   uploaded:
+   - 2 seconds after the last change to it (a short debounce, so a burst of clicks is one upload);
+   - when the author switches tab or opens a different record;
+   - when the editor closes (`destroy`), and on an explicit Save.
+   The timer is a `think` handler that runs only while something is dirty (`thinkTime` set when a
+   record turns dirty, cleared when all are clean), and checks `mod.unloaded` first.
+4. **Undo and redo are ordinary changes to the server.** Undo restores the copied model, marks
+   those records dirty, and the same upload path sends the earlier state. Nothing special is sent
+   for an undo, so it works the same before and after an upload.
+5. **Deleting is reversible.** Deleting a subclass (or any record) sets it hidden (soft delete, as
+   `unhidden_pairs` expects) and uploads; undo clears the flag. Records are never obliterated from
+   the editor.
+6. **Other people's changes.** The editor watches its tables (`monitorAssets`, `refreshAssets`).
+   When a record changes on the server: if it matches what this editor last uploaded (a hash of the
+   record), it is our own echo and is ignored; if this editor has no unsaved change to it, the
+   model is reloaded from the new record and that record's entries are dropped from the undo stack,
+   with a toast ("Updated by someone else"); if it has unsaved changes, the editor keeps them and
+   offers "Reload theirs / Keep mine" (ledger: last save wins).
+7. **The ability editor inside the class builder** keeps its own stacks while it is open; **Done**
+   commits one entry to the class editor's stack ("Edit Out of the Way!"), **Cancel** discards.
+8. **What undo does not cover:** changes outside the editor, and history after the editor closes
+   (it uploads anything pending, then the stacks are dropped, as in other DMHub editors).
+9. **Controls:** Undo and Redo buttons in the title bar with the step's description as their
+   tooltip, and the keys through the panel's `keybinds` (Definitions/Panel.lua:122) while the
+   editor has focus. **Check in phase 0** that the bind strings for Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z)
+   exist and don't clash with map undo; if they do, keep the buttons and raise an engine ask.
+
+Prototype reference: `change()` / `undo()` / `redo()` in `ui-mockup/class-builder/app.js` (one
+step per action, separate stacks per class, kept in the browser).
+
+## 13. Block colours and glyphs (decided 2026-11-26)
+
+One table, keyed by meaning, used by both editors (`Block.RegisterGroup{ id, text, color, glyph }`,
+read into `BEStyles.BlockColors`). Colours are literal hex (never theme tokens), each at least
+5:1 under white text; every block and shelf row also shows the group's glyph, a Phosphor mask the
+codex already ships, drawn white at 14px beside the grip
+(`gui.Panel{ bgimage = "phosphor/<glyph>.png", bgcolor = "white", width = 14, height = 14 }`).
+Styles: one local rule per group with the colour and a precomputed hover colour (an inline
+`bgcolor` would beat the hover and selected rules); "selected" is a `boxShadow` ring.
+
+| Group (meaning) | Colour | White text | Glyph (Phosphor) | Used for |
+|---|---|---|---|---|
+| Stats and movement | `#3c5fa8` | 6.2:1 | gauge / footprints-fill | change a stat, characteristics, speed; move a creature |
+| Rolls and roll changes | `#7d4aa3` | 6.2:1 | dice-six | power roll, edges and banes, change the roll |
+| Defences | `#2f6f6a` | 5.8:1 | shield | immunity, weakness, condition immunity |
+| Abilities and areas | `#8b5434` | 6.2:1 | lightning / polygon | gain an ability, use a new ability, auras, summons |
+| Skills, perks and languages | `#5d6a1c` | 5.9:1 | book-open | skills, perks, languages |
+| Class and resources | `#8a6a20` | 5.0:1 | coin | resources, gains, kits, reminders |
+| Logic | `#a8501d` | 5.5:1 | arrow-elbow-right-down-bold | Only if, choose one when used, remember |
+| Choices | `#3d7a3a` | 5.2:1 | list-bullets | the player picks |
+| Harm | `#a8343f` | 6.5:1 | sword | damage |
+| Conditions | `#8e3f86` | 6.6:1 | lock-simple | apply a condition, forced movement |
+| Effects | `#2b6f86` | 5.6:1 | sparkle | ongoing effects |
+| Help | `#277057` | 5.9:1 | heart | heal, end effects, temporary Stamina |
+| Tests and potency | `#2c7391` / `#4d6a8a` | 5.3 / 5.6:1 | magnifying-glass-bold / check-square | potency, test blocks |
+| Numbers | `#357a4d` | 5.2:1 | plus-minus | value pieces |
+| Growing tables | `#8f3a2e` | 7.5:1 | stack-plus | rows unlocked by resource and level |
+| Your recipes | `#7a4f8f` | 6.3:1 | star | saved features |
+| Display, scripts, unique | `#6b6258` / `#55524c` / `#6a5a3c` | 6.0 / 7.8 / 6.7:1 | eye / code / diamond | card text, scripts, one-offs |
+| Advanced (grey) | `#5b564e` | 7.3:1 | gear-six-fill | records no block shows |
+| Header lines | `#8c6a24` | 5.0:1 | (none) | fixed "what it is" lines |
+
+A shelf block that can't go in the chosen list keeps its colour (the colour means its kind) and
+shows a dashed outline; hovering says why.

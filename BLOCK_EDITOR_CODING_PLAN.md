@@ -1,6 +1,12 @@
 # Block editor: coding plan and infrastructure fit check
 
-Date: 2026-11-24. Status: **review only. No Lua or engine file was changed.**
+Date: 2026-11-24. Status: **historical** (2026-11-26). Kept for its infrastructure research.
+Where it differs from the decision ledger in [`BLOCK_EDITOR_FRAMEWORK.md`](BLOCK_EDITOR_FRAMEWORK.md)
+(authoritative) or the current [`BLOCK_EDITOR_IMPLEMENTATION_PLAN.md`](BLOCK_EDITOR_IMPLEMENTATION_PLAN.md),
+those win. Known differences: registries live on `Block` in `DMHub Utils/Block.lua`, declared
+beside the types (not `BlockEditor.Register*`); block colours are fixed hex with a glyph, not theme
+tokens; subclasses are never "linked" from other classes; undo is the editor's own (plan section 12);
+rollout and phasing are being settled with the owner. No Lua or engine file was changed.
 
 This reviews the decided design in `BLOCK_EDITOR_FRAMEWORK.md` (D1-D10, Q1-Q3) and
 `ui-mockup/block-copy/REGISTRY_EXAMPLES.md` against the real codex code, and turns it into a
@@ -188,7 +194,7 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 | Field | Notes |
 |---|---|
 | `label`, `desc` | Plain strings. Fully declarative. |
-| `group` | An id. Groups themselves are registered: `BlockEditor.RegisterGroup{ id = "rolls", text = "Rolls", color = "@accent", order = 40 }`. Colour belongs to the group, and should be a ThemeEngine token, not a hex value (see `DefaultStyles.md`). A block may override with `color`. |
+| `group` | An id. Groups themselves are registered: `BlockEditor.RegisterGroup{ id = "rolls", text = "Rolls", color = "#7d4aa3", glyph = "dice-six", order = 40 }` *(revised 2026-11-26: fixed hex plus a glyph, see the implementation plan section 13)*. Colour belongs to the group, and should be a ThemeEngine token, not a hex value (see `DefaultStyles.md`). A block may override with `color`. |
 | `shelf = false` | Hides a block from the shelf but still reads saved records (the prototype's `shelf: false`, `app.js:475`). |
 | `unique = true` | Puts it in the Unique group (standing decision). |
 | `featureKind` | Optional. Replaces the prototype's hard-coded `kindLabel` chain (`app.js:945-947`), which names `trigger`, `ability` and `growing` in editor code. |
@@ -562,8 +568,8 @@ Checked:
 - **Each tab saves its own record** with its own
   `dmhub.SetAndUploadTableItem(tableName, item)` (`DSClassEditor.lua:1180-1187` shows today's
   deferred-upload pattern). A class save and a subclass save are separate uploads; there is no
-  transaction across them. "Link existing" changes another record's `primaryClassId`, which is
-  a third upload. The host must show unsaved state per tab.
+  transaction across them. (Linking subclasses from other classes was removed from the design.)
+  The host must show unsaved state per tab.
 
 ### 5.4 Perk, title and ability hosts
 

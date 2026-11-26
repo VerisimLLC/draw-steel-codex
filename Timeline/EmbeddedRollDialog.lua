@@ -5791,6 +5791,14 @@ function GameHud.CreateEmbeddedRollDialog()
     --It shows only where IntelTracker.Enabled() (CampaignTrackerPanel.lua): the
     --campaign has switched the tracker on, or the "dev:trackintel" flag is set.
     --On press it spends 1 Intel, then drives the existing reroll path.
+    --Intel buys a re-rolled TEST only, so it is offered on the roll types below
+    --(characteristic, skill, reactive and opposed tests), never on an
+    --ability's power roll, damage or a table roll.
+    local INTEL_REROLL_TYPES = {
+        test_power_roll = true,
+        resistance_power_roll = true,
+        opposed_power_roll = true,
+    }
     local intelRerollButton = gui.PrettyButton {
         text = "Re-roll for 1 Intel",
         classes = { "shownWhenPending", "collapsed", "hideWhenAI" },
@@ -5818,13 +5826,15 @@ function GameHud.CreateEmbeddedRollDialog()
             --no Intel to spend (also the "not this campaign" case). The
             --shownWhenPending style handles the rest.
             local enabled = (it ~= nil and it.Enabled ~= nil and it.Enabled()) and true or false
-            element:SetClass("collapsed", (not enabled) or pool < 1 or StackedWithoutAmend())
+            local isTest = INTEL_REROLL_TYPES[rollType] == true
+            element:SetClass("collapsed", (not enabled) or pool < 1 or (not isTest) or StackedWithoutAmend())
         end,
         press = function(element)
             local it = rawget(_G, "IntelTracker")
             if it == nil then return end
             if m_activeRoll == nil or not m_activeRoll.amendable then return end
-            if it.Spend(1, "Re-rolled a power roll") then
+            if INTEL_REROLL_TYPES[rollType] ~= true then return end
+            if it.Spend(1, "Re-rolled a test") then
                 --Intel has already been paid, so skip the rule's own gate and
                 --cost -- but count it, because "you must use the new roll"
                 --holds however the new roll was bought.
@@ -7853,6 +7863,8 @@ function GameHud.CreateEmbeddedRollDialog()
                 m_pingSince = dmhub.serverTime
                 m_pingSeen = {}
                 rollAgainButton:FireEvent("refreshRerollRule")
+                --this dialog is reused: re-check the Intel button for the new roll's type.
+                intelRerollButton:FireEvent("refreshIntel")
 
 
                 rollInput:SetClass("manualEdit", false)

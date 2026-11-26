@@ -692,15 +692,16 @@ local function NameRow(token)
     }
     --- @param nameUnits number
     --- @param measuredPill number
-    local function Place(nameUnits, measuredPill)
+    --- @param rowUnits number the row's width
+    local function Place(nameUnits, measuredPill, rowUnits)
         pillUnits = measuredPill
-        pillBeside = nameUnits + iconsRoom + 8 + measuredPill <= room
+        pillBeside = nameUnits + iconsRoom + 8 + measuredPill <= rowUnits
         pill:SetClass("collapsed", not pillBeside)
         line2:SetClass("collapsed", pillBeside)
     end
     local pillText = "Controlled by " .. ControllerName(token)
     Place(math.min(nameMax, HeroSheetTheme.TextWidth(token.name or "", size) * 1.1),
-        HeroSheetTheme.TextWidth(pillText, 12) + 18)
+        HeroSheetTheme.TextWidth(pillText, 12) + 18, room)
     local function Measure()
         dmhub.Schedule(0.05, function()
             if mod.unloaded or not eye.valid or eye.renderedHeight <= 0 then
@@ -711,7 +712,13 @@ local function NameRow(token)
             if shown.renderedWidth <= 0 then
                 return
             end
-            Place(nameBox.renderedWidth / perUnit, shown.renderedWidth / perUnit)
+            --the row as drawn: Narrow's banner has no fixed column width,
+            --so the guess above can be far short of the room it has.
+            local rowUnits = room
+            if line1.renderedWidth > 0 then
+                rowUnits = line1.renderedWidth / perUnit
+            end
+            Place(nameBox.renderedWidth / perUnit, shown.renderedWidth / perUnit, rowUnits)
         end)
     end
     Measure()

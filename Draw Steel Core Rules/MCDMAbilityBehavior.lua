@@ -2073,7 +2073,10 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
         return
     end
 
-    local targetImmuneToNonDamage = targetToken.properties:CalculateNamedCustomAttribute("Immune to Non Damage Effects") > 0
+    --The immunity guards against other creatures' effects (Elixir of Saint Elspeth,
+    --Cast Away All Hope, Juked); a creature's own rules on itself, such as a
+    --Conduit's Pray result, still apply.
+    local targetImmuneToNonDamage = casterToken.charid ~= targetToken.charid and targetToken.properties:CalculateNamedCustomAttribute("Immune to Non Damage Effects") > 0
     --Allow for retargeting of damage only, all other effects ignored
     local newDamageTarget = options.symbols.cast:RedirectDamageTarget(targetToken)
     if newDamageTarget ~= nil then

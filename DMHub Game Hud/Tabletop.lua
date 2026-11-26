@@ -303,6 +303,8 @@ local function WindowForMap(mapid)
     return nil
 end
 
+--- @param mapid string
+--- @return string
 local function MapName(mapid)
     local map = game.GetMap(mapid)
     if map == nil or not map.valid then
@@ -318,6 +320,9 @@ local function MapName(mapid)
     end
     return name
 end
+
+--A map's name as its window shows it, for other panels that name maps (History's switcher).
+Tabletop.MapName = MapName
 
 --- True for a Map Preview (MapPreview.lua): a map added only to be looked at
 --- and deleted when its preview ends. Its window is never saved in the layout
@@ -1085,8 +1090,13 @@ function g_chrome.AlphaMask(stops)
     }
 end
 
---The window's name in its titlebar.
-function g_chrome.NameLabel(text)
+--The window's name in its titlebar. With rename, the name can be edited by
+--clicking it while the label is editable (set editable to allow it);
+--rename(element) commits element.text and puts back the name to show.
+--- @param text string
+--- @param rename? fun(element: Label)
+--- @return Label
+function g_chrome.NameLabel(text, rename)
     return gui.Label{
         classes = {"tabletopTitleName"},
         width = "auto",
@@ -1097,7 +1107,24 @@ function g_chrome.NameLabel(text)
         textWrap = false,
         textOverflow = "ellipsis",
         text = text,
+        change = function(element)
+            if rename ~= nil then
+                rename(element)
+            end
+        end,
     }
+end
+
+--Whether this player may rename the map a window shows from its titlebar:
+--the Director, and not a Map Preview (its name is the previewed variant's).
+--- @param mapid string
+--- @return boolean
+function g_chrome.CanRenameMap(mapid)
+    if not dmhub.isDM then
+        return false
+    end
+    local map = game.GetMap(mapid)
+    return map ~= nil and map.valid and not map.preview
 end
 
 --A hairline between a titlebar's groups.
@@ -1557,15 +1584,36 @@ function g_chrome.Sync()
     g_chrome.SyncShown()
 end
 
---The strip shows while a window owns it, except under the character sheet:
---the sheet lives in the main dialog layer, below this one, so the strip
---would cover its close button.
+--True while a full-screen dialog (the Compendium, any fillsScreen launchable)
+--is open in the main dialog layer. That layer is below this one, so the strip
+--would cover the dialog's close button (R4JRJE2Z). The framedPanel class skips
+--the layer's empty full-size holder panels.
+function g_chrome.FullScreenDialogOpen()
+    local hud = GameHud.instance
+    local layer = hud ~= nil and hud:try_get("mainDialogPanel") or nil
+    if layer == nil or not layer.valid then
+        return false
+    end
+    local w, h = layer.renderedWidth * 0.95, layer.renderedHeight * 0.95
+    for _, child in ipairs(layer.children) do
+        if child:HasClass("framedPanel") and not child:HasClass("hidden") and not child:HasClass("collapsed")
+            and child.renderedWidth >= w and child.renderedHeight >= h then
+            return true
+        end
+    end
+    return false
+end
+
+--The strip shows while a window owns it, except under the character sheet
+--or another full-screen dialog: those live in the main dialog layer, below
+--this one, so the strip would cover their close buttons.
 function g_chrome.SyncShown()
     local strip = g_chrome.strip
     if strip == nil or not strip.valid then
         return
     end
     local hide = g_chrome.owner == nil or dmhub.inCharacterSheet or g_chrome.suppressed == true
+        or g_chrome.FullScreenDialogOpen()
     if strip:HasClass("collapsed") ~= hide then
         strip:SetClass("collapsed", hide)
     end
@@ -1666,6 +1714,7 @@ function g_chrome.ShowImage(holder, image, color, saturation)
         end
         holder.data.imagePanel = child
         holder.data.image = image
+        holder.data.imageRect = nil
     end
     if child ~= nil then
         child.selfStyle.bgcolor = color or "white"
@@ -1688,13 +1737,26 @@ function g_chrome.CoverFit(holder, body, mapid)
     end
     local imageAspect = thumbnails.Aspect(mapid)
     local boxAspect = w / h
+    local rect
     if imageAspect > boxAspect then
         local f = boxAspect / imageAspect
-        child.selfStyle.imageRect = {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
+        rect = {x1 = (1 - f) / 2, y1 = 0, x2 = (1 + f) / 2, y2 = 1}
     else
         local f = imageAspect / boxAspect
-        child.selfStyle.imageRect = {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
+        rect = {x1 = 0, y1 = (1 - f) / 2, x2 = 1, y2 = (1 + f) / 2}
     end
+    g_chrome.SetImageRect(holder, rect)
+end
+
+--Crops the image ShowImage put in holder to rect (0-1 image coordinates),
+--and remembers the crop so a cover can show the picture the same way.
+function g_chrome.SetImageRect(holder, rect)
+    local child = holder ~= nil and holder.valid and holder.data.imagePanel or nil
+    if child == nil or not child.valid then
+        return
+    end
+    child.selfStyle.imageRect = rect
+    holder.data.imageRect = rect
 end
 
 --Adds or removes a class on a panel and everything inside it (opacity does
@@ -1811,7 +1873,15 @@ function g_chrome.UpdateCover(rec)
     end
 
     if not cover.placeholder then
-        g_chrome.ShowImage(panel.data.imageHolder, cover.image)
+        local holder = panel.data.imageHolder
+        if cover.imageRect == nil and holder.data.imageRect ~= nil then
+            --an earlier cover's crop: start the picture afresh, uncropped.
+            g_chrome.ShowImage(holder, nil)
+        end
+        g_chrome.ShowImage(holder, cover.image)
+        if cover.imageRect ~= nil then
+            g_chrome.SetImageRect(holder, cover.imageRect)
+        end
     else
         g_chrome.ShowImage(panel.data.imageHolder, nil)
     end
@@ -2153,7 +2223,19 @@ local function BuildWindow(rec)
         frozenHint,
     }
 
-    local nameLabel = g_chrome.NameLabel(MapName(rec.mapid))
+    --the Director renames the map by clicking its name (made editable by
+    --the window's refresh, which follows the map the window shows).
+    local nameLabel = g_chrome.NameLabel(MapName(rec.mapid), function(element)
+        local map = game.GetMap(rec.mapid)
+        local name = trim(element.text)
+        if map ~= nil and name ~= "" and g_chrome.CanRenameMap(rec.mapid) and name ~= map.description then
+            map:MarkUndo()
+            map.description = name
+            map:Upload("Renamed map")
+        end
+        element.text = MapName(rec.mapid)
+    end)
+    nameLabel.editable = g_chrome.CanRenameMap(rec.mapid)
 
     --a frozen window's map is in combat: its round.
     local roundLabel = gui.Label{
@@ -2904,6 +2986,28 @@ function g_card.Button(rec, ops, scale)
     return card
 end
 
+--Moves a minimized window's button or card in among the windows, where the
+--Director's Screen can lie over it (DirectorScreen KeepOnTop), or back onto
+--the button layer over them.
+--- @param under boolean
+function g_card.LayUnder(rec, under)
+    local button = rec.button
+    if button == nil or not button.valid then
+        return
+    end
+    local layer = g_buttonLayer
+    if under then
+        layer = DocumentsLayer()
+    end
+    if layer == nil or not layer.valid or button.parent == layer then
+        return
+    end
+    --the button layer's styles do not reach the documents layer.
+    button.styles = cond(under, MapButtons.Styles(), {})
+    button:Unparent()
+    layer:AddChild(button)
+end
+
 --Builds (or rebuilds) a minimized window's floating button on the table.
 --A docked window has no floating button: the rail draws it.
 --What the button shows and does comes from rec.buttonOps (a scene window
@@ -3581,8 +3685,12 @@ Refresh = function()
             g_chrome.RefreshVisionChip(rec)
 
             local name = MapName(rec.mapid)
-            if rec.nameLabel.text ~= name then
+            if rec.nameLabel.text ~= name and not rec.nameLabel.editing then
                 rec.nameLabel.text = name
+            end
+            local canRename = g_chrome.CanRenameMap(rec.mapid)
+            if rec.nameLabel.editable ~= canRename then
+                rec.nameLabel.editable = canRename
             end
             local round = nil
             if not live then
@@ -4020,12 +4128,20 @@ local function OnCurrentMapChanged(newMapId, fromMapId)
     g_chrome.cover = nil
     if target ~= nil and dmhub.mapTransitionMapId == newMapId then
         local image, placeholder
+        local imageRect = nil
         if target.id == prevLiveId and fromMapId ~= nil and dmhub.HasMapSnapshot(fromMapId) then
             image, placeholder = "#MapSnapshot:" .. fromMapId, false
         else
             image, placeholder = FrozenImage({mapid = prevMapIds[target.id] or newMapId})
+            --a whole-map picture (thumbnail, pack art) is cropped to the
+            --window's shape; uncropped, the picture jumped as the cover
+            --replaced the frozen window.
+            local shown = target.snapHolder
+            if shown ~= nil and shown.valid and shown.data.image == image then
+                imageRect = shown.data.imageRect
+            end
         end
-        g_chrome.cover = {windowId = target.id, mapid = newMapId, image = image, placeholder = placeholder}
+        g_chrome.cover = {windowId = target.id, mapid = newMapId, image = image, placeholder = placeholder, imageRect = imageRect}
         --a frozen window showing its map's live tokens: the cover shows them too.
         if target.id ~= prevLiveId and target.tokenLayer ~= nil and target.tokenLayer.valid and not target.tokenLayer:HasClass("collapsed") then
             g_chrome.cover.tokenLayer = target.tokenLayer
@@ -4856,7 +4972,9 @@ g_sharing.ScreenWindowItem = function(rec, store, share, apply, minimize, restor
         isMap = rec.sceneid == nil,
         maximized = rec.maximized == true and not rec.minimized,
         card = rec.minimized == true and rec.card == true,
-        onButtonLayer = rec.minimized == true,
+        layUnder = function(under)
+            g_card.LayUnder(rec, under)
+        end,
         --into a card at (x, y), on the screen: a window collapses into it, a
         --plain button becomes one.
         shrink = function(x, y)
@@ -5401,8 +5519,8 @@ end
 --token out of its map window. Cards sit among the map windows and
 --journals, are per user like windows, and the Director can share them.
 --
---Hovering a card shows a small see-through titlebar just above it, with the
---Director's share toggle and the close X. Any edge or corner resizes it; the
+--Hovering a card shows a row of icons on its top-right corner: the
+--Character Sheet (Heroes), ping, the Director's share toggle and the close X. Any edge or corner resizes it; the
 --hero card is always built at its own size and scaled, so it keeps its shape.
 --The Director can drag a card onto the live map window: its placement ghost
 --shows there, and the drop teleports the character to that spot.
@@ -5418,18 +5536,19 @@ local CARD_MAX_SCALE = 3
 local CARD_GRIP = 18
 local CARD_GRIP_OUT = 8
 --the edge resize grips: CARD_EDGE thick, CARD_EDGE_OUT of it outside the card.
---The top grips run along the top of the titlebar, not the card, so the
---titlebar itself is never a resize spot; its corner grips are the smaller
---CARD_TOP_GRIP, CARD_TOP_GRIP_OUT of it outside, to stay off its controls.
+--The top corner grips are the smaller CARD_TOP_GRIP, CARD_TOP_GRIP_OUT of
+--it outside, to stay off the icon row in the top-right corner.
 local CARD_EDGE = 8
 local CARD_EDGE_OUT = 4
 local CARD_TOP_GRIP = 12
 local CARD_TOP_GRIP_OUT = 8
 
---The card the Director is dragging: {card, overMap, ghost}. overMap is true
---while its placement ghost shows on the map, where a drop teleports the
---character; ghost is the faded copy left at the card's spot meanwhile, to
---show the card stays on the table.
+--The card the Director is dragging: {card, overMap, armed, ghost}. overMap
+--is true while its placement ghost shows on the map, where a drop teleports
+--the character; ghost is the faded copy left at the card's spot meanwhile, to
+--show the card stays on the table. armed is false until the drag has been
+--over the bare table: a card lying over a map window can be moved about over
+--the map without placing its character (it moves like any table drop).
 local g_cardDrag = nil
 
 --The hero card's own size, before a card's scale.
@@ -5477,6 +5596,12 @@ local function CardStyles()
             selectors = {"tabletopCardChrome", "shown"},
             opacity = 1,
             transitionTime = 0.1,
+        },
+        --the icon row stays up while the card holds a minimized Hero sheet
+        --(Tabletop.MinimizeToCard), so the sheet can be found.
+        {
+            selectors = {"tabletopCardChrome", "pinned"},
+            opacity = 1,
         },
         {
             selectors = {"tabletopCardTitle"},
@@ -5580,19 +5705,43 @@ local function IsHeroToken(tok)
     return hero
 end
 
---The hero card face for a character, at its own size. options are passed
---on to CreateHeroCard (dismiss, ...).
-local function CardFace(charid, tok)
+--The hero card face for a character, at its own size. hosted: a table
+--card's options for turning it over (dragBack, onTurn; see BuildCard).
+--- @param hosted nil|{dragBack: boolean, onTurn: fun(turned: boolean): HeroCardFlipMotion|nil}
+local function CardFace(charid, tok, hosted)
+    local hero = IsHeroToken(tok)
+    hosted = hosted or {}
     return EotwHeroCard.CreateHeroCard({charid = charid, mine = false, name = tok.name}, {
+        dragBack = hosted.dragBack,
+        onTurn = hosted.onTurn,
         halign = "left",
-        showResources = false,
-        noRecoveries = not IsHeroToken(tok),
+        --a hero's heroic resource under the stamina bar, as in EotW.
+        showResources = hero,
+        noRecoveries = not hero,
+        --click the Stamina numbers to type a new value, the recoveries
+        --circle to spend one.
+        clickToEdit = true,
+        --a click anywhere turns the card over (below), so no turn button.
+        noTurnButton = true,
         --the press reaches the card's frame, which is what drags (and
-        --swallows the press for the map); a click selects the creature. Its
-        --sheet opens from the card's sheet button (CardSheetButton).
+        --swallows the press for the map); a click selects the creature and
+        --turns the card over (HeroCardBack), or with Shift/Ctrl only changes
+        --the selection. Its sheet opens from the card's sheet button
+        --(CardSheetButton).
         passPress = true,
         click = function(element)
+            Tabletop.CloseCardMenu(element:FindParentWithClass("tabletopCard"))
             Tabletop.CardClicked(charid)
+            local mods = dmhub.modKeys
+            --a click that closed the back's add-a-condition menu does not
+            --also turn the card.
+            local back = rawget(_G, "HeroCardBack")
+            if back ~= nil and back.ConsumeMenuClick ~= nil and back.ConsumeMenuClick() then
+                return
+            end
+            if not (mods.shift == true or mods.ctrl == true) then
+                element:FireEvent("turnCard")
+            end
         end,
         --a monster from the bestiary has no name of its own.
         displayName = function(t)
@@ -5720,6 +5869,16 @@ end
 function g_cs.AddingToSelection()
     local mods = dmhub.modKeys
     return mods.shift == true or mods.ctrl == true
+end
+
+--- Closes a table card's right-click menu. The engine keeps a popup open
+--- while the mouse is over the panel that owns it, so a left click on the
+--- card itself (a click, a turn, a drag) closes it here.
+--- @param frame nil|Panel the card's frame (the panel the menu is on)
+function Tabletop.CloseCardMenu(frame)
+    if frame ~= nil and frame.valid and frame.popup ~= nil then
+        frame.popup = nil
+    end
 end
 
 --- A card was clicked: its creature becomes the selection. Shift or Ctrl
@@ -5865,43 +6024,35 @@ end
 
 --Helpers for the Hero sheet's card button and for minimizing the sheet into
 --its Hero's card (a table, not locals: this file is at Lua's local limit).
-local g_heroCards = {}
+--peeks: charid -> the card the token's launcher opened beside it
+--(Tabletop.ToggleLauncherCard). A peek is built like a table card but kept
+--out of g_cards: not saved, listed or shared, and a character may have both.
+--Dropped on the bare table it becomes a table card (g_heroCards.Detach).
+local g_heroCards = {peeks = {}}
 
---- The button on a Hero's card for its Hero sheet (HeroSheet.lua), beside
---- the Character panel button: it opens the sheet, brings a covered one to
---- the front, and restores one minimized into this card. Shown like the
---- Character panel button (Tabletop.ShowCardSheetButton), and kept up while
---- the card holds the minimized sheet.
+--- The Character Sheet icon in a Hero's card's icon row (HeroSheet.lua): it
+--- opens the sheet, brings a covered one to the front, and restores one
+--- minimized into this card. While the card holds the minimized sheet the
+--- whole row stays up (g_heroCards.SetHoldsSheet).
 --- @param charid string
---- @param args nil|{x: nil|number, y: nil|number}
 --- @return Panel
-function Tabletop.CardHeroSheetButton(charid, args)
-    args = args or {}
+function Tabletop.CardHeroSheetButton(charid)
     local function Holds()
         local card = CardById(charid)
         return card ~= nil and card.holdsSheet == true
     end
-    return gui.Panel{
-        classes = {"tabletopCardSheet", cond(Holds(), "pinned", nil)},
-        floating = true,
-        halign = "right",
-        valign = "top",
-        x = args.x or -32,
-        y = args.y or 6,
-        width = 22,
-        height = 22,
-        cornerRadius = 11,
-        bgimage = "panels/square.png",
-        swallowPress = false,
-        --resting on it warms the Hero's sheet so it opens quickly.
+    return WindowControl{
+        icon = "phosphor/file-text.png",
+        iconSize = 12,
+        width = 26,
+        passPress = true,
+        --resting on it also warms the Hero's sheet so it opens quickly.
         hover = function(element)
             local heroSheet = rawget(_G, "HeroSheet")
             if heroSheet ~= nil then
                 heroSheet.Warm(charid)
             end
-        end,
-        linger = function(element)
-            gui.Tooltip(cond(Holds(), "Restore the Hero sheet", "Open the Hero sheet"))(element)
+            gui.Tooltip(cond(Holds(), "Restore the Character Sheet", "Open the Character Sheet"))(element)
         end,
         click = function(element)
             audio.FireSoundEvent("Mouse.Click")
@@ -5910,26 +6061,17 @@ function Tabletop.CardHeroSheetButton(charid, args)
                 heroSheet.CardButton(charid)
             end
         end,
-        gui.Panel{
-            classes = {"tabletopCardSheet", "tabletopCardSheetIcon"},
-            width = 14,
-            height = 14,
-            halign = "center",
-            valign = "center",
-            bgimage = "phosphor/file-text.png",
-            interactable = false,
-        },
     }
 end
 
 --Marks a card as holding (or no longer holding) a minimized Hero sheet: its
---Hero sheet button stays up while it does.
+--icon row, with the Character Sheet button, stays up while it does.
 --- @param card table
 --- @param holds boolean
 function g_heroCards.SetHoldsSheet(card, holds)
     card.holdsSheet = holds or nil
-    if card.heroSheetButton ~= nil and card.heroSheetButton.valid then
-        card.heroSheetButton:SetClassTree("pinned", holds)
+    if card.titlebar ~= nil and card.titlebar.valid then
+        card.titlebar:SetClassTree("pinned", holds)
     end
 end
 
@@ -6096,12 +6238,15 @@ function g_cs.UpdateCardSelection()
     for _, card in ipairs(g_cards) do
         Tabletop.ShowCardSelected(card.selectRing, selected[card.charid] == true)
     end
+    for charid, card in pairs(g_heroCards.peeks) do
+        Tabletop.ShowCardSelected(card.selectRing, selected[charid] == true)
+    end
 end
 
 --Puts a card's resize grip on its edge or corner of the card's current size,
 --and stretches an edge grip along the edge between the corner grips. The
---top grips sit on the top of the titlebar (just above the card), and the
---side grips run up beside the titlebar to meet them.
+--top grips sit on the card's top edge, and the side grips run up to meet
+--them.
 local function PlaceGrip(card, grip)
     local w, h = ItemSize(card)
     local s = card.scale or 1
@@ -6111,7 +6256,7 @@ local function PlaceGrip(card, grip)
     local hy = grip.data.hy
     local inset = CARD_GRIP - CARD_GRIP_OUT
     local topInset = CARD_TOP_GRIP - CARD_TOP_GRIP_OUT
-    local top = -CARD_TITLE_HEIGHT
+    local top = 0
     local corner = hx ~= 0 and hy ~= 0
 
     local x, width
@@ -6178,8 +6323,9 @@ local function ApplyCardScale(card, except)
         card.share.frame.selfStyle.borderWidth = 2 / s
     end
     card.scaler.selfStyle.scale = s
-    --the titlebar is at least as wide as the card (see BuildCard).
-    if card.titlebar ~= nil and card.titlebar.valid then
+    --a document or table item's titlebar is as wide as the item (it only
+    --reaches past a small one to fit its controls); a card's sits in a corner.
+    if card.titleSpansItem and card.titlebar ~= nil and card.titlebar.valid then
         card.titlebar.selfStyle.minWidth = math.floor(w * s)
     end
     for _, grip in ipairs(card.grips) do
@@ -6301,8 +6447,14 @@ local function CardGrip(card, hx, hy)
             if hy < 0 then
                 s = math.min(s, (card.y + curH - CARD_TITLE_HEIGHT) / h)
             end
-            --(a document item can go smaller than a card: card.minScale.)
-            s = math.max(card.minScale or CARD_MIN_SCALE, math.min(CARD_MAX_SCALE, s))
+            --(a document item can go smaller than a card and as big as the
+            --table, a turned card bigger and not as small: card.minScale,
+            --card.maxScale, a number or a function giving one.)
+            local maxScale = card.maxScale or CARD_MAX_SCALE
+            if type(maxScale) == "function" then
+                maxScale = maxScale()
+            end
+            s = math.max(card.minScale or CARD_MIN_SCALE, math.min(maxScale, s))
             if hx < 0 then
                 card.x = card.x + (curW - w * s)
                 panel.x = card.x
@@ -6318,6 +6470,16 @@ local function CardGrip(card, hx, hy)
             element.data.dragging = false
             PlaceGrip(card, element)
             SetGripHover(false)
+            --a turned card's size is every turned card's size (see
+            --g_heroCards.Turn); it is this user's alone.
+            if card.turned then
+                g_heroCards.turnedScale:Set(card.scale)
+                return
+            end
+            --the launcher's peek is this user's alone and not saved.
+            if card.peek then
+                return
+            end
             SaveSoon()
             g_sharing.TookControl(card.layoutKey)
         end,
@@ -6483,11 +6645,126 @@ function g_cs.LandCardGroup(group, dx, dy)
     end
 end
 
+--A card turned over is shown bigger, at one size for every card
+--(turnedScale, this user's, kept between sessions; resizing a turned card
+--sets it), and moves and resizes like any card. While it is turned the
+--card's x/y/scale ARE its turned place and size: rest holds where it lies
+--face up, and turnedAt where turning put it, so a card turned back without
+--being moved goes back exactly where it was. The turn is not saved: a
+--rebuilt card is face up again.
+g_heroCards.turnedScale = setting{
+    id = "tabletop:turnedcardscale",
+    storage = "preference",
+    default = 3,
+}
+g_heroCards.TURNED_MIN = 1.5
+g_heroCards.TURNED_MAX = 5
+
+--- The card's key on the Director's Screen while it is dragged: none for the
+--- launcher's peek, which is not on the screen (its character's table card
+--- has the same item id).
+--- @return nil|string
+function g_heroCards.ScreenKey(card)
+    if card.peek then
+        return nil
+    end
+    return CardItemId(card.charid)
+end
+
+--- Where a card lies face up: its own place, or rest while it is turned.
+--- @return number x, number y, number scale
+function g_heroCards.RestPlace(card)
+    if card.rest ~= nil then
+        return card.rest.x, card.rest.y, card.rest.scale
+    end
+    return card.x, card.y, card.scale or 1
+end
+
+--- The table's part in turning a card over (HeroCardBack's onTurn): moves the
+--- card's frame to where the card ends up, then says how the face gets there
+--- from where it shows now.
+--- @param card table
+--- @param turned boolean
+--- @return HeroCardFlipMotion|nil
+function g_heroCards.Turn(card, turned)
+    local panel = card.panel
+    if panel == nil or not panel.valid then
+        return nil
+    end
+    --turned back by a click on its back, which CardClicked doesn't see.
+    Tabletop.CloseCardMenu(panel)
+    local w, h = CardSize()
+    local lw, lh = LayerSize()
+    local fromX, fromY, fromS = card.x, card.y, card.scale or 1
+    local toX, toY, toS
+    if turned then
+        toS = tonumber(g_heroCards.turnedScale:Get()) or 3
+        toS = math.max(g_heroCards.TURNED_MIN, math.min(g_heroCards.TURNED_MAX, toS))
+        --it grows upward out of the card, centred over it, kept on the table.
+        toX = fromX + (w * fromS - w * toS) / 2
+        toY = fromY + h * fromS - h * toS
+        toX = math.floor(math.max(0, math.min(toX, lw - w * toS)))
+        toY = math.floor(math.max(0, math.min(toY, lh - h * toS)))
+        card.rest = {x = fromX, y = fromY, scale = fromS}
+        card.turnedAt = {x = toX, y = toY, scale = toS}
+        card.minScale = g_heroCards.TURNED_MIN
+        card.maxScale = g_heroCards.TURNED_MAX
+    else
+        local rest = card.rest or {x = fromX, y = fromY, scale = 1}
+        local at = card.turnedAt
+        toS = rest.scale
+        if at ~= nil and at.x == fromX and at.y == fromY and at.scale == fromS then
+            toX, toY = rest.x, rest.y
+        else
+            --moved or resized while turned: it lands centred under where
+            --the turned card was, its foot on the turned card's foot.
+            toX = fromX + (w * fromS - w * toS) / 2
+            toY = fromY + h * fromS - h * toS
+            toX = math.floor(math.max(0, math.min(toX, lw - 60)))
+            toY = math.floor(math.max(CARD_TITLE_HEIGHT, math.min(toY, lh - 60)))
+        end
+        card.rest = nil
+        card.turnedAt = nil
+        card.minScale = nil
+        card.maxScale = nil
+        SaveSoon()
+    end
+    card.turned = turned or nil
+    card.x = toX
+    card.y = toY
+    card.scale = toS
+    panel.x = toX
+    panel.y = toY
+    ApplyCardScale(card)
+    if turned then
+        panel:SetAsLastSibling()
+    end
+    --the face starts where it showed before: offsets and scale in its own
+    --units, which the scaler multiplies by the card's new scale.
+    local fromCx = fromX + w * fromS / 2
+    local fromCy = fromY + h * fromS / 2
+    local toCx = toX + w * toS / 2
+    local toCy = toY + h * toS / 2
+    return {
+        fromScale = fromS / toS,
+        toScale = 1,
+        fromX = (fromCx - toCx) / toS,
+        fromY = (fromCy - toCy) / toS,
+        toX = 0,
+        toY = 0,
+    }
+end
+
 local function BuildCard(card)
     local layer = DocumentsLayer()
     local tok = dmhub.GetCharacterById(card.charid)
     if layer == nil or tok == nil then
         return
+    end
+    --rebuilt while turned over: it comes back face up, where it lay.
+    if card.turned then
+        card.x, card.y, card.scale = g_heroCards.RestPlace(card)
+        card.turned, card.rest, card.turnedAt, card.minScale, card.maxScale = nil, nil, nil, nil, nil
     end
     local w, h = CardSize()
     card.scale = card.scale or 1
@@ -6496,7 +6773,13 @@ local function BuildCard(card)
     --what the resize grips report a player's resize under (TookControl).
     card.layoutKey = CardItemId(card.charid)
 
-    local face = CardFace(card.charid, tok)
+    local face = CardFace(card.charid, tok, {
+        --a turned card is dragged by its back, like the face.
+        dragBack = true,
+        onTurn = function(turned)
+            return g_heroCards.Turn(card, turned)
+        end,
+    })
     card.scaler = gui.Panel{
         halign = "center",
         valign = "center",
@@ -6506,14 +6789,45 @@ local function BuildCard(card)
         face,
     }
 
-    --the ping, left of the share button (DefinePings).
-    local controls = {
-        g_sharing.PingButton(function()
+    --the card's icon row, left to right: History, Character Sheet (a Hero the
+    --Hero sheet opens for), ping (left of the share button, DefinePings), share,
+    --follow, close. The launcher's peek has only History, the Character Sheet and
+    --close: ping, share and follow are the character's table card's.
+    ---@type Panel[]
+    local controls = {}
+    --History (Draw Steel): the table's card has no flip button, so the hero
+    --card's own History chip never shows here.
+    local history = rawget(_G, "History")
+    if history ~= nil and history.OpenFor ~= nil and not history.UsingOldLog() then
+        controls[#controls+1] = WindowControl{
+            icon = "phosphor/clock-counter-clockwise-bold.png",
+            iconSize = 12,
+            width = 26,
+            passPress = true,
+            hover = gui.Tooltip("History"),
+            click = function(element)
+                --GetCharacterById also finds characters who are not on the live map.
+                local token = dmhub.GetCharacterById(card.charid)
+                if token ~= nil then
+                    audio.FireSoundEvent("Mouse.Click")
+                    history.OpenFor(token)
+                end
+            end,
+        }
+    end
+    card.heroSheetButton = nil
+    local heroSheet = rawget(_G, "HeroSheet")
+    if heroSheet ~= nil and heroSheet.Routes(tok) then
+        card.heroSheetButton = Tabletop.CardHeroSheetButton(card.charid)
+        controls[#controls+1] = card.heroSheetButton
+    end
+    if not card.peek then
+        controls[#controls+1] = g_sharing.PingButton(function()
             return card.layoutKey
-        end, {iconSize = 12, width = 26, passPress = true}),
-    }
+        end, {iconSize = 12, width = 26, passPress = true})
+    end
     local share = nil
-    if dmhub.isDM then
+    if dmhub.isDM and not card.peek then
         share = ShareControl{
             itemId = CardItemId(card.charid),
             newItem = function()
@@ -6529,9 +6843,11 @@ local function BuildCard(card)
     end
     --the Director's Screen hides the button while the card is on it.
     card.share = share
-    controls[#controls+1] = g_sharing.FollowButton(function()
-        return card.layoutKey
-    end, {iconSize = 12, width = 26, passPress = true})
+    if not card.peek then
+        controls[#controls+1] = g_sharing.FollowButton(function()
+            return card.layoutKey
+        end, {iconSize = 12, width = 26, passPress = true})
+    end
     controls[#controls+1] = WindowControl{
         danger = true,
         icon = "window-chrome/chrome-close.png",
@@ -6543,22 +6859,22 @@ local function BuildCard(card)
         end,
     }
 
-    --the GameHud cascade carries no theme, so the titlebar brings it, as a
-    --map window's does. It is as wide as the card, or wider, out past the
-    --card's left edge, when the controls need more room: a card made small
-    --keeps its close X (ApplyCardScale keeps minWidth on the card's width).
+    --the icon row sits on the card's top-right corner, shown while the card
+    --is hovered (card.titlebar: it took the place of a titlebar above the
+    --card). The GameHud cascade carries no theme, so the row brings it, as a
+    --map window's titlebar does.
     local titlebar = gui.Panel{
         styles = ThemeEngine.MergeStyles(g_titleStyles),
-        classes = {"tabletopCardTitle", "tabletopCardChrome"},
+        classes = {"tabletopCardTitle", "tabletopCardChrome", cond(card.holdsSheet == true, "pinned", nil)},
         floating = true,
         halign = "right",
         valign = "top",
-        y = -CARD_TITLE_HEIGHT,
+        x = -4,
+        y = 4,
         width = "auto",
-        minWidth = math.floor(w * card.scale),
         height = CARD_TITLE_HEIGHT,
         bgimage = "panels/square.png",
-        cornerRadius = 6,
+        cornerRadius = CARD_TITLE_HEIGHT / 2,
         flow = "horizontal",
         --the share light follows the shared document.
         thinkTime = 1,
@@ -6587,18 +6903,7 @@ local function BuildCard(card)
     card.selectRing = Tabletop.CardSelectRing()
     Tabletop.ShowCardSelected(card.selectRing, Tabletop.SelectedCharids()[card.charid] == true)
     face:AddChild(card.selectRing)
-    card.sheetButton = Tabletop.CardSheetButton(card.charid)
-    card.heroSheetButton = nil
-    --a Hero the Hero sheet opens for gets its button on the card.
-    local heroSheet = rawget(_G, "HeroSheet")
-    if heroSheet ~= nil and heroSheet.Routes(tok) then
-        card.heroSheetButton = Tabletop.CardHeroSheetButton(card.charid)
-    end
-
-    local children = {card.scaler, card.sheetButton, titlebar}
-    if card.heroSheetButton ~= nil then
-        children[#children+1] = card.heroSheetButton
-    end
+    local children = {card.scaler, titlebar}
     for _, grip in ipairs(card.grips) do
         children[#children+1] = grip
     end
@@ -6721,47 +7026,53 @@ local function BuildCard(card)
         },
         --click-to-front from a press anywhere on it (engine walk).
         raiseOnPress = true,
+        --the launcher's peek closes on Escape. Its priority is below the
+        --action bar's and the popups', so an ability or menu opened from
+        --the card takes the key first.
+        captureEscape = card.peek == true,
+        escapePriority = EscapePriority.DMHUB_TOKEN,
+        escape = function(element)
+            if card.peek then
+                CloseCard(card)
+            end
+        end,
         --a hovered grip keeps the titlebar up too (see CardGrip).
         hover = function(element)
             card.cardHovered = true
             titlebar:SetClassTree("shown", true)
-            Tabletop.ShowCardSheetButton(card.sheetButton, true)
-            Tabletop.ShowCardSheetButton(card.heroSheetButton, true)
         end,
         dehover = function(element)
             card.cardHovered = false
             titlebar:SetClassTree("shown", card.gripHovered == true)
-            Tabletop.ShowCardSheetButton(card.sheetButton, false)
-            Tabletop.ShowCardSheetButton(card.heroSheetButton, false)
         end,
         rightClick = function(element)
             if dmhub.isDM then
                 ShowCardMenu(element)
             end
         end,
-        --a hero card turned to its back grows over its titlebar, grips and
-        --sheet buttons, which sit on the card's resting size and would take
-        --the clicks meant for the back's tabs (HeroCardBack). The back has its
-        --own Full sheet link.
+        --a turned card has no icon row: it would cover the back's header.
+        --The back has its own Character Sheet link. Its grips stay, on its
+        --turned size (g_heroCards.Turn).
         heroCardTurned = function(element, turned)
             titlebar:SetClass("collapsed", turned)
-            for _, grip in ipairs(card.grips or {}) do
-                grip:SetClass("collapsed", turned)
-            end
-            for _, button in ipairs({card.sheetButton, card.heroSheetButton}) do
-                if button ~= nil and button.valid then
-                    button:SetClass("collapsed", turned)
-                end
-            end
         end,
         beginDrag = function(element)
+            Tabletop.CloseCardMenu(element)
+            --a turned card only moves: it places no one on a map and takes
+            --no other cards along.
+            if card.turned then
+                return
+            end
             g_cs.BeginCardGroup(card)
             if dmhub.isDM then
-                g_cardDrag = {card = card, overMap = false}
-                gui.SetFocus(element)
+                --placement mode (the focus) waits until the drag is armed.
+                g_cardDrag = {card = card, overMap = false, armed = false}
             end
         end,
         dragging = function(element)
+            if card.turned then
+                return
+            end
             ChatItemLinks.Dragging(function() return {ChatItemLinks.CharacterItem(card.charid)} end)
             --the other selected cards follow it while it is over the table.
             local overTable = dmhub.tabletopDragSurface ~= "map"
@@ -6769,12 +7080,24 @@ local function BuildCard(card)
             if g_cardDrag == nil or g_cardDrag.card ~= card then
                 return
             end
+            if not g_cardDrag.armed then
+                if dmhub.panelDropSurface ~= "table" then
+                    --not yet out over the bare table: a drop is just a move.
+                    local cw = CardSize()
+                    DirectorScreen.ItemDragging(g_heroCards.ScreenKey(card), element.xdrag, cw * (card.scale or 1), element)
+                    return
+                end
+                --out on the table: from here, a drop on a map places the
+                --character (the engine reads the focused card's charid).
+                g_cardDrag.armed = true
+                gui.SetFocus(element)
+            end
             if dmhub.tabletopDragSurface == "map" then
                 --going onto a map, not the table: no Director's Screen hint.
                 DirectorScreen.ItemDragging(nil, 0, 0)
             else
                 local cw = CardSize()
-                DirectorScreen.ItemDragging(CardItemId(card.charid), element.xdrag, cw * (card.scale or 1), element)
+                DirectorScreen.ItemDragging(g_heroCards.ScreenKey(card), element.xdrag, cw * (card.scale or 1), element)
             end
             dmhub.SetDraggingMonster()
             local overMap = dmhub.tabletopDragSurface == "map"
@@ -6785,6 +7108,16 @@ local function BuildCard(card)
             end
         end,
         drag = function(element)
+            if card.turned then
+                --kept on the table; only this user's view of it moves.
+                local lw, lh = LayerSize()
+                card.x = math.max(0, math.min(element.xdrag, lw - 60))
+                card.y = math.max(0, math.min(element.ydrag, lh - 60))
+                element.x = card.x
+                element.y = card.y
+                element:SetAsLastSibling()
+                return
+            end
             --dropped on the chat: a link to the character; the card stays.
             local toChat = ChatItemLinks.Dropped()
             local group = g_cs.TakeCardGroup(card)
@@ -6827,6 +7160,25 @@ local function BuildCard(card)
             element.y = card.y
             element:SetAsLastSibling()
             g_cs.LandCardGroup(group, dx, dy)
+            --the launcher's peek: moved over a map window it stays the
+            --launcher's; dropped on the bare table it becomes a table card.
+            if card.peek then
+                if dmhub.panelDropSurface ~= "table" then
+                    --ends the drag's Director's Screen hint.
+                    if dmhub.isDM then
+                        DirectorScreen.ItemDropped(nil)
+                    end
+                    return
+                end
+                g_heroCards.Detach(card)
+                if card.panel == nil then
+                    --the character's table card took its place.
+                    if dmhub.isDM then
+                        DirectorScreen.ItemDropped(nil)
+                    end
+                    return
+                end
+            end
             SaveSoon()
             g_sharing.TookControl(card.layoutKey)
             --onto the Director's Screen it is the Director's alone; off it,
@@ -6900,6 +7252,91 @@ function Tabletop.OpenCard(charid, options)
     if options.placed then
         DirectorScreen.ItemPlaced(CardItemId(charid))
     end
+end
+
+--- The token launcher's card (DrawSteelTokenHud's characterPanelLauncher):
+--- opens a peek card for the character at x/y (table units), or closes the
+--- one it already has. A table card of the same character is left alone.
+--- False, with nothing done, when there is no table.
+--- @param charid string
+--- @param x number
+--- @param y number
+--- @return boolean
+function Tabletop.ToggleLauncherCard(charid, x, y)
+    if not Tabletop.IsActive() or dmhub.GetCharacterById(charid) == nil then
+        return false
+    end
+    local peek = g_heroCards.peeks[charid]
+    if peek ~= nil then
+        local showing = g_heroCards.Showing(peek)
+        CloseCard(peek)
+        if showing then
+            return true
+        end
+        --gone from view (a click on the map raises its window over the
+        --card): this click opens a fresh one beside the token.
+    end
+    peek = {charid = charid, x = x, y = y, scale = 1, peek = true}
+    g_heroCards.peeks[charid] = peek
+    BuildCard(peek)
+    if peek.panel == nil or not peek.panel.valid then
+        g_heroCards.peeks[charid] = nil
+        return false
+    end
+    peek.panel:SetAsLastSibling()
+    return true
+end
+
+--- Whether a card is in view: built, not stowed, and no window on the table
+--- activated since it was (a press on a map raises the map's window over
+--- the cards on it; see Panel.activationOrder).
+--- @param card table
+--- @return boolean
+function g_heroCards.Showing(card)
+    local panel = card.panel
+    if panel == nil or not panel.valid or panel:HasClass("collapsed") or panel.parent == nil then
+        return false
+    end
+    local mine = panel.activationOrder
+    for _, sibling in ipairs(panel.parent.children) do
+        if sibling ~= panel and sibling.valid and sibling.activationOrder > mine then
+            return false
+        end
+    end
+    return true
+end
+
+--- A peek dropped on the bare table becomes a table card where it lies, and
+--- the launcher opens a new peek next time. If the character already has a
+--- table card, that card moves to the drop instead and the peek goes.
+--- @param card table the peek
+function g_heroCards.Detach(card)
+    if g_heroCards.peeks[card.charid] == card then
+        g_heroCards.peeks[card.charid] = nil
+    end
+    if CardById(card.charid) ~= nil then
+        local x, y = card.x, card.y
+        card.peek = true
+        CloseCard(card)
+        Tabletop.OpenCard(card.charid, {x = x, y = y})
+        return
+    end
+    card.peek = nil
+    if card.panel ~= nil and card.panel.valid then
+        card.panel.captureEscape = false
+    end
+    g_cards[#g_cards+1] = card
+    SaveSoon()
+    --rebuilt with a table card's full icon row (ping, share, follow), once
+    --the drop that made it one has finished.
+    dmhub.Schedule(0.05, function()
+        if mod.unloaded or card.peek or card.panel == nil or not card.panel.valid then
+            return
+        end
+        card.panel:DestroySelf()
+        card.panel = nil
+        BuildCard(card)
+    end)
 end
 
 --- The Hero sheet's colours for the stand-in that flies between it and its
@@ -7117,6 +7554,12 @@ CloseCard = function(card)
         card.panel:DestroySelf()
     end
     card.panel = nil
+    if card.peek then
+        if g_heroCards.peeks[card.charid] == card then
+            g_heroCards.peeks[card.charid] = nil
+        end
+        return
+    end
     for i, other in ipairs(g_cards) do
         if other == card then
             table.remove(g_cards, i)
@@ -7136,6 +7579,14 @@ TeardownCards = function()
         end
         card.panel = nil
     end
+    --peeks are not rebuilt: they go with the table they were opened on.
+    for _, card in pairs(g_heroCards.peeks) do
+        if card.panel ~= nil and card.panel.valid then
+            card.panel:DestroySelf()
+        end
+        card.panel = nil
+    end
+    g_heroCards.peeks = {}
 end
 
 SyncCards = function()
@@ -7149,7 +7600,9 @@ end
 g_layoutWriters[#g_layoutWriters+1] = function(out)
     local cards = {}
     for _, card in ipairs(g_cards) do
-        cards[#cards+1] = {charid = card.charid, x = card.x, y = card.y, scale = card.scale, fromShare = card.fromShare}
+        --a turned card is saved where it lies face up.
+        local x, y, scale = g_heroCards.RestPlace(card)
+        cards[#cards+1] = {charid = card.charid, x = x, y = y, scale = scale, fromShare = card.fromShare}
     end
     out.cards = cards
 end
@@ -7158,16 +7611,23 @@ end
 --share store, and stowing it collapses its panel.
 g_sharing.ScreenCardItem = function(key, card, store)
     local w, h = ItemSize(card)
-    local s = card.scale or 1
+    --a turned card counts where it lies face up.
+    local rx, ry, s = g_heroCards.RestPlace(card)
     return {
         key = key,
-        rect = {x = card.x, y = card.y, w = w * s, h = h * s},
+        rect = {x = rx, y = ry, w = w * s, h = h * s},
         --a minimized journal window's or Hero sheet's stand-in.
         standsIn = card.standsFor ~= nil,
         --free: not kept on the table (see ScreenWindowItem's move).
         move = function(x, free)
             local lw = LayerSize()
-            card.x = free and x or math.max(0, math.min(x, lw - 60))
+            local nx = free and x or math.max(0, math.min(x, lw - 60))
+            if card.rest ~= nil then
+                card.rest.x = nx
+                SaveSoon()
+                return
+            end
+            card.x = nx
             if card.panel ~= nil and card.panel.valid then
                 card.panel.x = card.x
             end
@@ -7205,8 +7665,9 @@ g_sharing.ItemLayoutItem = function(key, card, followed)
                 return nil
             end
             local w, h = ItemSize(card)
-            local s = card.scale or 1
-            return {x = card.x, y = card.y, w = w * s, h = h * s, s = s}
+            --a turned card shares where it lies face up.
+            local x, y, s = g_heroCards.RestPlace(card)
+            return {x = x, y = y, w = w * s, h = h * s, s = s}
         end,
         target = function()
             return {panel = card.panel, cornerRadius = (card.shadowRadius or 0) * (card.scale or 1)}
@@ -7216,12 +7677,23 @@ g_sharing.ItemLayoutItem = function(key, card, followed)
             if panel == nil or not panel.valid then
                 return false
             end
+            local lw, lh = LayerSize()
+            local x = math.max(0, math.min(math.floor(r.x + 0.5), lw - 60))
+            local y = math.max(CARD_TITLE_HEIGHT, math.min(math.floor(r.y + 0.5), lh - 60))
+            --turned over here: the card lies there once it is turned back.
+            if card.rest ~= nil then
+                card.rest.x = x
+                card.rest.y = y
+                if r.s ~= nil then
+                    card.rest.scale = math.max(CARD_MIN_SCALE, math.min(CARD_MAX_SCALE, r.s))
+                end
+                return true
+            end
             if r.s ~= nil then
                 card.scale = math.max(card.minScale or CARD_MIN_SCALE, math.min(CARD_MAX_SCALE, r.s))
             end
-            local lw, lh = LayerSize()
-            card.x = math.max(0, math.min(math.floor(r.x + 0.5), lw - 60))
-            card.y = math.max(CARD_TITLE_HEIGHT, math.min(math.floor(r.y + 0.5), lh - 60))
+            card.x = x
+            card.y = y
             panel.x = card.x
             panel.y = card.y
             ApplyCardScale(card)
@@ -8650,6 +9122,17 @@ do
     --several-document window is set off.
     local DOC = {coverWidth = 120, pad = 10, icon = 24, iconGap = 8, minScale = 0.5, cascade = 24}
 
+    --The largest scale for an item of base size w x h: it may grow until it
+    --fills the table (titlebar included), and never stops short of an NPC
+    --card's CARD_MAX_SCALE.
+    ---@param w number
+    ---@param h number
+    ---@return number
+    function DOC.MaxScale(w, h)
+        local lw, lh = LayerSize()
+        return math.max(CARD_MAX_SCALE, math.min(lw / w, (lh - CARD_TITLE_HEIGHT) / h))
+    end
+
     local function DocItemId(entryid)
         return "doc:" .. entryid
     end
@@ -8874,6 +9357,12 @@ do
         end
         item.scale = item.scale or 1
         item.minScale = DOC.minScale
+        --measured when a grip is dragged, as the table can change size.
+        item.maxScale = function()
+            return DOC.MaxScale(w, h)
+        end
+        --the titlebar spans the item at every size (ApplyCardScale).
+        item.titleSpansItem = true
         --what the resize grips report a player's resize under (TookControl).
         item.layoutKey = DocItemId(item.entryid)
         --the face's cornerRadius, for its shadow (ApplyCardScale).
@@ -9155,7 +9644,7 @@ do
         local lw, lh = LayerSize()
         local bw, bh = DocBaseSize(entry, entryid)
         local item = DocItemById(entryid)
-        local scale = math.max(DOC.minScale, math.min(CARD_MAX_SCALE, options.scale or 1))
+        local scale = math.max(DOC.minScale, math.min(DOC.MaxScale(bw, bh), options.scale or 1))
         if item ~= nil then
             scale = item.scale or 1
         end
@@ -9586,13 +10075,14 @@ do
             return
         end
         for _, saved in ipairs(layout.docs) do
-            if type(saved) == "table" and type(saved.entryid) == "string" and CustomDocument.FindJournalEntry(saved.entryid) ~= nil
-                    and DocItemById(saved.entryid) == nil then
+            local entry = type(saved) == "table" and type(saved.entryid) == "string" and CustomDocument.FindJournalEntry(saved.entryid) or nil
+            if entry ~= nil and DocItemById(saved.entryid) == nil then
+                local bw, bh = DocBaseSize(entry, saved.entryid)
                 g_docItems[#g_docItems+1] = {
                     entryid = saved.entryid,
                     x = tonumber(saved.x) or 100,
                     y = tonumber(saved.y) or 100,
-                    scale = math.max(DOC.minScale, math.min(CARD_MAX_SCALE, tonumber(saved.scale) or 1)),
+                    scale = math.max(DOC.minScale, math.min(DOC.MaxScale(bw, bh), tonumber(saved.scale) or 1)),
                     fromShare = saved.fromShare == true or nil,
                 }
             end
@@ -9788,6 +10278,8 @@ local function DefineTableItems()
             return w, h
         end
         item.scale = item.scale or 1
+        --the titlebar spans the item at every size (ApplyCardScale).
+        item.titleSpansItem = true
         --the face's cornerRadius, for its shadow (ApplyCardScale); a kind may
         --say its own.
         item.shadowRadius = spec.cornerRadius or 4
@@ -13153,6 +13645,13 @@ ThemeEngine.OnThemeChanged(mod, function()
     if g_buttonLayer ~= nil and g_buttonLayer.valid then
         g_buttonLayer.styles = MapButtons.Styles()
         g_buttonLayer:UpdateStyle()
+        --buttons under the Director's Screen carry their own: the screen's
+        --next look puts them back under it with the new ones.
+        for _, item in ipairs(Tabletop.ScreenItems()) do
+            if item.layUnder ~= nil then
+                item.layUnder(false)
+            end
+        end
     end
 end)
 

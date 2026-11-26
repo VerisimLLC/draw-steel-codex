@@ -249,6 +249,8 @@ function EotwTemple.Panel(host)
         local action = nil
         if entry.grave == "beyond" then
             status = T("temple.fallen.beyond")
+        elseif entry.grave == "lost" then
+            status = T("temple.fallen.lost")
         elseif entry.riteActive then
             status = T("temple.fallen.rite_under_way")
         else

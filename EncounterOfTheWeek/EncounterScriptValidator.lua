@@ -371,6 +371,8 @@ local function Report(parse)
                 Row(1, "rule", "%s", T("author.validator.report.setup_parallax", { level = tostring(ins.level) }))
             elseif ins.kind == "herolevel" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_hero_level", { level = tostring(ins.level) }))
+            elseif ins.kind == "consequence" then
+                --shown below for every encounter beat, line or not.
             elseif ins.kind == "aibehavior" then
                 Row(1, "rule", "%s", T("author.validator.report.setup_ai_behavior", { label = tostring(ins.label), text = EncounterScript.DescribeAIBehavior(ins) }))
                 local monsterAI = rawget(_G, "MonsterAI")
@@ -385,6 +387,17 @@ local function Report(parse)
             else
                 Row(1, "flavourUnknown", "%s", T("author.validator.report.setup_unrecognized", { label = tostring(ins.label), text = tostring(ins.text) }))
                 Problem("%s", T("author.validator.problems.setup_not_understood", { where = tostring(EncounterScript.LineLabel(parse, ins.line)), text = tostring(ins.text) }))
+            end
+        end
+        --what happens to a hero who dies here (its Consequence line, else Retreat).
+        if beat.kind == "encounter" then
+            Row(1, "rule", "%s", T("author.validator.report.setup_consequence_" .. EncounterScript.FindConsequence({ beats = { beat } })))
+            --each mode line overrides it in that mode only, so name the mode.
+            for _, ins in ipairs(beat.setup or {}) do
+                if ins.kind == "consequence" and ins.mode ~= nil then
+                    Row(1, "rule", "%s", T("author.validator.report.setup_consequence_in_mode", {
+                        mode = ins.mode, text = T("author.validator.report.setup_consequence_" .. ins.consequence) }))
+                end
             end
         end
 
@@ -755,12 +768,15 @@ end
 local ROUTE_PARTY_SIZES = { 3, 4, 5 }
 --How many routes are spelled out per party size (all are counted).
 local ROUTE_LIST_LIMIT = 8
+--Weary wears off after this many tests by other heroes (EncounterGauntlet).
+local WEARY_WEARS_OFF_AFTER = 3
 
 --Rows for every narrative beat with a choice of route or a test: per party
 --size, the routes through it
 --(EncounterScript.GauntletRoutes) and how many tests the longest one asks
---for, against the number of heroes (every roll after a hero's first is a
---Weary bane).
+--for, against the number of heroes. A roll is a Weary bane until three
+--tests by other heroes follow it, so a party of four or more can take turns
+--and never be Weary; a smaller party with more tests than heroes cannot.
 function GauntletRouteRows(parse)
     local rows = {}
     local function Row(depth, class, text)
@@ -787,7 +803,7 @@ function GauntletRouteRows(parse)
                     most = math.max(most, r.tests)
                 end
                 Row(1, "entry", T("author.validator.routes.party", { heroes = size, routes = #routes, fewest = fewest or 0, most = most }))
-                if most > size then
+                if most > size and size - 1 < WEARY_WEARS_OFF_AFTER then
                     Row(2, "note", T("author.validator.routes.weary", { heroes = size, tests = most, rolls = math.ceil(most / size) }))
                 end
                 for i, r in ipairs(routes) do

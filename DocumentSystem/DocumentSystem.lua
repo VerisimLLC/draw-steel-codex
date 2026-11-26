@@ -7139,6 +7139,9 @@ function CustomDocument.CreateTabbedViewer(placement)
         halign = "left",
         valign = "top",
         draggable = true,
+        --stay in this window's own layer while dragged: lifting it above the
+        --rest of the UI restyles the whole window every frame and makes drags stutter.
+        dragInPlace = true,
         drag = function(element)
             --while popped out the OS window is what moves; a release of a
             --(suppressed) drag must not teleport the panel inside it.
@@ -8080,8 +8083,9 @@ function CustomDocument:PresentDocument(args)
     if self:has_key("_tmp_location") and self._tmp_location.screenx == dmhub.screenDimensionsBelowTitlebar.x and self._tmp_location.screeny == dmhub.screenDimensionsBelowTitlebar.y then
         loc.x = self._tmp_location.x or loc.x
         loc.y = self._tmp_location.y or loc.y
-        loc.width = self._tmp_location.width or loc.width
-        loc.height = self._tmp_location.height or loc.height
+        --stored from selfStyle, which this function only sets to pixel numbers.
+        loc.width = (self._tmp_location.width or loc.width) --[[@as number]]
+        loc.height = (self._tmp_location.height or loc.height) --[[@as number]]
         userPlaced = self._tmp_location.moved == true and self._tmp_location.x ~= nil and self._tmp_location.y ~= nil
     end
 
@@ -8159,6 +8163,9 @@ function CustomDocument:PresentDocument(args)
         --unaffected -- swallowPress only stops PARENT propagation.
         swallowPress = true,
         draggable = true,
+        --stay in this window's own layer while dragged: lifting it above the
+        --rest of the UI restyles the whole window every frame and makes drags stutter.
+        dragInPlace = true,
         drag = function(element)
             --pinned windows still receive drag events (they only clear
             --dragMove -- see refreshPanelPinned); dropping the event here
@@ -8598,10 +8605,11 @@ local g_panelDocuments = {}
 --8px-per-character as the estimate until a name has been measured once.
 local g_chipLabelWidthCache = {}
 
---Get (or create) the session-cached PanelDocument for a registered
---dockable panel name. Returns nil when no such panel is registered or
---it is not available to this user (dmonly/devonly).
-function PanelDocument.Get(panelName)
+--The registration of a dockable panel this user can have a window for, or
+--nil when no such panel is registered or it is not available to this user
+--(dmonly/devonly, or its available() says no, as History does while the old
+--Action Log is in use).
+function PanelDocument.AvailableRegistration(panelName)
     local reg = DockablePanel.GetRegistration(panelName)
     if reg == nil then
         return nil
@@ -8610,6 +8618,20 @@ function PanelDocument.Get(panelName)
         return nil
     end
     if reg.devonly and not devmode() then
+        return nil
+    end
+    if reg.available ~= nil and not reg.available() then
+        return nil
+    end
+    return reg
+end
+
+--Get (or create) the session-cached PanelDocument for a registered
+--dockable panel name; nil when this user can't have its window
+--(AvailableRegistration).
+function PanelDocument.Get(panelName)
+    local reg = PanelDocument.AvailableRegistration(panelName)
+    if reg == nil then
         return nil
     end
 
@@ -8919,12 +8941,25 @@ end
 --("iconrailtabs", a name kept for compatibility with saved layouts)
 --is purely the folder membership -- windows are always single-panel.
 
---{ [memberKey] = ownerKey } across every stored group. Owners never
---appear as members (SetStoredTabs enforces it), so this cannot chain.
+--Whether a folder's owner can host it here. A folder is its owner's window,
+--so a panel this user can't have a window for (the old Action Log while
+--History is in use, an absent mod's panel) owns nothing: its members host
+--themselves until it is back. Otherwise they could not be opened at all
+--(RE4KHZ5Q).
+function PanelDocument.FolderOwnerShows(owner)
+    --map folders are already filtered (LiveFolders); a script button is no
+    --panel, so it has no registration to check.
+    return MapRail.IsMapPanel(owner) or string.match(owner, "^button:") ~= nil
+        or PanelDocument.AvailableRegistration(owner) ~= nil
+end
+
+--{ [memberKey] = ownerKey } across every stored group whose owner shows.
+--Owners never appear as members (SetStoredTabs enforces it), so this
+--cannot chain.
 function PanelDocument.GroupOwners()
     local result = {}
     for owner, tabs in pairs(MapRail.EffectiveTabs()) do
-        if type(tabs) == "table" and #tabs > 1 then
+        if type(tabs) == "table" and #tabs > 1 and PanelDocument.FolderOwnerShows(owner) then
             for _, k in ipairs(tabs) do
                 if k ~= owner then
                     result[k] = owner
@@ -8991,7 +9026,18 @@ function PanelDocument.WindowOwner(key)
         return nil
     end
     key = string.lower(key)
-    return PanelDocument.GroupOwners()[key] or key
+    --not through GroupOwners: the rails ask this per button several times a
+    --second, so only the one folder holding the key has its owner checked.
+    for owner, tabs in pairs(MapRail.EffectiveTabs()) do
+        if owner ~= key and #tabs > 1 then
+            for _, k in ipairs(tabs) do
+                if k == key and PanelDocument.FolderOwnerShows(owner) then
+                    return owner
+                end
+            end
+        end
+    end
+    return key
 end
 
 --Open this panel's standalone window, or raise the existing one.
@@ -9011,7 +9057,9 @@ function PanelDocument:PresentPanel(args)
         return existing
     end
 
-    args.width = args.width or PanelDocument.DefaultWidth
+    --a panel laid out for one width (History) registers defaultWidth for its first window.
+    local reg = DockablePanel.GetRegistration(self:try_get("panelName") or "")
+    args.width = args.width or (reg ~= nil and reg.defaultWidth) or PanelDocument.DefaultWidth
     args.height = PanelDocument.ClampHeight(
         self:try_get("panelName"),
         args.height or PanelDocument.DefaultHeight)
@@ -9235,6 +9283,16 @@ local function RailActivation(key)
     return "close", ownerKey, doc, dialog
 end
 
+--A panel the rail's Add lists may offer this user: one they can open that is available to
+--them now (History is not while they use the old Action Log, nor in Crows).
+function PanelDocument.OfferedOnRail(name)
+    if PanelDocument.Get(name) == nil then
+        return false
+    end
+    local reg = DockablePanel.GetRegistration(string.lower(name))
+    return reg == nil or DockablePanel.PanelPermittedForUser(reg)
+end
+
 --An ACTION registration (DockablePanel.Register with launch = fn): its
 --button runs launch() instead of opening a window -- e.g. Monster
 --Builder, which launches the companion app. Returns the launch function
@@ -9261,7 +9319,9 @@ local g_iconRailPanels = {
     --lookup fails), same as any unavailable panel.
     "Dice",
     "Chat",
-    "Action Log",
+    --History replaced the Action Log here; the old log shows only for a user
+    --who turns on "Use Old Action Log".
+    "History",
     "Journal",
     "Campaign Tracker",
     "Downtime Projects",
@@ -9566,6 +9626,9 @@ function PanelDocument:CreateInterface(args)
     local contentArea
     local hairline
     local header
+    --the active tab's own header control (reg.headerControl); see SyncHeaderControl.
+    local headerSlot
+    local SyncHeaderControl
 
     local m_shaded = false
     local m_savedHeight = nil
@@ -9859,6 +9922,10 @@ function PanelDocument:CreateInterface(args)
             end
             dialog.data.panelTabs = keys
         end
+        --one tab or several decides where a header control sits.
+        if SyncHeaderControl ~= nil and not m_constructing then
+            SyncHeaderControl()
+        end
     end
 
     local function SwitchTab(key)
@@ -9913,6 +9980,9 @@ function PanelDocument:CreateInterface(args)
             if t.chip ~= nil and t.chip.valid then
                 t.chip:SetClass("selected", t.key == key)
             end
+        end
+        if SyncHeaderControl ~= nil then
+            SyncHeaderControl()
         end
         --the one visible label rides the active tab, so every switch
         --moves it -- and the width swap can change the header's row
@@ -10388,13 +10458,15 @@ function PanelDocument:CreateInterface(args)
         end
     end
 
+    --leaves room for the right-side chrome: headerControls floats at
+    --x -6 and runs about 40px wide (pin 14 + its 6 margin + x 18),
+    --so 52 clears it with a small gap. The popout button adds itself
+    --to the same row (16 + its 6 margin), so allow 22 more when the
+    --hosting flow supplies that gesture.
+    local stripReserve = cond(args.popout ~= nil, 74, 52)
+
     tabStrip = gui.Panel{
-        --leaves room for the right-side chrome: headerControls floats at
-        --x -6 and runs about 40px wide (pin 14 + its 6 margin + x 18),
-        --so 52 clears it with a small gap. The popout button adds itself
-        --to the same row (16 + its 6 margin), so allow 22 more when the
-        --hosting flow supplies that gesture.
-        width = cond(args.popout ~= nil, "100%-74", "100%-52"),
+        width = string.format("100%%-%d", stripReserve),
         height = "auto",
         flow = "horizontal",
         wrap = true,
@@ -10402,12 +10474,103 @@ function PanelDocument:CreateInterface(args)
         valign = "center",
     }
 
+    --A panel may put one control in the title row (History's map switcher): registration
+    --field headerControl = function() return panel end, called once its tab is first active.
+    --The panel needs a numeric width, 0 when it has nothing to show, and fires
+    --"syncHeaderControl" on its parents when that changes. Only the active tab's one shows.
+    local m_headerControls = {}
+    --floats in the header just past the last chip, 6px off it like the title, so it
+    --reads as part of the title. Not inside the tab strip: that strip wraps, which
+    --would put a floating child on a second row.
+    headerSlot = gui.Panel{
+        floating = true,
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        syncHeaderControl = function(element)
+            SyncHeaderControl()
+        end,
+    }
+
+    --Moves the slot to the end of the chips. Measured, so it runs after a
+    --layout pass (syncPanelHeader); chip widths change on every tab switch.
+    local function PlaceHeaderSlot()
+        if headerSlot == nil or not headerSlot.valid then
+            return
+        end
+        if not headerSlot.floating then
+            --its own row: in line with the first chip's icon (1 + 6 inset).
+            headerSlot.x = 7
+            return
+        end
+        local chipsWidth = 0
+        for _, tab in ipairs(m_tabs) do
+            if tab.chip ~= nil and tab.chip.valid then
+                chipsWidth = chipsWidth + (tab.chip.renderedWidth or 0) + 2
+            end
+        end
+        headerSlot.x = chipsWidth + 6
+    end
+
+    SyncHeaderControl = function()
+        if headerSlot == nil or not headerSlot.valid then
+            return
+        end
+        local active = FindTab(m_activeKey)
+        if active ~= nil and active.reg.headerControl ~= nil and m_headerControls[active.key] == nil then
+            --a panel's own control failing must not stop the window opening or switching tabs.
+            local ok, control = pcall(active.reg.headerControl)
+            if ok and control ~= nil then
+                --a holder per tab, so the window's show/hide never fights
+                --the control's own collapsed class.
+                m_headerControls[active.key] = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    control,
+                }
+                headerSlot:AddChild(m_headerControls[active.key])
+            end
+        end
+        local reserve = stripReserve
+        local controlWidth = 0
+        for key, holder in pairs(m_headerControls) do
+            if holder.valid then
+                local shown = active ~= nil and key == active.key
+                holder:SetClass("collapsed", not shown)
+                local control = holder.children[1]
+                if shown and control ~= nil and type(control.selfStyle.width) == "number" and control.selfStyle.width > 0 then
+                    controlWidth = control.selfStyle.width
+                end
+            end
+        end
+        --one tab: the control sits in the title row beside its chip, taking width
+        --from the strip. Several tabs: it gets its own row below the chips. With
+        --nothing showing it floats, so it takes no room either way.
+        local ownRow = controlWidth > 0 and #m_tabs > 1
+        headerSlot.floating = not ownRow
+        headerSlot.selfStyle.bmargin = ownRow and 4 or 0
+        if controlWidth > 0 and not ownRow then
+            reserve = reserve + controlWidth + 6
+        end
+        if tabStrip ~= nil and tabStrip.valid then
+            tabStrip.selfStyle.width = string.format("100%%-%d", reserve)
+        end
+        if header ~= nil and header.valid then
+            header:ScheduleEvent("syncPanelHeader", 0.05)
+        end
+    end
+
     header = gui.Panel{
         classes = {"panelDocumentHeader"},
         width = "100%",
         height = "auto",
         minHeight = g_panelDocumentHeaderHeight,
-        flow = "horizontal",
+        --vertical for the header control's own row (headerSlot) under the
+        --chips; the chips and window buttons share topRow.
+        flow = "vertical",
         bgimage = true,
         --NO swallowPress here: the press must propagate to the dialog,
         --whose draggable is what makes the window movable by its bar.
@@ -10428,6 +10591,7 @@ function PanelDocument:CreateInterface(args)
                 element:ScheduleEvent("syncPanelHeader", 0.05)
                 return
             end
+            PlaceHeaderSlot()
             local h = HeaderHeight()
             if contentArea ~= nil and contentArea.valid then
                 contentArea.selfStyle.height = string.format("100%%-%d", h + 1)
@@ -10437,8 +10601,15 @@ function PanelDocument:CreateInterface(args)
             end
         end,
 
-        tabStrip,
-        headerControls,
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            minHeight = g_panelDocumentHeaderHeight,
+            flow = "horizontal",
+            tabStrip,
+            headerControls,
+        },
+        headerSlot,
     }
 
     hairline = gui.Panel{
@@ -12190,8 +12361,14 @@ RailEntryTypes = rawget(_G, "RailEntryTypes") or {}
 --g_iconRailPanels list only provides first-run defaults for panels
 --without a stored entry. Legacy entries (ord, no slot) compact into the
 --lowest free slots; slot collisions bump downward.
+--Stand-ins drawn in another panel's rail slot: each stand-in's key -> the key that slot is saved under.
+--Set by each RailLayout (a field: this file is at Lua's 200-local limit).
+--- @type table<string, string>
+PanelDocument.railStandIns = {}
+
 local function RailLayout()
     local stored = dmhub.GetSettingValue("iconraillayout") or {}
+    PanelDocument.railStandIns = {}
     local sides = { left = {}, right = {} }
     local inert = {}
     local seen = {}
@@ -12309,7 +12486,25 @@ local function RailLayout()
                 sbuttonSpan = ScriptButtonStyle(def).slots
             end
         else
+            --a panel behind a setting (`available`) keeps its slot but draws nothing while
+            --off, as the docks and window tabs already do (History / Use Old Action Log).
+            local reg = DockablePanel.GetRegistration(displayName)
             available = PanelDocument.Get(displayName) ~= nil
+                and (reg == nil or reg.available == nil or reg.available())
+            --a panel that can't show lends its slot to the one registered to stand in for it
+            --(the old Action Log in History's), so the stored layout keeps its own key and
+            --still matches the View it came from.
+            if not available and reg ~= nil then
+                local standIn = DockablePanel.StandIn(reg)
+                if standIn ~= nil and standIn ~= reg then
+                    local standInKey = string.lower(standIn.name)
+                    if not seen[standInKey] and stored[standInKey] == nil and PanelDocument.Get(standIn.name) ~= nil then
+                        seen[standInKey] = true
+                        PanelDocument.railStandIns[standInKey] = key
+                        key, displayName, available = standInKey, standIn.name, true
+                    end
+                end
+            end
         end
 
         if not available then
@@ -12445,12 +12640,17 @@ local function SaveRailLayout(sides, inert)
     local stored = {}
     for side, list in pairs(sides) do
         for _, e in ipairs(list) do
-            stored[e.key] = { side = side, slot = e.slot }
+            --a stand-in's slot is saved under the panel it stands in for (see RailLayout).
+            local storedKey = PanelDocument.railStandIns[e.key] or e.key
+            stored[storedKey] = { side = side, slot = e.slot }
         end
     end
     for _, e in ipairs(inert or {}) do
-        if stored[e.key] == nil then
-            stored[e.key] = { side = e.side, slot = e.slot }
+        --a stand-in removed or filed away is saved under its panel's key too, or the layout
+        --would lose that panel (Remove from rail on the old Action Log dropped History).
+        local storedKey = PanelDocument.railStandIns[e.key] or e.key
+        if stored[storedKey] == nil then
+            stored[storedKey] = { side = e.side, slot = e.slot }
         end
     end
     dmhub.SetSettingValue("iconraillayout", stored)
@@ -13360,6 +13560,23 @@ local function SyncDockHandles()
             end
         end
     end
+end
+
+--Whether a side dock holds no panels. False while the docks are not up, or
+--while the saved layout still has panels for it (the dock is mid-rebuild, or
+--its last panel is being dragged out).
+function PanelDocument.SideDockEmpty(side)
+    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+        return false
+    end
+    local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+    if dock == nil or (not dock.valid) or #dock:GetChildrenWithClasses({"dockablePanelContainer"}) > 0 then
+        return false
+    end
+    --docks are saved in GameHud:Docks() order: left, right, floating.
+    local saved = dmhub.GetSettingValue(GetDockablePanelsSetting()) or {}
+    local savedDock = (saved.docks or {})[cond(side == "right", 2, 1)]
+    return savedDock == nil or savedDock.panels == nil or #savedDock.panels == 0
 end
 
 --Toggling the rail moves the docks with it: rail ON slides both docks
@@ -16423,6 +16640,9 @@ end
 -- Lua's 200-local ceiling, so no new file-scope locals.
 
 PanelDocument.chatBubbleState = { seen = {}, seenCount = 0, panel = nil }
+--The bubble on screen for each panel key ("chat", "history"): one per panel. Any panel
+--can show one beside its rail button through PanelDocument.ShowRailBubble.
+PanelDocument.railBubbles = {}
 PanelDocument.CHAT_BUBBLE_WIDTH = 300
 PanelDocument.CHAT_BUBBLE_LINGER = 5
 PanelDocument.CHAT_BUBBLE_MAX_ROWS = 4
@@ -16663,7 +16883,15 @@ end
 --invisible as a closed window, and a message arriving then deserves the
 --bubble just the same.
 function PanelDocument.ChatInFront()
-    if PanelDocument.IsPoppedOut("chat") then
+    return PanelDocument.PanelInFront("chat", "Chat")
+end
+
+--- Whether a panel is already in front of the player (ChatInFront, for any panel).
+--- @param key string The panel's rail key, lowercase ("chat").
+--- @param panelName string Its DockablePanel registration name ("Chat").
+--- @return boolean
+function PanelDocument.PanelInFront(key, panelName)
+    if PanelDocument.IsPoppedOut(key) then
         return true
     end
     local stage, stageDepth = PanelDocument.FullscreenStage()
@@ -16674,13 +16902,13 @@ function PanelDocument.ChatInFront()
         local depth = PanelDocument.LayerDepth(panel)
         return depth ~= nil and depth > stageDepth
     end
-    if PanelDocument.IsPanelActive("chat") then
-        local dialog = PanelDocument.FindHostDialog("chat")
+    if PanelDocument.IsPanelActive(key) then
+        local dialog = PanelDocument.FindHostDialog(key)
         if dialog == nil or inFront(dialog) then
             return true
         end
     end
-    local reg = DockablePanel.GetRegistration("Chat")
+    local reg = DockablePanel.GetRegistration(panelName)
     if reg ~= nil and reg.identifier ~= nil then
         local instance = DockablePanel.FindInstance(reg.identifier)
         if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil and inFront(instance) then
@@ -16690,19 +16918,133 @@ function PanelDocument.ChatInFront()
     return false
 end
 
---The chat button the bubble hangs off: side ("left"/"right"), slot and
---the button panel itself, or nil when there is none to hang off.
---
---Two kinds of button exist. On a real rail it is a slotted top-level
---child, and that is the only one looked for there -- a grouped-away or
---overflow-parked chat button keeps its old "no bubble" answer. When a
---custom interface owns the rail surface (Encounter of the Week keeps
---Journal / Chat / Action Log in the bottom-left corner while it takes
---the hud over) the button is a provider widget nested inside the rail
---wrapper with no slot, so that case searches the wrapper's tree.
+--Functions run once a rail layout is in place (on entering a game and after every View
+--apply), e.g. to give a panel shown by a preference the slot a View's template left out.
+--A field, not a local: this file is at Lua's 200-local limit.
+PanelDocument.railLayoutApplied = {}
+
+--- Registers a function to run whenever a rail layout has been put in place. Keyed, so a
+--- reloaded module replaces its own rather than adding a second.
+--- @param id string
+--- @param fn fun()
+function PanelDocument.OnRailLayoutApplied(id, fn)
+    PanelDocument.railLayoutApplied[id] = fn
+end
+
+--- Runs every function registered with PanelDocument.OnRailLayoutApplied.
+function PanelDocument.RunRailLayoutApplied()
+    for id, fn in pairs(PanelDocument.railLayoutApplied) do
+        local ok, err = pcall(fn)
+        if not ok then
+            dmhub.Debug(string.format("Rail layout applied (%s): %s", id, tostring(err)))
+        end
+    end
+end
+
+--- Gives a panel a rail button directly below another panel's, moving the buttons
+--- under it down a slot. Does nothing if the panel already has a place on the rails,
+--- or the other panel has no button. Keys are lowercase.
+--- @param key string
+--- @param belowKey string
+function PanelDocument.RailPlaceBelow(key, belowKey)
+    local layout = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {})
+    local side, slot = RailFindButton(belowKey)
+    if layout[key] ~= nil or side == nil then
+        return
+    end
+    for _, entry in pairs(layout) do
+        if type(entry) == "table" and (entry.side or "left") == side and entry.slot ~= nil and entry.slot > slot then
+            entry.slot = entry.slot + 1
+        end
+    end
+    layout[key] = { side = side, slot = slot + 1 }
+    dmhub.SetSettingValue("iconraillayout", layout)
+    RebuildIconRails()
+end
+
+--- Gives one panel's rail slot to another that has none (History and the old Action Log,
+--- which never show together): the second takes the first's place and nothing shifts.
+--- Returns true if it moved the slot; false when there was nothing to hand over.
+--- @param fromKey string
+--- @param toKey string
+--- @return boolean
+function PanelDocument.RailSwapPanel(fromKey, toKey)
+    local layout = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {})
+    local from = layout[fromKey]
+    if layout[toKey] ~= nil or type(from) ~= "table" or from.slot == nil then
+        return false
+    end
+    layout[toKey] = from
+    layout[fromKey] = nil
+    dmhub.SetSettingValue("iconraillayout", layout)
+    RebuildIconRails()
+    return true
+end
+
+--- Hands one panel's folder to another panel that takes its place (History and the old
+--- Action Log): the second becomes the folder's owner, the first leaves it. Does nothing
+--- when the first owns no folder or the second is already in one. Keys are lowercase.
+--- @param fromKey string
+--- @param toKey string
+function PanelDocument.RailSwapFolder(fromKey, toKey)
+    local tabs = PanelDocument.StoredTabs(fromKey)
+    if tabs == nil then
+        return
+    end
+    --the stored folders, not GroupOwners: it leaves out folders whose owner can't show.
+    for _, list in pairs(MapRail.EffectiveTabs()) do
+        for _, k in ipairs(list) do
+            if string.lower(k) == toKey then
+                return
+            end
+        end
+    end
+    local list = {}
+    for _, k in ipairs(tabs) do
+        k = string.lower(k)
+        list[#list + 1] = cond(k == fromKey, toKey, k)
+    end
+    --the members leave fromKey's folder with this, which ends it.
+    PanelDocument.SetStoredTabs(toKey, list)
+end
+
+--- Rebuilds the icon rails from the stored layout: for a panel whose `available` answer
+--- changed (History's "Use Old Action Log" swaps History and the Action Log). A panel no
+--- longer available loses its open window (its record stays, for when it comes back), and
+--- the docks are rebuilt so the panel standing in for it takes its place.
+function PanelDocument.RebuildRails()
+    for _, doc in pairs(g_panelDocuments) do
+        local reg = DockablePanel.GetRegistration(doc:try_get("panelName") or "")
+        if reg ~= nil and reg.available ~= nil and not reg.available() then
+            doc:ClosePanel()
+        end
+    end
+    if RebuildIconRails ~= nil then
+        RebuildIconRails()
+    end
+    if not RailModeActive() and rawget(_G, "gamehud") ~= nil then
+        DockablePanel.Deserialize()
+    end
+end
+
 function PanelDocument.FindChatRailButton()
-    local function railSideOf(key)
-        return cond(string.sub(key, 1, 4) == "left", "left", "right")
+    return PanelDocument.FindRailButton("chat")
+end
+
+--- The rail button a panel's bubble hangs off: side, slot and the button panel, or nil
+--- when there is none to hang off.
+---
+--- Two kinds of button exist. On a real rail it is a slotted top-level child, and that is
+--- the only one looked for there: a grouped-away or overflow-parked button has no bubble.
+--- When a custom interface owns the rail surface (Encounter of the Week keeps Journal /
+--- Chat / History in the bottom-left corner while it takes the hud over) the button is a
+--- provider widget nested inside the rail wrapper with no slot, so that case searches the
+--- wrapper's tree.
+--- @param key string The panel's rail key, lowercase.
+--- @return string|nil side, integer|nil slot, Panel|nil button
+function PanelDocument.FindRailButton(key)
+    local function railSideOf(railKey)
+        return cond(string.sub(railKey, 1, 4) == "left", "left", "right")
     end
 
     for railSide, rail in pairs(g_iconRails) do
@@ -16710,7 +17052,7 @@ function PanelDocument.FindChatRailButton()
             for _, child in ipairs(rail.children) do
                 if child.valid and child:HasClass("iconRailButton") and child.enabled then
                     local d = child.data
-                    if type(d) == "table" and d.key == "chat" and d.slot ~= nil then
+                    if type(d) == "table" and d.key == key and d.slot ~= nil then
                         return railSideOf(railSide), d.slot, child
                     end
                 end
@@ -16734,7 +17076,7 @@ function PanelDocument.FindChatRailButton()
             if child.valid and child.enabled ~= false then
                 if child:HasClass("iconRailButton") then
                     local d = child.data
-                    if type(d) == "table" and d.key == "chat" then
+                    if type(d) == "table" and d.key == key then
                         return child
                     end
                 end
@@ -16831,6 +17173,16 @@ end
 --registers it in chatBubbleState. Returns nil when the documents layer
 --is not available.
 function PanelDocument.CreateChatBubble(side, slot, rect)
+    return PanelDocument.CreateRailBubble({key = "chat", panelName = "Chat"}, side, slot, rect)
+end
+
+--- Builds a panel's bubble beside its rail button (CreateChatBubble, for any panel).
+--- @param opts {key: string, panelName: string}
+--- @param side string
+--- @param slot integer|nil
+--- @param rect table|nil
+--- @return Panel|nil
+function PanelDocument.CreateRailBubble(opts, side, slot, rect)
     local layer = DocumentsLayer()
     if layer == nil or rect == nil then
         return nil
@@ -16888,6 +17240,11 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             if ww > 0 and wh > 0 then
                 obstacles[#obstacles + 1] = { x1 = wx, y1 = wy, x2 = wx + ww, y2 = wy + wh }
             end
+        end
+    end
+    for otherKey, other in pairs(PanelDocument.railBubbles) do
+        if otherKey ~= opts.key and other.valid and type(other.data.footprint) == "table" then
+            obstacles[#obstacles + 1] = other.data.footprint
         end
     end
     local estH = 110 * scale
@@ -16993,10 +17350,16 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
         borderBox = true,
         swallowPress = true,
         data = {
+            key = opts.key,
+            panelName = opts.panelName,
             side = side,
             slot = slot,
             lastMessage = dmhub.Time(),
             rows = {},
+            --where it sits at full width, for the next bubble to avoid.
+            footprint = { x1 = sx, y1 = y, x2 = sx + effW, y2 = y + estH },
+            --the pointer is on it: it stays until the pointer leaves.
+            held = false,
         },
 
         create = function(element)
@@ -17006,19 +17369,31 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             element:SetClass("entering", false)
         end,
 
-        --a press on the bubble is "show me": open the chat window
-        --exactly as its rail button would, and let the bubble go.
+        --a press on the bubble is "show me": open the panel's window
+        --exactly as its rail button would, and let the bubble go. A row
+        --with its own click (History: show that action) runs it once open.
         click = function(element)
             local data = element.data
             element:FireEvent("bubbleFade")
-            RailSweepTransient("chat")
+            local rowClick = nil
+            for _, row in ipairs(data.rows) do
+                local point = row.valid and row.mousePoint or nil
+                if point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1
+                    and type(row.data) == "table" and row.data.bubbleClick ~= nil then
+                    rowClick = row.data.bubbleClick
+                end
+            end
+            RailSweepTransient(data.key)
             if data.slot == nil then
-                --a custom interface's chat button has no rail slot to
-                --anchor a window to, so open it the way that button does.
-                DockablePanel.LaunchPanelByName("Chat", "show")
+                --a custom interface's button has no rail slot to anchor a
+                --window to, so open it the way that button does.
+                DockablePanel.LaunchPanelByName(data.panelName, "show")
             else
                 local anchorX, anchorY = RailAnchor(data.side, data.slot)
-                OpenIconRailWindow("Chat", { x = anchorX, y = anchorY, anchor = true })
+                OpenIconRailWindow(data.panelName, { x = anchorX, y = anchorY, anchor = true })
+            end
+            if rowClick ~= nil then
+                rowClick()
             end
             --clicked while riding over a full-screen stage, the window
             --would open BEHIND the stage; bring it forward so the click
@@ -17029,7 +17404,7 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
                     if mod.unloaded then
                         return
                     end
-                    local dialog = PanelDocument.FindHostDialog("chat")
+                    local dialog = PanelDocument.FindHostDialog(data.key)
                     if dialog ~= nil and dialog.valid then
                         PanelDocument.RaiseOnLayer(dialog)
                     end
@@ -17039,48 +17414,19 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
         end,
 
         addChatMessage = function(element, message)
+            element:FireEvent("addBubbleRow", PanelDocument.ChatBubbleRowContent(message))
+        end,
+
+        --one row: contents is a list of panels stacked in it; click, when
+        --given, runs after a press on this row has opened the panel.
+        addBubbleRow = function(element, contents, click)
             local data = element.data
             data.lastMessage = dmhub.Time()
-            --a message landing mid-fade rescues the bubble; the pending
+            --a row landing mid-fade rescues the bubble; the pending
             --bubbleDie checks the class and stands down.
             if element:HasClass("fadeout") then
                 element:SetClass("fadeout", false)
                 element.blurBackground = true
-            end
-
-            local text = ""
-            pcall(function() text = tostring(message.message or "") end)
-            local limit = PanelDocument.CHAT_BUBBLE_TRUNCATE
-            if #text > limit then
-                --byte cap, backed off past any UTF-8 continuation bytes
-                --so the cut never splits a codepoint.
-                local cut = limit
-                while cut > 1 do
-                    local b = string.byte(text, cut)
-                    if b ~= nil and b >= 0x80 and b < 0xc0 then
-                        cut = cut - 1
-                    else
-                        break
-                    end
-                end
-                text = string.sub(text, 1, cut - 1) .. "..."
-            end
-
-            local nick = nil
-            pcall(function() nick = message.nick end)
-            if nick == nil or nick == "" then
-                nick = "Player"
-            end
-            local nickColor = nil
-            pcall(function() nickColor = message.nickColor end)
-
-            local nickLabel = gui.Label{
-                classes = {"chatBubbleNick"},
-                text = nick,
-                interactable = false,
-            }
-            if nickColor ~= nil then
-                pcall(function() nickLabel.selfStyle.color = nickColor end)
             end
 
             local row = gui.Panel{
@@ -17092,6 +17438,7 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
                 --older rows glide up when one above them sheds.
                 moveTime = 0.2,
                 interactable = false,
+                data = { bubbleClick = click },
                 create = function(r)
                     r:ScheduleEvent("settleRow", 0.02)
                 end,
@@ -17105,13 +17452,7 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
                 rowDie = function(r)
                     r:DestroySelf()
                 end,
-
-                nickLabel,
-                gui.Label{
-                    classes = {"chatBubbleText"},
-                    text = text,
-                    interactable = false,
-                },
+                children = contents,
             }
             element:AddChild(row)
 
@@ -17136,8 +17477,12 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
         end,
 
         --one of these fires per message; only the one scheduled by the
-        --LAST message finds the linger actually elapsed.
+        --LAST message finds the linger actually elapsed. Under the pointer
+        --it waits: leaving restarts the linger (think, below).
         bubbleMaybeExpire = function(element)
+            if element.data.held then
+                return
+            end
             if dmhub.Time() - element.data.lastMessage < PanelDocument.CHAT_BUBBLE_LINGER - 0.1 then
                 return
             end
@@ -17163,6 +17508,9 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             if PanelDocument.chatBubbleState.panel == element then
                 PanelDocument.chatBubbleState.panel = nil
             end
+            if PanelDocument.railBubbles[element.data.key] == element then
+                PanelDocument.railBubbles[element.data.key] = nil
+            end
         end,
 
         thinkTime = 0.5,
@@ -17173,11 +17521,21 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
             end
             --a stage can go up (or come down) under a live bubble.
             PanelDocument.ChatBubbleRestack(element)
-            --chat brought in front by any path while the bubble is up:
-            --the preview has done its job.
-            if PanelDocument.ChatInFront() then
+            --the panel brought in front by any path while the bubble is
+            --up: the preview has done its job.
+            local data = element.data
+            if PanelDocument.PanelInFront(data.key, data.panelName) then
                 element:FireEvent("bubbleFade")
             end
+            --the pointer on the bubble holds it; leaving starts the linger again.
+            local point = element.mousePoint
+            local held = point ~= nil and point.x >= 0 and point.x <= 1 and point.y >= 0 and point.y <= 1
+                and not element:HasClass("fadeout")
+            if data.held and not held then
+                data.lastMessage = dmhub.Time()
+                element:ScheduleEvent("bubbleMaybeExpire", PanelDocument.CHAT_BUBBLE_LINGER)
+            end
+            data.held = held
         end,
 
         gui.Panel{
@@ -17204,8 +17562,102 @@ function PanelDocument.CreateChatBubble(side, slot, rect)
     --the layer, so any window it could not avoid draws over it -- unless
     --a full-screen stage is up, which it would be under too.
     PanelDocument.ChatBubbleRestack(bubble)
-    PanelDocument.chatBubbleState.panel = bubble
+    if opts.key == "chat" then
+        PanelDocument.chatBubbleState.panel = bubble
+    end
+    PanelDocument.railBubbles[opts.key] = bubble
     return bubble
+end
+
+--- A chat message's row in the bubble: the sender's name over the text, cut short.
+--- @param message table The engine's chat message.
+--- @return Panel[]
+function PanelDocument.ChatBubbleRowContent(message)
+    local text = ""
+    pcall(function() text = tostring(message.message or "") end)
+    local limit = PanelDocument.CHAT_BUBBLE_TRUNCATE
+    if #text > limit then
+        --byte cap, backed off past any UTF-8 continuation bytes
+        --so the cut never splits a codepoint.
+        local cut = limit
+        while cut > 1 do
+            local byte = string.byte(text, cut)
+            if byte ~= nil and byte >= 0x80 and byte < 0xc0 then
+                cut = cut - 1
+            else
+                break
+            end
+        end
+        text = string.sub(text, 1, cut - 1) .. "..."
+    end
+
+    local nick = nil
+    pcall(function() nick = message.nick end)
+    if nick == nil or nick == "" then
+        nick = "Player"
+    end
+    local nickColor = nil
+    pcall(function() nickColor = message.nickColor end)
+
+    local nickLabel = gui.Label{
+        classes = {"chatBubbleNick"},
+        text = nick,
+        interactable = false,
+    }
+    if nickColor ~= nil then
+        pcall(function() nickLabel.selfStyle.color = nickColor end)
+    end
+
+    return {
+        nickLabel,
+        gui.Label{
+            classes = {"chatBubbleText"},
+            text = text,
+            interactable = false,
+        },
+    }
+end
+
+--- Shows rows in a panel's bubble beside its rail button, building the bubble if needed.
+--- Nothing shows when the panel is already in front or has no rail button of its own
+--- (grouped away, or parked in the overflow).
+--- @param args {key: string, panelName: string, rows: {contents: Panel[], click: function|nil}[]}
+--- @return boolean shown
+function PanelDocument.ShowRailBubble(args)
+    if #args.rows == 0 or PanelDocument.PanelInFront(args.key, args.panelName) then
+        return false
+    end
+    local side, slot, button = PanelDocument.FindRailButton(args.key)
+    if side == nil then
+        return false
+    end
+    local rect = PanelDocument.ChatButtonRect(side, slot, button)
+    if rect == nil then
+        return false
+    end
+    local bubble = PanelDocument.railBubbles[args.key]
+    if bubble ~= nil and not bubble.valid then
+        bubble = nil
+    end
+    if bubble == nil then
+        bubble = PanelDocument.CreateRailBubble({key = args.key, panelName = args.panelName}, side, slot, rect)
+    end
+    if bubble == nil then
+        return false
+    end
+    for _, row in ipairs(args.rows) do
+        bubble:FireEvent("addBubbleRow", row.contents, row.click)
+    end
+    return true
+end
+
+--- Fades a panel's bubble now, if it has one (History: hovering its button).
+--- @param key string
+function PanelDocument.FadeRailBubble(key)
+    local bubble = PanelDocument.railBubbles[key]
+    if bubble ~= nil and bubble.valid then
+        bubble:FireEvent("bubbleFade")
+    end
 end
 
 --Fired on the rail root (the chat listener, see BuildIconRails) with
@@ -18164,7 +18616,7 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
         local entries = {}
         for _, name in ipairs(g_iconRailPanels) do
             local k = string.lower(name)
-            if not have[k] and PanelDocument.Get(name) ~= nil then
+            if not have[k] and PanelDocument.OfferedOnRail(name) then
                 entries[#entries + 1] = {
                     text = "Add: " .. name,
                     click = function()
@@ -21432,7 +21884,7 @@ RailShowAddPicker = function(element, side)
     local recommended, all = {}, {}
     for _, name in ipairs(g_iconRailPanels) do
         local key = string.lower(name)
-        if not onRail[key] and PanelDocument.Get(name) ~= nil then
+        if not onRail[key] and PanelDocument.OfferedOnRail(name) then
             recommended[#recommended + 1] = name
         end
     end
@@ -21442,7 +21894,7 @@ RailShowAddPicker = function(element, side)
         local name = item.text
         if name ~= nil then
             local key = string.lower(name)
-            if not onRail[key] and PanelDocument.Get(name) ~= nil then
+            if not onRail[key] and PanelDocument.OfferedOnRail(name) then
                 all[#all + 1] = name
             end
         end
@@ -22882,6 +23334,11 @@ local function CreateIconRail(side, entries, opts)
                         if UpdateStripCard ~= nil then
                             UpdateStripCard(memberLabel)
                         end
+                        --a member panel's own hover card (railHover), as on the rail
+                        --itself; below the strip, so it covers neither strip nor rail.
+                        if memberReg ~= nil and memberReg.railHover ~= nil and not g_railRearranging then
+                            pcall(memberReg.railHover, element, {halign = "center", valign = "bottom", inStrip = true})
+                        end
                     end,
 
                     --leaving a member re-arms the close; the handler
@@ -23031,6 +23488,7 @@ local function CreateIconRail(side, entries, opts)
                         if g_railRearranging then
                             return
                         end
+                        element.tooltip = nil
                         ToggleGroupMember(memberKey)
                     end,
 
@@ -23547,7 +24005,9 @@ local function CreateIconRail(side, entries, opts)
         --NOT retire by being looked at (novel module content clears only
         --per item, and only from the handful of rows wired to do it).
         --Everything re-checks on the rail's refreshRail cadence, and the
-        --marker hides while the panel itself is shown.
+        --marker hides while the panel itself is shown. newContentStyle()
+        --may return {color = "#rrggbb", shape = "diamond"} to recolour the
+        --marker or make it a diamond (History: grey count, gold diamond).
         local novelMarker = nil
         --a registered entry type's alert(id) drives the same marker: true
         --or a count while it needs attention (a map button's alert).
@@ -23576,7 +24036,9 @@ local function CreateIconRail(side, entries, opts)
             local hasNewContent = alertSource.hasNewContent
             local newContentCount = alertSource.newContentCount
             local markContentSeen = alertSource.markContentSeen
+            local newContentStyle = alertSource.newContentStyle
             local m_shownCount = nil --count the marker currently displays; nil = hidden.
+            local m_shownStyle = nil --"color|shape" of the marker on show.
             --the container is a 1x1 anchor sitting ON the button's
             --top-right corner; the badge centers on it, so it pops out
             --of the button bounds like an iOS app badge. Anchored from
@@ -23617,17 +24079,61 @@ local function CreateIconRail(side, entries, opts)
                             count = 1
                         end
                     end
-                    if count == m_shownCount then
+                    local style = nil
+                    if count ~= nil and newContentStyle ~= nil then
+                        pcall(function() style = newContentStyle() end)
+                    end
+                    local styleKey = style ~= nil and string.format("%s|%s", tostring(style.color), tostring(style.shape)) or ""
+                    if count == m_shownCount and styleKey == m_shownStyle then
                         return
                     end
                     m_shownCount = count
+                    m_shownStyle = styleKey
                     if count == nil then
                         element.children = {}
+                    elseif style ~= nil and style.shape == "diamond" then
+                        --a square turned 45 degrees behind an upright number, so the
+                        --signal has a shape as well as a colour.
+                        element.children = {
+                            gui.Panel{
+                                width = 16,
+                                height = 16,
+                                halign = "center",
+                                valign = "center",
+                                flow = "none",
+                                interactable = false,
+                                gui.Panel{
+                                    bgimage = "panels/square.png",
+                                    bgcolor = style.color or "#ee4444",
+                                    width = 13,
+                                    height = 13,
+                                    cornerRadius = 2,
+                                    rotate = 45,
+                                    halign = "center",
+                                    valign = "center",
+                                    interactable = false,
+                                },
+                                count > 1 and gui.Label{
+                                    text = tostring(math.min(count, 9)),
+                                    fontSize = 14,
+                                    fontWeight = "black",
+                                    color = "black",
+                                    width = "100%",
+                                    height = "auto",
+                                    textAlignment = "center",
+                                    halign = "center",
+                                    valign = "center",
+                                    interactable = false,
+                                    textWrap = false,
+                                } or nil,
+                            },
+                        }
                     else
                         element.children = {
                             gui.NewContentAlert{
                                 count = count,
                                 size = 16,
+                                bgcolor = style ~= nil and style.color or nil,
                                 halign = "center",
                                 valign = "center",
                                 x = 0,
@@ -23915,6 +24421,10 @@ local function CreateIconRail(side, entries, opts)
                     end)
                 elseif docid ~= nil and not missing then
                     CustomDocument.ShowJournalPreview(element, docid, CustomDocument.RailPreviewPlacement(element))
+                elseif reg ~= nil and reg.railHover ~= nil then
+                    --a registered panel may show its own preview card (History:
+                    --what happened since you last looked).
+                    pcall(reg.railHover, element, CustomDocument.RailPreviewPlacement(element))
                 end
                 --A popped-out panel's OS window can be buried under other
                 --windows; arriving on its rail button surfaces it: bring
@@ -24590,6 +25100,8 @@ local function CreateIconRail(side, entries, opts)
                 end
 
                 RailButtonSound("press")
+                --a panel's own hover card (railHover) goes as the press opens it.
+                element.tooltip = nil
 
                 --in rearrange mode presses begin drags, never open.
                 if g_railRearranging then
@@ -25268,6 +25780,12 @@ local function CreateIconRail(side, entries, opts)
                 return
             end
             local dockVisible = not dmhub.GetSettingValue(side .. "dockoffscreen")
+            --an empty dock on screen shows nothing but still hides this rail, and
+            --rail mode has no menu row to put it away: slide it back off.
+            if dockVisible and RailModeActive() and PanelDocument.SideDockEmpty(side) then
+                dmhub.SetSettingValue(side .. "dockoffscreen", true)
+                dockVisible = false
+            end
             if element.data.lastDockVisible ~= dockVisible then
                 element.data.lastDockVisible = dockVisible
                 --mirror the dock's slide class here too: its own
@@ -26917,6 +27435,13 @@ dmhub.RegisterEventHandler("EnterGame", function()
         if RailModeActive() and rawget(_G, "ViewsCheckForBuiltinUpdateOnEntry") ~= nil then
             ViewsCheckForBuiltinUpdateOnEntry()
         end
+
+        --last, so a module's own placement never makes a new user's empty layout look like
+        --theirs to the first-entry check above. Only with the rail on: a placement written
+        --while it is off would stop that check applying the built-in View once it is on.
+        if RailModeActive() then
+            PanelDocument.RunRailLayoutApplied()
+        end
     end)
 end)
 
@@ -27003,7 +27528,9 @@ local g_viewBuiltins = {
     {
         id = "builtin:director",
         name = UIText.Term("director"),
-        version = 6,
+        --v7: History has its own button directly below Chat, and the Action Log left
+        --Chat's group (History replaced it).
+        version = 7,
         dmonly = true,
         --Floors & Layers, Measuring Tool, Map Markup and their folders
         --(and Map Settings from the Maps folder) moved to the map rail
@@ -27018,7 +27545,8 @@ local g_viewBuiltins = {
                 ["journal"] = { side = "left", slot = 3 },
                 ["dice"] = { side = "left", slot = 4 },
                 ["chat"] = { side = "left", slot = 5 },
-                ["audio"] = { side = "left", slot = 6 },
+                ["history"] = { side = "left", slot = 6 },
+                ["audio"] = { side = "left", slot = 7 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
@@ -27033,7 +27561,7 @@ local g_viewBuiltins = {
                 --copies of the old key are repaired by
                 --g_railRenamedPanels, so no version bump is needed for
                 --this edit (see the rename block up there).
-                ["chat"] = { "chat", "action log", "safety" },
+                ["chat"] = { "chat", "safety" },
                 ["map markup"] = {
                     "map markup",
                     "building editor",
@@ -27067,7 +27595,9 @@ local g_viewBuiltins = {
     {
         id = "builtin:player",
         name = "Player",
-        version = 7,
+        --v8: History has its own button directly below Chat, and the Action Log left
+        --Chat's group (History replaced it).
+        version = 8,
         dmonly = false,
         layout = {
             rail = {
@@ -27078,7 +27608,8 @@ local g_viewBuiltins = {
                 --Measuring Tool (slot 4, with Whiteboard) moved to the map
                 --rail, 2026-10-15; see the Director view's note.
                 ["chat"] = { side = "left", slot = 4 },
-                ["audio"] = { side = "left", slot = 5 },
+                ["history"] = { side = "left", slot = 5 },
+                ["audio"] = { side = "left", slot = 6 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
@@ -27092,7 +27623,7 @@ local g_viewBuiltins = {
                 --copies of the old key are repaired by
                 --g_railRenamedPanels, so no version bump is needed for
                 --this edit (see the rename block up there).
-                ["chat"] = { "chat", "action log", "safety" },
+                ["chat"] = { "chat", "safety" },
             },
             pins = {},
             docks = { left = {}, right = {} },
@@ -27491,6 +28022,10 @@ function ViewsEntryUnavailable(key)
     if reg == nil then
         return { name = key, reason = "not in this game" }
     end
+    --one standing in for it shows in its place (the old Action Log in History's).
+    if DockablePanel.StandIn(reg) ~= nil then
+        return nil
+    end
     if reg.dmonly and not dmhub.isDM then
         return { name = reg.name, reason = UIText.Term("director") .. " only" }
     end
@@ -27627,7 +28162,10 @@ function ViewsApplyLayout(layout)
     for _, side in ipairs({"left", "right"}) do
         local names = {}
         for _, name in ipairs(docks[side] or {}) do
-            if PanelDocument.Get(name) ~= nil then
+            --a panel that can't show keeps its place when one stands in for it: the
+            --dock shows the stand-in (DockablePanel's DockStandIn).
+            local reg = DockablePanel.GetRegistration(name)
+            if PanelDocument.Get(name) ~= nil or (reg ~= nil and DockablePanel.StandIn(reg) ~= nil) then
                 names[#names + 1] = name
             end
         end
@@ -27647,6 +28185,7 @@ function ViewsApplyLayout(layout)
     dmhub.SetSettingValue("iconrailhidden", railHidden)
 
     RebuildIconRails()
+    PanelDocument.RunRailLayoutApplied()
     return skipped
 end
 

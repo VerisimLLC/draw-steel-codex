@@ -37,6 +37,7 @@ local mod = dmhub.GetModLoading()
 --- @field potencymod? string "power": potency change ("none", "custom" or a number string).
 --- @field damageTypeMappings? table<string, string> "power": damage type -> replacement damage type.
 --- @field casterCharid? string "power": charid of the creature whose trigger produced this modifier (stamped at runtime).
+--- @field alsoConsumeResourceCost? boolean "power": charge the legacy resourceCost as well as resourceCostType (stamped at runtime on a casting trigger's modifier, whose resourceCost is the triggered action).
 --- @field forceReroll? boolean "powertabletrigger": forces a re-roll when triggered (read via ActiveTrigger.powerRollModifier, which is this modifier's clone).
 --- @field _tmp_customisations? table "abilitycustomisation": the customisations rebuilt each cycle.
 --- @field powerRollModifier? CharacterModifier "powertabletrigger": the "power" modifier applied when it triggers.
@@ -50,6 +51,7 @@ local mod = dmhub.GetModLoading()
 --- @field castingFilter? string "powertabletrigger": GoblinScript filter on the cast.
 --- @field castingCostOverride? string "powertabletrigger": GoblinScript cost override.
 --- @field usableWhileSurprised? boolean "powertabletrigger": still offered while its owner is Surprised (Dazed still blocks it).
+--- @field autoActivate? boolean "powertabletrigger" (passive, changeTarget): redirects the strike by itself before the roll; the attacker picks the new target and the owner is never asked.
 --- @field removeModifiers? string[] "power" (a powertabletrigger's powerRollModifier): guids of modifiers it takes off the roll when triggered.
 --- @field abilityTargets? string "powertabletrigger": GoblinScript target restriction.
 --- @field abilityFilter? string "powertabletrigger", "suppressabilities", "abilityimprovement", "castingorigin": GoblinScript ability filter.
@@ -3727,7 +3729,9 @@ function CharacterModifier:ConsumeResourceCost(creature, modContext)
         if modContext ~= nil and modContext.modifier ~= nil then
             note = modContext.modifier.name
         end
-        creature:ConsumeSurges(cost, note)
+        -- Tells Use Resource triggers what the surges bought: "potency" when this modifier changes potency (Potency Surge), otherwise "other" (e.g. Kinetic Amplifier).
+        local raisesPotency = (tonumber(self:try_get("potencymod", 0)) or 0) ~= 0
+        creature:ConsumeSurges(cost, note, cond(raisesPotency, "potency", "other"))
     elseif costType == "epic" and not self:try_get("overrideCost", false) then
         local charges = self:try_get("_tmp_symbols", {}).charges or 1
         local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)*charges
@@ -3756,8 +3760,10 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
 	--this legacy block as well would double-charge the resource (e.g. a power
 	--modifier chip with both `resourceCostType: cost` and `resourceCost: <heroic
 	--resource guid>` would deduct the heroic resource twice for a single use).
-	--Only honour the legacy field when the modern cost system is inactive.
-	if costType == "none" then
+	--Only honour the legacy field when the modern cost system is inactive, or when
+	--the modifier says the two are separate costs: a casting trigger such as
+	--Harmonize costs Drama AND its owner's triggered action (resourceCost).
+	if costType == "none" or self:try_get("alsoConsumeResourceCost", false) then
 		local resourceCost = creature:ResourceToConsume(self.resourceCost)
 		if resourceCost ~= nil then
 			local resourcesTable = dmhub.GetTable("characterResources")

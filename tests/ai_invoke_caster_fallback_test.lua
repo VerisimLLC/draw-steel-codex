@@ -2,6 +2,8 @@
 --ExecuteInvoke's Monster AI fallback for a per-target invoke, where the target
 --is the caster. A hero pushing an AI-run monster still picks the squares
 --(WR3ESYAG); To the Death!'s target still makes its own free strike (SASGFH6V).
+--A push cast as a monster but chosen by a hero (Behold the Face of Justice!) is
+--the hero's player's choice.
 local function section(path, first, last)
     local file = assert(io.open(path, "r"))
     local source = file:read("*a")
@@ -43,7 +45,7 @@ end
 
 --The real fallback block, run with the invoke's locals as parameters.
 local fallbackBlock = section("DMHub Game Rules/AbilityInvokeAbility.lua",
-    "local aiPromptCallback = creature.GetTokenAIPromptCallback(invokerToken.charid)",
+    "local deciderToken = invokerToken",
     'print("AI:: PUSH:: IN INVOKE')
 local chooseCallback = assert(load(
     "local invokerToken, casterToken, abilityClone, targeting = ...\n"
@@ -51,16 +53,28 @@ local chooseCallback = assert(load(
 
 stub("creature", {GetTokenAIPromptCallback = function() return false end})
 
-local hero = {charid = "hero"}
-local monster = {charid = "monster", aiRun = true}
+local hero = {charid = "hero", valid = true}
+local monster = {charid = "monster", aiRun = true, valid = true}
+local tokensById = {hero = hero, monster = monster}
+stub("dmhub", {GetTokenById = function(id) return tokensById[id] end})
 
-check(chooseCallback(hero, monster, {name = "Push!"}, "prompt") == false,
+--A stand-in ability clone: just the fields the fallback reads.
+local function ability(name, fields)
+    fields = fields or {}
+    return {name = name, try_get = function(_, key) return fields[key] end}
+end
+
+check(chooseCallback(hero, monster, ability("Push!"), "prompt") == false,
     "a hero's push on an AI-run monster is left to the hero's player")
-check(chooseCallback(hero, monster, {name = "Free Strike Against Specific Target"}, "prompt") == aiCallback,
+check(chooseCallback(hero, monster, ability("Free Strike Against Specific Target"), "prompt") == aiCallback,
     "To the Death!'s target free strike is answered by the AI")
-check(chooseCallback(monster, monster, {name = "Push!"}, "prompt") == aiCallback,
+check(chooseCallback(monster, monster, ability("Push!"), "prompt") == aiCallback,
     "an AI-run invoker still has its own prompts answered")
-check(chooseCallback(hero, monster, {name = "Unregistered"}, "prompt") == false,
+check(chooseCallback(hero, monster, ability("Unregistered"), "prompt") == false,
     "a prompt with no registration is left to the invoker")
+check(chooseCallback(monster, monster, ability("Push!", {promptDeciderId = "hero"}), "prompt") == false,
+    "Behold the Face of Justice's push, cast as a monster, is left to the Censor's player")
+check(chooseCallback(monster, monster, ability("Push!", {promptDeciderId = "monster"}), "prompt") == aiCallback,
+    "a push named for an AI-run creature is answered by the AI")
 
 print(string.format("ai_invoke_caster_fallback_test: %d checks passed", checks))

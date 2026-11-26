@@ -41,30 +41,10 @@ local g_triggerPortraitSize = 34
 local g_triggerPortraitImageSize = 28
 local g_triggerPortraitMargin = 1
 
--- Build the candidate retarget list for a triggered ability that changes its
--- target. Every token passing the all-inclusive changeTargetFilter is returned
--- in `targets`. A token that additionally fails one of the "reasoned" filters is
--- still returned (so the player can see it) but gets an entry in `reasons` keyed
--- by charid -- surfaced to the user as a tooltip explaining why it cannot be
--- chosen. This mirrors ActivatedAbility:TargetPassesFilter's reasonedFilters.
+-- The candidate retarget list for a triggered ability that changes its target.
+-- Shared with automatic redirects (RuleUtils), so both offer the same creatures.
 local function BuildRetargetCandidates(powerMod, symbols)
-    local filterFormula = powerMod:try_get("changeTargetFilter")
-    local reasonedFilters = powerMod:try_get("changeTargetReasonedFilters", {})
-    local targets = {}
-    local reasons = {}
-    for _,potential in ipairs(dmhub.allTokens) do
-        symbols.target = potential.properties:LookupSymbol{}
-        if trim(filterFormula or "") == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
-            targets[#targets+1] = potential
-            for _,reasonedFilter in ipairs(reasonedFilters) do
-                if trim(reasonedFilter.formula or "") ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, potential.properties:LookupSymbol(symbols), 1)) then
-                    reasons[potential.charid] = ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
-                    break
-                end
-            end
-        end
-    end
-    return targets, reasons
+    return RuleUtils.BuildRetargetCandidates(powerMod, symbols)
 end
 
 -- Opens the retarget picker for a trigger whose triggerBefore flow has
@@ -98,15 +78,7 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
     RuleUtils.RemoveRetargetStrikeTargets(targets, trigger, targetId)
     local allowOriginal = RuleUtils.RetargetAllowsOriginal(trigger)
 
-    local sourceToken = triggerToken
-    local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, triggerToken.properties:LookupSymbol(symbols), 10))
-    local rangeType = powerMod:try_get("changeTargetRange", "none")
-    if rangeType == "ability" then
-        sourceToken = casterToken
-        range = trigger.originalAbilityRange
-    elseif rangeType == "distance" then
-        range = powerMod:try_get("changeTargetDistance", 10)
-    end
+    local sourceToken, range, rangeType = RuleUtils.RetargetRange(trigger.powerRollModifier, triggerToken, casterToken, trigger.originalAbilityRange, symbols)
     --the new target must be one the striking creature could actually
     --hit: inside the strike's distance and in its line of effect.
     if rangeType == "ability" then
@@ -380,8 +352,9 @@ mod.shared.CreateTriggerPanel = function()
                 description = "Dismiss All Triggers",
                 execute = function()
                     for _,trigger in pairs(g_token.properties:GetAvailableTriggers() or {}) do
-                        --a hostile prompt under strict action economy must be accepted, not dismissed.
-                        if trigger:CanDismiss() then
+                        --Skip hostile prompts (e.g. Bleeding damage): one click here must not
+                        --throw away damage or saves the player owes. Their own close button still works.
+                        if trigger:CanDismissInBulk() then
                             trigger.dismissed = true
                             g_token.properties:DispatchAvailableTrigger(trigger)
                         end
@@ -710,9 +683,8 @@ mod.shared.CreateTriggerPanel = function()
 
 				local children = {}
 
-				--the Dismiss Triggers bar only shows while something on the list
-				--can actually be dismissed (hostile prompts under strict action
-				--economy cannot be).
+				--the Dismiss Triggers bar only shows while it has something to
+				--dismiss, so it never appears and then does nothing when pressed.
 				local anyDismissable = false
 
 				local newTriggerPanels = {}
@@ -727,7 +699,7 @@ mod.shared.CreateTriggerPanel = function()
 					end
 
 					if not trigger.dismissed and not hidden then
-						if trigger:CanDismiss() then
+						if trigger:CanDismissInBulk() then
 							anyDismissable = true
 						end
 						local panel = m_activeTriggerPanels[key]

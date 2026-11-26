@@ -51,8 +51,8 @@ text("encounter.arrange.intro", [[You have won the initiative. Choose starting l
 text("encounter.arrange.intro_lost", [[You have lost the initiative; the enemy acts first. Choose starting locations, then press Ready.]])
 --A smaller line under the intro: what heroes may do while they arrange.
 text("encounter.arrange.prepare_hint", [[Before the fight you can Catch Breath, and a Null can raise their Null Field.]])
---Shown on any other ability (greyed in the action bar) while the heroes arrange.
-text("encounter.arrange.cast_blocked", [[While you arrange your heroes you can only use Catch Breath and Null Field.]])
+--Shown on any other ability (greyed in the action bar) until combat starts.
+text("encounter.arrange.cast_blocked", [[Until combat starts you can only use Catch Breath and Null Field.]])
 
 --The button. Short: it is a button.
 text("encounter.arrange.ready_button", [[Ready]])
@@ -80,11 +80,19 @@ text("encounter.arrange.names_and", [[{names} and {last}]])
 --On the card of a hero who has won this encounter before, and so gets no
 --Victory for it this time.
 text("encounter.victory.already_completed", [[Already Completed]])
+--On the card of a hero who summoned their Famous Relative this encounter,
+--and so gets no Victory for it.
+text("encounter.victory.famous_relative", [[Helped by Famous Relative]])
 --On a living hero's card after a win: what they take home. {treasure} is
 --the items, like "Bastion Belt x2, Ward Token".
 text("encounter.victory.treasure_note", [[Treasure: {treasure}]])
 --On every hero's card after a Proving Pits game, which awards nothing.
 text("encounter.victory.practice_note", [[Proving Pits: practice only]])
+--On a dead hero's card when the encounter's consequence is Retreat: they go
+--home healed, with no Victory.
+text("encounter.victory.retreat_note", [[Retreats to Blackbottom]])
+--On a dead hero's card when the consequence is Lost: in the Graveyard for good.
+text("encounter.victory.lost_note", [[Lost]])
 
 --A hero's name in the town's Hall of Heroes when the game cannot find it.
 text("encounter.hall.hero_fallback", [[Hero]])
@@ -147,6 +155,8 @@ text("encounter.series_next.host_fallback", [[The host]])
 text("encounter.test.mode_start", [[From the Start]])
 text("encounter.test.mode_montage", [[Montage]])
 text("encounter.test.mode_combat", [[Combat]])
+--A test that starts at one narrative section ("Narrative: The Crossroads").
+text("encounter.test.mode_section", [[Narrative: {section}]])
 
 --Why a test cannot start. Shown in the test dialog after "Part 2 cannot be
 --tested:", so they start lower-case.
@@ -154,6 +164,7 @@ text("encounter.test.unknown_mode", [[unknown test mode]])
 text("encounter.test.no_script", [[this map has no Encounter of the Week script]])
 text("encounter.test.no_montage_beat", [[this map's script has no # Montage beat]])
 text("encounter.test.no_encounter_beat", [[this map's script has no # Encounter beat]])
+text("encounter.test.no_section", [[this map's script no longer has that narrative section]])
 text("encounter.test.director_only", [[only the Director can test an encounter]])
 text("encounter.test.in_eotw_game", [[this is an Encounter of the Week game]])
 text("encounter.test.already_running", [[a test is already running]])
@@ -881,11 +892,12 @@ text("montage.assassin.dice_label", [[Assassin's blade]])
 ----------------------------------------------------------------------------
 -- GAUNTLET: the words on a Gauntlet's rolls (EncounterGauntlet.lua)
 ----------------------------------------------------------------------------
---The fatigue chip on a roll: every roll a hero has made in this Gauntlet
---adds a bane. {count} is how many rolls they have made so far.
-text("gauntlet.chip.weary_one", [[Weary (1 roll so far)]])
-text("gauntlet.chip.weary_many", [[Weary ({count} rolls so far)]])
-text("gauntlet.chip.weary_description", [[Every roll you have already made in this part of the story puts a bane on this one (at most a double bane).]])
+--The fatigue chip on a roll: each roll a hero has made in this narrative
+--adds a bane until three tests by other heroes come after it. {count} is
+--how many of their rolls still do.
+text("gauntlet.chip.weary_one", [[Weary (1 recent roll)]])
+text("gauntlet.chip.weary_many", [[Weary ({count} recent rolls)]])
+text("gauntlet.chip.weary_description", [[Each roll you make puts a bane on your rolls. It wears off when three other heroes make rolls.]])
 --The assist chip on the main roll. {hero} assisted; {tier} is the tier
 --their assist roll landed on.
 text("gauntlet.chip.assist_bane", [[Bane: {hero} assisted]])
@@ -1166,7 +1178,10 @@ text("presence.latejoin.refused_full", [[{name} could not join: the party is ful
 text("presence.latejoin.refused_late", [[{name} could not join: it is too late for heroes to join.]])
 --Seen by everyone once the host lets a newcomer in.
 text("presence.latejoin.joining", [[{name} is joining the party with {heroes}.]])
-text("presence.latejoin.watching", [[{name} is coming to watch.]])
+--Seen by everyone, large, when an observer arrives in the game.
+text("presence.watching.arrived", [[{name} is now watching]])
+--Seen by everyone, small, when an observer has gone.
+text("presence.watching.left", [[{name} has stopped watching.]])
 --Seen by everyone when a newcomer's heroes reach a montage after its first
 --round: they get two actions in that round.
 text("presence.latehero.twice", [[{heroes} join the montage late and may act twice this round.]])
@@ -1214,6 +1229,11 @@ text("presence.exit.cancel_button", [[Cancel]])
 text("presence.exit.quit_button", [[Quit]])
 text("presence.exit.leave_button", [[Leave]])
 text("presence.exit.abandon_button", [[Abandon Game]])
+--The host's own versions of Leave / Quit and Abandon Game, and the mouseover
+--on the second. Short.
+text("presence.exit.leave_button_host", [[Save & Quit]])
+text("presence.exit.abandon_button_host", [[Abandon Encounter]])
+text("presence.exit.abandon_tooltip_host", [[Your progress will be lost]])
 --The abandon button after one click: a second click confirms.
 text("presence.exit.abandon_confirm", [[Really abandon?]])
 

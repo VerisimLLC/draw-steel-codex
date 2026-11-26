@@ -1318,6 +1318,9 @@ end
 
 --- @class ActivatedAbilityHurlGrabbedBehavior:ActivatedAbilityBehavior
 --- @field new fun(o?: table): ActivatedAbilityHurlGrabbedBehavior
+--- DEPRECATED: hidden from the behavior pickers; kept only so existing abilities still run.
+--- New content should use a Lua Script behavior with RelocateHelpers instead;
+--- the Ogre Goon's People Bowling is a working example.
 --- Throws a creature the caster is grabbing down a line ability (Ogre Goon "People Bowling").
 --- Runs with applyto = caster on a line-targeted ability, BEFORE its power roll:
 ---   1. picks the grabbed creature (prompting only if several pass hurlFilter),
@@ -1334,7 +1337,9 @@ ActivatedAbilityHurlGrabbedBehavior = RegisterGameType("ActivatedAbilityHurlGrab
 
 ActivatedAbility.RegisterType{
     id = 'hurl_grabbed',
-    text = 'Hurl Grabbed Creature',
+    text = 'Hurl Grabbed Creature (Deprecated)',
+    --Deprecated: kept out of the pickers so no new ability uses it.
+    hidden = true,
     createBehavior = function()
         return ActivatedAbilityHurlGrabbedBehavior.new{
             applyto = "caster",
@@ -1413,8 +1418,6 @@ local function ChooseHurledCreature(casterToken, candidates, symbols)
     pickAbility.targetFilter = 'ConditionCaster("Grabbed") = Caster'
     pickAbility.promptOverride = "Choose the grabbed creature to hurl"
     pickAbility.behaviors = { captureBehavior }
-    --Transient list the Monster AI prompt handler (MonsterAIPrompts.lua) picks from.
-    pickAbility._tmp_hurlCandidates = candidates
 
     ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, pickAbility, casterToken, "prompt", symbols, {})
     return chosen

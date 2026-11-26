@@ -102,6 +102,7 @@ EncounterNarrative = {
         return result
     end,
     VoterKeyForUser = function(userid) return userid end,
+    IsObserver = function(userid) return userid == "watcher" end,
 }
 
 dofile("Draw Steel V/NegotiationSceneText.lua")
@@ -307,6 +308,8 @@ m = Fresh()
 Argue(CUT, "brunna", 3)
 PassReply()
 check(N.GetState().interest == 3, "interest 3")
+Send("watcher", "takeDeal")
+check(N.GetState().phase == "choosing", "an observer cannot propose the deal")
 Send("lisa", "takeDeal")
 m = N.GetState()
 check(m.phase == "voting" and m.votes.lisa.choice == "deal", "proposing is a vote")

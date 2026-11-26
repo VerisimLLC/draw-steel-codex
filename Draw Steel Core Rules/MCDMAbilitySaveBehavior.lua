@@ -173,19 +173,24 @@ function ActivatedAbilitySaveBehavior.HomeIsWhereTheHurtIsApplies(targetToken, i
 end
 
 -- Purge a condition or ongoing effect from a target without rolling.
-function ActivatedAbilitySaveBehavior:PurgeSaveItem(targetToken, item)
+-- cause: why it ended, as for creature:EndingEffects.
+function ActivatedAbilitySaveBehavior:PurgeSaveItem(targetToken, item, cause)
     if item.type == "condition" then
         targetToken:ModifyProperties{
             description = "Purge condition",
             execute = function()
-                targetToken.properties:InflictCondition(item.id, { purge = true })
+                targetToken.properties:EndingEffects(cause, function()
+                    targetToken.properties:InflictCondition(item.id, { purge = true })
+                end)
             end,
         }
     else
         targetToken:ModifyProperties{
             description = "Purge ongoing effect",
             execute = function()
-                targetToken.properties:RemoveOngoingEffect(item.id)
+                targetToken.properties:EndingEffects(cause, function()
+                    targetToken.properties:RemoveOngoingEffect(item.id)
+                end)
             end,
         }
     end
@@ -217,7 +222,9 @@ function ActivatedAbilitySaveBehavior:EndBondedSaveItem(targetToken, item)
                             kept[#kept+1] = inst
                         end
                     end
-                    tok.properties.ongoingEffects = kept
+                    tok.properties:EndingEffects(nil, function()
+                        tok.properties.ongoingEffects = kept
+                    end)
                 end,
             }
         end
@@ -633,12 +640,23 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
         cancelRoll = function()
             rollCanceled = true
         end,
-        completeRoll = function(rollInfo)
+        completeRoll = function(rollInfo, details)
             rollComplete = true
 
             local passed = saveState.forced or rollInfo.total >= saveEnds
+            GameSystem.NotifyPlayObservers("saved", targetCreature, {
+                name = item.name,
+                passed = passed,
+                total = rollInfo.total,
+                target = saveEnds,
+                atturnend = ability.name == self:try_get("promptAbility", "End Turn Saving Throw"),
+                options = options,
+                --who may see the roll (Visible to GM only, Dice Tower).
+                rollInfo = rollInfo,
+                details = details,
+            })
             if passed then
-                self:PurgeSaveItem(targetToken, item)
+                self:PurgeSaveItem(targetToken, item, "saved")
                 self:EndBondedSaveItem(targetToken, item)
             elseif item.type == "ongoingEffect" or item.type == "condition" then
                 -- Failed save against an ongoing effect OR condition that
@@ -780,7 +798,7 @@ function ActivatedAbilitySaveBehavior:Cast(ability, casterToken, targets, option
                     end,
                 }
             elseif item.type == "condition" and item.duration == "eot" then
-                self:PurgeSaveItem(target.token, item)
+                self:PurgeSaveItem(target.token, item, "endturn")
             elseif self.rollMode == "purge" then
                 self:PurgeSaveItem(target.token, item)
             else

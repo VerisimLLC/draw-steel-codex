@@ -1451,6 +1451,22 @@ function NegotiationRun.BuildRoster()
     return roster
 end
 
+--Tells play observers (History) about a moment in the scene. facts.kind: "began",
+--"argument", "pitfall", "read", "reveal", "adjust" or "ended". before (optional) is
+--{interest, patience} from before the moment, so the meters' change goes along; raw says
+--whether the Director is showing the numbers on the stage, which is what players may read.
+function NegotiationRun.Note(live, facts, before)
+    facts.npc = live.npcName ~= "" and live.npcName or "the NPC"
+    facts.raw = live.showRaw == true
+    facts.interest = {before = before ~= nil and before.interest or live.interest, after = live.interest}
+    facts.patience = {before = before ~= nil and before.patience or live.patience, after = live.patience}
+    facts.bands = {
+        before = NegotiationRules.bands[facts.interest.before] or "",
+        after = NegotiationRules.bands[facts.interest.after] or "",
+    }
+    GameSystem.NotifyPlayObservers("negotiation", facts)
+end
+
 --Begin a negotiation from a prep document: build the live state and present
 --the stage to every client.
 function NegotiationRun.Begin(negotiationDoc, hostPanel)
@@ -1467,6 +1483,7 @@ function NegotiationRun.Begin(negotiationDoc, hostPanel)
     live.roster = NegotiationRun.BuildRoster()
     NegotiationRun.Log(live, "", "", string.format("The negotiation with %s begins.",
         live.npcName ~= "" and live.npcName or "the NPC"), "system")
+    NegotiationRun.Note(live, {kind = "began"})
     GameHud.PresentDialogToUsers(hostPanel, DIALOG_ID, { docid = negotiationDoc.id }, live)
 end
 
@@ -1598,9 +1615,11 @@ function NegotiationRun.ResolvePending(opts)
             lie = opts.lie,
         }
 
+        local metersBefore = {interest = live.interest, patience = live.patience}
         local i, p = NegotiationRules.ApplyDelta(live.interest, live.patience, d)
         live.interest = i
         live.patience = p
+        local revealedNow = false
 
         --an appeal that lands on a hidden motivation reveals it: the player
         --found it. (Pitfalls reveal too -- they learned it the hard way.)
@@ -1610,14 +1629,29 @@ function NegotiationRun.ResolvePending(opts)
                 trait.used = true
                 if not trait.revealed then
                     trait.revealed = true
+                    revealedNow = true
                     cue = string.format("You found something %s cares about - %s.",
                         live.npcName ~= "" and live.npcName or "he", trait.name)
                 end
             elseif opts.track == "pitfall" and not trait.revealed then
                 trait.revealed = true
+                revealedNow = true
                 cue = string.format("That touched something sore - %s. No argument could have landed there.",
                     trait.name)
             end
+        end
+
+        NegotiationRun.Note(live, {
+            kind = opts.track == "pitfall" and "pitfall" or "argument",
+            heroid = pending.who,
+            total = pending.roll,
+            tier = opts.tier,
+            trait = trait ~= nil and trait.name or nil,
+            text = pending.text,
+            cue = cue,
+        }, metersBefore)
+        if revealedNow and trait ~= nil then
+            NegotiationRun.Note(live, {kind = "reveal", trait = trait.name, traitKind = trait.kind})
         end
 
         local tone = "neutral"
@@ -1656,10 +1690,14 @@ function NegotiationRun.SetTraitRevealed(traitId, revealed)
         if t == nil then
             return
         end
+        local wasRevealed = t.revealed == true
         t.revealed = revealed
         if revealed then
             NegotiationRun.Log(live, "", "", string.format("Something about %s has become clear.",
                 live.npcName ~= "" and live.npcName or "the NPC"), "system")
+            if not wasRevealed then
+                NegotiationRun.Note(live, {kind = "reveal", trait = t.name, traitKind = t.kind})
+            end
         end
     end)
 end
@@ -1668,6 +1706,7 @@ end
 --audit strip reads these), never as an NPC mood line on the stage.
 function NegotiationRun.AdjustMeter(which, delta)
     NegotiationRun.Mutate("Adjust " .. which, function(live)
+        local metersBefore = {interest = live.interest, patience = live.patience}
         if which == "interest" then
             live.interest = math.max(0, math.min(NegotiationRules.MAX, live.interest + delta))
         else
@@ -1676,6 +1715,9 @@ function NegotiationRun.AdjustMeter(which, delta)
         NegotiationRun.Audit(live, string.format("%s %s%d (manual)",
             which == "interest" and "Interest" or "Patience",
             delta > 0 and "+" or "", delta))
+        if live.interest ~= metersBefore.interest or live.patience ~= metersBefore.patience then
+            NegotiationRun.Note(live, {kind = "adjust", which = which}, metersBefore)
+        end
     end)
 end
 
@@ -2774,6 +2816,7 @@ local function CreateNegotiationStage(args)
                     if kind == "read" then
                         --discovery test resolves immediately by the rules.
                         local tier = NegotiationRules.TierForTotal(total)
+                        local metersBefore = {interest = l.interest, patience = l.patience}
                         if tier >= 3 then
                             l.pendingReveal = { who = myCharId, whoName = tok.name, kind = "" }
                             NegotiationRun.Log(l, tok.name, "", "read them - and learned something.", "good")
@@ -2783,6 +2826,13 @@ local function CreateNegotiationStage(args)
                             l.patience = math.max(0, l.patience - 1)
                             NegotiationRun.Log(l, tok.name, "", "pushed too hard - he's losing patience.", "bad")
                         end
+                        NegotiationRun.Note(l, {
+                            kind = "read",
+                            heroid = myCharId,
+                            total = total,
+                            tier = tier,
+                            learned = tier >= 3,
+                        }, metersBefore)
                         l.floor = ""
                         l.floorAt = 0
                     else
@@ -3742,6 +3792,18 @@ local function CreateNegotiationRunner()
                 --exactly like one the Director had merely put away, and the
                 --header would offer to show it again.
                 NegotiationRun.Mutate("End negotiation", function(l)
+                    local anyAccept = false
+                    for _, answer in pairs(l.accepted) do
+                        if answer == "accepted" then
+                            anyAccept = true
+                        end
+                    end
+                    if not l.ended then
+                        NegotiationRun.Note(l, {
+                            kind = "ended",
+                            offer = anyAccept and (NegotiationRules.offerLabels[l.interest] or "") or nil,
+                        })
+                    end
                     l.ended = true
                 end)
                 GameHud.HidePresentedDialog()
@@ -4044,6 +4106,9 @@ local function CreateNegotiationRunner()
                         NegotiationRun.Mutate("Reveal discovery", function(l)
                             local tt = NegotiationRun.TraitById(l, trait.id)
                             if tt ~= nil then
+                                if not tt.revealed then
+                                    NegotiationRun.Note(l, {kind = "reveal", trait = tt.name, traitKind = tt.kind})
+                                end
                                 tt.revealed = true
                             end
                             l.pendingReveal = false

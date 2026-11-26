@@ -742,6 +742,16 @@ Trap: Place 4 Snare Trap objects in Trap zones and delete the other Trap zones.
   is re-levelled when heroes join late, and monsters an enemy summons
   mid-fight move by the difference rounded (a 1.5 party in a Level 1
   encounter meets Level 2 summons). Each part of a series reads its own line.
+- **Consequence**: `Consequence: Retreat`, `Consequence: Death` or
+  `Consequence: Lost` (also `If a hero dies:`) is what happens to a hero who
+  dies in this encounter, the whole party falling included. **Retreat** (the
+  default, with no line): home to Blackbottom at full Stamina and Recoveries,
+  with no Victory and no treasure. **Death**: buried in the Graveyard, as
+  before (an undying ancestry can still awaken; a Rite of Return can raise
+  them). **Lost**: in the Graveyard marked Lost, and nothing can bring them
+  back. Deadly Mode is always Death. Survivors of a defeat are unaffected
+  (they come home with their wounds). Each part of a series reads its own
+  line. The Encounter Builder's "If a hero dies" dropdown writes this line.
 - **Monsters that fled the last fight**: not a script line. Attach the
   **Monsters Fled from Last Fight** Encounter Script (built-in) to the part's
   opening encounter in the encounter builder, then draw its **Stragglers

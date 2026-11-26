@@ -17,10 +17,7 @@ local function SettingStyles(pal)
         styles[#styles + 1] = { selectors = {"checkboxLabel"}, color = pal.ink }
         styles[#styles + 1] = { selectors = {"checkBackground"}, bgcolor = pal.page, borderColor = pal.border }
         styles[#styles + 1] = { selectors = {"checkMark"}, bgcolor = pal.accent }
-        styles[#styles + 1] = { selectors = {"dropdown"}, bgcolor = pal.page, borderColor = pal.border }
-        styles[#styles + 1] = { selectors = {"dropdown-option"}, bgcolor = pal.page, color = pal.ink }
-        styles[#styles + 1] = { selectors = {"dropdown-option", "hover"}, bgcolor = pal.wash }
-        styles[#styles + 1] = { selectors = {"dropdownLabel"}, color = pal.ink }
+        styles = table.append_arrays(styles, MarkdownDocument.PageSkinDropdownStyles(pal))
         styles[#styles + 1] = { selectors = {"enumSliderOption"}, bgcolor = pal.page, color = pal.ink, borderColor = pal.border }
         styles[#styles + 1] = { selectors = {"enumSliderOption", "selected"}, bgcolor = pal.accent, color = pal.page }
         styles[#styles + 1] = { selectors = {"sliderFill"}, bgcolor = pal.accent }

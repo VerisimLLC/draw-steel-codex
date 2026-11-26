@@ -994,9 +994,9 @@ local function BuildColumn(bus)
         eyeLabel.text = cond(private, "Name hidden", "Name shown")
         eyeIcon.bgimage = cond(private, "phosphor/eye-slash.png", "phosphor/eye.png")
         eyeButton.data.tip = cond(private, "Hidden from other players", "Visible to other players")
-        local hasTable, ancestry = HeroSheetCard.NameTable(token)
+        local hasTable, ancestry, formerLife = HeroSheetCard.NameTable(token)
         suggestButton:SetClass("heroSheetOff", not hasTable or not writable)
-        suggestButton.data.tip = cond(hasTable, nil, HeroSheetCard.NoNamesTip(ancestry))
+        suggestButton.data.tip = cond(hasTable, nil, HeroSheetCard.NoNamesTip(ancestry, formerLife))
         --a look other than the first carries its own name;
         --"Use <Hero>" needs the first look's name, which engines that report
         --it per look (GetVariationInfo's characterName) give.
@@ -3865,16 +3865,20 @@ local g_summon = {key = nil, name = "", pending = {}, repaint = nil}
 --- as on the old sheet), then restyle the Hero's live summons of that kind. An emptied
 --- look is removed: the summon is back to its stat block's.
 --- @param mutate fun(look: table)
-local function SaveSummonLook(mutate)
-    local key = g_summon.key
+--- @param lookKey? string the summon to save to, if not the one being edited
+local function SaveSummonLook(mutate, lookKey)
+    local key = lookKey or g_summon.key
     if key == nil then
         return
     end
+    --the look's name before this save, so live summons still showing it follow the change.
+    local previousName = nil
     local saved = HeroSheetWrite.Save{
         description = "Change summon appearance",
         execute = function(props)
             local all = props:get_or_add("summonAppearances", {})
             local look = all[key] or {}
+            previousName = look.name
             mutate(look)
             if next(look) == nil then
                 look = nil
@@ -3886,7 +3890,7 @@ local function SaveSummonLook(mutate)
     }
     local token = Token()
     if saved and token ~= nil then
-        ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key)
+        ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, previousName)
     end
     HeroSheetRefresh.Changed()
 end
@@ -6700,8 +6704,9 @@ function AnthemMGS.ConnectWindow()
 end
 
 --- How to get a Michael Ghelfi Studios track you can only listen to: what includes it
---- (a Patreon tier or an album) with a button to their page, and Connect for someone
---- who has it already but has not connected their account here.
+--- (a Patreon tier or an album). Like a locked map pack, the account is linked first:
+--- until it is connected the only action is Connect account; after that it is the
+--- button to their Patreon or album page.
 --- @param track MGSTrack
 function AnthemMGS.AccessWindow(track)
     local frame
@@ -6721,20 +6726,24 @@ function AnthemMGS.AccessWindow(track)
     local connected = MGSAudio.IsConnected()
     local after = cond(connected,
         "Once your account includes it, it is ready to use here.",
-        "Already have it? Connect your account to use it here.")
-    local footerLeft = nil
-    if not connected then
-        local connect = SmallButton{
-            text = "Connect account",
-            click = function()
-                HeroSheetWindow.ClosePopup(frame)
-                AnthemMGS.ConnectWindow()
-            end,
-        }
-        connect.selfStyle.valign = "center"
-        footerLeft = connect
-    end
+        "Connect your account first.")
     local url = track.accessUrl
+    local saveText = nil
+    local onSave = nil
+    if not connected then
+        saveText = "Connect account"
+        onSave = function()
+            HeroSheetWindow.ClosePopup(frame)
+            AnthemMGS.ConnectWindow()
+            --closed above, before the connect window opens.
+            return false
+        end
+    elseif url ~= nil and go ~= nil then
+        saveText = go
+        onSave = function()
+            dmhub.OpenURL(url)
+        end
+    end
     frame = HeroSheetWindow.ShowDialog{
         title = "Michael Ghelfi Studios",
         width = 520,
@@ -6772,11 +6781,8 @@ function AnthemMGS.AccessWindow(track)
                 textWrap = true,
             },
         },
-        footerLeft = footerLeft,
-        saveText = (url ~= nil and go ~= nil) and go or nil,
-        onSave = (url ~= nil and go ~= nil) and function()
-            dmhub.OpenURL(url)
-        end or nil,
+        saveText = saveText,
+        onSave = onSave,
     }
 end
 
@@ -8525,6 +8531,226 @@ local function DiceLayout(args)
     return panel, api
 end
 
+--- A cage of real dice, like the shop's "try dice": they rest in the panel,
+--- grow and wobble when the pointer is on them, and a click or a drag throws
+--- them across the screen. The throw is for show: nothing networked, no chat.
+--- @param args {width: number, height: number, numDice: number, numFaces: number, restScale: number, spacing: nil|number}
+--- @return Panel panel
+--- @return {set: fun(sets: {model: string, model2: string, modelD6: string}), show: fun(on: boolean)}
+function HeroSheetAppearance.DiceCage(args)
+    --thrown: the dice left the cage, so a new set waits for the next seed.
+    local state = {shown = false, thrown = false, reseedPending = false, key = ""}
+    --- @type nil|{model: string, model2: string, modelD6: string}
+    local loadout = nil
+
+    --the cage anchors and draws the resting dice, so it takes no mouse: the
+    --hit panel over it does.
+    local cage = gui.DicePreview{
+        --room for the glow some sets have.
+        width = args.width + 48,
+        height = args.height + 48,
+        floating = true,
+        halign = "center",
+        valign = "center",
+        interactable = false,
+        bgimage = true,
+        bgcolor = "white",
+        styles = {gui.Style{opacity = 0}},
+        create = function(element)
+            ---@cast element DicePreview
+            element:SetAsDicePreviewPanel(true)
+            --resting dice draw inside the sheet, so a window over it covers them.
+            element.dicePreviewVirtual = true
+            element.dicePreviewHoverFx = true
+            element.dicePreviewScreenBounds = true
+            element.dicePreviewLiftDrop = true
+            element.dicePreviewRestScale = args.restScale
+            element.dicePreviewSpacing = args.spacing or 1
+            element:FireEvent("seedDice")
+        end,
+        destroy = function(element)
+            ---@cast element DicePreview
+            element:CancelDicePreviewRoll()
+            element:SetAsDicePreviewPanel(false)
+        end,
+        seedDice = function(element)
+            ---@cast element DicePreview
+            state.reseedPending = false
+            state.thrown = false
+            element:CancelDicePreviewRoll()
+            local seeded = loadout
+            if not state.shown or seeded == nil then
+                return
+            end
+            DiceSlots.WithRollLoadout(seeded, function()
+                dmhub.Roll{
+                    preview = true, ["local"] = true, silent = true,
+                    previewPanel = element,
+                    numDice = args.numDice, numFaces = args.numFaces, numKeep = 0,
+                    description = "Try Dice",
+                    complete = function()
+                        if element.valid then
+                            element:FireEvent("requestReseed")
+                        end
+                    end,
+                    --too weak a drag: the dice were put back.
+                    cancel = function()
+                        if element.valid then
+                            element:FireEvent("requestReseed")
+                        end
+                    end,
+                }
+            end)
+        end,
+        requestReseed = function(element)
+            if state.reseedPending then
+                return
+            end
+            state.reseedPending = true
+            element:ScheduleEvent("seedDice", 0.6)
+        end,
+    }
+    ---@cast cage DicePreview
+
+    local panel = gui.Panel{
+        width = args.width,
+        height = args.height,
+        halign = "center",
+        cage,
+        gui.Panel{
+            width = "100%",
+            height = "100%",
+            floating = true,
+            halign = "center",
+            valign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            draggable = true,
+            dragMove = false,
+            hover = function()
+                cage:DicePreviewMouseEnter()
+            end,
+            dehover = function()
+                cage:DicePreviewMouseLeave()
+            end,
+            dragging = function()
+                state.thrown = true
+                cage:DicePreviewDragThink()
+            end,
+            drag = function()
+                cage:DicePreviewDragEnd()
+            end,
+            click = function()
+                state.thrown = true
+                cage:DicePreviewClick()
+            end,
+        },
+    }
+
+    local api = {}
+    --- The sets the dice rest and roll in.
+    --- @param sets {model: string, model2: string, modelD6: string}
+    api.set = function(sets)
+        local key = string.format("%s|%s|%s", sets.model, sets.model2, sets.modelD6)
+        if key == state.key then
+            return
+        end
+        state.key = key
+        loadout = sets
+        --thrown dice keep their set; the next ones rest in the new one.
+        if cage.valid and not state.thrown then
+            cage:FireEvent("seedDice")
+        end
+    end
+    --- The dice exist only while the cage is on screen: they are real 3D dice,
+    --- which hiding the panel would not remove.
+    --- @param on boolean
+    api.show = function(on)
+        if on == state.shown then
+            return
+        end
+        state.shown = on
+        if cage.valid then
+            cage:FireEvent("seedDice")
+        end
+    end
+    return panel, api
+end
+
+--- The Effects tab's dice: the power roll pair over a rule, then the d6, each
+--- a cage to throw from. A sheet popped out into its own OS window shows them
+--- still instead: the real dice are drawn only in the app's window.
+--- @return Panel panel
+--- @return {paint: fun(sets: table<string, string>), show: fun(on: boolean)}
+function HeroSheetAppearance.ThrowDice()
+    --wider than the dice, so they are easy to grab.
+    local pair, pairApi = HeroSheetAppearance.DiceCage{width = 200, height = DICE_PAIR_DIE, numDice = 2, numFaces = 10,
+        restScale = 1, spacing = 0.85}
+    local small, smallApi = HeroSheetAppearance.DiceCage{width = 84, height = DICE_SMALL_DIE, numDice = 1, numFaces = 6,
+        restScale = 0.9}
+    local throw = gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        pair,
+        gui.Panel{
+            classes = {"heroSheetDialogRule"},
+            bgimage = "panels/square.png",
+            width = math.floor((2 * DICE_PAIR_DIE + 12) * 1.4),
+            height = 1,
+            halign = "center",
+            vmargin = 8,
+        },
+        small,
+    }
+    local still, stillApi = DiceLayout{scale = 1, seq = "herosheettab"}
+    still:SetClass("collapsed", true)
+    local shown = false
+    local poppedOut = false
+    local function Sync()
+        throw:SetClass("collapsed", poppedOut)
+        still:SetClass("collapsed", not poppedOut)
+        pairApi.show(shown and not poppedOut)
+        smallApi.show(shown and not poppedOut)
+        if not shown then
+            --a hidden tab gets no dehover: stop any spinning die by hand.
+            stillApi.stop()
+        end
+    end
+    local panel = gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+        heroSheetWindowMode = function(element, data)
+            poppedOut = data.poppedOut == true
+            Sync()
+        end,
+        throw,
+        still,
+    }
+    local api = {}
+    --- @param sets table<string, string> a set for each die id
+    api.paint = function(sets)
+        local loadout = {model = sets.p1, model2 = sets.p2, modelD6 = sets.d6}
+        pairApi.set(loadout)
+        smallApi.set(loadout)
+        stillApi.paint(sets)
+    end
+    --- @param on boolean
+    api.show = function(on)
+        shown = on
+        if on then
+            --a tab first opened in a popped-out window heard no heroSheetWindowMode.
+            local root = panel.root
+            poppedOut = root ~= nil and root.valid and root.data ~= nil and root.data.nativeWindowRoot == true
+        end
+        Sync()
+    end
+    return panel, api
+end
+
 --- A Hero's dice for the person viewing the sheet. The sheet's Dice is the
 --- shop's class dice slot: the same account setting, set from another place.
 ---   key: the viewer's class dice slot ("class:<id>" or "class:<id>:<subclassid>"),
@@ -8982,9 +9208,9 @@ local function BuildEffects(bus, Row, Half)
     local bloodBlock
     bloodBlock, bloodHint = Block("Blood", "", bloodPills, {panel = bloodNote, width = 190})
 
-    --the Hero's dice as the Dice panel shows them: a preview only; Change
-    --dice opens the window where they are picked.
-    local diceLayout, diceApi = DiceLayout{scale = 1, seq = "herosheettab"}
+    --the Hero's dice, to pick up and throw; Change dice opens the window
+    --where they are picked.
+    local diceLayout, diceApi = HeroSheetAppearance.ThrowDice()
     local changeDice = SmallButton{
         text = "Change dice",
         click = function()
@@ -9122,10 +9348,7 @@ local function BuildEffects(bus, Row, Half)
 
     bus.EffectsShown = function(shown)
         preview.setShown(shown)
-        --a hidden tab gets no dehover: stop any spinning die by hand.
-        if not shown then
-            diceApi.stop()
-        end
+        diceApi.show(shown)
         local token = Token()
         if shown and token ~= nil then
             Paint(token)
@@ -9527,6 +9750,10 @@ local function BuildSummons(bus, Row)
     local MakeRow
     local listHolder, countPill
     local revertButton, chooseHint
+    --- @type Input
+    local nameField
+    --- @type nil|string the summon whose name nameField shows, which is where a typed name saves
+    local nameKey = nil
     local picks = {}
     local picksFit = SUGGEST_MAX
     local paintToken, dragTag, zoomRow, zoomSlider, circleRow, circleSlider
@@ -9611,10 +9838,22 @@ local function BuildSummons(bus, Row)
         end)
     end
 
+    --- Save a name still being typed and free the field. Call it before the look
+    --- changes under the field: its own leave event can come a frame late, and
+    --- would then save the typed name over the change.
+    local function CommitNameField()
+        if nameField.hasInputFocus then
+            nameField:FireEvent("defocus")
+            gui.SetFocus(nil)
+        end
+    end
+
     --- Revert to default: the whole saved look goes; the summon stays listed.
     local function Revert()
+        CommitNameField()
         local key = g_summon.key
-        if key == nil or SavedLook() == nil then
+        local look = SavedLook()
+        if key == nil or look == nil then
             return
         end
         g_summon.pending = {}
@@ -9627,9 +9866,11 @@ local function BuildSummons(bus, Row)
                 end
             end,
         }
+        --a late leave event from the Name field now finds it empty and saves nothing.
+        nameField.text = ""
         local token = Token()
         if saved and token ~= nil then
-            ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key)
+            ActivatedAbilitySummonBehavior.RestyleLiveSummons(token, key, look.name)
         end
         HeroSheetRefresh.Changed()
     end
@@ -9675,7 +9916,7 @@ local function BuildSummons(bus, Row)
         view = Summons.View(token, entry, true)
         local now = view
         local custom = saved[entry.key] ~= nil
-        chooseHint.text = string.format("The picture for %s's token.", entry.name)
+        chooseHint.text = string.format("The name and picture for %s's token.", entry.name)
         --Suggested: its stat block's picture, then recent ones.
         local shown = {}
         local seen = {}
@@ -9728,6 +9969,15 @@ local function BuildSummons(bus, Row)
         local frame = now.portraitFrame
         local framed = frame ~= nil and frame ~= ""
         local look = saved[entry.key]
+
+        --the field keeps what is being typed. Left empty, it shows the stat block's
+        --name in grey, and the summon is left unnamed, as when first summoned.
+        if not nameField.hasInputFocus then
+            nameField.text = look ~= nil and look.name or ""
+            nameKey = entry.key
+        end
+        nameField.placeholderText = entry.monster.info.name or entry.name
+        nameField.interactable = writable
 
         backgroundLine:SetClass("collapsed", not popout)
         local back = now.portraitBackground
@@ -9782,6 +10032,7 @@ local function BuildSummons(bus, Row)
         if key == g_summon.key then
             return
         end
+        CommitNameField()
         CommitPending()
         g_summon.key = key
         g_summon.pending = {}
@@ -10409,6 +10660,33 @@ local function BuildSummons(bus, Row)
         picks[i] = pick
     end
 
+    --Name: what the summon is called on the map, saved when the field is left. It saves
+    --to the summon it showed (nameKey), since a click on another summon can be handled first.
+    nameField = Field({
+        text = "",
+        limit = NAME_LIMIT,
+        selectAll = true,
+        defocus = function(text)
+            local key = nameKey
+            local token = Token()
+            if key == nil or token == nil or not HeroSheetWrite.CanWrite() then
+                return
+            end
+            local name = trim(text)
+            local current = token.properties:GetSummonAppearance(key)
+            if name == (current ~= nil and current.name or "") then
+                return
+            end
+            SaveSummonLook(function(look)
+                if name == "" then
+                    look.name = nil
+                else
+                    look.name = name
+                end
+            end, key)
+        end,
+    }) --[[@as Input]]
+
     local chooseStep
     --the hint names the summon, so it is painted.
     chooseStep, chooseHint = Step(1, "Choose the art", "",
@@ -10416,6 +10694,17 @@ local function BuildSummons(bus, Row)
             width = "100%",
             height = "auto",
             flow = "vertical",
+            FieldName("Name"),
+            --a name is short, so the field stops well short of a wide plate's edge.
+            gui.Panel{
+                width = "100%",
+                maxWidth = 280,
+                height = 30,
+                tmargin = 4,
+                bmargin = 12,
+                halign = "left",
+                nameField,
+            },
             gui.Panel{
                 width = "100%",
                 height = 26,
@@ -10509,6 +10798,10 @@ local function BuildSummons(bus, Row)
         Row(FitParts.Hold(fitStep), fitStep, FitParts.Hold(mapStep), mapStep, true),
     }, {
         name = "appearance summons",
+        --while the Name field is typed into, keys go to it, not to the sheet's shortcuts.
+        holdsKeyboard = function(panel)
+            return nameField.valid and nameField.hasInputFocus
+        end,
         signature = function(token)
             local keys = {}
             for _, entry in ipairs(Summons.Entries(token)) do

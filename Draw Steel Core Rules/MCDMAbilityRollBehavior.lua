@@ -445,6 +445,76 @@ function RollUtils.DiceResultToTier(result)
     return tier
 end
 
+local function NotifyTestedUnguarded(props, testName, rollInfo, details, characteristic, causeCastId)
+    local value = nil
+    for id, info in pairs(creature.attributesInfo) do
+        if characteristic ~= nil and info.description == characteristic then
+            local attr = props:GetAttribute(id)
+            value = attr ~= nil and attr:Modifier() or nil
+        end
+    end
+    local dice = {}
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            dice[#dice + 1] = roll.result
+        end
+    end
+    local overrideTier = rollInfo.properties ~= nil and rollInfo.properties:try_get("overrideTier") or nil
+    GameSystem.NotifyPlayObservers("tested", props, {
+        name = testName,
+        total = rollInfo.total,
+        tier = overrideTier or RollUtils.DiceResultToTier(rollInfo),
+        dice = dice,
+        natural = rollInfo.naturalRoll,
+        edges = rollInfo.boons,
+        banes = rollInfo.banes,
+        characteristic = value ~= nil and {name = characteristic, value = value} or nil,
+        sources = details ~= nil and details.edgeSources or nil,
+        privacy = RollUtils.RollPrivacy(rollInfo, details),
+        cause = causeCastId,
+        --a tier someone chose after the dice landed: who, and what the dice gave.
+        overridden = overrideTier ~= nil and {
+            by = rollInfo.properties:try_get("overrideBy"),
+            dicetier = RollUtils.DiceResultToTier(rollInfo),
+        } or nil,
+    })
+end
+
+--- Tells a record of play (History) that a test outside an ability finished, with what it
+--- needs to show the roll's numbers: the dice, the characteristic, edges, banes and what gave them.
+--- Called just ahead of the code that settles a roll, so a failure is logged, never raised.
+--- @param props creature The creature that rolled.
+--- @param testName string What the test is called, e.g. "Might test".
+--- @param rollInfo table The finished roll.
+--- @param details nil|{edgeSources: nil|table[], dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @param characteristic nil|string The characteristic's name, e.g. "Might", for its value.
+--- @param causeCastId nil|string The cast id of the ability that asked for the roll (an opposed power roll), so the record goes under that ability.
+function RollUtils.NotifyTested(props, testName, rollInfo, details, characteristic, causeCastId)
+    local ok, err = xpcall(NotifyTestedUnguarded, debug.traceback, props, testName, rollInfo, details, characteristic, causeCastId)
+    if not ok then
+        print("NotifyTested:: failed:", err)
+    end
+end
+
+--- Who may see a finished roll, for a record of play (History): nil when everyone may.
+--- A GM-only roll reaches only its roller and the Director; a Dice Tower roll is seen
+--- by everyone but its result only by the Director.
+--- @param rollInfo table The finished roll (a chat roll message).
+--- @param details nil|{dicetower: nil|boolean} The roll dialog's second completeRoll argument.
+--- @return nil|{hidden: boolean, tower: nil|boolean, userid: nil|string, cause: nil|string} cause is filled in by History.
+function RollUtils.RollPrivacy(rollInfo, details)
+    local gmonly, userid = false, nil
+    pcall(function()
+        gmonly = rollInfo.gmonly == true
+        userid = rollInfo.userid
+    end)
+    local tower = details ~= nil and details.dicetower == true
+    if not gmonly and not tower then
+        return nil
+    end
+    return {hidden = true, tower = tower or nil, userid = userid}
+end
+
 --- One target's effective roll: the roll as rolled, plus that target's post-roll
 --- edge/bane/tier deltas (a multitarget row from the roll dialog, whose boons,
 --- banes and tiersDelta are relative to the roll). A single net edge/bane moves
@@ -1020,6 +1090,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_tierFinished = i
                     rollProperties.overrideTier = i
                     rollProperties.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                    --who did it, for a record of play (History): the Director, or the player's name.
+                    rollProperties.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                     m_rollInfo:UploadProperties(rollProperties)
 
                     element.parent:FireEventTree("tier", i, true)
@@ -1360,6 +1432,126 @@ end
 ---@type ActiveRollLua?
 local g_activeRoll = nil --the active roll object of the roll we are currently doing.
 local g_activeRollPanel = nil --the panel showing the roll that is currently active.
+
+--- Applies power-table triggers set to "Apply Automatically" (autoActivate), such as
+--- I Don't Know These People, before the roll card opens. For each such redirect the
+--- attacker picks the new target: no picker when only one creature qualifies, and the
+--- Monster AI picks for creatures it runs. With nobody in range nothing happens, and
+--- the trigger's owner is never asked. An "All Effects" redirect is recorded on the
+--- cast straight away; the other Retarget Effect settings (Split Damage, Forced
+--- Movement, No Effects) are recorded when the roll is accepted, like a manual
+--- redirect. Returns true if any target moved to a new creature, so the caller
+--- rebuilds its target rows.
+--- @param casterToken CharacterToken
+--- @param multitargets table[] the roll's target rows, each with its .triggers
+--- @param options table the cast options; options.symbols.cast records the redirect
+--- @return boolean
+function ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multitargets, options)
+    local cast = options.symbols ~= nil and options.symbols.cast or nil
+    if cast == nil or GameHud.instance == nil or GameHud.instance.actionBarPanel == nil then
+        return false
+    end
+
+    --A strike can't be redirected onto a creature it already hits.
+    local strikeTargets = {}
+    for _, target in ipairs(multitargets) do
+        if target.token ~= nil then
+            strikeTargets[target.token.charid] = true
+        end
+    end
+
+    local redirected = false
+    for _, target in ipairs(multitargets) do
+        for _, row in ipairs(target.triggers or {}) do
+            local powerMod = row.modifier:try_get("powerRollModifier")
+            local ownerToken = dmhub.GetTokenById(row.charid)
+            if ownerToken == nil or powerMod == nil or target.token == nil or row.triggered
+                or not row.modifier:try_get("autoActivate", false) or row.modifier:try_get("type") ~= "passive"
+                or not powerMod:try_get("changeTarget", false) then
+                goto continueRow
+            end
+
+            local symbols = {
+                current = target.token.properties:LookupSymbol{},
+                triggerer = ownerToken.properties:LookupSymbol{},
+                caster = casterToken.properties:LookupSymbol{},
+            }
+            local candidates, reasons = RuleUtils.BuildRetargetCandidates(powerMod, symbols)
+            for i = #candidates, 1, -1 do
+                if strikeTargets[candidates[i].charid] then
+                    table.remove(candidates, i)
+                end
+            end
+
+            local sourceToken, range, rangeType = RuleUtils.RetargetRange(row.modifier, ownerToken, casterToken, row.originalAbilityRange, symbols)
+            --The new target must be one the attacker could actually hit.
+            if rangeType == "ability" then
+                RuleUtils.AddRetargetRangeReasons(candidates, reasons, sourceToken, range)
+            end
+
+            --With no creature the attacker could legally pick, the redirect doesn't happen and the strike keeps its target.
+            local anyLegal = false
+            for _, tok in ipairs(candidates) do
+                if reasons[tok.charid] == nil then
+                    anyLegal = true
+                    break
+                end
+            end
+            if not anyLegal then
+                goto continueRow
+            end
+
+            local answered = false
+            local picked = nil
+            --No radius ring: it is drawn around the action bar's selected token,
+            --and an AI or scripted cast may have none. The greyed-out choices
+            --and the prompt text show the range instead.
+            GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+                sourceToken = sourceToken,
+                chooserToken = casterToken,
+                targets = candidates,
+                reasons = reasons,
+                prompt = string.format("%s: %s", row.modifier.name, RuleUtils.RetargetPromptText(sourceToken, range, rangeType, false)),
+                autoPickSole = true,
+                choose = function(tok)
+                    picked = tok
+                    answered = true
+                end,
+                --Cancelling keeps the original target.
+                cancel = function()
+                    answered = true
+                end,
+            })
+            while not answered do
+                coroutine.yield(0.1)
+                if mod.unloaded or not casterToken.valid or casterToken.properties == nil then
+                    answered = true
+                end
+            end
+
+            if picked ~= nil then
+                --notakeback: the roll card's trigger chip can't undo it.
+                --autoActivated: the card doesn't publish it to its owner.
+                row.triggered = true
+                row.retargetid = picked.charid
+                row.dismissed = true
+                row.notakeback = true
+                row.autoActivated = true
+                --An "All Effects" redirect moves the whole strike before the roll. For the other
+                --settings the original target is still hit, and accepting the roll records it.
+                if powerMod:try_get("changeTargetEffect", "all") == "all" then
+                    cast:SyncLiveRetarget(target.token.charid, row.charid, picked.charid)
+                    redirected = true
+                end
+                --Taken now, so a second automatic trigger on this strike can't pick the same creature.
+                strikeTargets[picked.charid] = true
+            end
+
+            ::continueRow::
+        end
+    end
+    return redirected
+end
 
 function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, options)
 
@@ -1863,6 +2055,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     local m_canceled = false
 
+    --The roll this cast's roll is stacked over, when a trigger interrupted it. While ours
+    --is open the chat card's edge/bane controls point at ours; this one gets them back after.
+    ---@type ActiveRollLua?
+    local m_coveredActiveRoll = nil
+
     local tiers = DeepCopy(self.tiers)
     local modeDamageType = ModeDamageType(ability, options)
     if modeDamageType ~= nil then
@@ -1914,6 +2111,12 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     for _,target in ipairs(multitargets) do
         table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
+    end
+
+    --Redirects that apply themselves happen now: the Monster AI rolls the moment
+    --the roll card opens, which is too soon to offer a picker.
+    if ActivatedAbilityPowerRollBehavior.ApplyAutoRedirects(casterToken, multitargets, options) then
+        CalculateMultitargets()
     end
 
     --Test hook: "/testai <ability> tier2" forces the result. Stamped on
@@ -1987,6 +2190,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         }),
 
         rollActive = function(activeRoll)
+            --Another roll is still held open (a trigger roll is stacked over it).
+            --A non-amendable roll must not take its edge/bane amend controls at all;
+            --an amendable one borrows them and gives them back when it is done.
+            if activeRoll ~= nil and g_activeRoll ~= nil and g_activeRoll ~= activeRoll and g_activeRoll.amendable then
+                if not activeRoll.amendable then
+                    return
+                end
+                m_coveredActiveRoll = m_coveredActiveRoll or g_activeRoll
+            end
             g_activeRoll = activeRoll
         end,
 
@@ -2050,6 +2262,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.boonsApplied = rollInfo.boons
             options.symbols.cast.banesApplied = rollInfo.banes
             options.symbols.cast.casterid = casterToken.id
+            --a roll the players could not see: History hides its numbers from them too.
+            local hiddenRoll = false
+            pcall(function() hiddenRoll = rollInfo.gmonly == true end)
+            options.symbols.cast.hiddenRoll = hiddenRoll or nil
         end,
 
         cancelRoll = function()
@@ -2118,6 +2334,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         coroutine.yield(0.02)
     end
 
+    --Our roll is done: give the chat card's amend controls back to the roll under it.
+    if m_coveredActiveRoll ~= nil then
+        if m_coveredActiveRoll.amendable then
+            g_activeRoll = m_coveredActiveRoll
+        end
+        m_coveredActiveRoll = nil
+    end
+
     --Our own lock only: a no-op if a later cast has since taken the card.
     CharacterPanel.UnlockDisplayAbility(displayLockId)
 
@@ -2145,6 +2369,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
     end
 
+    --The roll properties (with the tier texts) to resolve one target with. A target
+    --with its own modifiers in the roll dialog has its own copy; the rest share one.
+    local function TierPropertiesFor(targetToken)
+        for i,multitarget in ipairs(multitargetResults or {}) do
+            if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
+                return multitargets[i].rollProperties or rollProperties
+            end
+        end
+        return rollProperties
+    end
+
     --Record the tier this hero rolled (tier1/tier2/tier3) for the live encounter
     --stats, along with the edges and banes that were applied to the roll
     --(m_result.boons/banes -- the engine's names for edges/banes, captured from
@@ -2154,6 +2389,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = EffectiveTier(nil)
+    --an overridden tier: who chose it and what the dice gave, for a record of play (History).
+    if rollProperties:try_get("overrideTier") ~= nil then
+        options.symbols.cast.overrideBy = rollProperties:try_get("overrideBy")
+        options.symbols.cast.diceTier = DiceResultToTier(m_result)
+    end
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
 
@@ -2243,6 +2483,23 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end
     end
 
+    --promptWhenResolving asks which target to resolve next, so pushes land in the
+    --player's chosen order. Skip it when no target's tier pushes, pulls or slides:
+    --a tier 1 "2 damage" used to ask which target to push first.
+    if promptWhenResolving then
+        local orderMatters = false
+        for _,targetToken in ipairs(targetChoices) do
+            local tierText = TierPropertiesFor(targetToken).tiers[EffectiveTier(targetToken)]
+            if type(tierText) == "string" and regex.MatchGroups(string.lower(tierText), "(push|pull|slide)") ~= nil then
+                orderMatters = true
+                break
+            end
+        end
+        if not orderMatters then
+            promptWhenResolving = false
+        end
+    end
+
     repeat
 
         if promptWhenResolving then
@@ -2304,28 +2561,78 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.total = m_result.total
 
             if targetToken ~= nil then
-                if multitargetResults ~= nil then
-                    for i,multitarget in ipairs(multitargetResults) do
-                        if multitarget.token ~= nil and multitarget.token.charid == targetToken.charid then
-                            tier = multitarget.tier
-                            if multitargets[i].rollProperties ~= nil then
-                                targetRollProperties = multitargets[i].rollProperties
-                            end
-                            break
-                        end
-                    end
-                end
+                tier = EffectiveTier(targetToken)
+                targetRollProperties = TierPropertiesFor(targetToken)
 
                 local command = ResolveTierOrChoices(rollProperties, targetRollProperties, tier, targetRollProperties.tiers[tier], targetToken, casterToken, ability)
 
                 local surges = 0
                 local potencyApplied = 0
-                if m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") ~= nil and m_rollInfo.properties.multitargets[numTarget] ~= nil then
-                    surges = m_rollInfo.properties.multitargets[numTarget].surges or 0
+                --this target's row of the roll dialog. Found by token: when targets are chosen as
+                --each tier resolves (promptWhenResolving) every pass has one target at position 1.
+                local multitarget = nil
+                local rows = m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") or nil
+                if rows ~= nil then
+                    multitarget = rows[numTarget]
+                    if multitarget == nil or multitarget.tokenid ~= targetToken.charid then
+                        for _, row in ipairs(rows) do
+                            if row.tokenid == targetToken.charid then
+                                multitarget = row
+                                break
+                            end
+                        end
+                    end
+                end
+                if multitarget ~= nil then
+                    surges = multitarget.surges or 0
+
+                    --A target with its own edges or banes rolls a different total. Kept on the
+                    --cast beside its tier (tokenToTier) so History can show that target's roll.
+                    if (multitarget.boons or 0) ~= 0 or (multitarget.banes or 0) ~= 0 then
+                        local effective = RollUtils.EffectiveRollForTarget(m_result, multitarget)
+                        local targetRolls = options.symbols.cast:get_or_add("targetRolls", {})
+                        targetRolls[targetToken.charid] = {edges = effective.boons, banes = effective.banes, total = effective.total}
+                    end
+                    --and what gave this target's roll its edges and banes, as the roll dialog named them.
+                    if multitarget.edgeSources ~= nil and #multitarget.edgeSources > 0 then
+                        local targetSources = options.symbols.cast:get_or_add("targetSources", {})
+                        targetSources[targetToken.charid] = multitarget.edgeSources
+                    end
+                    --what the dialog's modifiers added to this target's damage, and its surges, so
+                    --History can split the Tier line. Each surge adds the highest characteristic,
+                    --of the type a surge modifier names (as the roll dialog's surge icons do).
+                    if multitarget.damageSources ~= nil and #multitarget.damageSources > 0 then
+                        local targetDamage = options.symbols.cast:get_or_add("targetDamageSources", {})
+                        targetDamage[targetToken.charid] = multitarget.damageSources
+                    end
+                    if surges > 0 then
+                        local surgeType = nil
+                        for _, mod in ipairs(multitarget.modifiersUsed or {}) do
+                            local damageType = mod:try_get("surgeDamageType")
+                            if mod:try_get("rollRequirement") == "surges" and damageType ~= nil and damageType ~= "untyped" then
+                                surgeType = damageType
+                            end
+                        end
+                        local targetSurges = options.symbols.cast:get_or_add("targetSurges", {})
+                        targetSurges[targetToken.charid] = {count = surges, each = casterToken.properties:HighestCharacteristic(), damagetype = surgeType}
+                    end
 
                     --Check modifiers actually applied to roll for this target
-                    for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
+                    --and what raised it, for a record of play (History): "Potency raised with 2 surges".
+                    local potencySources = {}
+                    for _, mod in ipairs(multitarget.modifiersUsed or {}) do
+                        local change = tonumber(mod:try_get("potencymod", 0)) or 0
+                        potencyApplied = potencyApplied + change
+                        if change ~= 0 then
+                            potencySources[#potencySources + 1] = {
+                                name = mod.name,
+                                potency = change,
+                                surges = mod:try_get("resourceCostType") == "surges" and tonumber(mod:try_get("resourceCostAmount", 0)) or nil,
+                            }
+                        end
+                    end
+                    if #potencySources > 0 then
+                        options.symbols.cast:get_or_add("targetPotencySources", {})[targetToken.charid] = potencySources
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)
@@ -3155,6 +3462,24 @@ function RollPropertiesPowerTable:GetDamageTypes()
     return result
 end
 
+--- The damage written in one tier's text, summed by type, so callers can measure what a
+--- kit, a modifier or a surge added by comparing before and after. Untyped damage is
+--- keyed "untyped"; a choice of types keys under its words as written ("cold, fire, or sonic").
+--- @param tier string|nil
+--- @return table<string, number>
+function RollPropertiesPowerTable.DamageByType(tier)
+    local result = {}
+    --the optional dice part keeps "3 + 1d6 damage" reading as 3, as ModifyDamage does.
+    for _, match in ipairs(regex.MatchAll(tier or "", "(\\d+)\\s+(?:\\+\\s*\\d+d\\d+\\s+)?" .. g_tierDamageTypes .. "damage")) do
+        local typeName = string.lower(trim(match[3] or ""))
+        if typeName == "" then
+            typeName = "untyped"
+        end
+        result[typeName] = (result[typeName] or 0) + (tonumber(match[2]) or 0)
+    end
+    return result
+end
+
 function RollPropertiesPowerTable:HasForcedMovement()
     for _,tier in ipairs(self.tiers) do
         local t = string.lower(tier)
@@ -3168,6 +3493,9 @@ end
 
 function RollPropertiesPowerTable:ResetMods()
     self.surges = nil
+    --the surges among them that can be kept (surgesCanBeKept); cleared here so each
+    --recalculation counts a kept-surge modifier's surges once, not once more per pass.
+    self.nonwastedSurges = nil
     self.shields = nil
     self.tierSuppressed = nil
     if self:has_key("baseTiers") == false then
@@ -3643,6 +3971,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                                 if element:HasClass("amendable") then
                                     self.overrideTier = i
                                     self.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
+                                    self.overrideBy = dmhub.isDM and "Director" or dmhub.userDisplayName
                                     message:UploadProperties(self)
 
                                     for j,row in ipairs(m_rows) do
@@ -4054,6 +4383,11 @@ RollCheck.RegisterCustom{
     end,
 }
 
+--dialogOptions tables whose completeRoll already fires the rollpower event.
+--PrepareDialog can run twice on the same table (sidebar card unavailable, then
+--the pop-up), and the event must fire only once.
+local g_testRollCompleteWrapped = setmetatable({}, {__mode = "k"})
+
 --Keep target tests on the existing per-target request path, but give modifiers
 --and reactions the creature making the test as their roller.
 RollCheck.RegisterCustom{
@@ -4065,7 +4399,10 @@ RollCheck.RegisterCustom{
     end,
     GetRoll = RollCheck.customChecks.resistance_power_roll.GetRoll,
     GetModifiers = RollCheck.customChecks.resistance_power_roll.GetModifiers,
-    ShowDialog = function(check, dialogOptions)
+    --Sets up the test roll: the power table, the creature rolling as its only
+    --target, and the reactions that can respond to it. Kept apart from ShowDialog
+    --so a requested test can be rolled on the sidebar card instead of the old pop-up.
+    PrepareDialog = function(check, dialogOptions)
         local roller = dmhub.LookupToken(dialogOptions.creature)
         local testAbility = check.options.ability
         dialogOptions.ability = testAbility
@@ -4088,27 +4425,33 @@ RollCheck.RegisterCustom{
                 end
             end
             table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
-            local completeRoll = dialogOptions.completeRoll
-            dialogOptions.completeRoll = function(rollInfo)
-                completeRoll(rollInfo)
-                local tier = rollInfo.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
-                local dice = {}
-                for _,die in ipairs(rollInfo.rolls or {}) do
-                    if not die.dropped and die.numFaces == 10 then
-                        dice[#dice+1] = die.result
+            if not g_testRollCompleteWrapped[dialogOptions] then
+                g_testRollCompleteWrapped[dialogOptions] = true
+                local completeRoll = dialogOptions.completeRoll
+                dialogOptions.completeRoll = function(rollInfo)
+                    completeRoll(rollInfo)
+                    local tier = rollInfo.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
+                    local dice = {}
+                    for _,die in ipairs(rollInfo.rolls or {}) do
+                        if not die.dropped and die.numFaces == 10 then
+                            dice[#dice+1] = die.result
+                        end
                     end
+                    table.sort(dice, function(a,b) return a > b end)
+                    roller.properties:DispatchEvent("rollpower", {
+                        surges = 0,
+                        tierone = tier == 1, tiertwo = tier == 2, tierthree = tier == 3,
+                        naturalroll = rollInfo.naturalRoll,
+                        highroll = dice[1], lowroll = dice[2],
+                        ability = testAbility,
+                        herotokenreroll = CharacterResource.RollUsedHeroTokenReroll(rollInfo),
+                    })
                 end
-                table.sort(dice, function(a,b) return a > b end)
-                roller.properties:DispatchEvent("rollpower", {
-                    surges = 0,
-                    tierone = tier == 1, tiertwo = tier == 2, tierthree = tier == 3,
-                    naturalroll = rollInfo.naturalRoll,
-                    highroll = dice[1], lowroll = dice[2],
-                    ability = testAbility,
-                    herotokenreroll = CharacterResource.RollUsedHeroTokenReroll(rollInfo),
-                })
             end
         end
+    end,
+    ShowDialog = function(check, dialogOptions)
+        RollCheck.customChecks.target_test_power_roll.PrepareDialog(check, dialogOptions)
         return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
     end,
 }

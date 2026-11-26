@@ -846,6 +846,97 @@ local function ExecuteCubePlan(ai, token, ability, center, symbols)
 end
 
 --------------------------------------------------------------------------------
+-- Commando: hide after Daggers.
+--------------------------------------------------------------------------------
+
+--Daggers lets each commando that used it take the Hide maneuver, even if
+--observed. In a squad strike the content offers the "Caster May Hide" prompt
+--once per target, to the first commando that struck it. A commando that
+--struck a creature a squad-mate struck first is never asked, so the AI hides
+--those itself.
+
+--True when hiding here would stick: cover or concealment (the Hide maneuver's
+--own test, canhidehere), and nothing that reveals it at once (grabbed, or an
+--enemy next to it).
+local function CommandoCanHide(token)
+    if not LiveCreature(token) or token.playerControlled then
+        return false
+    end
+    local c = token.properties
+    if c:IsHidden() or c:HasNamedCondition("Grabbed") then
+        return false
+    end
+    for _,enemy in ipairs(HostileCreatures(token)) do
+        if MonsterAI.TargetDistance(token, enemy) <= 1 then
+            return false
+        end
+    end
+    return c:IsConcealed() or c:CalculateCoverFromEnemies(true).all
+end
+
+--Squad-mates who struck in this squad strike but were not the first to strike
+--any target, so get no hide prompt of their own.
+local function UnpromptedSquadStrikers(casterToken, options)
+    local symbols = options ~= nil and options.symbols or nil
+    local targetPairs = symbols ~= nil and symbols.targetPairs or nil
+    local result = {}
+    if type(targetPairs) ~= "table" then
+        return result
+    end
+    local struckTargets = {}
+    local prompted = {}
+    for _,pair in ipairs(targetPairs) do
+        if not struckTargets[pair.b] then
+            struckTargets[pair.b] = true
+            prompted[pair.a] = true
+        end
+    end
+    local seen = {}
+    local casterType = MonsterType(casterToken)
+    for _,pair in ipairs(targetPairs) do
+        local member = FindTokenByCharid(pair.a)
+        if member ~= nil and not prompted[pair.a] and not seen[pair.a]
+            and member.charid ~= casterToken.charid and LiveCreature(member)
+            and member:IsFriend(casterToken) and MonsterType(member) == casterType then
+            seen[pair.a] = true
+            result[#result+1] = member
+        end
+    end
+    return result
+end
+
+MonsterAI:RegisterPrompt{
+    id = "War Dog Commando: Hide after Daggers",
+    prompts = {"War Dog Commando:Caster May Hide"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if casterToken == nil or casterToken.playerControlled then
+            return nil
+        end
+
+        for _,member in ipairs(UnpromptedSquadStrikers(casterToken, options)) do
+            if CommandoCanHide(member) then
+                member:ModifyProperties{
+                    description = "Hide",
+                    execute = function()
+                        member.properties:BecomeHidden(member)
+                    end,
+                }
+                ai:LogDecision("COMMANDO HIDES", {
+                    hider = MonsterAI.TokenLogName(member),
+                    reason = "struck a target a squad-mate struck first, so had no prompt",
+                })
+            end
+        end
+
+        if CommandoCanHide(casterToken) then
+            return {targets = {{token = casterToken}}}
+        end
+        --The hide targets its caster whatever targets it is given, so decline it.
+        return {decline = true, reason = "no cover or concealment, or an enemy is adjacent"}
+    end,
+}
+
+--------------------------------------------------------------------------------
 -- Strikes.
 --------------------------------------------------------------------------------
 

@@ -1042,6 +1042,8 @@ DrawSteelMinion.SetSquadCaptain = function(tokens, squadid, isMakeCaptain)
                         --show is set, which requires squadid to be a squad name.
                         ---@cast squadid string
                         tok.properties.minionSquad = squadid
+                        --for a record of play: who now leads which squad.
+                        GameSystem.NotifyPlayObservers("captain", tok.properties, {squad = squadid})
                     else
                         tok.properties.minionSquad = nil
                     end

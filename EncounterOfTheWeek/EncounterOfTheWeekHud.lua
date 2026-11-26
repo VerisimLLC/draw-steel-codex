@@ -855,6 +855,39 @@ end
 
 local RAIL_BUTTON_SIZE = 40
 
+--The montage/narrative stage is a full-screen presented dialog on the same
+--documents layer as the rails and panel windows, mounted after them, so it
+--buries anything below it. Returns the stage's layer depth while one is up,
+--else nil.
+local function StageDepth()
+    local depth = nil
+    pcall(function()
+        local _, d = PanelDocument.PresentedStage()
+        depth = d
+    end)
+    return depth
+end
+
+--The open window showing panelKey when a stage is up and the window sits
+--behind it (open, but invisible to the player), else nil.
+local function WindowBuriedByStage(panelKey)
+    local stageDepth = StageDepth()
+    if stageDepth == nil then
+        return nil
+    end
+    local dialog = nil
+    pcall(function()
+        local d = PanelDocument.FindHostDialog(panelKey)
+        if d ~= nil and d.valid then
+            local depth = PanelDocument.LayerDepth(d)
+            if depth ~= nil and depth < stageDepth then
+                dialog = d
+            end
+        end
+    end)
+    return dialog
+end
+
 --A rail-style button for one registered dockable panel: the standard
 --iconRailButton look (the custom rail wrapper carries IconRailStyles), the
 --panel's registered icon, its unread badge, the active underline, and the
@@ -943,6 +976,14 @@ local function CreatePanelButton(panelName)
 
         press = function(element)
             audio.FireSoundEvent("Mouse.Click")
+            --during a montage a window left open from combat is behind the
+            --stage: bring it forward rather than closing what looks closed.
+            local buried = WindowBuriedByStage(panelKey)
+            if buried ~= nil then
+                DockablePanel.LaunchPanelByName(panelName, "show")
+                PanelDocument.RaiseOnLayer(buried)
+                return
+            end
             --a folder window (Measuring Tool + Whiteboard share one) sitting
             --on another member's tab: switch to this tab rather than closing
             --the window, as the real rail button does.
@@ -954,6 +995,19 @@ local function CreatePanelButton(panelName)
                 end
             end)
             DockablePanel.LaunchPanelByName(panelName, operation)
+            --a window opened over a stage can land behind it; raise it once
+            --it exists (the next frame).
+            if StageDepth() ~= nil then
+                dmhub.Schedule(0.1, function()
+                    if mod.unloaded then
+                        return
+                    end
+                    local dialog = WindowBuriedByStage(panelKey)
+                    if dialog ~= nil then
+                        PanelDocument.RaiseOnLayer(dialog)
+                    end
+                end)
+            end
         end,
 
         hover = function(element)
@@ -965,10 +1019,14 @@ local function CreatePanelButton(panelName)
         refreshRail = function(element)
             --IsPanelActive, not IsPanelShown: in a folder window only the
             --tab on screen lights, not every member filed in it.
+            --A window buried behind the montage stage does not count.
             local shown = false
             pcall(function()
                 shown = PanelDocument.IsPanelActive(panelKey) or PanelDocument.IsPoppedOut(panelKey)
             end)
+            if shown and WindowBuriedByStage(panelKey) ~= nil then
+                shown = false
+            end
             element:SetClass("active", shown)
         end,
 
@@ -1216,7 +1274,10 @@ local function CreateCornerButtonsPanel()
     end
     local toolCount = #buttons
     buttons[#buttons+1] = CreateRulesButton()
-    for _, name in ipairs({"Journal", "Chat", "Action Log"}) do
+    --History, or the old Action Log for a user who chose it back.
+    local history = rawget(_G, "History")
+    local oldLog = history == nil or history.UsingOldLog == nil or history.UsingOldLog()
+    for _, name in ipairs({"Journal", "Chat", oldLog and "Action Log" or "History"}) do
         buttons[#buttons+1] = CreatePanelButton(name)
     end
     if #buttons == 0 then
@@ -1240,6 +1301,25 @@ local function CreateCornerButtonsPanel()
         flow = "vertical",
         halign = "left",
         children = buttons,
+
+        --Keep the strip usable through montages and narratives, as in
+        --combat: while a full-screen stage is up, lift the rail holding this
+        --strip to just above it. Windows opened later still stack on top.
+        thinkTime = 0.1,
+        think = function(element)
+            local stageDepth = StageDepth()
+            if stageDepth == nil then
+                return
+            end
+            pcall(function()
+                local stage = PanelDocument.LayerChildOf(PanelDocument.PresentedStage())
+                local rail = PanelDocument.LayerChildOf(element)
+                local depth = PanelDocument.LayerDepth(element)
+                if stage ~= nil and rail ~= nil and depth ~= nil and depth < stageDepth then
+                    rail:SetAsSiblingAbove(stage)
+                end
+            end)
+        end,
     }
 end
 

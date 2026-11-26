@@ -23,15 +23,20 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+), executed by the Draw Steel command parser.
 --- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry.
+--- @field powerRollEnterOnly boolean If true, the simple power roll fires only when a creature enters the aura, never at the start of a turn spent in it (e.g. Frozen Pond's Slippery Surface).
 --- @field includeAdjacent boolean If true, the engine extends the aura's area one tile outward (8-way) and marks the extension tiles as adjacent-only. Creatures on those tiles count as touching the aura for enter/start-of-turn trigger contact (the simple power roll fires for them at the start of their turn, with a bane), but the tiles do not take the aura's terrain rules, move damage, or modifiers.
 --- @field damaging boolean Explicitly marks the aura as damaging terrain for movement advisories (the red "moving into damaging terrain" line on the drag tooltip). Only needed for auras whose damage comes from custom triggers: an entry power roll or per-tile move damage already implies it (see Aura:IsDamaging).
 --- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
 --- @field difficultTerrainKeywords? table<string, boolean> Keywords describing where this aura's difficult terrain came from (keyword -> true), e.g. {Magic = true}. Stamped from the creating ability's keywords in ActivatedAbilityAuraBehavior:CastOnArea and from the Environmental Keyword's terrainKeywords. A creature with an Ignore Difficult Terrain modifier naming any of them ignores this aura's difficult terrain (engine: AuraInstance:GetDifficultTerrainKeywords). Read with try_get.
 --- @field water? boolean Tiles in the area count as water (engine tile rule via AuraInstance:GetWater); read with try_get.
+--- @field fastTerrain? boolean Fast Terrain: entering the area's squares on foot or swimming costs half (AuraInstance:GetFastTerrain); read with try_get.
 --- @field climbable? boolean Tiles in the area can be climbed like a climbable wall (AuraInstance:GetClimbable); read with try_get.
 --- @field climbersOnly? boolean With climbable, restricts climbing to natural climbers; read with try_get.
 --- @field stepped? boolean Stepped Terrain: a 1-square height change whose higher tile is in the area is a sharp step for forced movement, not a slope (AuraInstance:GetStepped); read with try_get.
 --- @field entryEffectRule? string Flat effect rule text applied to creatures entering or starting a turn in the area (Aura:GetSimpleEntryEffectTrigger); read with try_get.
+--- @field moveDamageRule? string Rule text applied, with no roll, to a creature each time this aura's per-square move damage hits it, e.g. "bleeding (save ends)" for Poisonous Thorns brambles (Aura:GetMoveDamageRuleAbility, fired from creature:AuraDamage); read with try_get.
+--- @field forcedMoveDamage? number Extra move damage when the creature is force moved in, added to the same damage instance (Archer's Stakes: 2, or 5 when shoved in). Read with try_get.
+--- @field frontEntryOnly? boolean The aura has a front, set by its object's rotation (0 = north): only a creature stepping in from the front side takes its move damage or fires its entry triggers, e.g. Archer's Stakes (AuraInstance:GetFrontEntryOnly; the engine does the check). Read with try_get.
 --- @field hideFromPlayers? boolean If true, only the Director sees this aura in aura-listing UI (chips, action bar). Distinct from AuraInstance.hiddenFromPlayers, which hides a Map Markup zone on the map. Set in data; read with try_get.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
@@ -128,6 +133,7 @@ Aura.applyto = "all"
 Aura.hasCustomIcon = false
 Aura.includeAdjacent = false
 Aura.powerRollShiftEntryMode = "normal"
+Aura.powerRollEnterOnly = false
 
 Aura.PowerRollShiftEntryModeOptions = {
     {
@@ -287,7 +293,7 @@ end
 --- roll modifiers (their own modifiers do not apply to it). The prompt is
 --- hostile: environment rolls are never beneficial offers, so it renders red
 --- and never expires.
---- @param options nil|{adjacentOnly: boolean, enteredViaShift: boolean} adjacentOnly =
+--- @param options nil|{adjacentOnly: boolean, enteredViaShift: boolean, fromBeginTurn: boolean|nil} adjacentOnly =
 --- the creature touches the aura only via its adjacent extension (includeAdjacent),
 --- not any true aura tile; enteredViaShift = the creature entered during a Shift.
 --- Adjacent-only always rolls with one bane. A shifted entry follows
@@ -295,6 +301,11 @@ end
 --- @return nil|{trigger: string, ability: TriggeredAbility}
 function Aura:GetSimplePowerRollTrigger(options)
     if not self:try_get("powerRollEnabled", false) then
+        return nil
+    end
+
+    --An enter-only roll (powerRollEnterOnly) does nothing at the start of a turn.
+    if options ~= nil and options.fromBeginTurn == true and self:try_get("powerRollEnterOnly", false) == true then
         return nil
     end
 
@@ -423,6 +434,34 @@ function Aura:GetSimpleEntryEffectTrigger(options)
                 ActivatedAbilityDrawSteelCommandBehavior.new{
                     rule = rule,
                 },
+            },
+        },
+    }
+end
+
+--- The ability that applies moveDamageRule to a creature the aura's move damage
+--- just hit, or nil when the aura has no such rule. Like the flat entry effect it
+--- is mandatory and has nothing to roll.
+--- @return nil|TriggeredAbility
+function Aura:GetMoveDamageRuleAbility()
+    local rule = trim(self:try_get("moveDamageRule", "") or "")
+    if rule == "" then
+        return nil
+    end
+
+    return TriggeredAbility.Create{
+        name = self.name,
+        trigger = "onenter",
+        targetType = "self",
+        range = 0,
+        radius = 0,
+        silent = true,
+        mandatory = true,
+        environmentalSource = true,
+        iconid = self.iconid,
+        behaviors = {
+            ActivatedAbilityDrawSteelCommandBehavior.new{
+                rule = rule,
             },
         },
     }
@@ -1160,6 +1199,50 @@ function Aura:GenerateEditor(options)
                 end,
             },
 
+            --Archer's Stakes: extra damage added to the same hit when the creature is
+            --force moved in, so a shove deals one hit of damage + extra, not two hits.
+            gui.Panel {
+                classes = { 'formPanel', 'namePanel' },
+                create = function(element)
+                    element:FireEvent("refreshAura")
+                end,
+                refreshAura = function(element)
+                    element:SetClass("collapsed", self:try_get("movedamage", "none") == "none")
+                end,
+                gui.Label {
+                    text = 'Extra If Force Moved:',
+                    classes = { 'formLabel' },
+                },
+                gui.Input {
+                    text = tostring(self:try_get("forcedMoveDamage", 0)),
+                    classes = { 'input', 'form-input' },
+                    width = 120,
+                    height = 22,
+                    halign = "left",
+                    hmargin = 10,
+                    characterLimit = 8,
+                    change = function(element)
+                        local num = tonumber(trim(element.text))
+                        if num ~= nil then
+                            self.forcedMoveDamage = math.floor(num)
+                        end
+                        element.text = tostring(self:try_get("forcedMoveDamage", 0))
+                    end,
+                },
+            },
+
+            --Archer's Stakes: only entries from the front of the object count.
+            gui.Check{
+                styles = ThemeEngine.GetStyles(),
+                halign = "left",
+                text = "Front Entry Only",
+                hover = gui.Tooltip("Only creatures entering from the object's front are affected."),
+                value = self:try_get("frontEntryOnly", false),
+                change = function(element)
+                    self.frontEntryOnly = element.value
+                end,
+            },
+
             --Also deal the move damage once to a creature that starts its turn inside.
             gui.Check{
                 styles = ThemeEngine.GetStyles(),
@@ -1575,9 +1658,14 @@ end
 --- Index every object-hosted aura carrying a "forced" trigger, keyed by "floor,x,y".
 --- Object auras are positioned by their object (their stored area shape is authored data
 --- and does not track the spawn location), which is also how the engine places them.
---- @return table<string, AuraInstance[]>
+--- Also returns the front direction of each front-entry-only aura (Archer's Stakes), keyed
+--- by the aura instance itself: copies of one object share an aura guid, so the guid can't
+--- tell two stakes apart. The object's rotation turns north (0, 1) counter-clockwise, like
+--- the engine.
+--- @return table<string, AuraInstance[]>, table<AuraInstance, {x: number, y: number}>
 local function CollectForcedTriggerAurasByLoc()
     local result = {}
+    local fronts = {}
 
     for _, floor in ipairs(game.currentMap.floors) do
         for _, obj in pairs(floor.objects) do
@@ -1597,12 +1685,17 @@ local function CollectForcedTriggerAurasByLoc()
                         result[key] = list
                     end
                     list[#list + 1] = auraInstance
+
+                    if auraInstance.aura:try_get("frontEntryOnly", false) == true then
+                        local r = math.rad(obj.rotation or 0)
+                        fronts[auraInstance] = { x = -math.sin(r), y = math.cos(r) }
+                    end
                 end
             end
         end
     end
 
-    return result
+    return result, fronts
 end
 
 --- Call fn(instance, triggerInfo) for each "forced" onenter trigger on this aura,
@@ -1644,7 +1737,7 @@ function Aura.FireForcedMovementTriggersForPath(c, token, path)
         return
     end
 
-    local aurasByLoc = CollectForcedTriggerAurasByLoc()
+    local aurasByLoc, fronts = CollectForcedTriggerAurasByLoc()
 
     --Mirrors the caster-token fallback in creature:EnterAura: a non-uploadable token
     --cannot own the triggered cast, so fall back to the creature's own token.
@@ -1658,25 +1751,45 @@ function Aura.FireForcedMovementTriggersForPath(c, token, path)
     --crossed (a rebound), and a creature larger than one square reports overlaps.
     local fired = {}
 
+    --Front-entry-only auras (Archer's Stakes) count a step only when it comes in from the
+    --front, or while the creature is still in stakes it entered from the front this move.
+    --Mirrors the engine's Aura.StepEntryCounts / FrontEntryTracker.
+    local carried = false
+
     for i = 2, #steps do
         local loc = steps[i]
+        local prev = steps[i - 1]
         local key = string.format("%d,%d,%d", loc.floor, loc.x, loc.y)
+        local nextCarried = false
         for _, auraInstance in ipairs(aurasByLoc[key] or {}) do
-            ForEachForcedTrigger(auraInstance, function(instance, triggerInfo)
-                if fired[instance.guid] then
-                    return
+            local front = fronts[auraInstance]
+            local counts = true
+            if front ~= nil then
+                local fromFront = (loc.x - prev.x) * front.x + (loc.y - prev.y) * front.y < -0.01
+                counts = carried or fromFront
+                if counts then
+                    nextCarried = true
                 end
-                if instance.aura:CreaturePassesFilter(c, instance) == false then
-                    return
-                end
+            end
 
-                fired[instance.guid] = true
-                instance:FireTriggeredAbility(triggerInfo.ability, c, auraCasterToken)
-                if triggerInfo.destroyaura then
-                    instance:DestroyAura(c)
-                end
-            end)
+            if counts then
+                ForEachForcedTrigger(auraInstance, function(instance, triggerInfo)
+                    if fired[instance.guid] then
+                        return
+                    end
+                    if instance.aura:CreaturePassesFilter(c, instance) == false then
+                        return
+                    end
+
+                    fired[instance.guid] = true
+                    instance:FireTriggeredAbility(triggerInfo.ability, c, auraCasterToken)
+                    if triggerInfo.destroyaura then
+                        instance:DestroyAura(c)
+                    end
+                end)
+            end
         end
+        carried = nextCarried
     end
 end
 
@@ -1805,6 +1918,13 @@ function AuraInstance:GetDifficultTerrain()
     return self.aura:try_get("difficult_terrain", false)
 end
 
+--Whether the aura's tiles are Fast Terrain: entering one on foot or swimming costs
+--half. Read by the engine (Aura.fastTerrain).
+--- @return boolean
+function AuraInstance:GetFastTerrain()
+    return self.aura:try_get("fastTerrain", false) == true
+end
+
 --Keywords describing where this aura's difficult terrain came from, as a set of
 --keyword -> true, or nil. Read once by the engine when it builds the C# Aura
 --(Aura.cs); a creature whose Ignore Difficult Terrain keywords match any of them
@@ -1872,6 +1992,21 @@ function AuraInstance:GetCover()
     end
 
     return 0
+end
+
+--What the engine reports a line blocked by this aura's cover as (a cover
+--segment's description, see Aura.coverDescription in Aura.cs): the aura's name,
+--so "No Line of Effect" can say what is in the way.
+--- @return string|nil
+function AuraInstance:GetCoverDescription()
+    local name = self:try_get("name")
+    if (name == nil or name == "") and self.aura ~= nil then
+        name = self.aura:try_get("name")
+    end
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return name
 end
 
 function AuraInstance:GetBlockMovement()
@@ -1955,6 +2090,13 @@ end
 --Read by the engine (Aura.stepped -> TileGameRules.stepped).
 function AuraInstance:GetStepped()
     return self.aura:try_get("stepped", false) == true
+end
+
+--Whether the aura only affects creatures entering from its front, the way its
+--object is rotated (Archer's Stakes). Read by the engine (Aura.frontEntryOnly),
+--which skips move damage and entry triggers for side and rear entries.
+function AuraInstance:GetFrontEntryOnly()
+    return self.aura:try_get("frontEntryOnly", false) == true
 end
 
 --Whether the aura's tiles are a HOLE in the map, like the excavate hole
@@ -2055,6 +2197,8 @@ function AuraInstance:GetDamageInfo()
     local result = {
         damage = math.floor(tonumber(damage) or 0),
         type = movedamage,
+        --Added to the same damage instance when the move is forced (Archer's Stakes).
+        forcedExtra = math.floor(tonumber(self.aura:try_get("forcedMoveDamage", 0)) or 0),
     }
 
     -- migrate legacy shiftAvoidsDamage boolean to movementDamageFilter string

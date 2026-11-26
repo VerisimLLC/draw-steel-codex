@@ -2224,6 +2224,10 @@ CharacterModifier.TypeInfo.power = {
                     value = modifier:try_get("changeTarget", false),
                     change = function(element)
                         modifier.changeTarget = element.value
+                        --Lets the trigger editor around this one show or hide options that only apply to retargets.
+                        if options.changeTargetChanged ~= nil then
+                            options.changeTargetChanged()
+                        end
                         Refresh()
                     end,
                 }

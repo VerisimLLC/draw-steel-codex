@@ -18,6 +18,7 @@
 --- @field versionStatus AppVersionStatus (Read-only) Where this build sits relative to the app versions published on each channel (/AppVersions). Available immediately from the on-disk cache when one exists; listen to versionStatusEvent to be told when it changes.
 --- @field versionStatusEvent nil|EventSourceLua (Read-only) Event source that fires 'appVersionStatus' on listening panels whenever versionStatus is recomputed, i.e. when the cached or fresh /AppVersions record is applied. nil before the monitor exists.
 --- @field safeMode boolean True if the app was launched with --safe-mode: the lobby game (the titlescreen) loads no module code, so a broken Hero module can be removed.
+--- @field launchedIntoGame boolean True while the app, launched with --gameid, is still in the game it was launched into. The titlescreen is not built until it leaves that game.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
 --- @field tokenAnimations TokenAnimationsLuaInterface Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field tokenFrames TokenFramesLuaInterface Registry of premium token frame materials. Register{...} defines a frame (albedo + normal + roughness maps and lighting parameters); a token uses it by setting token.portraitFrameMaterial to the id (and token.portraitFrame to the material's albedo asset).
@@ -880,6 +881,12 @@ function dmhub.ClearRollBonusTypes() end
 --- @return nil|{image: string, width: number, height: number}
 function dmhub.SetMovementCrossSection(args) end
 
+--- Builds a path from a list of squares, such as a move recorded earlier, so it can be drawn again: pass it to CharacterToken:MarkMovementArrow as options.path, or to dmhub.SetMovementCrossSection. floor defaults to 0 and altitude to the ground there. options.forced marks it forced movement (a push, pull or slide; the side view then keeps it airborne), options.flying makes it a flight, options.teleport a teleport (a purple arrow). Nothing moves. Returns nil with fewer than two steps.
+--- @param steps {x: integer, y: integer, floor: nil|integer, altitude: nil|integer}[] The squares moved through, start first.
+--- @param options nil|{forced: nil|boolean, flying: nil|boolean, teleport: nil|boolean}
+--- @return nil|LuaPath
+function dmhub.CreatePath(steps, options) end
+
 --- Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
 function dmhub.ClearMovementCrossSection() end
 
@@ -1422,6 +1429,11 @@ function dmhub:DumpSteamRichPresence() end
 --- Returns true if the Steam overlay is currently running and available to the user. The overlay is required to confirm Steam Microtransaction purchases; it returns false if the game was launched outside Steam, or the overlay is disabled in the user's Steam settings, or it simply has not finished loading yet.
 --- @return boolean
 function dmhub.IsSteamOverlayRunning() end
+
+--- Unlocks the Steam achievement with this API Name (as set up in Steamworks) for the local user. Returns true once Steam has it, including when it was already unlocked. Returns false, and does nothing, when not running under Steam, when Steam has not finished loading this user's stats yet, or when the name is not a known achievement; call it again later to retry.
+--- @param apiName? string
+--- @return boolean
+function dmhub.UnlockSteamAchievement(apiName) end
 
 --- Opens the Steam overlay's 'invite a friend' dialog so a Steam friend can be invited to join the given game. The friend sees a 'Join Game' button that drops them into the game (handled by SteamJoinHandler). No-op when not running under Steam (e.g. dev builds).
 --- @param gameid? string

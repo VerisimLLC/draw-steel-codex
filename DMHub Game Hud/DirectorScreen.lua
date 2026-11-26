@@ -21,9 +21,9 @@ local mod = dmhub.GetModLoading()
 --    screen when the Director drops it (DirectorScreen.ItemDropped from each
 --    item's drag): onto the screen unshares it; off it leaves its share off.
 --  - An item new on the table (a window, card or journal item opened any
---    way) is unshared. Lying on the open screen it joins it. One lying on
---    the screen that is already shared (a Player Viewable map's window) is
---    moved off it instead: opening a window never unshares a map.
+--    way) is unshared. Opened lying on the open screen it joins it. One opened
+--    there that is already shared (a Player Viewable map's window) is moved
+--    off it instead: opening a window never unshares a map.
 --  - Something the Director drags onto the table (a map, scene, journal or
 --    character row from a panel, a token out of its map, files from the
 --    desktop) follows the drop's rule: dropped on the open screen it is
@@ -40,10 +40,10 @@ local mod = dmhub.GetModLoading()
 --    its hover button to expand it there, still private; minimizing it again
 --    makes the card. Dragged off the screen, a card grows back into its
 --    window at full size where it was dropped, still unshared.
---  - Resizing the screen never shares or unshares: items on it go along with
---    the edge (above), and items on the table are pushed off it as it
---    widens. One that cannot get off (the screen is the whole table) goes
---    behind it, unshared.
+--  - Resizing the screen (or opening and closing it) never changes what is on
+--    it: items on it go along with the edge (above), and items on the table
+--    stay where they are, shared or not, and lie under it when it widens over
+--    them (David, 2026-11-24).
 --  - Nothing on it is ever shared: an item on it that gets shared some other
 --    way (Map Settings) is moved off it.
 --  - The screen resizes from its left edge or its tab, from the full width of
@@ -66,9 +66,9 @@ local mod = dmhub.GetModLoading()
 --    documents layer, among the windows, and KeepOnTop keeps their order:
 --    the table's items (with the journal windows and table items, which
 --    stack with them by focus), the screen, the icon rails, the screen's own
---    items, then any dialog. A
---    minimized button on the table (on the button layer, over every window)
---    cannot go under it, so it is nudged off the screen instead.
+--    items, then any dialog. A minimized button on the table is drawn over
+--    every window, so while it reaches onto the open screen it is moved into
+--    the documents layer, under the band (layUnder).
 --
 --GameHud mounts two layers: the band's (CreateLayer; the band itself is
 --moved into the documents layer, see KeepOnTop), and the tab and the drop
@@ -92,7 +92,7 @@ DirectorScreen = {}
 --- @field showBehind fun(behind: boolean) whether it lies behind the screen (hides its grey not-shared frame)
 --- @field maximized nil|boolean a maximized window (keeps its share button)
 --- @field card nil|boolean a window shrunk to a card (see Tabletop's g_card)
---- @field onButtonLayer nil|boolean a minimized window's button or card, drawn over every window (KeepOnTop cannot put it under the screen)
+--- @field layUnder nil|fun(under: boolean) moves a minimized window's button or card (drawn over every window) in among the windows, so KeepOnTop can put it under the screen, or back over them
 --- @field shrink nil|fun(x: number, y: number) shrinks a map or scene window (or its button) to a card at (x, y)
 --- @field grow nil|fun(x: number, y: number) grows a card back into its window at (x, y); nothing for anything else
 --- @field isMap nil|boolean a map window or its button: Tabletop - Shared never shares it by itself (its share is the map's Player Viewable)
@@ -190,8 +190,10 @@ end
 --offsets: key -> how far right of the edge each item on the screen lies (its
 --left edge minus the screen's), so it can follow the edge (FollowEdge).
 --lastEdge: the edge FollowEdge last saw; nil until the first layout.
---pushed: key -> true for a shared item the last look moved off the screen
---(if it is still on it, it cannot get off).
+--arrived: key -> true for an item that has had a spot on the table: only one
+--that just arrived can join the screen without a drop (KeepToItsSide).
+--leaving: key -> true for an item that left the screen by being shared and is
+--still to be moved off it (it had no spot then, or was a card).
 --grace: key -> time until which the item is left alone (GRACE_SECONDS).
 --placed: key -> time until which a drop's item is awaited (ItemPlaced).
 --drag: {key, centre, seen} while the Director drags an item; key is nil and
@@ -209,7 +211,8 @@ local g = {
     offsets = {},
     lastEdge = nil,
     looked = false,
-    pushed = {},
+    arrived = {},
+    leaving = {},
     grace = {},
     placed = {},
     drag = nil,
@@ -1305,6 +1308,8 @@ end
 --- @param behind boolean
 local function SetBehind(item, behind)
     local key = item.key
+    g.arrived[key] = true
+    g.leaving[key] = nil
     g.grace[key] = dmhub.Time() + GRACE_SECONDS
     if behind then
         g.members[key] = true
@@ -1551,8 +1556,9 @@ end
 
 --Applies the side rule to one item (see the top of the file).
 --- @param item DirectorScreenItem
+--- @param arriving boolean it just got its first spot on the table
 --- @return boolean changed whether the saved layout changed
-local function KeepToItsSide(item)
+local function KeepToItsSide(item, arriving)
     local key = item.key
     local rect = item.rect
     local open = Shown()
@@ -1567,10 +1573,14 @@ local function KeepToItsSide(item)
             g.members[key] = nil
             if rect ~= nil and item.card and item.grow ~= nil then
                 --a card grows back into its window first; the next look moves
-                --the window off (it is shared and on the screen).
+                --the window off.
+                g.leaving[key] = true
                 item.grow(rect.x, rect.y)
             elseif rect ~= nil then
                 item.move(math.min(edge, w - RailReserve()) - rect.w - 16)
+            else
+                --maximized: moved off once it is restored.
+                g.leaving[key] = true
             end
             return true
         end
@@ -1583,34 +1593,23 @@ local function KeepToItsSide(item)
         return false
     end
 
-    if OnScreen(rect) then
+    --an item already on the table never joins the screen here, whatever the
+    --edge does: it lies under it, and joins only when dropped on it.
+    local leaving = g.leaving[key] == true
+    if rect ~= nil and open then
+        g.leaving[key] = nil
+    end
+    if (arriving or leaving) and OnScreen(rect) then
         --rect is not nil here (OnScreen checked it).
         --- @cast rect -nil
-        if state == nil then
-            --lying on the screen, unshared (opened there): it is behind it.
+        if state == nil and not leaving then
+            --opened on the screen, unshared: it is behind it.
             g.members[key] = true
-            g.pushed[key] = nil
             return true
         end
-        if g.pushed[key] then
-            --moved off last time and still on it: the screen is too wide
-            --for it to get off, so it goes behind it.
-            g.pushed[key] = nil
-            SetBehind(item, true)
-            return true
-        end
-        --shared, and the screen widened over it (or it opened there): off it
-        --goes, wholly when it fits.
-        g.pushed[key] = true
+        --shared, and opened on the screen or coming off it: off it goes,
+        --wholly when it fits.
         item.move(math.min(edge - rect.w / 2 - 8, math.max(edge - 12 - rect.w, 0)))
-        return true
-    end
-    g.pushed[key] = nil
-
-    --a table button or card reaching onto the open screen: it is drawn over
-    --every window, so it cannot go under the screen (KeepOnTop). Off it goes.
-    if open and item.onButtonLayer and rect ~= nil and rect.x + rect.w > edge then
-        item.move(edge - rect.w - 8)
         return true
     end
     return false
@@ -1656,8 +1655,13 @@ local function LookOverItems()
         --is on its way back from the server.
         local dragged = g.drag ~= nil and g.drag.key == key
         local moved = false
+        --what was on the table when it loaded has arrived already.
+        local arriving = not first and not g.arrived[key] and item.rect ~= nil
+        if first or item.rect ~= nil then
+            g.arrived[key] = true
+        end
         if not dragged and (g.grace[key] or 0) < now then
-            moved = KeepToItsSide(item)
+            moved = KeepToItsSide(item, arriving)
             changed = changed or moved
         end
         --how far right of the edge it lies, for FollowEdge (not when this look
@@ -1668,6 +1672,10 @@ local function LookOverItems()
                 g.offsets[key] = current
                 changed = true
             end
+        end
+        --a table button or card reaching onto the open screen goes under it.
+        if item.layUnder ~= nil and not dragged then
+            item.layUnder(open and not g.members[key] and item.rect ~= nil and item.rect.x + item.rect.w > Edge())
         end
         item.stow(g.members[key] == true and not open)
     end
@@ -1691,9 +1699,14 @@ local function LookOverItems()
             g.grace[key] = nil
         end
     end
-    for key, _ in pairs(g.pushed) do
+    for key, _ in pairs(g.arrived) do
         if not present[key] then
-            g.pushed[key] = nil
+            g.arrived[key] = nil
+        end
+    end
+    for key, _ in pairs(g.leaving) do
+        if not present[key] then
+            g.leaving[key] = nil
         end
     end
     if changed then
@@ -1917,7 +1930,8 @@ function DirectorScreen.Load(saved)
     g.lastEdge = nil
     g.looked = false
     g.seen = {}
-    g.pushed = {}
+    g.arrived = {}
+    g.leaving = {}
     g.grace = {}
     g.placed = {}
     g.drag = nil

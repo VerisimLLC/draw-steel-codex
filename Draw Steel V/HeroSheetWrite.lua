@@ -341,16 +341,17 @@ end
 --- The free equipment slot one of an item would go in, or nil and why.
 --- @param hero creature
 --- @param itemid string
+--- @param unowned nil|boolean true finds a slot even when the Hero does not carry the item (a preview of being given it)
 --- @return nil|string slot
 --- @return nil|string reason "none" (none left to equip), "noslot" (not equippable here) or "full"
-function HeroSheetWrite.EquipSlot(hero, itemid)
+function HeroSheetWrite.EquipSlot(hero, itemid, unowned)
     local item = (dmhub.GetTable("tbl_Gear") or {})[itemid]
     if item == nil then
         return nil, "noslot"
     end
     --a second click before the sheet redraws would otherwise equip a copy
     --the Hero does not have.
-    if (hero:GetItemQuantity(itemid) or 0) < 1 then
+    if not unowned and (hero:GetItemQuantity(itemid) or 0) < 1 then
         return nil, "none"
     end
     local slotType = nil
@@ -371,6 +372,20 @@ function HeroSheetWrite.EquipSlot(hero, itemid)
         i = i + 1
     end
     return nil, "full"
+end
+
+--- Move one of an item from a Hero's inventory into a free slot. Call it inside
+--- a write (Save, ModifyProperties or AtomicChange): it changes the Hero in place.
+--- @param hero creature
+--- @param itemid string
+--- @return nil|string slot the slot it went in, or nil when there was none
+function HeroSheetWrite.EquipOnHero(hero, itemid)
+    local at = HeroSheetWrite.EquipSlot(hero, itemid)
+    if at ~= nil then
+        hero:SetItemQuantity(itemid, hero:GetItemQuantity(itemid) - 1)
+        hero:Equipment()[at] = itemid
+    end
+    return at
 end
 
 --- Equip one of an item from the open Hero's inventory (one undo step).
@@ -397,11 +412,7 @@ function HeroSheetWrite.Equip(itemid)
         description = "Equip treasure",
         execute = function(hero)
             --the slot found again on the live Hero.
-            local at = HeroSheetWrite.EquipSlot(hero, itemid)
-            if at ~= nil then
-                hero:SetItemQuantity(itemid, hero:GetItemQuantity(itemid) - 1)
-                hero:Equipment()[at] = itemid
-            end
+            HeroSheetWrite.EquipOnHero(hero, itemid)
         end,
     }
     return true, nil

@@ -96,6 +96,12 @@ RollCheck.explanation = ''
 
 RollRequest.contest = false
 RollRequest.dicetower = false
+--Set when the Director asked for the rolls from Request Rolls, not an ability: each test
+--then gets its own History line (an ability's go on its row).
+RollRequest.director = false
+--Set when an ability asked for the rolls (an opposed power roll): the id of its cast, so
+--each roll's History line goes under that ability's row. "" when no ability did.
+RollRequest.castid = ""
 
 --Directorless pause on the group roll board: the Monster AI sets
 --awaitingContinue once every roll is in and waits; any player's Continue sets
@@ -646,10 +652,10 @@ local function ShowTimelinePrompt(check, dialogParams)
     local origCancel = dialogParams.cancelRoll
 
     --Original first so the action request is always written, teardown after.
-    dialogParams.completeRoll = function(rollInfo)
+    dialogParams.completeRoll = function(rollInfo, details)
         resolved = true
         if origComplete ~= nil then
-            origComplete(rollInfo)
+            origComplete(rollInfo, details)
         end
         Teardown()
     end
@@ -963,6 +969,12 @@ function GameHud:RequireRollListenerPanel()
                                         --RollProperties has no table-aware CustomPanel.
                                         rollProperties = RollOnTableProperties.new{}
                                         rollProperties.tableRef = check.tableRef
+                                    elseif check.type == "opposed_power_roll" then
+                                        --An opposed roll has no tiers. The type tells the engine a
+                                        --double edge or bane is +4 or -4, not a tier shift.
+                                        rollProperties = RollProperties.new{
+                                            type = "opposed_power_roll",
+                                        }
                                     end
 
 									local autoroll = nil
@@ -1088,7 +1100,18 @@ function GameHud:RequireRollListenerPanel()
 												req:CompleteChanges("Begin roll")
 											end
 										end,
-										completeRoll = function(rollInfo)
+										completeRoll = function(rollInfo, details)
+											--History's notice must never stop the roll being marked complete below.
+											pcall(function()
+												if rollType == "table" and check:try_get("tableRef") ~= nil then
+													local castid = request.info.castid ~= "" and request.info.castid or nil
+													RollOnTableProperties.NotifyRolled(tok.properties, check.tableRef, rollInfo, {cause = castid, details = details})
+												elseif rollType == "test_power_roll" and request.info.director then
+													RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text)
+												elseif request.info.castid ~= "" then
+													RollUtils.NotifyTested(tok.properties, check:Describe(true), rollInfo, details, check.text, request.info.castid)
+												end
+											end)
 											local req = dmhub.GetPlayerActionRequest(k)
 											if req ~= nil and req.info.tokens[tokid] ~= nil then
 												req:BeginChanges()
@@ -2242,6 +2265,7 @@ function ShowRequireRollDialog(args)
 					checks = checks,
 					tokens = tokensSelected,
 					dicetower = m_dicetower,
+					director = true,
 				})
 
 				gamehud:ShowRollSummaryDialog(actionid)

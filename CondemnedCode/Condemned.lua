@@ -1858,6 +1858,8 @@ local function DetonateExplosive(floorid, objid)
                         description = name .. " explodes",
                         execute = function()
                             props:TakeDamage(EXPLOSIVE_DAMAGE, name .. " explodes", {})
+                            --inside execute so it uploads: outside, only this client sees it.
+                            props:FloatLabel(string.format("Bust explodes: %d damage", EXPLOSIVE_DAMAGE), "#ff8822ff")
                         end,
                     }
                 end
@@ -1885,6 +1887,32 @@ local function RestoreExplosive(floorid, objid)
     ClearExplosiveMarks(objid)
 end
 
+--True on the one client that should do map work which must happen exactly once: the
+--Director elected to run the current map's encounter scripts (falls back to any
+--Director on a build without the election).
+---@return boolean
+local function IsMapHost()
+    local elected = nil
+    pcall(function() elected = LiveEncounter.IsElectedMapHost() end)
+    if elected == nil then
+        return dmhub.isDM
+    end
+    return elected == true
+end
+
+--Sets an explosive off from any client. Only the map host does it, so with several
+--Directors online the blast and its damage still happen once.
+---@param floorid string
+---@param objid string
+local function RequestDetonation(floorid, objid)
+    if IsMapHost() then
+        DetonateExplosive(floorid, objid)
+    else
+        local info = { kind = "request", objid = objid, floorid = floorid, mapid = game.currentMapId }
+        dmhub.BroadcastRemoteEvent(EXPLOSIVE_EVENT, dmhub.GenerateGuid(), info, true)
+    end
+end
+
 dmhub.RegisterRemoteEvent(EXPLOSIVE_EVENT, function(info)
     if mod.unloaded or type(info) ~= "table" or info.objid == nil then
         return
@@ -1893,8 +1921,8 @@ dmhub.RegisterRemoteEvent(EXPLOSIVE_EVENT, function(info)
         PlayExplosiveBlast(info)
     elseif info.kind == "restore" then
         ClearExplosiveMarks(info.objid)
-    elseif info.kind == "request" and dmhub.isDM and info.mapid == game.currentMapId then
-        --an aura went off on a player's client; the Director's client does the work.
+    elseif info.kind == "request" and IsMapHost() and info.mapid == game.currentMapId then
+        --another client's aura or shot asked for a bust to go off; only the map host's client acts on it.
         DetonateExplosive(info.floorid, info.objid)
     end
 end)
@@ -2004,16 +2032,674 @@ CondemnedExplosives = {
                         if mapid ~= game.currentMapId then
                             return
                         end
-                        if dmhub.isDM then
-                            DetonateExplosive(floorid, objid)
-                        else
-                            local info = { kind = "request", objid = objid, floorid = floorid, mapid = mapid }
-                            dmhub.BroadcastRemoteEvent(EXPLOSIVE_EVENT, dmhub.GenerateGuid(), info, true)
-                        end
+                        RequestDetonation(floorid, objid)
                     end)
                     return
                 end
             end
+        end
+    end,
+}
+
+--Director chat command: restores every bust on the map that has gone off, intact and armed,
+--like each bust's Restore button in the Loyalty Collars panel. The reply goes only to the
+--Director who typed it.
+Commands.RegisterMacro{
+    name = "abbeybusts",
+    summary = "restore every Emperor Bust that has gone off",
+    doc = "Usage: /abbeybusts reset\nRestores every Emperor Bust on this map that has gone off, intact and armed.\nDirector only.",
+    command = function(str)
+        local function Reply(text)
+            SendTitledChatMessage(text, "Emperor Busts", "#ff8822", { dmhub.userid })
+        end
+        if not dmhub.isDM then
+            Reply("Only a Director can use /abbeybusts.")
+            return
+        end
+        if string.lower(trim(str or "")) ~= "reset" then
+            Reply("Usage: /abbeybusts reset")
+            return
+        end
+        local restored = 0
+        for _, explosive in ipairs(CollectExplosives()) do
+            if IsDetonated(explosive.obj) then
+                RestoreExplosive(explosive.floorid, explosive.objid)
+                restored = restored + 1
+            end
+        end
+        Reply(string.format("%d bust%s restored", restored, restored == 1 and "" or "s"))
+    end,
+}
+
+--Director chat command /archivistknown (Fighting the Archivist): a list of the heroes on the
+--map to tick the ones who revealed a criminal backstory, or were revealed as part of the
+--resistance, during the negotiation. Applying gives exactly the ticked heroes the Known to
+--the Archivist effect for the encounter (his He Knows You edge); ticking nobody is a valid
+--answer. It then sets the archivist_known variable, which tells the encounter script to take
+--its Known to the Archivist button away. A journal button can run it to add a hero later.
+--Kept in a block: this file's main chunk is close to Lua's 200-local limit.
+do
+    local KNOWN_EFFECT = "338a5a55-02bb-45bf-aa11-024da242867f"
+    --The Fighting the Archivist encounter script (Condemned repo) watches this shared
+    --variable to take its button away; renaming it breaks that button.
+    local KNOWN_DONE_VAR = "archivist_known"
+    local CHAT_TITLE, CHAT_COLOR = "Fighting the Archivist", "#e8a030"
+
+    ---@param token CharacterToken
+    ---@return boolean
+    local function IsKnown(token)
+        local found = false
+        pcall(function()
+            for _, effect in ipairs(token.properties:ActiveOngoingEffects()) do
+                if effect.ongoingEffectid == KNOWN_EFFECT then
+                    found = true
+                end
+            end
+        end)
+        return found
+    end
+
+    --Gives or takes away the effect so the heroes ticked are exactly the ones known, then
+    --tells the Directors who is known and lets the encounter script drop its button.
+    ---@param picks {token: CharacterToken, check: Panel}[]
+    local function ApplyKnown(picks)
+        local names = {}
+        for _, pick in ipairs(picks) do
+            local token = pick.token
+            local wanted = pick.check.value == true
+            if token.valid and wanted ~= IsKnown(token) then
+                token:ModifyProperties{
+                    description = wanted and "Known to the Archivist" or "No longer known to the Archivist",
+                    execute = function()
+                        if wanted then
+                            token.properties:ApplyOngoingEffect(KNOWN_EFFECT, "eoe")
+                        else
+                            token.properties:RemoveOngoingEffect(KNOWN_EFFECT)
+                        end
+                    end,
+                }
+            end
+            if wanted then
+                names[#names + 1] = creature.GetTokenDescription(token)
+            end
+        end
+        Commands.setvar(KNOWN_DONE_VAR .. " done")
+        local text = "Known to the Archivist: nobody."
+        if #names > 0 then
+            text = "Known to the Archivist (he has an edge on power rolls against them): " .. table.concat(names, ", ") .. "."
+        end
+        SendTitledChatMessage(text, CHAT_TITLE, CHAT_COLOR, SafetyTools.DirectorUserIds())
+    end
+
+    local function ShowKnownDialog()
+        local heroes = {}
+        for _, token in ipairs(dmhub.allTokens) do
+            local hero = false
+            pcall(function() hero = token.properties:IsHero() end)
+            if hero then
+                heroes[#heroes + 1] = token
+            end
+        end
+        table.sort(heroes, function(first, second)
+            return creature.GetTokenDescription(first) < creature.GetTokenDescription(second)
+        end)
+
+        local picks = {}
+        local rows = {}
+        for _, token in ipairs(heroes) do
+            local check = gui.Check{
+                text = creature.GetTokenDescription(token),
+                value = IsKnown(token),
+                width = "auto",
+                height = 24,
+                minWidth = 0,
+                fontSize = 14,
+                vmargin = 2,
+            }
+            picks[#picks + 1] = { token = token, check = check }
+            rows[#rows + 1] = check
+        end
+        if #heroes == 0 then
+            rows[#rows + 1] = gui.Label{
+                text = "There are no heroes on this map.",
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+                italics = true,
+            }
+        end
+
+        --A dialog opened with gui.ShowModal doesn't get the theme's styles from the screen
+        --behind it, so it brings its own.
+        local dialog = gui.Panel{
+            styles = ThemeEngine.GetStyles(),
+            width = "auto",
+            height = "auto",
+            children = {
+                gui.Panel{
+                    classes = { "framedPanel" },
+                    width = 460,
+                    height = "auto",
+                    flow = "vertical",
+                    borderBox = true,
+                    pad = 16,
+                    children = {
+                        gui.Label{
+                            text = "Known to the Archivist",
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 20,
+                            bold = true,
+                        },
+                        gui.Label{
+                            text = "Who revealed a criminal backstory during the negotiation, or was revealed as part of the resistance? He has an edge on power rolls against them for the rest of the encounter. Tick nobody if no one did.",
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 14,
+                            textWrap = true,
+                            vmargin = 8,
+                        },
+                        gui.Panel{
+                            flow = "vertical",
+                            width = "100%",
+                            height = "auto",
+                            children = rows,
+                        },
+                        gui.Panel{
+                            flow = "horizontal",
+                            width = "auto",
+                            height = "auto",
+                            halign = "right",
+                            tmargin = 12,
+                            children = {
+                                gui.Button{
+                                    text = "Cancel",
+                                    rmargin = 8,
+                                    press = function()
+                                        gui.CloseModal()
+                                    end,
+                                },
+                                gui.Button{
+                                    text = "Apply",
+                                    press = function()
+                                        --read the ticks before closing: a closed dialog's
+                                        --checkboxes can no longer be read
+                                        ApplyKnown(picks)
+                                        gui.CloseModal()
+                                    end,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        gui.ShowModal(dialog)
+    end
+
+    Commands.RegisterMacro{
+        name = "archivistknown",
+        summary = "pick the heroes Known to the Archivist",
+        doc = "Usage: /archivistknown\nOpens a list of the heroes on the map. Tick the ones who revealed a criminal backstory, or were revealed as part of the resistance, during the negotiation, then Apply: exactly those heroes are Known to the Archivist for the encounter (he has an edge on power rolls against them). Applying with nobody ticked is fine. Director only.",
+        command = function(str)
+            if not dmhub.isDM then
+                SendTitledChatMessage("Only a Director can use /archivistknown.", CHAT_TITLE, CHAT_COLOR, { dmhub.userid })
+                return
+            end
+            ShowKnownDialog()
+        end,
+    }
+end
+
+--The centre of the squares a token covers, in floor space (square centres are whole numbers).
+---@param token CharacterToken
+---@return number, number
+local function TokenCentre(token)
+    local sumX, sumY, count = 0, 0, 0
+    for _, loc in ipairs(token.locsOccupying or { token.loc }) do
+        sumX, sumY, count = sumX + loc.x, sumY + loc.y, count + 1
+    end
+    return sumX / count, sumY / count
+end
+
+--------------------------------------------------------------------------------
+-- Emperor busts and mundane ammunition (Hidden Basement)
+--------------------------------------------------------------------------------
+
+--A ranged strike that is neither magic nor psionic sends ammunition at each target. The
+--first intact bust the shot passes within 1 square of explodes, and that target is
+--dropped: the ammunition never arrives. Runs on the casting client.
+
+--How far along a segment (0 = its start, 1 = its end) it first enters a box, or nil
+--if it never does.
+---@return number|nil
+local function SegmentEntersBox(x1, y1, x2, y2, minX, minY, maxX, maxY)
+    local first, last = 0, 1
+    for _, axis in ipairs({ { x1, x2 - x1, minX, maxX }, { y1, y2 - y1, minY, maxY } }) do
+        local start, delta, low, high = axis[1], axis[2], axis[3], axis[4]
+        if math.abs(delta) < 1e-9 then
+            if start < low or start > high then
+                return nil
+            end
+        else
+            local enter, leave = (low - start) / delta, (high - start) / delta
+            if enter > leave then
+                enter, leave = leave, enter
+            end
+            first, last = math.max(first, enter), math.min(last, leave)
+            if first > last then
+                return nil
+            end
+        end
+    end
+    return first
+end
+
+--The first intact bust a shot from (x1, y1) to (x2, y2) passes within 1 square of, or nil.
+--Within 1 square means crossing any of the 3x3 squares around the bust; grazing a corner
+--of that block doesn't count. floorid is the floor the shooter stands on.
+---@return {objid: string, floorid: string, name: string, obj: LuaObjectInstance}|nil
+local function FirstExplosiveOnShot(floorid, x1, y1, x2, y2)
+    local reach = EXPLOSIVE_RADIUS + 0.5 - 0.01
+    local best, bestAt = nil, nil
+    for _, explosive in ipairs(CollectExplosives()) do
+        if TokenFloorId(explosive.floorid) == floorid and not IsDetonated(explosive.obj) and not g_explosiveBusy[explosive.objid] then
+            local bustX, bustY = ExplosiveSquare(explosive.obj)
+            local at = SegmentEntersBox(x1, y1, x2, y2, bustX - reach, bustY - reach, bustX + reach, bustY + reach)
+            if at ~= nil and (bestAt == nil or at < bestAt) then
+                best, bestAt = explosive, at
+            end
+        end
+    end
+    return best
+end
+
+--A strike that fires ammunition: Ranged and Strike, and neither Magic nor Psionic.
+---@param ability ActivatedAbility
+---@return boolean
+local function FiresAmmunition(ability)
+    local ok, result = pcall(function()
+        return ability:HasKeyword("Ranged") and ability:HasKeyword("Strike")
+            and not ability:HasKeyword("Magic") and not ability:HasKeyword("Psionic")
+    end)
+    return ok and result == true
+end
+
+--Sets off the first bust each shot passes, and returns the targets whose shots arrive.
+---@param ability ActivatedAbility
+---@param casterToken CharacterToken|nil
+---@param targets table[]|nil
+---@return table[]|nil
+local function ShotsPastExplosives(ability, casterToken, targets)
+    if targets == nil or casterToken == nil or not casterToken.valid or not FiresAmmunition(ability) then
+        return targets
+    end
+    local fromX, fromY = TokenCentre(casterToken)
+    local arriving, stopped = {}, false
+    for _, target in ipairs(targets) do
+        local token = target.token
+        local bust = nil
+        if token ~= nil and token.valid and token.floorid == casterToken.floorid then
+            local toX, toY = TokenCentre(token)
+            bust = FirstExplosiveOnShot(casterToken.floorid, fromX, fromY, toX, toY)
+        end
+        if bust == nil then
+            arriving[#arriving + 1] = target
+        else
+            stopped = true
+            RequestDetonation(bust.floorid, bust.objid)
+            pcall(function()
+                token:ModifyProperties{
+                    description = "Ammunition destroyed",
+                    undoable = false,
+                    execute = function()
+                        token.properties:FloatLabel("Ammunition destroyed", "#ff8822ff")
+                    end,
+                }
+            end)
+        end
+    end
+    if stopped then
+        return arriving
+    end
+    return targets
+end
+
+local g_castBeforeExplosives = ActivatedAbility.Cast
+function ActivatedAbility:Cast(casterToken, targets, options)
+    --an older copy of this function (before a reload) passes straight through.
+    if not mod.unloaded then
+        local ok, result = pcall(ShotsPastExplosives, self, casterToken, targets)
+        if ok then
+            targets = result
+        else
+            print("Condemned: ammunition check failed:", result)
+        end
+    end
+    return g_castBeforeExplosives(self, casterToken, targets, options)
+end
+
+--------------------------------------------------------------------------------
+-- Climb Through the Window (Inner Sanctum): the climber's animation
+--------------------------------------------------------------------------------
+
+--The climb onto the rafters changes floor, so underneath it is a teleport. The ability
+--names this animation for it (Below the Stained-Glass Window keyword), and every client
+--plays it: a hop up the outside wall, then a drop onto the beam.
+local WINDOW_CLIMB_UP_SECONDS = 0.45
+local WINDOW_CLIMB_DOWN_SECONDS = 0.35
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "condemnedwindowclimb",
+    name = "Climb Through the Window",
+    hidden = true,
+    animation = function(token, targetLoc, opts)
+        local anim = token.animation
+        local from = (opts ~= nil and opts.fromLoc) or targetLoc
+        anim:Tween{ translate = from:dir(0, 1), duration = WINDOW_CLIMB_UP_SECONDS, easing = "easeOut" }
+        sleep(WINDOW_CLIMB_UP_SECONDS)
+        anim:Tween{ translate = targetLoc, duration = WINDOW_CLIMB_DOWN_SECONDS, easing = "easeIn" }
+        sleep(WINDOW_CLIMB_DOWN_SECONDS)
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- The stained-glass window (Inner Sanctum)
+--------------------------------------------------------------------------------
+
+--The glass breaks when attacked (the 1-Stamina window object) or when a creature is pushed
+--through it (a breakable wall under the glass). Either way the whole window opens, the art
+--disappears, and a pushed creature takes 5 damage.
+local WINDOW = {
+    keyword = "abbey_window",
+    floorName = "Inner Sanctum",
+    --the squares the glass spans, and the wall line between rows 8 (inside) and 9 (outside)
+    minX = -2,
+    maxX = 3,
+    insideY = 8,
+    outsideY = 9,
+    wallY = 8.5,
+    damage = 5,
+    wallName = "Stained-Glass Window (breakable)",
+    artName = "Stained-Glass Window Art",
+    brokenArtName = "Stained-Glass Window Art (Broken)",
+    event = "condemnedWindow",
+}
+
+--What FindWindow found on the current map. Looking through every object is too slow to repeat
+--four times a second, so it is done once per map and kept while the objects exist; a map with
+--no window is looked at again every few seconds, in case its objects were still loading.
+local g_window = { mapid = nil, checkedAt = 0 }
+local WINDOW_RECHECK_SECONDS = 5
+
+--The window's floor and its 1-Stamina window object (what attacks on the window target),
+--or nil when the current map has no window. Also notes the art objects for SetWindowArt.
+--rescan looks again even if the map was looked through already.
+---@param rescan boolean|nil
+---@return MapFloorLua|nil, LuaObjectInstance|nil
+local function FindWindow(rescan)
+    local map = game.currentMap
+    if map == nil then
+        return nil, nil
+    end
+    if not rescan and g_window.mapid == map.id then
+        local glass = g_window.glass
+        if glass ~= nil and glass.valid and g_window.floor.valid then
+            return g_window.floor, glass
+        end
+        if glass == nil and dmhub.Time() - g_window.checkedAt < WINDOW_RECHECK_SECONDS then
+            return nil, nil
+        end
+    end
+
+    g_window = { mapid = map.id, checkedAt = dmhub.Time() }
+    for _, floor in ipairs(map.floors) do
+        if floor.description == WINDOW.floorName and floor.valid then
+            for _, obj in pairs(floor.objects) do
+                --some map objects have no keyword list at all.
+                local keywords = obj.keywords
+                if keywords ~= nil and keywords[WINDOW.keyword] == true then
+                    g_window.floor, g_window.glass = floor, obj
+                elseif obj.name == WINDOW.artName then
+                    g_window.art = obj
+                elseif obj.name == WINDOW.brokenArtName then
+                    g_window.brokenArt = obj
+                end
+            end
+            if g_window.glass ~= nil then
+                return floor, g_window.glass
+            end
+        end
+    end
+    return nil, nil
+end
+
+--Erases every wall along the line under the glass, using a thin box around that line.
+---@param floor MapFloorLua
+local function EraseWindowWall(floor)
+    local x1, x2 = WINDOW.minX - 0.5, WINDOW.maxX + 0.5
+    local y1, y2 = WINDOW.wallY - 0.1, WINDOW.wallY + 0.1
+    floor:ExecutePolygonOperation{
+        points = { { x1, y1, x2, y1, x2, y2, x1, y2 } },
+        erase = true,
+        walls = true,
+        floor = false,
+        closed = true,
+    }
+end
+
+--Shows the intact art, or once broken hides it (an inactive object isn't drawn) and shows
+--the broken copy if the map has one. Uses the art FindWindow found, so call that first.
+---@param broken boolean
+local function SetWindowArt(broken)
+    local intact, brokenArt = g_window.art, g_window.brokenArt
+    if intact ~= nil and intact.valid and intact.inactive ~= broken then
+        intact.inactive = broken
+        intact:Upload()
+    end
+    if brokenArt ~= nil and brokenArt.valid and brokenArt.inactive == broken then
+        brokenArt.inactive = not broken
+        brokenArt:Upload()
+    end
+end
+
+--Map host: shatters the window. charid is the creature pushed through it, or nil when
+--an attack broke it. A second call finds the window already gone and does nothing.
+---@param charid string|nil
+local function ShatterWindow(charid)
+    local floor, glass = FindWindow()
+    if floor == nil or glass == nil or glass.inactive then
+        return
+    end
+    glass.inactive = true
+    glass:Upload()
+
+    --the push broke only the edges it went through; open the whole window.
+    EraseWindowWall(floor)
+    SetWindowArt(true)
+
+    local token = charid ~= nil and dmhub.GetTokenById(charid) or nil
+    if token ~= nil and token.valid then
+        token:ModifyProperties{
+            description = "Stained-glass window",
+            execute = function()
+                token.properties:TakeDamage(WINDOW.damage, "Stained-glass window", {})
+                token.properties:FloatLabel(string.format("Stained-glass window: %d damage", WINDOW.damage), "#9fd8ffff")
+            end,
+        }
+    end
+end
+
+dmhub.RegisterRemoteEvent(WINDOW.event, function(info)
+    if mod.unloaded or type(info) ~= "table" or info.mapid ~= game.currentMapId then
+        return
+    end
+    if info.kind == "shatter" and IsMapHost() then
+        ShatterWindow(info.charid)
+    end
+end)
+
+--Shatters from any client: the map host does it, anyone else asks the map host.
+---@param charid string|nil
+local function RequestShatter(charid)
+    if IsMapHost() then
+        ShatterWindow(charid)
+    else
+        local info = { kind = "shatter", charid = charid, mapid = game.currentMapId }
+        dmhub.BroadcastRemoteEvent(WINDOW.event, dmhub.GenerateGuid(), info, true)
+    end
+end
+
+--Every forced move, on the client that made it: a push that broke a wall with its path
+--beside the glass shatters the window. The glass is the only breakable wall there.
+GameSystem.RegisterPlayObserver("condemnedwindow", {
+    forcedmove = function(props, info)
+        if mod.unloaded or type(info) ~= "table" or (info.walls or 0) <= 0 then
+            return
+        end
+        local floor = FindWindow()
+        if floor == nil then
+            return
+        end
+        local token = dmhub.LookupToken(props)
+        if token == nil then
+            return
+        end
+        for _, step in ipairs(info.path or {}) do
+            local stepX, stepY, floorIndex = step[1], step[2], step[3]
+            if floorIndex == floor.floorIndex and stepX >= WINDOW.minX and stepX <= WINDOW.maxX
+                and (stepY == WINDOW.insideY or stepY == WINDOW.outsideY) then
+                --after this move has finished uploading, not inside it.
+                local charid = token.charid
+                dmhub.Schedule(0.1, function()
+                    if not mod.unloaded then
+                        RequestShatter(charid)
+                    end
+                end)
+                return
+            end
+        end
+    end,
+})
+
+--Map host, every upkeep: an attack that brought the window object to 0 Stamina shatters it.
+--Once the glass is gone from the wall, the window object and art are kept hidden in case
+--another client writes an old copy of the object back.
+local function WatchWindow()
+    --the remembered window comes first: maps without one stop here, before the host check.
+    local floor, glass = FindWindow()
+    if floor == nil or not IsMapHost() then
+        return
+    end
+    local wallLeft = floor:GetNearestWallSegment{ x = (WINDOW.minX + WINDOW.maxX) / 2, y = WINDOW.wallY, maxDistance = 0.2 }
+    if wallLeft == nil then
+        if glass ~= nil and not glass.inactive then
+            glass.inactive = true
+            glass:Upload()
+        end
+        SetWindowArt(true)
+        return
+    end
+    if glass == nil or glass.inactive then
+        return
+    end
+    local targetable = glass:GetComponent("Targetable")
+    local broken = false
+    pcall(function() broken = targetable.properties:CurrentHitpoints() <= 0 end)
+    if broken then
+        ShatterWindow(nil)
+    end
+end
+
+CondemnedWindow = {
+    --- Director, Abbey map open: puts the window in place, or back after it was broken.
+    --- Replaces the stone wall under the glass with a breakable copy of it, restores the
+    --- 1-Stamina window object and shows the intact art. Run by
+    --- condemned/scripts/abbey-window-apply.lua; safe to run again.
+    ---@return string
+    Install = function()
+        --look again, so art added to the map since the last look is found.
+        local floor, glass = FindWindow(true)
+        if floor == nil then
+            return "this map has no " .. WINDOW.floorName .. " floor with the window object"
+        end
+
+        --the stone either side of the glass is the wall type to copy.
+        local stone = floor:GetNearestWallSegment{ x = WINDOW.minX - 1, y = WINDOW.wallY, maxDistance = 0.3 }
+        if stone == nil then
+            return "no wall found beside the window to copy"
+        end
+
+        local wallid = nil
+        for id, wall in pairs(assets.walls) do
+            if wall.description == WINDOW.wallName then
+                wallid = id
+            end
+        end
+        if wallid == nil then
+            wallid = assets:DuplicateWall(stone.wallid)
+            local wall = wallid ~= nil and assets.walls[wallid] or nil
+            if wall == nil then
+                return "could not copy the wall type"
+            end
+            wall.description = WINDOW.wallName
+            MapMarkupImpl.SetAssetBreakable(wall, true, 1)
+            --the glass lets light through, though it can't be seen through.
+            wall.occludesLight = false
+            wall:Upload()
+        end
+
+        EraseWindowWall(floor)
+        floor:ExecutePolygonOperation{
+            points = { { WINDOW.minX - 0.5, WINDOW.wallY, WINDOW.maxX + 0.5, WINDOW.wallY } },
+            wallid = wallid,
+            wallheight = stone.wallheight,
+            walls = true,
+            closed = false,
+        }
+
+        if glass ~= nil then
+            local targetable = glass:GetComponent("Targetable")
+            if targetable ~= nil then
+                targetable:SetProperty("onDeath", "none")
+                targetable.properties.damage_taken = 0
+            end
+            glass.inactive = false
+            glass:Upload()
+        end
+        SetWindowArt(false)
+        return "window installed"
+    end,
+}
+
+--Director chat command for setting up, testing and running the fight. The reply goes to
+--the Director who typed it only.
+Commands.RegisterMacro{
+    name = "abbeywindow",
+    summary = "reset or break the Abbey's stained-glass window",
+    doc = "Usage: /abbeywindow reset | break\nreset: puts the breakable glass under the window and shows the art and the 1-Stamina window object. On a map that never had the window set up, this sets it up.\nbreak: shatters it now, with no damage (nobody was pushed through).\nDirector only, with the Abbey map open.",
+    command = function(str)
+        local function Reply(text)
+            SendTitledChatMessage(text, "Stained-Glass Window", "#9fd8ff", { dmhub.userid })
+        end
+        if not dmhub.isDM then
+            Reply("Only a Director can use /abbeywindow.")
+            return
+        end
+        local arg = string.lower(trim(str or ""))
+        if arg == "reset" then
+            Reply(CondemnedWindow.Install())
+        elseif arg == "break" then
+            local floor, glass = FindWindow()
+            if floor == nil or glass == nil then
+                Reply("This map has no stained-glass window.")
+            elseif glass.inactive then
+                Reply("The window is already broken. Use /abbeywindow reset to put it back.")
+            else
+                ShatterWindow(nil)
+                Reply("window broken")
+            end
+        else
+            Reply("Usage: /abbeywindow reset | break")
         end
     end,
 }
@@ -2096,6 +2782,7 @@ local function Upkeep()
         end
     end
     SyncExplosiveMarks()
+    WatchWindow()
 end
 
 dmhub.Coroutine(function()
@@ -2910,8 +3597,30 @@ local mapButtons = rawget(_G, "MapButtons")
             icon = "phosphor/lock-simple-fill.png",
             popup = CreateCollarPanel,
         },
+        --the Director's Patrol Fight popup; the button appears once the story reaches Entering the Crysopolis.
+        patrol = {
+            name = "Set Up a Crysopolis Patrol Fight",
+            icon = "phosphor/sword.png",
+            stage = "hub",
+            popup = function(owner)
+                local campaign = rawget(_G, "CondemnedCampaign")
+                if campaign == nil or campaign.CreatePatrolPanel == nil then
+                    return nil
+                end
+                return campaign.CreatePatrolPanel(owner)
+            end,
+        },
     }
-    local ORDER = { "campaign", "collars" }
+    local ORDER = { "campaign", "collars", "patrol" }
+
+    --A button with a stage shows only once the story has reached it.
+    local function StageReached(button)
+        if button.stage == nil then
+            return true
+        end
+        local campaign = rawget(_G, "CondemnedCampaign")
+        return campaign ~= nil and campaign.Reached ~= nil and campaign.Reached(button.stage)
+    end
     local RAIL_TYPE = "condemned"
 
     --ids this Director took off the rail: never put back automatically (/condemnedbuttons does).
@@ -2920,6 +3629,10 @@ local mapButtons = rawget(_G, "MapButtons")
         storage = "pergamepreference",
         default = {},
     }
+
+    --the button whose popup was opened last, so a rail redraw can wait until that popup is closed
+    ---@type Panel|nil
+    local popupOwner = nil
 
     local function OpenPopup(id, element)
         if mod.unloaded then
@@ -2930,13 +3643,14 @@ local mapButtons = rawget(_G, "MapButtons")
             return
         end
         element.popup = button.popup(element)
+        popupOwner = element
     end
 
     local railTypes = rawget(_G, "RailEntryTypes")
     if railTypes ~= nil then
         railTypes[RAIL_TYPE] = {
             available = function(id)
-                return dmhub.isDM and BUTTONS[id] ~= nil
+                return dmhub.isDM and BUTTONS[id] ~= nil and StageReached(BUTTONS[id])
             end,
             name = function(id)
                 local button = BUTTONS[id]
@@ -2980,7 +3694,9 @@ local mapButtons = rawget(_G, "MapButtons")
         local removed = removedSetting:Get() or {}
         for _, id in ipairs(ORDER) do
             local key = RAIL_TYPE .. ":" .. id
-            if not removed[id] and slotOf(key) == nil then
+            --a locked button is added when it unlocks; added early, the rail would only park it
+            --out of sight and every session would add it again
+            if not removed[id] and StageReached(BUTTONS[id]) and slotOf(key) == nil then
                 add(key, "right")
             end
         end
@@ -2991,7 +3707,7 @@ local mapButtons = rawget(_G, "MapButtons")
         commands.RegisterMacro{
             name = "condemnedbuttons",
             summary = "put the Condemned buttons back on the rail",
-            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Campaign, Loyalty Collars) back on your icon rail.",
+            doc = "Usage: /condemnedbuttons\nPuts the Condemned campaign buttons (Campaign, Loyalty Collars, and from Entering the Crysopolis on, Set Up a Crysopolis Patrol Fight) back on your icon rail.",
             command = function(str)
                 removedSetting:Set({})
                 SeedRail()
@@ -3009,18 +3725,48 @@ local mapButtons = rawget(_G, "MapButtons")
 
     dmhub.Coroutine(function()
         local seeded = false
+        --true while the buttons sit on the map's button bar; nil forces the loop below to add them again
+        ---@type boolean|nil
         local fallback = false
+        --a 1 or 0 per button in ORDER for whether the story has reached it; a change redraws the rail
+        local reachedBefore = nil
         while not mod.unloaded do
             local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
-            if dmhub.isDM and railMode and not seeded then
+            if not railMode then
+                --seed again when the rail comes back, in case a button unlocked while it was off
+                seeded = false
+            elseif dmhub.isDM and not seeded then
                 seeded = true
                 SeedRail()
+            end
+            local reached = ""
+            for _, id in ipairs(ORDER) do
+                reached = reached .. (StageReached(BUTTONS[id]) and "1" or "0")
+            end
+            --a redraw closes any open Condemned popup, and the Campaign popup is where the story
+            --gets moved on, so the redraw waits until that popup is closed
+            local popupOpen = popupOwner ~= nil and popupOwner.valid and popupOwner.popup ~= nil
+            if not popupOpen then
+                --only Directors have these buttons, so players' rails are left alone
+                if reachedBefore ~= nil and reached ~= reachedBefore and dmhub.isDM then
+                    if railMode then
+                        SeedRail()
+                        local rebuild = rawget(_G, "IconRailRebuildSoon")
+                        if rebuild ~= nil then
+                            rebuild()
+                        end
+                    end
+                    --the button-bar loop below only runs when fallback changes; nil makes it register
+                    --the bar again now, so a button that just unlocked or locked shows or goes
+                    fallback = nil
+                end
+                reachedBefore = reached
             end
             local wantFallback = mapButtons ~= nil and not railMode
             if wantFallback ~= fallback then
                 fallback = wantFallback
                 for _, id in ipairs(ORDER) do
-                    if fallback then
+                    if fallback and StageReached(BUTTONS[id]) then
                         mapButtons.Register("condemned:" .. id, {
                             name = BUTTONS[id].name,
                             icon = BUTTONS[id].icon,

@@ -888,8 +888,8 @@ local function IsMainActionAbility(c)
     return c:try_get("baseActionResourceId") ~= CharacterResource.maneuverResourceId
 end
 
---- True if this is a maneuver, including one made with the main action (Use Maneuver),
---- which DSAugmentAbilities re-costs as the main action.
+--- True if this is a maneuver, including one made with the main action through
+--- Use Maneuver (it then costs the main action but is still a maneuver).
 --- @param c ActivatedAbility
 --- @return boolean
 local function IsManeuverAbility(c)

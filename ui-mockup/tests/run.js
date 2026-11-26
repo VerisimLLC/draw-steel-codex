@@ -27,8 +27,11 @@ const CHECKS = [
   // "A stat or attribute" in the picker; the stat is changed from the block's word.
   ['t-statpick.js', out => /selects in picker: 0/.test(out) && /after Might: Might/.test(out) && /search vic \+ pick: Victories/.test(out)],
   // The amount picker lists the kinds of amount in both editors, and a searched stat is used.
-  ['t-amount.js', out => /CB rows: A number \| A stat \| A stat with math \| More from a level \| Depends on a test \| A dice roll/.test(out)
+  ['t-amount.js', out => /CB rows: A number \| A stat \| A stat with math \| More as you level \| Depends on a test \| A dice roll/.test(out)
     && /CB pres \+ stat with math: Presence \+ 1/.test(out) && /AB rows: A number \| A stat \| A stat with math/.test(out) && /AB errs \[\]/.test(out)],
+  // Searching a stat changes the examples to that stat, in both editors.
+  ['t-adapt.js', out => /CB agility: \[\s*'A statyour Agility',\s*'A stat with mathyour Agility plus 4 · your Agility times 2'\s*\]/.test(out)
+    && /CB pick: Agility \+ 1 \[\]/.test(out) && /'A stat with mathyour Agility \+ 4 · your Agility × 2'/.test(out)],
   // Every core ability opens in the ability editor and saves back unchanged (4 known exceptions).
   ['t-ab.js', out => json(out).same >= 1015],
   // Treating every step as edited still keeps the saved records (13 known reader-precision cases).

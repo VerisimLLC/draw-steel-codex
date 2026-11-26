@@ -255,19 +255,21 @@ function fillFx(m, obj, key, ad) {
      What the example shows (which stat, the sign, the numbers) is changed on the block afterwards. */
   const groups = [["", "", [
     item("A number", "3", () => setF(/^\d+$/.test(base()) ? base() : "1"), "number amount flat fixed"),
-    item("A stat", "your Might  (any characteristic, Level, Victories\u2026)", () => setF(searchStat() || curStat() || "Might"), STAT_WORDS),
-    item("A stat with math", "your Level plus 4  \u00b7  your Might times 2", () => setF(fxSum(base()) ? base() : (searchStat() || curStat() || "Level") + " + 1"), STAT_WORDS + " math plus minus times multiply add subtract divide half double"),
-    item("More from a level", "1, then 2 from 5th level", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "level echelon scale grows bonus"),
+    // The examples follow the search: "agility" makes them read "your Agility" and "your Agility times 2".
+    item("A stat", () => searchStat() ? "your " + searchStat() : "your Might  (any characteristic, Level, Victories\u2026)", () => setF(searchStat() || curStat() || "Might"), STAT_WORDS),
+    item("A stat with math", () => { const st = searchStat(); return st ? "your " + st + " plus 4  \u00b7  your " + st + " times 2" : "your Level plus 4  \u00b7  your Might times 2"; }, () => setF(fxSum(base()) ? base() : (searchStat() || curStat() || "Level") + " + 1"), STAT_WORDS + " math plus minus times multiply add subtract divide half double"),
+    item("More as you level", "1, then 2 from 5th level", () => { if (ad) return change(ad.addStep); change(() => { (obj[key + "Lv"] = obj[key + "Lv"] || []).push({ from: "5", value: base() + " + 1" }); }, true); fillFx(m, obj, key); }, "level echelon scale grows bonus"),
     item("Depends on a test", "2 if you are winded, otherwise 1", () => setF("2 when Winded else " + base()), "if when else choose test"),
     item("A dice roll", "1d3", () => setF("1d3"), "random dice roll d3 d6 d10")]]];
   const pb = E("div", "pb"); m.appendChild(pb); const expanded = new Set();
   const draw = () => {
     pb.innerHTML = ""; const q = search.value.trim().toLowerCase(); let n = 0;
     groups.forEach(([g, gd, opts]) => {
-      const vis = opts.filter(o => !q || (g + " " + o.txt + " " + o.d + " " + o.k).toLowerCase().includes(q)); if (!vis.length) return;
+      const dOf = o => typeof o.d === "function" ? o.d() : o.d;
+      const vis = opts.filter(o => !q || (g + " " + o.txt + " " + dOf(o) + " " + o.k).toLowerCase().includes(q)); if (!vis.length) return;
       if (g) { const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh); }
       const cap = g && !q && !expanded.has(g) && vis.length > 4;
-      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (o.d) b.appendChild(E("span", g ? "d" : "d ex", o.d));
+      (cap ? vis.slice(0, 3) : vis).forEach(o => { const b = E("button", "opt"); b.type = "button"; b.appendChild(E("span", "chip num", o.txt)); if (dOf(o)) b.appendChild(E("span", g ? "d" : "d ex", dOf(o)));
         b.addEventListener("click", o.make); pb.appendChild(b); n++; });
       if (cap) { const more = E("button", "opt more", "Show " + (vis.length - 3) + " more"); more.type = "button"; more.addEventListener("click", ev => { ev.stopPropagation(); expanded.add(g); draw(); }); pb.appendChild(more); }
     });

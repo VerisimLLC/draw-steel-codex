@@ -3390,11 +3390,12 @@ function pickerOptions(h) {
     const qStat = () => { const q = norm(pickerQuery || ""); return q ? NUM_FIELDS.find(f => norm(f).startsWith(q)) : null; };
     groups.push(["", "", [
       item("A number", "3", () => X("num", { v: h.lit || "1" }), "number amount flat fixed"),
-      item("A stat", yourW + " Might  (any characteristic, Level, speed\u2026)", () => X("stat", { role: who, field: qStat() || "Might" }), STAT_WORDS)]
+      // The examples follow the search: "agility" makes them read "your Agility" and "your Agility × 2".
+      item("A stat", () => qStat() ? yourW + " " + qStat() : yourW + " Might  (any characteristic, Level, speed\u2026)", () => X("stat", { role: who, field: qStat() || "Might" }), STAT_WORDS)]
       .concat(d.symbols.filter(y => y.type === "number").map(y => item(y.name, y.desc, () => X("sym", { name: y.name }), "event " + y.name)))
       .concat([
-      item("A stat with math", yourW + " Level + 4  \u00b7  " + yourW + " Might \u00d7 2", () => X("math", { op: "+" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: qStat() || "Level" }) }), b: numH("1") }), STAT_WORDS + " math plus minus times multiply add subtract divide half double"),
-      item("More from a level", "1, then 2 from 5th level", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),
+      item("A stat with math", () => { const st = qStat(); return st ? yourW + " " + st + " + 4  \u00b7  " + yourW + " " + st + " \u00d7 2" : yourW + " Level + 4  \u00b7  " + yourW + " Might \u00d7 2"; }, () => X("math", { op: "+" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: qStat() || "Level" }) }), b: numH("1") }), STAT_WORDS + " math plus minus times multiply add subtract divide half double"),
+      item("More as you level", "1, then 2 from 5th level", () => X("math", { op: "+" }, { a: numH(h.lit || "1"),
         b: Object.assign(numH(), { expr: X("pick", {}, { a: numH("1"), cond: Object.assign(H("boolean", h.docs), { expr: X("compare", { op: ">=" }, { a: Object.assign(numH(), { expr: X("stat", { role: who, field: "Level" }) }), b: numH("5") }) }), b: numH("0") }) }) }), "level echelon scale grows bonus"),
       item("Depends on a test", "2 if " + (r0.label === "You" ? "you are" : r0.prose + " is") + " winded, otherwise 1", () => X("pick", {}, { a: numH("2"), cond: H("boolean", h.docs), b: numH(h.lit || "1") }), "if when else choose test"),
       ]).concat(h.kind === "roll" ? [item("A dice roll", "1d6", () => X("dice", { n: "1", s: "6" }), "random dice roll d6 d10")] : [])]);
@@ -3455,14 +3456,15 @@ function openPicker(h, anchor) {
     pb.innerHTML = ""; const q = norm(search.value); pickerQuery = search.value;
     let n = 0;
     for (const [g, gd, opts] of groups) {
-      const vis = opts.filter(o => !q || norm(g + " " + o.chip.txt + " " + (o.d || "") + " " + (o.key || "")).includes(q));
+      const dOf = o => typeof o.d === "function" ? o.d() : o.d;
+      const vis = opts.filter(o => !q || norm(g + " " + o.chip.txt + " " + (dOf(o) || "") + " " + (o.key || "")).includes(q));
       if (!vis.length) continue;
       if (g) { const gh = E("div", "grp", g); gh.appendChild(E("span", "gd", gd)); pb.appendChild(gh); }
       const cap4 = g && !q && !expanded.has(g) && vis.length > 4;
       for (const o of cap4 ? vis.slice(0, 3) : vis) {
         const b = E("button", "opt"); b.type = "button";
         b.appendChild(E("span", "chip" + (o.chip.ex ? " ex" : o.chip.test ? " test" : ""), o.chip.txt));
-        if (o.d) b.appendChild(E("span", g ? "d" : "d ex", o.d));
+        if (dOf(o)) b.appendChild(E("span", g ? "d" : "d ex", dOf(o)));
         if (!o.make) { b.disabled = true; b.style.opacity = .6; }
         else b.addEventListener("click", () => { h.expr = o.make(); closeIfSingle(); refresh(); flash(h.id); });
         pb.appendChild(b); n++;

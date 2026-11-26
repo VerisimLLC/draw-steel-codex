@@ -300,11 +300,12 @@ Block.RegisterGainEvent{
 **The amount picker** (formulas, both editors) is one list of the kinds of amount, each named
 plainly with a real example in the block's own words, no group headings and no "[ ]" notation:
 A number ("3"), A stat ("your Might, any characteristic, Level, Victories..."), A stat with math
-("your Level plus 4 · your Might times 2"), More from a level ("1, then 2 from 5th level"),
+("your Level plus 4 · your Might times 2"), More as you level ("1, then 2 from 5th level"),
 Depends on a test ("2 if you are winded, otherwise 1"), A dice roll ("1d3"), then values the
 trigger reports, then "Type a formula instead". A "Now:" line shows the current value, and a note
 says the stat, sign and numbers are changed on the block after picking. Searching a stat's name
-makes the stat rows use it ("might" + A stat with math = "your Might plus 1").
+makes the stat rows use it ("might" + A stat with math = "your Might plus 1"), and their examples
+change to that stat only ("agility": "your Agility", "your Agility plus 4 · your Agility times 2").
 
 **Picker rule (both editors): one entry per kind of thing, never one per value.** A test or
 formula that differs only in which stat, amount or dice it uses is one entry; the choice is made

@@ -235,10 +235,24 @@ function ActivatedAbility:ObjectTargetingReason(casterToken, targetToken, symbol
     end
 
     local objectMode = self:GetTargetingMode()
-    if objectMode == false then
+    if objectMode == false and not ActivatedAbility.ObjectShownWithCreatures(targetToken) then
         return "Object Targeting is Off. Select correct Targeting in Roll Dialog."
     end
     return nil
+end
+
+--- True for an object flagged "Show With Creatures" on its Targetable
+--- component (a scenario objective): an ability that can target objects offers
+--- it under every slider position, so players need not switch to "Objects".
+--- It changes no rules: an ability that cannot target objects still cannot.
+--- @param targetToken CharacterToken
+--- @return boolean
+function ActivatedAbility.ObjectShownWithCreatures(targetToken)
+    if not (targetToken.isObject and targetToken.isAttackableObject) then
+        return false
+    end
+    local props = targetToken.properties
+    return props ~= nil and props:try_get("showWithCreatures", false) == true
 end
 
 -- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT

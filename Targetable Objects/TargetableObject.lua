@@ -23,6 +23,11 @@ TargetableObject.no_collision_damage = false
 --When true, push, pull and slide never move this object.
 TargetableObject.immune_to_forced_movement = false
 
+--When true (a scenario objective), abilities that can target objects offer this
+--one even with the targeting slider on "Enemies" or "Creatures". Targeting rules
+--are unchanged. See ActivatedAbility.ObjectShownWithCreatures.
+TargetableObject.showWithCreatures = false
+
 --- @return boolean
 function TargetableObject:CannotBeForceMoved()
     return self:try_get("immune_to_forced_movement", false) == true or creature.CannotBeForceMoved(self)
@@ -1213,6 +1218,20 @@ function TargetableObject.CreateMultiPropertiesEditor(components)
             classes = {"field-editor-panel"},
             flow = "vertical",
             minHeight = 0,
+            gui.Check{
+                text = "Show With Creatures",
+                value = components[1].properties:try_get("showWithCreatures", false),
+                fontSize = 14,
+                change = function(element)
+                    local val = element.value
+                    for _, component in ipairs(components) do
+                        component:BeginChanges()
+                        component.properties.showWithCreatures = val
+                        component:CompleteChanges("Change show with creatures")
+                    end
+                end,
+            },
+
             gui.Check{
                 text = "No Collision Damage",
                 value = components[1].properties:try_get("no_collision_damage", false),

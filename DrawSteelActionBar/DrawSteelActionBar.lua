@@ -16172,6 +16172,7 @@ local function CalculateSpellTargetFocusing(symbols)
                         -- "Creatures" mode: exclude creature-objects.
                         canTarget = false
                     elseif targeting == false and targetToken.isObject
+                        and (not ActivatedAbility.ObjectShownWithCreatures(targetToken))
                         and (not g_currentAbility:ObjectGrantsTargeting(g_token, targetToken, symbols)) then
                         -- "Creatures" mode: exclude plain objects.
                         canTarget = false

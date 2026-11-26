@@ -4375,6 +4375,55 @@ function HeroBuilder.Create(args)
         return nil
     end
 
+    --- The Hero's name table, or nil when their ancestry has none.
+    --- @param hero character
+    --- @return nil|table
+    local function NameTableOf(hero)
+        local generator = nil
+        pcall(function() generator = hero:GetNameGeneratorTable() end)
+        return generator
+    end
+
+    --- Wrap an ancestry-step change so it also names the Hero from their new
+    --- ancestry, unless the player typed a name of their own. Returns the
+    --- wrapped change, and a Rename function to call once it is saved: the
+    --- name belongs to the token, not the build, so it is saved separately.
+    --- @param token CharacterToken
+    --- @param change fun(hero: character)
+    --- @return fun(hero: character), fun()
+    local function WithAncestryName(token, change)
+        local typed = trim(token.name or "")
+        local name = nil
+        local function Wrapped(hero)
+            change(hero)
+            name = nil
+            local auto = hero:try_get(Engine().AUTO_NAME_FIELD)
+            local autoName = type(auto) == "table" and auto.name or nil
+            --a name the player typed is never replaced.
+            if typed ~= "" and typed ~= autoName then
+                return
+            end
+            --the Builder's name stays when the new pick uses the same name
+            --table, so the Hero is not renamed on every trait pick.
+            local generator = NameTableOf(hero)
+            if generator == nil or (typed ~= "" and auto.table == generator.id) then
+                return
+            end
+            name = Engine().GenerateName(hero)
+            if name ~= nil then
+                hero[Engine().AUTO_NAME_FIELD] = {name = name, table = generator.id}
+            end
+        end
+        local function Rename()
+            if name ~= nil then
+                Guard(function()
+                    Host().saveAppearance(function(editToken) editToken.name = name end)
+                end)
+            end
+        end
+        return Wrapped, Rename
+    end
+
     --A step's main pick: the change confirm first when picks hang on it.
     --- @param stepid string
     --- @param option HeroBuilderOption
@@ -4412,7 +4461,13 @@ function HeroBuilder.Create(args)
             return false
         end
         local function Apply()
-            Save(CHANGE_WORDS[stepid], change)
+            if stepid == "ancestry" then
+                local named, Rename = WithAncestryName(token, change --[[@as fun(hero: character)]])
+                Save(CHANGE_WORDS[stepid], named)
+                Rename()
+            else
+                Save(CHANGE_WORDS[stepid], change)
+            end
             if stepid ~= "culture" then
                 Track("build_change", {
                     changeType = stepid,
@@ -4481,7 +4536,19 @@ function HeroBuilder.Create(args)
             Save(T("herobuilder.undo.drop_pick"), change)
             Track("ability_respec", {featureId = sectionKey, removedOptionId = option.id, removedOptionName = option.name, dailyLimit = 10})
         else
+            local Rename = nil
+            if stepid == "ancestry" then
+                --picking a Revenant's former life gives them a name table,
+                --so it can name the Hero too.
+                local token = Host().token()
+                if token ~= nil then
+                    change, Rename = WithAncestryName(token, change)
+                end
+            end
             Save(T("herobuilder.undo.make_choice"), change)
+            if Rename ~= nil then
+                Rename()
+            end
             Track("builder_selection", {featureId = sectionKey, optionId = option.id, optionName = option.name, isFinal = true, dailyLimit = 20})
         end
         return true
@@ -4877,19 +4944,23 @@ function HeroBuilder.Create(args)
     end
 
     --A characteristic being dragged: the chip on the pointer, where the
-    --pointer started (pop-up layer units), and the tile it is over.
-    --- @type nil|{tile: Panel, chip: Panel, start: {x: number, y: number}, over: nil|Panel}
+    --pointer started (pop-up layer units), the Font Size zoom when the drag
+    --began, and the tile it is over.
+    --- @type nil|{tile: Panel, chip: Panel, start: {x: number, y: number}, zoom: number, over: nil|Panel}
     local charDrag = nil
 
     --- Where the pointer is during a tile's drag: its start plus how far it
     --- has moved (the engine finds no targets while the tile stays put, so
     --- the Builder hit-tests the pointer, as the Inventory's drag does).
+    --- The tile reports the move in its own units, which shrink as Font Size
+    --- grows, so it is multiplied by the zoom to match the start's screen units.
     --- @param tile Panel
     --- @return {x: number, y: number}
     local function CharDragPointer(tile)
         local start = charDrag ~= nil and charDrag.start or {x = 0, y = 0}
+        local zoom = charDrag ~= nil and charDrag.zoom or 1
         local delta = tile.dragDelta
-        return {x = start.x + delta.x, y = start.y + delta.y}
+        return {x = start.x + delta.x * zoom, y = start.y + delta.y * zoom}
     end
 
     --- The swappable tile under a point, other than the dragged one.
@@ -5088,12 +5159,12 @@ function HeroBuilder.Create(args)
                     if not element.data.swappable or not Host().canWrite() or layer == nil or rect == nil then
                         return
                     end
-                    local mousePoint = element.mousePoint
-                    local moved = element.dragDelta
-                    local start = {x = rect.x + mousePoint.x * rect.w - moved.x, y = rect.y + (1 - mousePoint.y) * rect.h - moved.y}
                     --the tile's own size and look, its value alone,
                     --held by its middle; the pop-up layer is in screen units.
                     local zoom = HeroSheetWindow.Zoom()
+                    local mousePoint = element.mousePoint
+                    local moved = {x = element.dragDelta.x * zoom, y = element.dragDelta.y * zoom}
+                    local start = {x = rect.x + mousePoint.x * rect.w - moved.x, y = rect.y + (1 - mousePoint.y) * rect.h - moved.y}
                     local chip = gui.Panel{
                         classes = {"heroBuilderCharTile", "heroBuilderCharFree"},
                         styles = {HeroSheetTheme.RootStyles(), BuilderRules()},
@@ -5124,7 +5195,7 @@ function HeroBuilder.Create(args)
                     chip.x = math.floor(start.x + moved.x - chip.data.w / 2)
                     chip.y = math.floor(start.y + moved.y - chip.data.h / 2)
                     chip:SetAsLastSibling()
-                    charDrag = {tile = element, chip = chip, start = start, over = nil}
+                    charDrag = {tile = element, chip = chip, start = start, zoom = zoom, over = nil}
                     element:SetClass("heroBuilderCharDragging", true)
                 end,
                 dragging = function(element)
@@ -7317,6 +7388,7 @@ function HeroBuilder.Create(args)
         local all = fillOpen ~= nil and fillOpen.all == true
         CloseFill()
         local count = 0
+        local namedAs = nil
         --the name and art are the token's, not the build's: saved first, as
         --their own Undo step under the build's (the engine saves them apart).
         local look = plan.look
@@ -7325,6 +7397,7 @@ function HeroBuilder.Create(args)
                 Host().saveAppearance(function(editToken)
                     if look.name ~= nil and trim(editToken.name or "") == "" then
                         editToken.name = look.name
+                        namedAs = look.name
                         count = count + 1
                     end
                     if look.art ~= nil and not Engine().PortraitIsSet(editToken.portrait) then
@@ -7344,6 +7417,12 @@ function HeroBuilder.Create(args)
         if #plan.entries > 0 then
             Save(T("herobuilder.undo.fill"), function(hero)
                 count = count + Engine().hero.ApplyFill(hero, plan.entries)
+                --the name Fill gave counts as the Builder's, so a later
+                --ancestry change may replace it.
+                local generator = NameTableOf(hero)
+                if namedAs ~= nil and generator ~= nil then
+                    hero[Engine().AUTO_NAME_FIELD] = {name = namedAs, table = generator.id}
+                end
             end)
         end
         local live = Host().token()

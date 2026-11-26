@@ -1075,6 +1075,12 @@ end
 
 function character:GetNameGeneratorTable()
 	local key = self:Race():try_get("nameGenerator")
+	--an ancestry without names of its own (a Revenant) names the Hero from
+	--the ancestry of their former life.
+	if key == nil then
+		local inherited = self:InheritedAncestry()
+		key = inherited ~= nil and inherited:try_get("nameGenerator") or nil
+	end
 	if key == nil then
 		return nil
 	end

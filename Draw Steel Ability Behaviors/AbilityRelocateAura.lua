@@ -414,8 +414,9 @@ end
 --- @param chooserToken nil|CharacterToken Who makes the choice; defaults to the traveller. Only
 --- the invoker slot varies -- the cast must stay centred on the traveller, because the candidate
 --- squares cluster around the far portal and the reticle's range is measured from the caster.
---- @param labels nil|{name: string, prompt: string} Optional pick-ability name and prompt text,
+--- @param labels nil|{name: nil|string, prompt: nil|string, cancelWhen: nil|(fun(): boolean)} Optional pick-ability name and prompt text,
 --- so a non-portal caller (e.g. the hurl behavior below) does not talk about emerging from a portal.
+--- cancelWhen is polled while the pick is open; when it returns true the pick closes (answered elsewhere).
 --- @return nil|Loc
 local function ChooseTransitDestination(travelToken, candidates, symbols, chooserToken, labels)
     labels = labels or {}
@@ -496,7 +497,26 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     -- what a nil-return cancel leaves in place). Only the INVOKER varies, which is what feeds
     -- the AI auto-answer callback and the invoke symbols. The prompt itself opens on whichever
     -- client is running this code, so callers must already be executing there.
+    --Poll cancelWhen so a pick that was answered on another client closes here too.
+    local pickOpen = true
+    local cancelWhen = labels.cancelWhen
+    if cancelWhen ~= nil then
+        dmhub.Coroutine(function()
+            while pickOpen and not mod.unloaded do
+                if cancelWhen() then
+                    local actionBar = rawget(_G, "DrawSteelActionBar")
+                    if actionBar ~= nil and actionBar.CancelCastOf ~= nil then
+                        actionBar.CancelCastOf(pickAbility)
+                    end
+                    return
+                end
+                coroutine.yield(0.1)
+            end
+        end)
+    end
+
     ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(chooserToken or travelToken, pickAbility, travelToken, "prompt", symbols or {}, {})
+    pickOpen = false
 
     return SnapToCandidate(capturedLoc, candidates)
 end
@@ -1748,46 +1768,193 @@ local function CanSlideStraightTo(tok, loc)
     return dest ~= nil and dest.x == loc.x and dest.y == loc.y
 end
 
---/castprompt <text> shows the bottom-centre cast prompt, /castprompt alone hides it.
---Broadcast it so every player can see why a cast is paused. It hides itself after
---15 seconds unless re-sent, so a crashed caster cannot leave it stuck.
-local g_castPromptSerial = 0
---Other features (summon choices, "Operating X [Stop]") use the same prompt, so only hide one this macro put up.
-local g_castPromptShown = false
+--/castnotice <text> shows a notice in the bottom-centre cast prompt, /castnotice alone hides it.
+--Broadcast it so every player can see why a cast is paused. It never replaces or hides a
+--prompt it did not put up (summon placement uses the same panel), and it hides itself
+--after 15 seconds unless re-sent, so a crashed caster cannot leave it stuck.
+local g_castNoticeText = nil
+local g_castNoticeSerial = 0
 Commands.RegisterMacro{
-    name = "castprompt",
-    summary = "show a cast prompt",
-    doc = "Usage: /castprompt <text>\nShows the cast prompt text; no text hides it.",
+    name = "castnotice",
+    summary = "show a cast notice",
+    doc = "Usage: /castnotice <text>\nShows a notice in the cast prompt; no text hides it.",
     command = function(str)
-        g_castPromptSerial = g_castPromptSerial + 1
-        local serial = g_castPromptSerial
+        g_castNoticeSerial = g_castNoticeSerial + 1
+        local serial = g_castNoticeSerial
         local actionBar = rawget(_G, "DrawSteelActionBar")
-        if actionBar == nil then
+        if actionBar == nil or actionBar.CastPromptText == nil then
             return
         end
-        if str == nil or str == "" then
-            if g_castPromptShown then
+
+        local function HideOurs()
+            if g_castNoticeText ~= nil and actionBar.CastPromptText() == g_castNoticeText then
                 actionBar.ShowCastPrompt(nil)
             end
-            g_castPromptShown = false
+            g_castNoticeText = nil
+        end
+
+        if str == nil or str == "" then
+            HideOurs()
             return
         end
-        g_castPromptShown = actionBar.ShowCastPrompt(str) == true
+
+        local showing = actionBar.CastPromptText()
+        if showing ~= nil and showing ~= g_castNoticeText then
+            --Another prompt owns the panel.
+            return
+        end
+        if actionBar.ShowCastPrompt(str) then
+            g_castNoticeText = str
+        end
         dmhub.Schedule(15, function()
-            if (not mod.unloaded) and serial == g_castPromptSerial and g_castPromptShown then
-                g_castPromptShown = false
-                actionBar.ShowCastPrompt(nil)
+            if (not mod.unloaded) and serial == g_castNoticeSerial then
+                HideOurs()
             end
         end)
     end,
 }
 
---Shows text as the cast prompt on every client; nil or "" hides it.
+--Shows text as the cast notice on every client; nil or "" hides it.
 --- @param text nil|string
 local function BroadcastCastPrompt(text)
-    local command = "castprompt " .. (text or "")
+    local command = "castnotice " .. (text or "")
     dmhub.Execute(command)
     dmhub.Broadcast("map", command)
+end
+
+--Card ids whose square pick this client opened as the caster (it must not open a second one).
+local g_squarePickCasterCards = {}
+
+--The square the shoved creature's own player picked: an index into the offered squares,
+--written onto the card so it syncs back to the caster's client. 0 = no pick yet.
+--- @class ActiveTrigger
+--- @field bulldozePick number
+--- @field bulldozePrompt string
+
+ActiveTrigger.bulldozePick = 0
+ActiveTrigger.bulldozePrompt = ""
+
+--/bulldozepick <charid> <cardid> <dx,dy:dx,dy:...> is broadcast by the caster's client when a
+--shoved creature has several equally near squares (offsets from the creature). Every other
+--client that controls the creature opens the same pick, so its player can choose too.
+--Offsets use ":" between squares because ";" separates piped commands.
+Commands.RegisterMacro{
+    name = "bulldozepick",
+    summary = "pick a bulldoze square",
+    doc = "Usage: /bulldozepick <charid> <cardid> <offsets>\nInternal: sent by a script that offers a shoved creature's player a square pick.",
+    command = function(str)
+        local charid, cardid, offsets = string.match(str or "", "^(%S+)%s+(%S+)%s+(%S+)$")
+        if charid == nil or g_squarePickCasterCards[cardid] then
+            return
+        end
+        local tok = dmhub.GetTokenById(charid)
+        if tok == nil or (not tok.valid) or tok.loc == nil or tok.properties == nil or not tok.canControl then
+            return
+        end
+        local card = tok.properties:GetAvailableTriggerRecord(cardid)
+        if card == nil then
+            return
+        end
+
+        local locs = {}
+        for dx, dy in string.gmatch(offsets, "(-?%d+),(-?%d+)") do
+            locs[#locs+1] = tok.loc:dir(math.floor(tonumber(dx) or 0), math.floor(tonumber(dy) or 0))
+        end
+        if #locs < 2 then
+            return
+        end
+
+        local function LiveCard()
+            if (not tok.valid) or tok.properties == nil then
+                return nil
+            end
+            return tok.properties:GetAvailableTriggerRecord(cardid)
+        end
+
+        dmhub.Coroutine(function()
+            local dest = ChooseTransitDestination(tok, locs, {}, tok, {
+                name = card.text,
+                prompt = card.bulldozePrompt ~= "" and card.bulldozePrompt or nil,
+                --The caster picked first (card cleared) or another client did.
+                cancelWhen = function()
+                    local live = LiveCard()
+                    return live == nil or live.bulldozePick ~= 0
+                end,
+            })
+            if dest == nil or mod.unloaded then
+                return
+            end
+            for i, loc in ipairs(locs) do
+                if loc.x == dest.x and loc.y == dest.y then
+                    tok:ModifyProperties{
+                        description = "Bulldoze Pick",
+                        undoable = false,
+                        execute = function()
+                            local live = LiveCard()
+                            if live ~= nil and live.bulldozePick == 0 then
+                                live.bulldozePick = i
+                            end
+                        end,
+                    }
+                    return
+                end
+            end
+        end)
+    end,
+}
+
+--Lets the caster AND the creature's own player pick one of several squares; the first answer
+--wins and closes the other picker. cardId is the live "!" card on tok (it carries the player's
+--answer back), and must stay on the token until this returns. Returns candidates[1] if nobody picks.
+--- @param tok CharacterToken The creature being moved.
+--- @param candidates Loc[] The equally good squares (same floor as tok).
+--- @param symbols table
+--- @param casterToken CharacterToken
+--- @param cardId nil|string
+--- @param labels nil|{name: nil|string, prompt: nil|string}
+--- @return Loc
+local function ChooseSquareWithPlayer(tok, candidates, symbols, casterToken, cardId, labels)
+    labels = labels or {}
+    if #candidates <= 1 then
+        return candidates[1]
+    end
+
+    --The player's pick comes back as an index on the card.
+    local function PlayerPick()
+        if cardId == nil or (not tok.valid) or tok.properties == nil then
+            return nil
+        end
+        local card = tok.properties:GetAvailableTriggerRecord(cardId)
+        return card ~= nil and candidates[card.bulldozePick] or nil
+    end
+
+    if cardId ~= nil then
+        local offsets = {}
+        for _, loc in ipairs(candidates) do
+            if loc.floor ~= tok.loc.floor then
+                offsets = nil
+                break
+            end
+            offsets[#offsets+1] = string.format("%d,%d", loc.x - tok.loc.x, loc.y - tok.loc.y)
+        end
+        if offsets ~= nil then
+            g_squarePickCasterCards[cardId] = true
+            dmhub.Broadcast("map", string.format("bulldozepick %s %s %s", tok.charid, cardId, table.concat(offsets, ":")))
+        end
+    end
+
+    local casterPick = ChooseTransitDestination(tok, candidates, symbols, casterToken, {
+        name = labels.name,
+        prompt = labels.prompt,
+        cancelWhen = function()
+            return PlayerPick() ~= nil
+        end,
+    })
+    local result = casterPick or PlayerPick() or candidates[1]
+    if cardId ~= nil then
+        g_squarePickCasterCards[cardId] = nil
+    end
+    return result
 end
 
 --- Helpers a Lua Script ability behavior can call, e.g. to push creatures aside.
@@ -1814,6 +1981,11 @@ end
 ---                                                   through creatures, teleports if the move is refused)
 ---   WaitForNextGameUpdate()                         pause until the game has applied recent moves
 ---   BroadcastCastPrompt(text)                       show text at the bottom of every player's screen; nil hides it
+---                                                   (never replaces another prompt, e.g. summon placement)
+---   ChooseSquareWithPlayer(tok, locs, symbols, casterToken, cardId?, {name=, prompt=}?) -> Loc
+---                                                   caster and tok's player both get a pick; first answer wins.
+---                                                   cardId = id of a live ActiveTrigger on tok; give the card a
+---                                                   bulldozePrompt = "..." field for the player's pick text
 RelocateHelpers = {
     LocKey = LocKey,
     FootprintTouches = FootprintTouches,
@@ -1825,4 +1997,5 @@ RelocateHelpers = {
     FreeMoveOntoSquare = FreeMoveOntoSquare,
     WaitForNextGameUpdate = WaitForNextGameUpdate,
     BroadcastCastPrompt = BroadcastCastPrompt,
+    ChooseSquareWithPlayer = ChooseSquareWithPlayer,
 }

@@ -116,8 +116,10 @@ local mod = dmhub.GetModLoading()
 --- @class BlockEditorHost
 --- @field id string the Block host id, or "demo" for the developer window
 --- @field canWrite fun(): boolean whether this user may change the record
---- @field upload fun(record: table|nil, model: BERecordModel): boolean|nil sends one record to the server; false (or an error) keeps it dirty to try again
+--- @field upload fun(record: table|nil, model: BERecordModel): boolean|nil saves one model; record is the private copy it was opened from. False (or an error) keeps it dirty to try again
 --- @field decl nil|BlockHost the Block.RegisterHost declaration the page is built from
+--- @field immediate? boolean save after every change instead of after a pause (an editor inside another, which uploads)
+--- @field track? fun(model: BERecordModel, record: table) names the live record a model saves into
 
 --- A control that edits one kind of slot.
 --- @class BESlotWidget

@@ -97,6 +97,7 @@ local SECTIONS = {
 -- Expose for other files in the module to reference.
 AbilityEditor.SECTIONS = SECTIONS
 
+
 --[[
     ============================================================================
     Shared styles
@@ -5332,6 +5333,172 @@ local function _makePreview(ability)
 end
 
 --[[
+    Views: other editors that show the same ability, offered as tabs beside
+    this one (the Block Editor's "Simple" tab). This editor is the "Advanced"
+    tab. A view edits the ability object in place; the dialog around both
+    uploads it as usual. Switching tabs rebuilds the editor, because this
+    editor's dropdowns and inputs read their values when they are built.
+]]
+
+--- @class AbilityEditorView
+--- @field id string unique; re-registering an id replaces it
+--- @field label string the tab's name
+--- @field tooltip? string
+--- @field available fun(ability: table): boolean whether the view can show this ability
+--- @field create fun(ability: table, options: {changed: fun()}): Panel|nil builds the view; changed is called after it writes into the ability
+
+AbilityEditor._views = AbilityEditor._views or {}
+--the tab last chosen, so the next ability opens on it too.
+AbilityEditor._lastView = AbilityEditor._lastView or "advanced"
+
+--- Offers another view of an ability as a tab beside this editor.
+--- @param view AbilityEditorView
+function AbilityEditor.RegisterView(view)
+    for i, existing in ipairs(AbilityEditor._views) do
+        if existing.id == view.id then
+            AbilityEditor._views[i] = view
+            return
+        end
+    end
+    AbilityEditor._views[#AbilityEditor._views + 1] = view
+end
+
+--- The registered views that can show this ability.
+--- @param ability table
+--- @return AbilityEditorView[]
+local function _availableViews(ability)
+    local result = {}
+    for _, view in ipairs(AbilityEditor._views) do
+        local ok, available = pcall(view.available, ability)
+        if ok and available then
+            result[#result + 1] = view
+        end
+    end
+    return result
+end
+
+--- Replaces an editor's root with a freshly built one in the same place,
+--- leaving the parent's other children where they are.
+--- @param root Panel
+--- @param ability table
+--- @param opts table
+local function _rebuildInPlace(root, ability, opts)
+    local parent = root.parent
+    if parent == nil then
+        return
+    end
+    local replacement = AbilityEditor.GenerateEditor(ability, opts)
+    local children = parent.children
+    for i, child in ipairs(children) do
+        if child == root then
+            children[i] = replacement
+        end
+    end
+    parent.children = children
+end
+
+--- The tabs for the views and this editor ("Advanced").
+--- @param ability table
+--- @param opts table
+--- @param views AbilityEditorView[]
+--- @param currentId string
+--- @param getRoot fun(): Panel|nil
+--- @return Panel
+local function _viewTabs(ability, opts, views, currentId, getRoot)
+    local entries = {}
+    for _, view in ipairs(views) do
+        entries[#entries + 1] = { id = view.id, label = view.label, tooltip = view.tooltip }
+    end
+    entries[#entries + 1] = { id = "advanced", label = "Advanced" }
+    local tabs = {}
+    for _, entry in ipairs(entries) do
+        tabs[#tabs + 1] = gui.Label{
+            classes = {"tab", cond(entry.id == currentId, "selected")},
+            text = entry.label,
+            linger = entry.tooltip ~= nil and function(element)
+                gui.Tooltip(entry.tooltip)(element)
+            end or nil,
+            press = function(element)
+                if entry.id == currentId then
+                    return
+                end
+                AbilityEditor._lastView = entry.id
+                local root = getRoot()
+                if root ~= nil and root.valid then
+                    _rebuildInPlace(root, ability, opts)
+                end
+            end,
+        }
+    end
+    return gui.Panel{
+        classes = {"tabBar"},
+        width = "auto",
+        halign = "left",
+        valign = "bottom",
+        lmargin = 16,
+        children = tabs,
+    }
+end
+
+--- The editor's root when a view (not this editor) is the chosen tab: the
+--- title strip with the tabs, then the view filling the rest.
+--- @param ability table
+--- @param opts table
+--- @param views AbilityEditorView[]
+--- @param view AbilityEditorView
+--- @return Panel
+local function _viewRoot(ability, opts, views, view)
+    --- @type Panel
+    local root
+    local ok, body = pcall(view.create, ability, { changed = function() end })
+    if not ok or body == nil then
+        dmhub.Error(string.format("Ability editor: the %s view could not open this ability: %s", view.label, tostring(body)))
+        body = gui.Label{
+            classes = {"nae-subtitle-label"},
+            text = string.format("The %s view could not open this ability. Use the Advanced tab.", view.label),
+        }
+    end
+    root = gui.Panel{
+        classes = {"nae-root"},
+        id = "abilityEditorRoot",
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_editorStyles()) },
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        borderBox = true,
+        hpad = 2,
+        vpad = 2,
+        children = {
+            gui.Panel{
+                classes = {"nae-title-strip"},
+                children = {
+                    gui.Label{
+                        classes = {"nae-title-label"},
+                        text = ability.name or "(unnamed ability)",
+                    },
+                    _viewTabs(ability, opts, views, view.id, function() return root end),
+                },
+            },
+            gui.MCDMDivider{
+                layout = "line",
+                width = "100%",
+                bmargin = 6,
+            },
+            gui.Panel{
+                width = "100%",
+                height = string.format("100%%-%d", LAYOUT.TITLE_HEIGHT + 12),
+                halign = "left",
+                valign = "top",
+                body,
+            },
+        },
+    }
+    return root
+end
+
+--[[
     ============================================================================
     Root editor
     ============================================================================
@@ -5355,6 +5522,14 @@ function AbilityEditor.GenerateEditor(ability, opts)
     end
     local sectionContents = {}
     local navButtons = {}
+
+    -- Another view chosen as the tab (the Simple tab) replaces this editor.
+    local views = _availableViews(ability)
+    for _, view in ipairs(views) do
+        if view.id == AbilityEditor._lastView then
+            return _viewRoot(ability, opts, views, view)
+        end
+    end
 
     -- Forward-declare so nav button click handlers can close over it.
     local rootPanel
@@ -5716,6 +5891,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
                 classes = {"nae-subtitle-label"},
                 text = "Ability Editor",
             },
+            #views > 0 and _viewTabs(ability, opts, views, "advanced", function() return rootPanel end) or nil,
         },
     }
 

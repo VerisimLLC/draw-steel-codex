@@ -125,7 +125,7 @@ local mod = dmhub.GetModLoading()
 --- An editor for one kind of record (plan section 6).
 --- @class BlockHost
 --- @field id string
---- @field tableName string the data table its records live in
+--- @field tableName? string the data table its records are rows of, when they are rows (an ability lives inside its class instead)
 --- @field claims fun(record: table): boolean whether this host edits the record
 --- @field title? string the window's title ("Edit Ability")
 --- @field header? string[] the fixed "what it is" rows
@@ -141,7 +141,7 @@ local mod = dmhub.GetModLoading()
 --- @field stepsField? string the record field holding its list of steps ("behaviors")
 --- @field advancedBlock? string the block a step opens as when no block reads it
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
---- @field upload? fun(record: table) sends one record to the server; the editor uploads the table row when absent
+--- @field upload? fun(record: table): boolean|nil uploads a record the editor has just written into (an ability: the class or subclass that holds it); false or an error keeps the change waiting to retry. Without it the window cannot save
 --- @field records? fun(): {record: table, where: string}[] every record this host edits, for /blockroundtrip and for /blockeditor by name (developers)
 --- @field stepName? fun(step: table): string how a step no block reads is named on its Advanced block; its typeName split into words when absent
 --- @field order? number
@@ -317,7 +317,7 @@ end
 
 --- @param entry BlockHost
 function Block.RegisterHost(entry)
-    if Validate("host", entry, { tableName = "string", claims = "function" }) then
+    if Validate("host", entry, { claims = "function" }) then
         Store("host", entry)
     end
 end

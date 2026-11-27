@@ -355,7 +355,16 @@ function BERecordCache.Save(model, record, host, forced)
         local field = host.fields[slotId]
         if not locked[slotId] then
             local value, original = model.values[slotId], openValues[slotId]
-            if forced then
+            --a record that already reads as the value keeps its own form
+            --("anyspace" stays, though the space writer would pick "emptyspace").
+            local readsSame = false
+            if field.read ~= nil then
+                local ok, current = pcall(field.read, result)
+                readsSame = ok and current ~= nil and _same(current, value)
+            end
+            if readsSame then
+                --nothing to write
+            elseif forced then
                 field.write(result, value, NOT_OPENED)
             elseif not _same(value, original) then
                 field.write(result, value, original)

@@ -260,4 +260,48 @@ model.blocks[2].bodies.steps[1].values.amount = "9"
 saved = BERecordCache.Save(model, record, host)
 Check(Equal(saved.behaviors[2], record.behaviors[2]) and #g_errors == 1, "a failing writer keeps the saved step and reports it")
 heal.write = realWrite
+
+--a writer is skipped when what is saved already reads as the value, so a
+--spelling it would rebuild differently survives (header slots and steps).
+local Roll = FakeType("FakeRollBehavior", { roll = "2d10" })
+Block.RegisterBehaviorBlock{
+    id = "t.roll", family = "step", group = "rolls", label = "Roll",
+    sentence = { "Roll + ", { slot = "stat" } },
+    slots = { stat = { kind = "choice", default = "might" }, note = { kind = "text", default = "" } },
+    fits = { "step" },
+    claims = { "FakeRollBehavior" },
+    fields = {
+        stat = {
+            read = function(behavior) return string.lower((string.match(rawget(behavior, "roll") or "", "(%a+)%s*$"))) end,
+            write = function(behavior, value) behavior.roll = "2d10 + " .. value end,
+        },
+        note = { field = "note" },
+    },
+}
+local spaceHost = {
+    id = "t.spacehost", claims = function() return true end,
+    fields = {
+        distance = {
+            touches = { "targetType" },
+            read = function(record)
+                local targetType = rawget(record, "targetType")
+                return (targetType == "anyspace" or targetType == "emptyspace") and "space" or "self"
+            end,
+            write = function(record, value) record.targetType = value == "space" and "emptyspace" or "self" end,
+        },
+    },
+    stepsField = "behaviors",
+    advancedBlock = "t.advanced",
+}
+local spaced = { targetType = "anyspace", behaviors = { Roll.new{ roll = "2d10 +Agility" } } }
+Check(BERecordCache.SavesUnchanged(BERecordCache.Open(spaced, spaceHost), spaced, spaceHost, true),
+    "a forced save keeps forms the writers would respell (anyspace, 2d10 +Agility)")
+model = BERecordCache.Open(spaced, spaceHost)
+model.blocks[1].values.note = "edited"
+saved = BERecordCache.Save(model, spaced, spaceHost)
+Check(saved.behaviors[1].note == "edited" and saved.behaviors[1].roll == "2d10 +Agility",
+    "editing a step rewrites its slots but keeps a roll that reads the same")
+model.blocks[1].values.stat = "might"
+saved = BERecordCache.Save(model, spaced, spaceHost)
+Check(saved.behaviors[1].roll == "2d10 + might", "a changed value is still written")
 print("block_recordcache_test: " .. g_checks .. " checks passed")

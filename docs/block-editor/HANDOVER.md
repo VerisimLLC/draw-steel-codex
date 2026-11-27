@@ -182,3 +182,29 @@ limits, Choose one when used (variations) and the "Targets are:" row; plan 12.5-
 deletes, other people's changes); the Advanced editor tab and its states; the per-block word
 list; redrawing only the changed block; the dashed "doesn't fit" shelf rows; a card for a roll
 like "2d10 + Might + 1" shows the raw roll.
+
+## 9. Milestone 2c, first part (2026-11-27, run in DMHub)
+
+- **Saving:** the editor opens a private copy of the record and, on each save, writes a fresh copy
+  into the live record (so undo after a save works). The window then uploads through the host's
+  `upload`: the ability host uploads the class or subclass that holds the ability
+  (`FindCompendiumItemOwningGuid`, as the Advanced editor's dialog does). `tableName` is now
+  optional; the ability host has none.
+- **Simple tab:** `AbilityEditor.RegisterView` (Draw Steel Ability Editor) offers other views of an
+  ability as tabs beside the Advanced editor; the Block Editor registers "Simple" there
+  (`BlockEditor.CreatePanel(record, {embedded = true})`). It writes into the ability on every
+  change and the dialog uploads it on close, as before. Shown only with developer mode and the
+  `blockeditor:enabled` setting.
+- **Writers keep saved forms:** a writer is skipped when what is saved already reads as the value
+  (header slots in `RecordCache.Save`, step slots in `BlockBehaviors._writeField`). This fixed the
+  12 forced differences (`anyspace` respelled `emptyspace`, `2d10 +Agility` respelled, an unset
+  `durationUntilEndOfTurn` written as false), and it protects real edits: editing a tier rewrites
+  every slot of its power roll. Side effect: the forced run no longer exercises a writer whose
+  value already reads the same.
+- **Measured in DMHub:** 748/748 untouched, 748/748 forced, 557 open fully as blocks (514 with every
+  tier word read). DMHub Utils still lists the old `BlockTiers.lua` (it loads empty); remove it
+  in the Codex's mod tools.
+- **Still open:** other people's changes to an open record (plan 12.6) now matter, since the window
+  saves for real; usage limits, Choose one when used, the "Targets are:" row; add a requirement;
+  drop-slot precision.
+

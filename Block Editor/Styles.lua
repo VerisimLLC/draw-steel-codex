@@ -317,6 +317,12 @@ local function _editorChromeStyles()
             cornerRadius = 10,
             flow = "vertical",
         },
+        --inside another editor (the ability editor's Simple tab): no frame of its own.
+        {
+            selectors = {"beEmbedded"},
+            bgcolor = "clear",
+            flow = "vertical",
+        },
         {
             selectors = {"beEditorTitleBar"},
             width = "100%",
@@ -330,6 +336,12 @@ local function _editorChromeStyles()
             rpad = 14,
             tpad = 10,
             borderBox = true,
+        },
+        --a later rule, so its padding wins over the title bar's.
+        {
+            selectors = {"beEditorTitleBar", "beEmbeddedBar"},
+            tpad = 4,
+            bpad = 4,
         },
         {
             selectors = {"label", "beEditorTitle"},

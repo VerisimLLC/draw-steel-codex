@@ -13,9 +13,12 @@ local mod = dmhub.GetModLoading()
     the shelf (BEShelf) and the checks and card (BESidePanel).
 
     With no record it opens the first host's demo record (the stub ability).
-    A record is read into blocks by BERecordCache. Edits, undo and the upload
-    timer work; until saving through the containing record is built
-    (milestone 2c), the upload is only worked out and logged.
+    A record is read into blocks by BERecordCache from a private copy, so
+    every save starts from the record as it was opened (undo after a save
+    still works). Each save writes a fresh copy into the live record; the
+    window then uploads it through its host's upload, while an embedded
+    editor (the ability editor's Simple tab) leaves uploading to the editor
+    around it.
 ]]
 
 local T = UIText.T
@@ -40,26 +43,66 @@ local function _demoDecl()
     return nil
 end
 
---- The host the developer window uses: it accepts every change and only logs
---- the upload. Real hosts come from Block.RegisterHost once records can be
---- written (phase 2).
---- @param decl nil|BlockHost
+--- Copies a saved record into the live one in place, so everything that
+--- holds the live record (its class row, an open editor) sees the change.
+--- Values are copied, so later edits never share tables with the editor.
+--- @param live table
+--- @param saved table
+local function _writeInto(live, saved)
+    local stale = {}
+    for key, _ in pairs(live) do
+        if type(key) ~= "string" or not string.starts_with(key, "_tmp_") then
+            if rawget(saved, key) == nil then
+                stale[#stale + 1] = key
+            end
+        end
+    end
+    for _, key in ipairs(stale) do
+        live[key] = nil
+    end
+    for key, value in pairs(saved) do
+        if type(key) ~= "string" or not string.starts_with(key, "_tmp_") then
+            live[key] = DeepCopy(value)
+        end
+    end
+end
+
+--- The host an editor saves through. Its records are tracked by model id;
+--- the demo (no record) has nothing to save and only logs.
+--- @param decl BlockHost
+--- @param options {embedded?: boolean, changed?: fun(record: table)}
 --- @return BlockEditorHost
-local function _demoHost(decl)
+local function _recordHost(decl, options)
+    --- @type table<string, table> the live record of each model, by model id
+    local live = {}
     return {
-        id = decl ~= nil and decl.id or "demo",
+        id = decl.id,
         decl = decl,
+        immediate = options.embedded == true,
         canWrite = function()
             return true
         end,
-        upload = function(record, model)
-            --phase 2a: saving is worked out and logged, not sent (milestone 2c sends it).
-            if record ~= nil and decl ~= nil then
-                local same, diff = BERecordCache.SavesUnchanged(model, record, decl)
-                dmhub.Debug(string.format("BLOCKEDITOR:: would upload '%s': %s", model.name, same and "unchanged" or json(diff)))
-            else
-                dmhub.Debug(string.format("BLOCKEDITOR:: would upload '%s' with %d blocks", model.name, #model.blocks))
+        track = function(model, record)
+            live[model.id] = record
+        end,
+        upload = function(source, model)
+            local record = live[model.id]
+            if source == nil or record == nil then
+                dmhub.Debug(string.format("BLOCKEDITOR:: demo '%s' has %d blocks (nothing to save)", model.name, #model.blocks))
+                return true
             end
+            _writeInto(record, BERecordCache.Save(model, source, decl))
+            if options.embedded then
+                --the editor around this one uploads the record when it closes.
+                if options.changed ~= nil then
+                    options.changed(record)
+                end
+                return true
+            end
+            if decl.upload == nil then
+                error("records of this kind cannot be saved from the Block Editor yet")
+            end
+            return decl.upload(record) ~= false
         end,
     }
 end
@@ -84,8 +127,9 @@ end
 --- The title bar: the title, the Simple / Advanced editor tabs, then on the
 --- right the host's dropdown, Paste text, Undo, Redo and Close.
 --- @param decl BlockHost
+--- @param embedded boolean inside another editor: no title, tabs or Close (that editor has its own)
 --- @return Panel
-local function _titleBar(decl)
+local function _titleBar(decl, embedded)
     local tools = {}
     local toolbar = decl.toolbar
     if toolbar ~= nil then
@@ -185,13 +229,29 @@ local function _titleBar(decl)
             element:SetClass("disabled", not state:CanRedo())
         end,
     }
-    tools[#tools + 1] = gui.Button{
-        classes = {"closeButton", "sizeS"},
-        valign = "center",
-        click = function(element)
-            _fireControllerEvent(element, "editorClose")
-        end,
-    }
+    if not embedded then
+        tools[#tools + 1] = gui.Button{
+            classes = {"closeButton", "sizeS"},
+            valign = "center",
+            click = function(element)
+                _fireControllerEvent(element, "editorClose")
+            end,
+        }
+    end
+
+    if embedded then
+        return gui.Panel{
+            classes = {"beEditorTitleBar", "beEmbeddedBar"},
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+                children = tools,
+            },
+        }
+    end
 
     return gui.Panel{
         classes = {"beEditorTitleBar"},
@@ -286,21 +346,41 @@ function BlockEditor.Routes(record, where)
     return false
 end
 
---- Opens the editor on a record, as a modal window. With no record (the
---- developer command) it opens the stub ability host's demo record.
+--- Whether the Block Editor can open this record as blocks: a registered
+--- host reads it, and the editor is turned on (developers, for now).
+--- @param record table|nil
+--- @return boolean
+function BlockEditor.CanOpen(record)
+    if record == nil or not BlockEditor._isDeveloper() then
+        return false
+    end
+    Block.Gather()
+    local decl = Block.FindHost(record)
+    return decl ~= nil and decl.fields ~= nil
+end
+
+--- Builds the editor for a record: its root panel is the controller. With no
+--- record (the developer command) it opens the stub ability host's demo.
+--- The record is read from a copy; every save writes into the record itself.
 --- @param record? table the record to edit (class, feature, ability, ...)
+--- @param options? {embedded?: boolean, changed?: fun(record: table)} embedded: a panel inside another editor, which uploads the record itself; changed: called after each write into the record
 --- @return Panel|nil controller the editor's root panel
-function BlockEditor.Open(record)
+function BlockEditor.CreatePanel(record, options)
+    options = options or {}
+    local embedded = options.embedded == true
     --read every registry afresh, so blocks from mods loaded later are included.
     Block.Gather()
 
     local decl = nil
     local model = nil
+    --- @type table|nil the private copy the model is read from and saved against
+    local source = nil
     if record ~= nil then
         decl = Block.FindHost(record)
         if decl ~= nil and decl.fields ~= nil then
-            model = BERecordCache.Open(record, decl)
-            model.savesUnchanged = BERecordCache.SavesUnchanged(model, record, decl)
+            source = DeepCopy(record)
+            model = BERecordCache.Open(source, decl)
+            model.savesUnchanged = BERecordCache.SavesUnchanged(model, source, decl)
         else
             model = _emptyModel(record)
         end
@@ -316,9 +396,12 @@ function BlockEditor.Open(record)
     end
     --- @cast model BERecordModel
 
-    local host = _demoHost(decl)
+    local host = _recordHost(decl, options)
     local state = BEState.CreateNew(host)
-    state:AddRecord(model, record)
+    state:AddRecord(model, source)
+    if record ~= nil and source ~= nil then
+        host.track(model, record)
+    end
 
     local SIZES = BEStyles.SIZES
     --- @type table|nil the theme subscription, dropped when the window closes
@@ -327,12 +410,12 @@ function BlockEditor.Open(record)
     --- @type Panel
     local controller
     controller = gui.Panel{
-        classes = {"beWindow", BlockEditor.CONTROLLER_CLASS},
+        classes = {cond(embedded, "beEmbedded", "beWindow"), BlockEditor.CONTROLLER_CLASS},
         styles = ThemeEngine.MergeStyles(BEStyles.GetStyles()),
-        width = SIZES.EDITOR_WIDTH,
-        height = SIZES.EDITOR_HEIGHT,
-        maxWidth = SIZES.WINDOW_MAX_WIDTH,
-        maxHeight = SIZES.WINDOW_MAX_HEIGHT,
+        width = embedded and "100%" or SIZES.EDITOR_WIDTH,
+        height = embedded and "100%" or SIZES.EDITOR_HEIGHT,
+        maxWidth = (not embedded) and SIZES.WINDOW_MAX_WIDTH or nil,
+        maxHeight = (not embedded) and SIZES.WINDOW_MAX_HEIGHT or nil,
         halign = "center",
         valign = "center",
 
@@ -341,7 +424,8 @@ function BlockEditor.Open(record)
             host = host,
         },
 
-        captureEscape = true,
+        --inside another editor, Escape belongs to that editor's dialog.
+        captureEscape = not embedded,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         escape = function(element)
             element:FireEvent("editorClose")
@@ -407,6 +491,11 @@ function BlockEditor.Open(record)
         --- Redraws after a change and starts the upload timer if needed.
         --- @param changedIds? string[] the records that changed; everything when absent
         editorRefresh = function(element, changedIds)
+            --an embedded editor writes into its record at once: nothing goes
+            --over the network, and the editor around it may read it any time.
+            if host.immediate and state:IsDirty() then
+                state:UploadDirty(true)
+            end
             element:FireEventTree(BlockEditor.REFRESH_EVENT, state, changedIds)
             element:FireEventTree(STATUS_EVENT, state)
             if state:IsDirty() then
@@ -438,7 +527,7 @@ function BlockEditor.Open(record)
             gui.CloseModal()
         end,
 
-        _titleBar(decl),
+        _titleBar(decl, embedded),
         _sectionStrip(decl),
         gui.Panel{
             classes = {"beColumns", "beDropArea"},
@@ -450,14 +539,25 @@ function BlockEditor.Open(record)
         },
     }
 
-    gui.ShowModal(controller)
+    return controller
+end
+
+--- Opens the editor on a record, as a modal window. With no record (the
+--- developer command) it opens the stub ability host's demo record.
+--- @param record? table the record to edit (class, feature, ability, ...)
+--- @return Panel|nil controller the editor's root panel
+function BlockEditor.Open(record)
+    local controller = BlockEditor.CreatePanel(record)
+    if controller ~= nil then
+        gui.ShowModal(controller)
+    end
     return controller
 end
 
 Commands.RegisterMacro{
     name = "blockeditor",
     summary = "open an ability in the Block Editor (developers)",
-    doc = "Usage: /blockeditor [ability name]\nWith a name, opens that class or subclass ability as blocks; steps no block reads yet open as Advanced blocks. Without one, opens the stub demo (\"Out of the Way!\"). Edits, undo and the upload timer work; the upload is only logged. Developer mode only.",
+    doc = "Usage: /blockeditor [ability name]\nWith a name, opens that class or subclass ability as blocks; steps no block reads yet open as Advanced blocks. Without one, opens the stub demo (\"Out of the Way!\"). Edits save into the ability's class or subclass two seconds after the last change. Developer mode only.",
     command = function(str)
         if not BlockEditor._isDeveloper() then
             dmhub.Log("The Block Editor is in development: turn on developer mode and the Block Editor setting (developer settings) to open it.")
@@ -476,3 +576,19 @@ Commands.RegisterMacro{
         BlockEditor.Open(record)
     end,
 }
+
+--The Simple tab of today's ability editor: this editor, inside that one. It
+--writes into the ability as it is edited; that editor's dialog uploads it.
+if rawget(_G, "AbilityEditor") ~= nil and AbilityEditor.RegisterView ~= nil then
+    AbilityEditor.RegisterView{
+        id = "blockeditor",
+        label = T("blockeditor.tab.simple"),
+        tooltip = T("blockeditor.tab.simple_tooltip"),
+        available = function(record)
+            return not mod.unloaded and BlockEditor.CanOpen(record)
+        end,
+        create = function(record, options)
+            return BlockEditor.CreatePanel(record, { embedded = true, changed = options.changed })
+        end,
+    }
+end

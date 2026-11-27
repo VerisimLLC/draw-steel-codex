@@ -34,6 +34,7 @@ text("blockeditor.title", [[Edit {name}]])
 --everywhere; do not reword it in one place only.
 text("blockeditor.tab.simple", [[Simple]])
 text("blockeditor.tab.advanced", [[Advanced editor]])
+text("blockeditor.tab.simple_tooltip", [[Edit this ability as blocks (in development).]])
 --Its tooltip while the tab is not connected yet.
 text("blockeditor.tab.advanced_tooltip", [[Opens today's editor on the same record. Not connected yet.]])
 --The Undo button. Short: a button.

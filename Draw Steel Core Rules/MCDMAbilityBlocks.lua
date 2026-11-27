@@ -641,9 +641,32 @@ local function _stepName(step)
     return name
 end
 
+--- Uploads the compendium entry (class, subclass, ...) that holds an ability
+--- the editor has just written into. Abilities are stored inside their owner,
+--- so the whole owner is uploaded, as the Advanced editor does
+--- (ActivatedAbility:ShowEditCompendiumSourceDialog).
+--- @param ability table
+--- @return boolean
+local function _uploadOwner(ability)
+    local guid = rawget(ability, "guid")
+    if guid == nil then
+        error("the ability has no guid, so where it is stored cannot be found")
+    end
+    local item, tableid, _, path = FindCompendiumItemOwningGuid(guid)
+    if item == nil or tableid == nil then
+        error(string.format("could not find which compendium entry holds '%s'", tostring(rawget(ability, "name"))))
+    end
+    --the owner already holds this very ability; re-seat it in case it was copied.
+    if path ~= nil and #path > 0 then
+        SetObjectAtPath(item, path, ability)
+    end
+    dmhub.SetAndUploadTableItem(tableid, item)
+    return true
+end
+
 Block.RegisterHost{
     id = "ability",
-    tableName = "abilities",
+    upload = _uploadOwner,
     title = "Edit Ability",
     claims = function(record)
         local typeName = nil

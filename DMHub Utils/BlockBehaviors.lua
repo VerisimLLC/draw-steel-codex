@@ -87,6 +87,14 @@ end
 --- @param value any
 local function _writeField(behavior, codec, value)
     if codec.write ~= nil then
+        --what is saved already reads as this value: keep its own spelling
+        --("2d10 +Agility") instead of the writer's rebuilt form.
+        if codec.read ~= nil then
+            local ok, current = pcall(codec.read, behavior)
+            if ok and current ~= nil and _same(current, value) then
+                return
+            end
+        end
         codec.write(behavior, value)
     elseif codec.field ~= nil then
         --nothing saved and the value is the type's default: leave it unsaved.

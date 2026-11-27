@@ -29,6 +29,8 @@ local DEFAULT_TEXT = {
     "Draw Steel Character Builder/HeroBuilderText.lua",
     --History, the main game's record of play that replaces the Action Log.
     "Draw Steel V/HistoryText.lua",
+    --the Block Editor (the "Simple" editors) and its developer proofs.
+    "Block Editor/BlockEditorText.lua",
 }
 
 local DEFAULT_CODE = {
@@ -80,6 +82,9 @@ local DEFAULT_CODE = {
     "Draw Steel V/HistoryCapture.lua",
     "Draw Steel V/HistoryCard.lua",
     "Draw Steel V/HistoryTray.lua",
+    --the Block Editor's window and proofs.
+    "Block Editor/MainPanel.lua",
+    "Block Editor/Proofs.lua",
 }
 
 local textFiles, codeFiles = {}, {}

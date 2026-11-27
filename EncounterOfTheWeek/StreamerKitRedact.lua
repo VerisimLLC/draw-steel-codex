@@ -271,7 +271,7 @@ local function RedactMonster(monster)
 end
 
 --- Redact a raw (Director-level) snapshot into the viewer snapshot.
---- @param raw table
+--- @param raw nil|table anything that is not a table redacts to an empty snapshot
 --- @return table
 function StreamerKitRedact.Redact(raw)
     if type(raw) ~= "table" then
@@ -400,7 +400,7 @@ StreamerKitRedact.MAX_DELAY_SECONDS = 900
 --- A viewer code from random hex digits (a GUID; dashes and other characters
 --- are skipped). Each character takes 16 bits, so the bias of the modulo is
 --- negligible. Nil if there are too few hex digits.
---- @param hex string
+--- @param hex nil|string
 --- @return nil|string
 function StreamerKitRedact.ViewerCodeFromHex(hex)
     if type(hex) ~= "string" then

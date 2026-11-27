@@ -290,8 +290,8 @@ end)()
     local seen = {}
     for i = 1, 200 do
         local hex = string.format("%08x%08x%08x", i * 2654435761 % 4294967296, i * 40503 % 4294967296, i * 7919)
-        local c = StreamerKitRedact.ViewerCodeFromHex(hex)
-        check(StreamerKitRedact.IsViewerCode(c), "generated code is valid: " .. tostring(c))
+        local c = StreamerKitRedact.ViewerCodeFromHex(hex) or ""
+        check(StreamerKitRedact.IsViewerCode(c), "generated code is valid: " .. c)
         for j = 1, #c do
             local ch = string.sub(c, j, j)
             check(ch ~= "I" and ch ~= "L" and ch ~= "O" and ch ~= "0" and ch ~= "1", "no look-alike characters")

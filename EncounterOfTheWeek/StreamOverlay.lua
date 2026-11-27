@@ -966,9 +966,12 @@ end
 --- Go live with a new viewer code and the given delay (seconds). Any host may
 --- call it; the elected host's client is the one that publishes.
 --- @param delaySeconds number
---- @return string code
+--- @return nil|string code nil if no code could be made (the settings are left alone)
 function StreamOverlay.GoLive(delaySeconds)
     local code = StreamerKitRedact.ViewerCodeFromHex(dmhub.GenerateGuid() .. dmhub.GenerateGuid())
+    if code == nil then
+        return nil
+    end
     local doc = mod:GetDocumentSnapshot(SETTINGS_DOC)
     doc:BeginChange()
     doc.data.enabled = true
@@ -1142,7 +1145,7 @@ local function Tick()
         Write(summary)
         g_lastWritten = text
     end
-    if viewerText ~= nil and (viewerChanged or heartbeatDue) then
+    if viewer ~= nil and viewerText ~= nil and (viewerChanged or heartbeatDue) then
         WriteViewer(viewer)
         g_lastViewerWritten = viewerText
     end

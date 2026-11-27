@@ -2517,9 +2517,11 @@ local function NumbersRows(entry, kids, width)
         end
         AddEdgeLines(rows, width, roll.edges, roll.banes, false, rollSources, entry.family == "test" and entry.cause ~= nil)
         --the tier of the roll itself: a target with edges or banes of its own got another.
+        --So is a target with sources listed under it rather than the roll (a trigger that
+        --changed only its tier), so the badge agrees with the lines above it.
         local tier = roll.tier
         for _, who in ipairs(targets) do
-            if who.roll == nil and who.tier ~= nil then
+            if who.roll == nil and who.tier ~= nil and #(ownOf[who] or {}) == 0 then
                 tier = who.tier
                 break
             end

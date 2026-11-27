@@ -30,7 +30,14 @@ local function _setField(source, field, value, description)
         local model = state:Model()
         if model ~= nil then
             model.values = model.values or {}
+            local previous = model.values[field]
             model.values[field] = value
+            --a slot whose meaning depends on another adjusts it in the same undo step.
+            local host = BlockEditor._getHost(source)
+            local codec = host ~= nil and host.decl ~= nil and (host.decl.fields or {})[field] or nil
+            if codec ~= nil and codec.changed ~= nil then
+                codec.changed(model.values, previous)
+            end
         end
     end)
 end
@@ -165,7 +172,7 @@ local function _section(section)
         body[#body + 1] = _headerGroup(section.rows)
     end
     if section.summary ~= nil then
-        local summary = section.summary
+        local summary = section.summary --[[@as fun(model: table): string|nil]]
         body[#body + 1] = gui.Label{
             classes = {"beSummary"},
             text = "",
@@ -181,7 +188,7 @@ local function _section(section)
         body[#body + 1] = _addRequirementRow(section.addText)
     end
     if section.stack ~= nil then
-        local field = section.stack
+        local field = section.stack --[[@as string]]
         local stack = BEStack.Create{ ref = { field = field }, fits = section.fits or "step" }
         body[#body + 1] = gui.Panel{
             width = "100%",

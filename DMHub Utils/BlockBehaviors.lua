@@ -11,10 +11,12 @@ local mod = dmhub.GetModLoading()
          claims = { "ActivatedAbilityHealBehavior" },
          sentence = { "Heal ", { slot = "who" }, " for ", { slot = "amount" }, "." },
          slots = { who = Block.WhoSlot(), amount = { kind = "formula", style = "formula", default = "1" } },
-         fields = { who = Block.WhoField(), amount = { field = "roll", default = "" } },
+         fields = { who = Block.WhoField(), amount = { field = "roll" } },
      }
 
- Each slot reads one field (or a codec's read). Writing starts from the saved
+ Each slot reads one field (or a codec's read). A field that is not saved
+ reads as the type's own default, as the game reads it (Block.FieldValue);
+ a codec's default is only for a field neither has. Writing starts from the saved
  behaviour and sets only the fields whose value differs from what the saved
  one reads as, so an untouched field keeps its saved spelling.
 
@@ -58,7 +60,7 @@ local function _readField(behavior, codec)
     if codec.read ~= nil then
         value = codec.read(behavior)
     else
-        value = rawget(behavior, codec.field)
+        value = Block.FieldValue(behavior, codec.field)
     end
     if value == nil then
         value = codec.default

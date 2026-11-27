@@ -256,6 +256,26 @@ function BERecordCache.SaveSteps(instances, source, host, ctx)
     return out, untouched
 end
 
+--- How many placed blocks would be lost on save: blocks the author added that
+--- have no way to be written (no write, not a wrapper, not part of a tier).
+--- The side panel warns about them, so nothing vanishes silently.
+--- @param list BlockInstance[]|nil
+--- @return integer
+function BERecordCache.CountUnsaveable(list)
+    local count = 0
+    for _, instance in ipairs(list or {}) do
+        local decl = Block.GetBlock(instance.block)
+        local writable = decl ~= nil and (decl.write ~= nil or decl.tier ~= nil or _wrapperFor(instance.block) ~= nil)
+        if not writable and instance.src == nil and instance.saved == nil then
+            count = count + 1
+        end
+        for _, body in pairs(instance.bodies or {}) do
+            count = count + BERecordCache.CountUnsaveable(body)
+        end
+    end
+    return count
+end
+
 --- Opens a record into a model for the editor.
 --- @param record table the engine record (an ActivatedAbility, ...)
 --- @param host BlockHost
@@ -314,7 +334,14 @@ function BERecordCache.Save(model, record, host, forced)
     local result = DeepCopy(record)
     local locked = model.locked or {}
     local openValues = model.openValues or {}
-    for slotId, field in pairs(host.fields or {}) do
+    --a fixed order, so two slots that touch one field always save the same way.
+    local slotIds = {}
+    for slotId, _ in pairs(host.fields or {}) do
+        slotIds[#slotIds + 1] = slotId
+    end
+    table.sort(slotIds)
+    for _, slotId in ipairs(slotIds) do
+        local field = host.fields[slotId]
         if not locked[slotId] then
             local value, original = model.values[slotId], openValues[slotId]
             if forced or not _same(value, original) then

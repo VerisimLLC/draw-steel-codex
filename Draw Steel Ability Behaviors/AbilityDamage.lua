@@ -628,8 +628,10 @@ Block.RegisterBehaviorBlock{
             default = "",
             empty = "+ type",
             options = function()
+                --the game's own list (custom damage types included); "" is untyped.
                 local result = { { id = "", text = "" } }
-                for _, damageType in ipairs(Block.TierDamageTypes) do
+                local available = rules ~= nil and rules.damageTypesAvailable or nil
+                for _, damageType in ipairs(available or Block.TierDamageTypes) do
                     result[#result + 1] = { id = damageType, text = damageType }
                 end
                 return result
@@ -641,8 +643,8 @@ Block.RegisterBehaviorBlock{
     order = 30,
     claims = { "ActivatedAbilityDamageBehavior" },
     fields = {
-        amount = { field = "roll", default = "" },
-        damageType = { field = "damageType", default = "" },
+        amount = { field = "roll" },
+        damageType = { field = "damageType" },
         who = Block.WhoField(),
     },
 }

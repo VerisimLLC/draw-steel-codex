@@ -73,6 +73,7 @@ local mod = dmhub.GetModLoading()
 --- @class BlockBody
 --- @field id string
 --- @field fits string the kind of list it is ("step", "tier"): only blocks that fit it go in
+--- @field max? integer the most blocks it holds (1 for a part of a tier that saves as one segment); no limit when absent
 --- @field label? string drawn beside the list ("11 or lower"); a body with no label is drawn as an inset list
 --- @field sublabel? string a smaller second line under the label ("tier 1")
 
@@ -109,6 +110,7 @@ local mod = dmhub.GetModLoading()
 --- @field read fun(record: table): any the slot value
 --- @field write fun(record: table, value: any, original: any) sets the record's fields for a value; original is the value read when opened, so a writer can keep the saved spelling
 --- @field touches string[] the record fields it reads and writes
+--- @field changed? fun(values: table, previous: any) called when the author changes this slot, to adjust the slots that depend on it in the same undo step (a ranged distance needs a range above 1)
 
 --- One line in a host's checks.
 --- @class BlockCheck
@@ -572,6 +574,24 @@ local function Signature(value)
         parts[i] = tostring(key) .. "=" .. Signature(value[key])
     end
     return "{" .. table.concat(parts, ",") .. "}"
+end
+
+--- A record's value for a field as the game reads it: the saved value, or the
+--- type's own default when nothing is saved (ActivatedAbilityBehavior.damageType
+--- is "force", so an unsaved damage type is force, not untyped). Nil when neither.
+--- @param record table
+--- @param fieldName string|nil
+--- @return any
+function Block.FieldValue(record, fieldName)
+    if fieldName == nil then
+        return nil
+    end
+    local value = rawget(record, fieldName)
+    if value == nil then
+        --a game-typed record raises on a field its type does not declare.
+        pcall(function() value = record[fieldName] end)
+    end
+    return value
 end
 
 --- A stable string for a plain value (tables by sorted keys).

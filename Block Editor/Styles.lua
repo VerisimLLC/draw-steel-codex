@@ -1411,7 +1411,7 @@ end
 --- A section header as the mockup draws it: a caret, a small uppercase title,
 --- an optional "optional" tag and a count on the right, with a rule under it.
 --- Returns the header and its rule as two panels, for a vertical list.
---- @param args {title: string, count?: string, optional?: string, shelf?: boolean, press?: fun(element: Panel), countFn?: fun(state: BEState): string, data?: table}
+--- @param args {title: string, count?: string, optional?: string, shelf?: boolean, press?: fun(element: Panel), countFn?: (fun(state: BEState): string), data?: table}
 --- @return Panel header, Panel rule
 function BEStyles.SectionHeader(args)
     local children = {

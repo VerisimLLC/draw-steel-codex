@@ -414,7 +414,7 @@ local function HeaderText(model, slotId)
     if value == nil then
         value = HEADER_SLOTS[slotId].default
     end
-    return Block.SlotText({ id = "header", sentence = {}, slots = HEADER_SLOTS } --[[@as BlockDecl]], slotId, value)
+    return Block.SlotText({ id = "header", family = "header", group = "header", label = "", sentence = {}, slots = HEADER_SLOTS }, slotId, value)
 end
 
 --- The first block of a kind in a list, or nil.

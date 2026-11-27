@@ -54,6 +54,7 @@ local mod = dmhub.GetModLoading()
 --- @field redoStack BEUndoEntry[]
 --- @field dirty table<string, number> record id -> dmhub.Time() of its last change
 --- @field uploads number how many uploads this editor has sent, for the debug readout
+--- @field failedUploads? integer how many uploads failed (each is retried)
 BEState = {}
 BEState.__index = BEState
 
@@ -251,7 +252,7 @@ end
 --- Uploads dirty records through the host: those whose last change is at
 --- least UPLOAD_DELAY old, or all of them with force (tab switch, close, Save).
 --- @param force? boolean
---- @return number count how many records were uploaded
+--- @return number count how many records were uploaded (a failed one stays dirty)
 function BEState:UploadDirty(force)
     local now = dmhub.Time()
     local due = {}
@@ -263,19 +264,25 @@ function BEState:UploadDirty(force)
     table.sort(due)
 
     local canWrite = self.host.canWrite()
+    local uploaded = 0
     for _, id in ipairs(due) do
         self.dirty[id] = nil
         local model = self.models[id]
         if canWrite and model ~= nil then
-            local ok, err = pcall(self.host.upload, self.sources[id], model)
-            if ok then
+            --an upload that raises or returns false stays dirty and is tried
+            --again after the delay, so a failed save never loses the change.
+            local ok, result = pcall(self.host.upload, self.sources[id], model)
+            if ok and result ~= false then
                 self.uploads = self.uploads + 1
+                uploaded = uploaded + 1
             else
-                dmhub.Error(string.format("BlockEditor: uploading '%s' failed: %s", id, tostring(err)))
+                self.dirty[id] = now
+                self.failedUploads = (self.failedUploads or 0) + 1
+                dmhub.Error(string.format("BlockEditor: uploading '%s' failed: %s", id, tostring(result)))
             end
         end
     end
-    return #due
+    return uploaded
 end
 
 --- The controller's think handler calls this while anything is dirty.

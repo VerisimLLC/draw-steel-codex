@@ -22,6 +22,7 @@ end
 local function Canonical(text)
     local ast, err = Block.ParseFormula(text)
     Check(ast ~= nil, "parses: " .. text .. " (" .. tostring(err) .. ")")
+    --- @cast ast BlockFormulaNode
     return Block.PrintFormula(ast, { canonical = true })
 end
 
@@ -59,6 +60,7 @@ local g_roundTrips = {
 for _, text in ipairs(g_roundTrips) do
     local ast, err = Block.ParseFormula(text)
     Check(ast ~= nil, "parses: " .. text .. " (" .. tostring(err) .. ")")
+    --- @cast ast BlockFormulaNode
     Check(Block.PrintFormula(ast) == text, "round trip: " .. text .. " printed " .. Block.PrintFormula(ast))
 end
 
@@ -106,6 +108,7 @@ end
 do
     local ast = Block.ParseFormula("Level >= 2 {an upgrade {nested} at Level 2}")
     Check(ast ~= nil and ast.k == "cmp" and #ast.comments == 1 and ast.comments[1].text == "an upgrade {nested} at Level 2", "trailing note kept")
+    --- @cast ast BlockFormulaNode
     Check(Block.PrintFormula(ast) == "Level >= 2 {an upgrade {nested} at Level 2}", "trailing note prints back")
     Check(Block.PrintFormula(ast, { canonical = true }) == "Level >= 2", "canonical print drops notes")
     ast = Block.ParseFormula("{lead} 1 + {mid} 2")
@@ -133,6 +136,8 @@ for _, case in ipairs(g_errorCases) do
     Check(ast == nil and type(err) == "string" and string.find(err, case[2], 1, true) ~= nil,
         "error for '" .. case[1] .. "': " .. tostring(err))
 end
+--deliberately the wrong type: the parser must refuse it, not raise.
+---@diagnostic disable-next-line: param-type-mismatch
 Check(Block.ParseFormula(nil) == nil, "non-text is an error")
 
 print("block_formula_test: " .. g_checks .. " checks passed")

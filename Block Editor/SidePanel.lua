@@ -263,6 +263,10 @@ function BESidePanel.Create(host)
             if host.checks ~= nil then
                 local ok, checks = pcall(host.checks, model, record)
                 checks = ok and checks or {}
+                local unsaveable = BERecordCache.CountUnsaveable(model.blocks)
+                if unsaveable > 0 then
+                    table.insert(checks, 1, { severity = "danger", text = T("blockeditor.check.unsaveable", { count = unsaveable }) })
+                end
                 local header, rule = BEStyles.SectionHeader{
                     title = T("blockeditor.side.checks"),
                     count = tostring(#checks),

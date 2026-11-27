@@ -60,13 +60,13 @@ end
 
 --- A field codec that reads and writes one record field as it is.
 --- @param fieldName string
---- @param default any what an absent field reads as
+--- @param default any what the field reads as when neither the record nor its type has a value
 --- @return BlockField
 local function _plainField(fieldName, default)
     return {
         touches = { fieldName },
         read = function(record)
-            local value = rawget(record, fieldName)
+            local value = Block.FieldValue(record, fieldName)
             if value == nil then
                 return default
             end
@@ -90,6 +90,9 @@ local DISTANCES = {
     { id = "map", text = "Anywhere on the map" },
 }
 
+--the range a melee ability gets when it is made ranged (the most common in the book).
+local RANGED_DEFAULT = 10
+
 local TARGET_TYPE_FOR = {
     self = "self", melee = "target", ranged = "target", burst = "all",
     cube = "cube", line = "line", space = "emptyspace", map = "map",
@@ -98,9 +101,9 @@ local TARGET_TYPE_FOR = {
 --- @param record table
 --- @return string
 local function _readDistance(record)
-    local targetType = rawget(record, "targetType") or "self"
+    local targetType = Block.FieldValue(record, "targetType") or "self"
     if targetType == "target" then
-        return tonumber(rawget(record, "range")) == 1 and "melee" or "ranged"
+        return tonumber(Block.FieldValue(record, "range")) == 1 and "melee" or "ranged"
     elseif targetType == "all" then
         return "burst"
     elseif targetType == "emptyspace" or targetType == "anyspace" or targetType == "emptyspacefriend" then
@@ -207,22 +210,32 @@ local FIELDS = {
         end,
     },
     distance = {
-        touches = { "targetType", "range" },
+        --melee and ranged differ only by range (1 is melee), so the range slot
+        --is changed with the distance and saved by its own writer.
+        touches = { "targetType" },
         read = _readDistance,
         write = function(record, value, original)
             if value == original then
                 return
             end
-            record.targetType = TARGET_TYPE_FOR[value] or "self"
-            if value == "melee" then
-                record.range = 1
+            local targetType = TARGET_TYPE_FOR[value] or "self"
+            if Block.FieldValue(record, "targetType") ~= targetType then
+                record.targetType = targetType
+            end
+        end,
+        changed = function(values, previous)
+            local range = tonumber(values.range)
+            if values.distance == "melee" then
+                values.range = 1
+            elseif values.distance == "ranged" and (range == nil or range <= 1) then
+                values.range = RANGED_DEFAULT
             end
         end,
     },
     target = {
         touches = { "targetAllegiance" },
         read = function(record)
-            local allegiance = rawget(record, "targetAllegiance")
+            local allegiance = Block.FieldValue(record, "targetAllegiance")
             if allegiance == "ally" or allegiance == "enemy" then
                 return allegiance
             end
@@ -243,7 +256,7 @@ local FIELDS = {
 --- @return string
 local function _text(model, slotId)
     local value = (model.values or {})[slotId]
-    return Block.SlotText({ id = "ability", sentence = {}, slots = SLOTS } --[[@as BlockDecl]], slotId, value)
+    return Block.SlotText({ id = "ability", family = "header", group = "header", label = "", sentence = {}, slots = SLOTS }, slotId, value)
 end
 
 --- The first placed block of a kind in a list or anywhere inside it, or nil.

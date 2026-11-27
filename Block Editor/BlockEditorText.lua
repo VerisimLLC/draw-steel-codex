@@ -81,6 +81,7 @@ text("blockeditor.change.move", [[Move {block}]])
 text("blockeditor.change.remove_chip", [[Remove {what}]])
 --The heading over the checks in the side column.
 text("blockeditor.side.checks", [[Checks]])
+text("blockeditor.check.unsaveable", [[{count} added blocks cannot be saved yet and will be left out: remove them, or use the Advanced editor.]])
 --Under the card in the side column.
 text("blockeditor.card_hint", [[Click any line on the card to change its wording.]])
 

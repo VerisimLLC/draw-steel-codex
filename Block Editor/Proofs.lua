@@ -519,7 +519,11 @@ local function _sentenceProof()
     local function Choices(slot)
         local result = {}
         if slot.kind == "choice" then
-            for _, option in ipairs(slot.options or {}) do
+            local options = slot.options or {}
+            if type(options) == "function" then
+                options = options()
+            end
+            for _, option in ipairs(options) do
                 result[#result + 1] = { value = option.id, text = option.text }
             end
         elseif slot.kind == "number" then

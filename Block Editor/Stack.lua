@@ -82,20 +82,21 @@ end
 --- @param ref BEListRef
 --- @param index integer where a block dropped here goes (1 = first)
 --- @param kind string
+--- @param full boolean the list holds as many blocks as it may (BlockBody.max): nothing drops here
 --- @return Panel
-local function _sliver(ref, index, kind)
+local function _sliver(ref, index, kind, full)
     return gui.Panel{
         classes = {"beSliver"},
         interactable = false,
-        data = { ref = ref, index = index, kind = kind },
+        data = { ref = ref, index = index, kind = kind, full = full },
         dragHint = function(element, fits)
-            element:SetClass("beSliverHint", fits ~= nil and _fitsKind(fits, element.data.kind))
+            element:SetClass("beSliverHint", fits ~= nil and not element.data.full and _fitsKind(fits, element.data.kind))
             if fits == nil then
                 element:SetClass("beSliverOpen", false)
             end
         end,
         collectSlivers = function(element, list, fits)
-            if _fitsKind(fits, element.data.kind) then
+            if not element.data.full and _fitsKind(fits, element.data.kind) then
                 list[#list + 1] = element
             end
         end,
@@ -108,11 +109,12 @@ local function _sliver(ref, index, kind)
 end
 
 --- Builds a stack. The caller sends it "refreshStack" with its list.
---- @param args {ref: BEListRef, fits: string, classes?: string[], width?: string|number}
+--- @param args {ref: BEListRef, fits: string, max?: integer, classes?: string[], width?: string|number}
 --- @return Panel
 function BEStack.Create(args)
     local ref = args.ref
     local kind = args.fits
+    local max = args.max
     --- @type table<string, Panel> block panels by uid
     local panels = {}
     local classes = {"beStack"}
@@ -135,12 +137,14 @@ function BEStack.Create(args)
         --- Puts the stack's panels in the list's order, building new ones.
         --- @param list BlockInstance[]
         refreshStack = function(element, list)
-            local children = { _sliver(ref, 1, kind) }
+            local full = max ~= nil and #(list or {}) >= max
+            local children = { _sliver(ref, 1, kind, full) }
             local seen = {}
             for index, instance in ipairs(list or {}) do
                 local uid = instance.uid
                 if uid ~= nil then
                     seen[uid] = true
+                    --- @type Panel|nil
                     local panel = panels[uid]
                     if panel == nil or not panel.valid then
                         panel = BEBlockPanel.Create(instance)
@@ -150,7 +154,7 @@ function BEStack.Create(args)
                     end
                     if panel ~= nil then
                         children[#children + 1] = panel
-                        children[#children + 1] = _sliver(ref, index + 1, kind)
+                        children[#children + 1] = _sliver(ref, index + 1, kind, full)
                     end
                 end
             end
@@ -402,33 +406,44 @@ function BEStack.Append(element, blockId)
         if instance == nil then
             return
         end
-        if _fitsKind(fits, "step") then
-            BEState.Insert(model, { field = "blocks" }, #model.blocks + 1, instance)
-            placedUid = instance.uid
-            return
+        --a block for one of the page's own lists: the first section it fits.
+        local host = BlockEditor._getHost(element)
+        local sections = host ~= nil and host.decl ~= nil and host.decl.sections or {}
+        for _, section in ipairs(sections) do
+            if section.stack ~= nil and _fitsKind(fits, section.fits or "") then
+                local ref = { field = section.stack }
+                BEState.Insert(model, ref, #(BEState.GetList(model, ref) or {}) + 1, instance)
+                placedUid = instance.uid
+                return
+            end
         end
-        --a block for an inner list: the first body of that kind, in order.
-        local function Search(list)
+        --a block for an inner list: the first body of that kind with room, in order.
+        local function Search(list, field)
             for _, placed in ipairs(list) do
                 local placedDecl = Block.GetBlock(placed.block)
                 for _, body in ipairs(placedDecl ~= nil and placedDecl.bodies or {}) do
                     if _fitsKind(fits, body.fits) then
-                        local ref = { field = "blocks", owner = placed.uid, body = body.id }
+                        local ref = { field = field, owner = placed.uid, body = body.id }
                         local target = BEState.GetList(model, ref) or {}
-                        BEState.Insert(model, ref, #target + 1, instance)
-                        return true
+                        if body.max == nil or #target < body.max then
+                            BEState.Insert(model, ref, #target + 1, instance)
+                            return true
+                        end
                     end
                 end
                 for _, inner in pairs(placed.bodies or {}) do
-                    if Search(inner) then
+                    if Search(inner, field) then
                         return true
                     end
                 end
             end
             return false
         end
-        if Search(model.blocks) then
-            placedUid = instance.uid
+        for _, section in ipairs(sections) do
+            if section.stack ~= nil and Search(model[section.stack] or {}, section.stack) then
+                placedUid = instance.uid
+                return
+            end
         end
     end)
     if placedUid ~= nil then

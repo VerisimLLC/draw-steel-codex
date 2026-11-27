@@ -7710,6 +7710,6 @@ Block.RegisterBehaviorBlock{
     claims = { "ActivatedAbilityHealBehavior" },
     fields = {
         who = Block.WhoField(),
-        amount = { field = "roll", default = "" },
+        amount = { field = "roll" },
     },
 }

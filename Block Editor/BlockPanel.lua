@@ -87,7 +87,7 @@ end
 --- @param width string
 --- @return Panel
 local function _sentence(decl, instance, width)
-    local uid = instance.uid
+    local uid = instance.uid or ""
     return BESlots.SentenceRow{
         decl = decl,
         values = instance.values,
@@ -159,7 +159,7 @@ function BEBlockPanel.Create(instance)
     for _, body in ipairs(decl.bodies or {}) do
         local ref = { field = "blocks", owner = uid, body = body.id }
         if body.label ~= nil then
-            local stack = BEStack.Create{ ref = ref, fits = body.fits, classes = {"beInner", "beTierInner"} }
+            local stack = BEStack.Create{ ref = ref, fits = body.fits, max = body.max, classes = {"beInner", "beTierInner"} }
             bodyStacks[body.id] = stack
             children[#children + 1] = gui.Panel{
                 classes = {"beTierRow"},
@@ -171,7 +171,7 @@ function BEBlockPanel.Create(instance)
                 stack,
             }
         else
-            local stack = BEStack.Create{ ref = ref, fits = body.fits, classes = {"beInner", "beInset"} }
+            local stack = BEStack.Create{ ref = ref, fits = body.fits, max = body.max, classes = {"beInner", "beInset"} }
             bodyStacks[body.id] = stack
             children[#children + 1] = stack
         end

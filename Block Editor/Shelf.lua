@@ -15,14 +15,18 @@ local T = UIText.T
 --- @class BEShelf
 BEShelf = {}
 
---- The blocks a shelf section lists: those that fit its kind of list.
+--- The blocks a shelf section lists: those that fit its kind of list. A real
+--- host never lists stub blocks: they cannot be saved, so dropping one would
+--- lose it.
 --- @param fits string
+--- @param host BlockHost|nil
 --- @return BlockDecl[]
-local function _blocksFor(fits)
+local function _blocksFor(fits, host)
+    local showStubs = host == nil or host.stub == true
     local result = {}
     for _, decl in ipairs(Block.All("block")) do
         --- @cast decl BlockDecl
-        if decl.shelf ~= false then
+        if decl.shelf ~= false and (showStubs or not decl.stub) then
             for _, kind in ipairs(decl.fits or {}) do
                 if kind == fits then
                     result[#result + 1] = decl
@@ -89,7 +93,7 @@ function BEShelf.Create(host)
 
     local children = {}
     for _, section in ipairs(sections) do
-        local decls = _blocksFor(section.fits)
+        local decls = _blocksFor(section.fits, host)
         local header, rule = BEStyles.SectionHeader{
             title = section.title,
             count = tostring(#decls),

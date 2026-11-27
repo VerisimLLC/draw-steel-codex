@@ -313,7 +313,7 @@ function BESlots.SentenceRow(args)
                 pendingSpace = true
             end
         else
-            local slotId = run.slot
+            local slotId = run.slot --[[@as string]]
             local slot = decl.slots ~= nil and decl.slots[slotId] or { kind = "text" }
             local value = values[slotId]
             if value == nil then

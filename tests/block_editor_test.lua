@@ -6,6 +6,7 @@
 
 local g_errors = {}
 local g_now = 0
+local g_failUpload = false
 
 --Stand-ins for what the files under test call, set with rawset so the type
 --checker does not take them for second definitions of the real globals.
@@ -114,7 +115,7 @@ local chips = assert(Block.GetBlock("stub.text"))
 Check(chips.shelf == false and chips.tag == "Text", "a card-text block stays off the shelf")
 
 --the stub ability host: its page, card and checks come from the model.
-local abilityHost = Block.Get("host", "stub.ability")
+local abilityHost = Block.Get("host", "stub.ability") --[[@as BlockHost]]
 Check(abilityHost ~= nil and abilityHost.demo ~= nil and #abilityHost.sections == 4, "the stub ability host declares its page and demo")
 local card = abilityHost.card(abilityHost.demo)
 Check(card.title == "Out of the Way! (3 Ferocity)" and #card.tiers == 3, "the card is built from the demo record")
@@ -130,7 +131,12 @@ local uploads = {}
 local host = {
     id = "test",
     canWrite = function() return true end,
-    upload = function(record, model) uploads[#uploads + 1] = #model.blocks end,
+    upload = function(record, model)
+        if g_failUpload then
+            return false
+        end
+        uploads[#uploads + 1] = #model.blocks
+    end,
 }
 local state = BEState.CreateNew(host)
 state:AddRecord({ id = "a", name = "A", blocks = {} })
@@ -192,6 +198,11 @@ Add()
 Check(state:UploadDirty(true) == 1 and #uploads == 2 and not state:IsDirty(), "a forced upload sends at once")
 state:Undo()
 Check(state:IsDirty(), "undo marks the record dirty, so the earlier state uploads too")
+g_failUpload = true
+Check(state:UploadDirty(true) == 0 and state:IsDirty() and state.failedUploads == 1, "a failed upload keeps the record dirty")
+g_failUpload = false
+g_now = g_now + 3
+Check(state:Think() == false and #uploads == 3, "the failed record is sent again after the delay")
 
 --nested lists: every placed block has a uid, and a body is reached by its owner.
 local nested = { id = "n", name = "N", blocks = { Block.Instantiate("stub.powerroll") } }
@@ -199,10 +210,10 @@ state:AddRecord(nested)
 local ownerUid = nested.blocks[1].uid
 Check(type(ownerUid) == "string", "opening a record gives its blocks uids")
 local tierRef = { field = "blocks", owner = ownerUid, body = "tier1" }
-Check(BEState.Insert(nested, tierRef, 1, Block.Instantiate("stub.tierdamage")), "a block goes into a body")
+Check(BEState.Insert(nested, tierRef, 1, Block.Instantiate("stub.tierdamage") --[[@as BlockInstance]]), "a block goes into a body")
 local placed = nested.blocks[1].bodies.tier1[1]
 Check(placed.uid ~= nil and BEState.FindInstance(nested, placed.uid) == placed, "a nested block is found by uid")
-Check(BEState.Insert(nested, { field = "blocks" }, 2, Block.Instantiate("stub.damage")), "a block goes into the top list")
+Check(BEState.Insert(nested, { field = "blocks" }, 2, Block.Instantiate("stub.damage") --[[@as BlockInstance]]), "a block goes into the top list")
 Check(BEState.Move(nested, nested.blocks[2].uid, -1) and nested.blocks[1].block == "stub.damage", "a block moves up its list")
 Check(BEState.Remove(nested, placed.uid) == placed and #nested.blocks[2].bodies.tier1 == 0, "a nested block is removed")
 

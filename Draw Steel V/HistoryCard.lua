@@ -934,6 +934,20 @@ local function PlayersMaySeeAbility(actor, name)
         or MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("feature", name))
 end
 
+--- An ability's name as the card's title and Why headings show it: bracketed and hovering to
+--- its card, as names do in the Why. Plain when that card can't be found or the local user
+--- may not see it (a creature whose name players may not see).
+--- @param actor HistoryCreature Who used it.
+--- @param name string
+--- @return string
+local function AbilityNameLink(actor, name)
+    if PlayersMaySeeAbility(actor, name) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
+        return HoverLink("[" .. name .. "]", string.format("a|%s|%s|%s", actor.id, name, g_cardSide or ""),
+            {kind = "ability", owner = actor.id, name = name, side = g_cardSide})
+    end
+    return name
+end
+
 local function Header(entry, width, inTray, close)
     local children = {}
     local titleWidth = width - 12 - 8 - 22
@@ -981,15 +995,7 @@ local function Header(entry, width, inTray, close)
     elseif entry.actor ~= nil then
         children[#children + 1] = History.Face(entry.actor, 30, true)
         titleWidth = titleWidth - 39
-        --the ability's name is bracketed and hovers to its card, as names do in the Why; only
-        --when the card can be found, and not for a creature whose name players may not see.
-        local name = entry.ability.name
-        local actor = entry.actor
-        if PlayersMaySeeAbility(actor, name) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
-            name = HoverLink("[" .. name .. "]", string.format("a|%s|%s|%s", actor.id, name, g_cardSide or ""),
-                {kind = "ability", owner = actor.id, name = name, side = g_cardSide})
-        end
-        title = History.ShownName(actor) .. History.DOT .. name
+        title = History.ShownName(entry.actor) .. History.DOT .. AbilityNameLink(entry.actor, entry.ability.name)
     end
     local meta = gui.Label{
         classes = {"historyCardMeta"},
@@ -1733,7 +1739,7 @@ local function SubHead(text, width, who, strong)
         face.selfStyle.halign = "left"
         children[1] = face
     end
-    children[#children + 1] = gui.Label{
+    local label = {
         classes = {"historySmallCaps", strong and "historySmallCapsStrong" or nil},
         text = text,
         width = "auto",
@@ -1742,6 +1748,8 @@ local function SubHead(text, width, who, strong)
         halign = "left",
         valign = "center",
     }
+    --a title can name its ability in brackets that hover to its card (the Why's headings).
+    children[#children + 1] = gui.Label(strong and Linked(label) or label)
     return gui.Panel{
         flow = "horizontal",
         width = width,
@@ -2699,6 +2707,7 @@ end
 --- @field who HistoryCreature|nil A face before the lead: the owner of a modifier.
 --- @field plain boolean|nil The line saying nothing changed the result: muted, with no lead.
 --- @field movers HistoryCreature[]|nil Whose recorded move the lead's side view button shows.
+--- @field heading string|nil In place of a line: the heading of a roll made inside the action, with the face of who.
 
 --Conditions whose name doesn't follow "cannot be".
 local CONDITION_PHRASES = {prone = T("history.why.condition_phrase.prone")}
@@ -3482,16 +3491,35 @@ end
 --- written once, naming them all. When nothing changed the result, one plain line says so.
 --- No gui, so other views can use the same words.
 
+--- Each roll made inside the action (a forced or granted strike) then gets a heading naming it,
+--- with its own lines under it in the same words; one with nothing to explain gets none.
 --- @param entry HistoryEntry
 --- @param kids? HistoryEntry[] What is nested under it.
+--- @param nested? boolean True for such a roll's own lines, under its heading.
 --- @return HistoryWhyRow[]
-function History.Why(entry, kids)
+function History.Why(entry, kids, nested)
     local rows = {}
     g_linkMap = entry.map
-    if entry.kind ~= "action" then
+    if entry.kind ~= "action" and not nested then
         return rows
     end
     local targets = entry.targets or {}
+
+    --a roll made inside the action, and what it set off, are explained under its own heading
+    --below, so the action's own lines leave them out.
+    local allKids = kids or {}
+    local sectioned = {}
+    for _, kid in ipairs(allKids) do
+        if not nested and IsNestedRoll(kid) then
+            sectioned[kid.id] = true
+        end
+    end
+    kids = {}
+    for _, kid in ipairs(allKids) do
+        if not sectioned[kid.id] and not (kid.cause ~= nil and sectioned[kid.cause]) then
+            kids[#kids + 1] = kid
+        end
+    end
 
     --each line is built once all its targets are known, so make can name them together
     --("Goblin 1-4").
@@ -3770,7 +3798,8 @@ function History.Why(entry, kids)
             rows[#rows + 1] = {
                 lead = owner ~= nil and T("history.possessive", {owner = History.ShownName(owner), name = name}) or lead,
                 who = owner,
-                text = T("history.why.triggered_by", {effect = effect}),
+                --under a strike's own heading, "this action" would point at the wrong thing.
+                text = T(nested and "history.why.triggered_by_strike" or "history.why.triggered_by", {effect = effect}),
             }
         end
         for _, message in ipairs(kid.messages or {}) do
@@ -3786,28 +3815,43 @@ function History.Why(entry, kids)
             rows[#rows + 1] = {text = message}
         end
     end
-    if #rows > 0 then
-        return rows
-    end
 
     --"Nothing changed" only when the roll and the damage are exactly what the tier says.
-    --A kit is the hero's normal damage, so it doesn't count as a change.
-
-    --a player doesn't know what changed a roll hidden from them.
-    if entry.secretroll then
-        return rows
-    end
-    local acted = roll ~= nil
-    local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
-    for _, who in ipairs(targets) do
-        acted = acted or (who.taken or 0) > 0
-        changed = changed or who.roll ~= nil
-        for _, part in ipairs(who.parts or {}) do
-            changed = changed or part.kind ~= "kit"
+    --A kit is the hero's normal damage, so it doesn't count as a change. A player doesn't
+    --know what changed a roll hidden from them, and a roll inside the action with nothing
+    --to explain gets no heading at all.
+    if #rows == 0 and not entry.secretroll and not nested then
+        local acted = roll ~= nil
+        local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
+        for _, who in ipairs(targets) do
+            acted = acted or (who.taken or 0) > 0
+            changed = changed or who.roll ~= nil
+            for _, part in ipairs(who.parts or {}) do
+                changed = changed or part.kind ~= "kit"
+            end
+        end
+        if acted and not changed then
+            rows[1] = {plain = true, text = T("history.why.nothing_changed")}
         end
     end
-    if acted and not changed then
-        rows[1] = {plain = true, text = T("history.why.nothing_changed")}
+
+    --each roll made inside the action, in the order rolled: its heading, then its own lines.
+    for _, kid in ipairs(allKids) do
+        if sectioned[kid.id] then
+            local setOff = {}
+            for _, other in ipairs(allKids) do
+                if other.cause == kid.id and not sectioned[other.id] then
+                    setOff[#setOff + 1] = other
+                end
+            end
+            local lines = History.Why(kid, setOff, true)
+            if #lines > 0 then
+                rows[#rows + 1] = {heading = History.ShownName(kid.actor) .. History.DOT .. AbilityNameLink(kid.actor, kid.ability.name), who = kid.actor}
+                for _, line in ipairs(lines) do
+                    rows[#rows + 1] = line
+                end
+            end
+        end
     end
     return rows
 end
@@ -3816,6 +3860,9 @@ end
 --thin rule down the left.
 --- @param row HistoryWhyRow
 local function WhyRow(row, width)
+    if row.heading ~= nil then
+        return SubHead(row.heading, width, row.who, true)
+    end
     local inner = width - WHY_INDENT
     local children = {}
     if row.lead ~= nil then

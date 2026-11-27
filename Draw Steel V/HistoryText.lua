@@ -689,6 +689,8 @@ text("history.why.potency.not_resisted", [[{potency}: {names} could not resist.]
 text("history.why.trigger_word_lead", [[Trigger]])
 text("history.why.trigger_word", [[trigger]])
 text("history.why.triggered_by", [[Triggered by this action: {effect}]])
+--the same, under the heading of a roll made inside the action (a forced or granted strike).
+text("history.why.triggered_by_strike", [[Triggered by this strike: {effect}]])
 --When nothing changed the result.
 text("history.why.nothing_changed", [[Nothing changed the roll or the damage.]])
 

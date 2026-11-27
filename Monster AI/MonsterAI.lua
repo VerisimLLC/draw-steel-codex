@@ -4646,6 +4646,33 @@ local function InitiativeEntryHasLiveToken(initiativeid)
     return false
 end
 
+--- True when this entry takes several turns a round (a solo's Solo Turns) and the
+--- turn that just ended was its own. Solos can't take turns consecutively, so the
+--- AI must not pick it again until another creature has taken a turn.
+--- Only within a round: a solo that took the last turn of one round may take
+--- the first turn of the next.
+--- @param queue InitiativeQueue
+--- @param initiativeid string
+--- @return boolean
+function MonsterAI.TookPreviousTurn(queue, initiativeid)
+    local entry = queue.entries[initiativeid]
+    if entry == nil or (entry.turnsPerRound or 1) <= 1 or (entry.turnsTaken or 0) <= 0
+        or entry.round ~= queue.round then
+        return false
+    end
+    local ended = rawget(entry, "endTurnTimestamp")
+    if type(ended) ~= "number" then
+        return false
+    end
+    for otherid,other in pairs(queue.entries) do
+        local otherEnded = rawget(other, "endTurnTimestamp")
+        if otherid ~= initiativeid and type(otherEnded) == "number" and otherEnded > ended then
+            return false
+        end
+    end
+    return true
+end
+
 local function CountFutureVillainActionWindows(queue, endedInitiativeId, ownerInitiativeId)
     local result = 0
     for initiativeid,entry in pairs(queue.entries) do
@@ -5356,16 +5383,14 @@ function MonsterAI:HandleVillainActionWindow(context)
     end
 
     local round = context.round
-    if type(round) ~= "number" or round < 1 or round > 3 then
+    if type(round) ~= "number" or round < 1 then
         return
     end
-    local slot = string.format("Villain Action %d", round)
     self:SetLogContext(nil, {
         turn = context.endedInitiativeId,
         round = round,
     })
     self:LogDecision("VILLAIN ACTION WINDOW START", {
-        slot = slot,
         budget = CharacterResource.GetVillainActions(),
     })
 
@@ -5385,93 +5410,121 @@ function MonsterAI:HandleVillainActionWindow(context)
             and context.initiativeQueue.entries[ownerInitiativeId] ~= nil
             and context.initiativeQueue:IsEntryPlayer(ownerInitiativeId) == false then
             local abilities = token.properties:GetActivatedAbilities()
+            --Villain actions may be used in any order, but are meant to go 1, 2, 3:
+            --this villain's unused ones are tried lowest first.
+            local options = {}
             for _,action in pairs(self.villainActions) do
                 if self.MoveMatchesMonster(token, action) then
                     local ability = FindAbilityByName(abilities, action.abilities[1])
-                    if ability ~= nil and ability:try_get("villainAction") == slot
-                        and not VillainActionState.HasUsed(token.charid, slot)
-                        and ability:CanAfford(token) then
-                        self:SetLogContext(token, {
-                            turn = context.endedInitiativeId,
-                            round = round,
+                    local abilitySlot = ability ~= nil and ability:try_get("villainAction") or nil
+                    --Skip an empty slot: casting it never marks it used, so it could fire every round.
+                    if type(abilitySlot) == "string" and abilitySlot ~= ""
+                        and not VillainActionState.HasUsed(token.charid, abilitySlot) then
+                        options[#options+1] = {
+                            action = action,
+                            ability = ability,
+                            slot = abilitySlot,
+                            --a slot name with no number is tried after the numbered ones.
+                            order = tonumber(string.match(abilitySlot, "%d+")) or math.huge,
+                        }
+                    end
+                end
+            end
+            table.sort(options, function(first, second)
+                if first.order ~= second.order then
+                    return first.order < second.order
+                end
+                return tostring(first.action.id) < tostring(second.action.id)
+            end)
+            for optionIndex,option in ipairs(options) do
+                --Before round 3 only the next one in order is tried, so the ult can't
+                --jump ahead of the crowd-control action. From round 3 on, any will do.
+                if optionIndex > 1 and round < 3 then
+                    break
+                end
+                local action = option.action
+                local ability = option.ability --[[@as ActivatedAbility]]
+                local slot = option.slot
+                if ability:CanAfford(token) then
+                    self:SetLogContext(token, {
+                        turn = context.endedInitiativeId,
+                        round = round,
+                    })
+                    self:SetupCombatants(token, context.initiativeQueue)
+                    local ok, scoringInfo, scoringReason = pcall(
+                        action.score, action, self, token, ability, context)
+                    if ok and type(scoringInfo) == "number" then
+                        scoringInfo = {score = scoringInfo}
+                    elseif not ok then
+                        self:LogDecision("VILLAIN ACTION ERROR", {
+                            category = self.MoveCategoryLogName(action),
+                            move = action.id,
+                            ability = ability.name,
+                            reason = "scoring failed: " .. tostring(scoringInfo),
                         })
-                        self:SetupCombatants(token, context.initiativeQueue)
-                        local ok, scoringInfo, scoringReason = pcall(
-                            action.score, action, self, token, ability, context)
-                        if ok and type(scoringInfo) == "number" then
-                            scoringInfo = {score = scoringInfo}
-                        elseif not ok then
-                            self:LogDecision("VILLAIN ACTION ERROR", {
-                                category = self.MoveCategoryLogName(action),
-                                move = action.id,
-                                ability = ability.name,
-                                reason = "scoring failed: " .. tostring(scoringInfo),
-                            })
-                            scoringInfo = nil
-                        end
+                        scoringInfo = nil
+                    end
 
-                        if type(scoringInfo) == "table" and type(scoringInfo.score) == "number" then
-                            local score = math.max(0, math.min(1, scoringInfo.score))
-                            local futureWindows = CountFutureVillainActionWindows(
-                                context.initiativeQueue,
-                                context.endedInitiativeId,
-                                ownerInitiativeId)
-                            local windowsIncludingNow = futureWindows + 1
-                            local chance = 1 - math.pow(1 - score, 1 / windowsIncludingNow)
-                            local roll = math.random()
-                            local candidate = {
-                                action = action,
-                                ability = ability,
-                                context = context,
-                                forced = futureWindows == 0,
-                                ownerInitiativeId = ownerInitiativeId,
-                                roll = roll,
-                                score = score,
-                                scoringInfo = scoringInfo,
-                                slot = slot,
-                                token = token,
-                                chance = chance,
-                            }
-                            candidates[#candidates+1] = candidate
-                            self:LogMove(token.properties.monster_type, action.id, string.format(
-                                "Score %.2f; chance %.2f; roll %.2f; %d window(s) including now%s",
-                                score, chance, roll, windowsIncludingNow, cond(candidate.forced, "; forced", "")))
-                            self:LogDecision("VILLAIN ACTION CANDIDATE", {
-                                category = self.MoveCategoryLogName(action),
-                                move = action.id,
-                                ability = ability.name,
-                                action = self.AbilityActionLogName(ability),
-                                score = score,
-                                plan = self.ScoringPlanLogName(scoringInfo),
-                                chance = chance,
-                                roll = roll,
-                                remainingWindows = windowsIncludingNow,
-                                result = candidate.forced and "forced in final window"
-                                    or roll <= chance and "passed use roll"
-                                    or "failed use roll",
-                            })
-                        elseif ok then
-                            self:LogDecision("VILLAIN ACTION REJECTED", {
-                                category = self.MoveCategoryLogName(action),
-                                move = action.id,
-                                ability = ability.name,
-                                reason = scoringReason or "score callback returned no legal plan",
-                            })
-                        end
-                    elseif ability ~= nil and ability:try_get("villainAction") == slot then
-                        self:SetLogContext(token, {
-                            turn = context.endedInitiativeId,
-                            round = round,
+                    if type(scoringInfo) == "table" and type(scoringInfo.score) == "number" then
+                        local score = math.max(0, math.min(1, scoringInfo.score))
+                        local futureWindows = CountFutureVillainActionWindows(
+                            context.initiativeQueue,
+                            context.endedInitiativeId,
+                            ownerInitiativeId)
+                        local windowsIncludingNow = futureWindows + 1
+                        local chance = 1 - math.pow(1 - score, 1 / windowsIncludingNow)
+                        local roll = math.random()
+                        local candidate = {
+                            action = action,
+                            ability = ability,
+                            context = context,
+                            forced = futureWindows == 0,
+                            ownerInitiativeId = ownerInitiativeId,
+                            roll = roll,
+                            score = score,
+                            scoringInfo = scoringInfo,
+                            slot = slot,
+                            token = token,
+                            chance = chance,
+                        }
+                        candidates[#candidates+1] = candidate
+                        self:LogMove(token.properties.monster_type, action.id, string.format(
+                            "Score %.2f; chance %.2f; roll %.2f; %d window(s) including now%s",
+                            score, chance, roll, windowsIncludingNow, cond(candidate.forced, "; forced", "")))
+                        self:LogDecision("VILLAIN ACTION CANDIDATE", {
+                            category = self.MoveCategoryLogName(action),
+                            move = action.id,
+                            ability = ability.name,
+                            action = self.AbilityActionLogName(ability),
+                            score = score,
+                            plan = self.ScoringPlanLogName(scoringInfo),
+                            chance = chance,
+                            roll = roll,
+                            remainingWindows = windowsIncludingNow,
+                            result = candidate.forced and "forced in final window"
+                                or roll <= chance and "passed use roll"
+                                or "failed use roll",
                         })
+                        break
+                    elseif ok then
                         self:LogDecision("VILLAIN ACTION REJECTED", {
                             category = self.MoveCategoryLogName(action),
                             move = action.id,
                             ability = ability.name,
-                            reason = VillainActionState.HasUsed(token.charid, slot)
-                                and "this villain action was already used"
-                                or AIAbilityUnavailableReason(token, ability),
+                            reason = scoringReason or "score callback returned no legal plan",
                         })
                     end
+                else
+                    self:SetLogContext(token, {
+                        turn = context.endedInitiativeId,
+                        round = round,
+                    })
+                    self:LogDecision("VILLAIN ACTION REJECTED", {
+                        category = self.MoveCategoryLogName(action),
+                        move = action.id,
+                        ability = ability.name,
+                        reason = AIAbilityUnavailableReason(token, ability),
+                    })
                 end
             end
         end

@@ -433,14 +433,21 @@ function InitiativeQueue.SetTurnNotTaken(self, entry)
 end
 
 function InitiativeQueue.SetTurnTaken(self, entry)
+	--A card shared by a solo and its minions takes the solo's turns. Reading
+	--each member in turn let whichever came last decide, often a 1-turn minion.
 	local tokens = self.GetTokensForInitiativeId(entry.initiativeid)
-	if tokens ~= nil then
+	if tokens ~= nil and #tokens > 0 then
+		local mostTurns = nil
 		for _,tok in ipairs(tokens) do
-			if tok ~= nil then
-				if tok.properties:TurnsPerRound() ~= entry.turnsPerRound then
-					entry.turnsPerRound = tok.properties:TurnsPerRound()
+			if tok ~= nil and tok.properties ~= nil then
+				local turns = tok.properties:TurnsPerRound()
+				if mostTurns == nil or turns > mostTurns then
+					mostTurns = turns
 				end
 			end
+		end
+		if mostTurns ~= nil and mostTurns ~= entry.turnsPerRound then
+			entry.turnsPerRound = mostTurns
 		end
 	end
 

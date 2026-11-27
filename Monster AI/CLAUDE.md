@@ -50,6 +50,7 @@ shadow-elves.lua
 
 1. `MonsterAIPanel.lua` runs a coroutine (`MonsterAIThread`) that polls the initiative queue.
 2. When it is the monsters' side to choose, it picks which waiting initiative group goes next. This runs before every monster turn over every group still waiting, so it is deliberately cheap and plans no moves (see "Initiative choice" in `MonsterAI.lua`). Each member bids `MonsterAI.TurnPriority` times a random factor of 1 to 1.5: minions bid `initiativeMinionPriority` (4), other creatures 1 plus up to `initiativeNearDeathPriority` (3) as they near death. A member that cannot strike anyone this turn (`CanStrikeThisTurn`, a reach check using straight-line distance and, only when needed, its movement area) keeps a tenth of its bid, so every group that can strike goes first. The group's score is its best member's. When only one group is waiting it is chosen without any checks. Run `../dependencies/lua/bin/lua.exe tests/ai_initiative_choice_test.lua` from the codex root.
+   A solo (an entry with `turnsPerRound` above 1, from Solo Turns) can't take turns consecutively: `MonsterAI.TookPreviousTurn(queue, id)` is true when the turn that just ended was its own, and the choice skips it. When it is the monster side's only choice, `ResolveBlockedSoloTurn` (`MonsterAIPanel.lua`) passes the turn to a hero who can still act, or, with nobody else left this round, forfeits the solo's leftover turn and ends the round (`SOLO TURN BLOCKED` in the log). Only within a round: a solo that took the last turn of a round may take the first of the next.
    Once a group is chosen and it is a non-player turn, the thread creates a `MonsterAI` instance and calls `PlayTurnSafely(initiativeid)`.
 3. Reveal every acting monster that is Hidden (`RevealHiddenActors`, calling `creature:LoseHidden()`), so a hidden monster always comes out and acts; Hidden This Turn keeps its edge. With "Hidden Creatures are Invisible" (`strict:hiddeninvisible`, forced on in EotW) players cannot see a Hidden monster at all, so this is where it reappears.
    Then score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
@@ -720,9 +721,13 @@ A band-specific `End Effect` registration would override all of this. Run
 
 A **villain action** is scored after a turn's `EndTurn` events finish and before
 the initiative queue advances. The scheduler enforces the shared one-per-round
-budget and the per-encounter used state. Round 1 uses `Villain Action 1`, round 2
-uses `Villain Action 2`, and round 3 uses `Villain Action 3`; later rounds do not
-automatically use a villain action.
+budget and the per-encounter used state. The rules allow villain actions in any
+order and any round, but they are meant to go 1, 2, 3: each villain offers its
+lowest-numbered unused villain action. Before round 3 that is the only one tried,
+so the ult never comes early; from round 3 on, when it has no legal plan the next
+unused one is tried. So a villain that shows up in round 2 opens with
+`Villain Action 1`, and one that missed a round still gets all three. A slot with
+an empty name is skipped, because casting it never marks it used.
 
 Scores are normalized to 0-1. At a window with `N` legal opportunities remaining
 including the current one, the use chance is `1 - (1 - score)^(1/N)`. If no later

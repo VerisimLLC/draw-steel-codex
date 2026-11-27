@@ -243,6 +243,54 @@ function MonsterAI.PlayersSideGone(queue)
     return hasPlayerEntry
 end
 
+--- Normally the heroes go next on their own after a solo's turn. This runs only
+--- when the monster side must choose and its only choice is a solo that just
+--- took a turn, which it can't do twice in a row. If a hero can still act (the
+--- Director switched sides by hand), pass them the turn; otherwise the solo
+--- gives up its leftover turn and the round ends.
+--- @param queue InitiativeQueue
+--- @param soloid string the blocked solo's initiative id
+--- @param entriesUnmoved table<string, any> queue:EntriesUnmoved()
+local function ResolveBlockedSoloTurn(queue, soloid, entriesUnmoved)
+    local logger = MonsterAI.new{}
+    logger:SetLogContext(nil, {turn = soloid, round = queue.round})
+
+    for initiativeid,_ in pairs(entriesUnmoved) do
+        if initiativeid ~= soloid then
+            for _,tok in ipairs(GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, initiativeid)) do
+                if MonsterAI.TokenIsLiveCombatant(tok) then
+                    logger:LogDecision("SOLO TURN BLOCKED", {
+                        reason = "a solo can't take turns consecutively",
+                        result = "passing the turn to the heroes",
+                    })
+                    queue.playersTurn = true
+                    dmhub:UploadInitiativeQueue()
+                    return
+                end
+            end
+        end
+    end
+
+    logger:LogDecision("SOLO TURN BLOCKED", {
+        reason = "a solo can't take turns consecutively and no one else is left to act this round",
+        result = "forfeiting the solo's remaining turn",
+    })
+    local entry = queue.entries[soloid]
+    --SetTurnTaken counts one turn per call. Repeat until the solo is done for
+    --the round (capped in case it never is).
+    for _ = 1, 10 do
+        if entry == nil or not queue:EntryUnmoved(entry) then
+            break
+        end
+        queue:SetTurnTaken(entry)
+    end
+    local newRound = queue:AdvanceRoundIfComplete()
+    dmhub:UploadInitiativeQueue()
+    if newRound then
+        GameHud.instance:NewRound()
+    end
+end
+
 --Runs as a DockablePanel background process (see "Panel background
 --processes" in DockablePanel.lua): registered from the Start AI button,
 --it keeps taking monster turns even if the Monster AI panel is closed,
@@ -481,8 +529,12 @@ local function MonsterAIThread(process)
 
                 --The waiting monster groups with someone alive in them.
                 local groups = {}
+                local blockedSoloId = nil
                 for k,_ in pairs(entriesUnmoved) do
-                    if not queue:IsEntryPlayer(k) then
+                    if not queue:IsEntryPlayer(k) and MonsterAI.TookPreviousTurn(queue, k) then
+                        --Solo Turns: it can't go twice in a row.
+                        blockedSoloId = k
+                    elseif not queue:IsEntryPlayer(k) then
                         local members = {}
                         for _,tok in ipairs(GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, k)) do
                             if MonsterAI.TokenIsLiveCombatant(tok) then
@@ -493,6 +545,12 @@ local function MonsterAIThread(process)
                             groups[#groups+1] = {initiativeid = k, members = members}
                         end
                     end
+                end
+
+                if #groups == 0 and blockedSoloId ~= nil then
+                    ResolveBlockedSoloTurn(queue, blockedSoloId, entriesUnmoved)
+                    MonsterAI.ProfPhaseEnd(choicePhase, "solo can't go twice in a row")
+                    return
                 end
 
                 --See "Initiative choice" in MonsterAI.lua for the rule.

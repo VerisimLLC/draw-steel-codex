@@ -493,7 +493,7 @@ function CharacterToken:FindChargeRoutes(enemy, radius, range, distance, cache) 
 --- @return nil|table
 function CharacterToken:PlanChargeJumpOutcome(sourceLoc, targetLoc, distance, jumpHeight) end
 
---- Show a translucent ghost of this token standing at loc, like the one a drag shows, until Destroy() is called on the result. Only a picture on this client: the token does not move. The Monster AI's plan preview uses it to show where a monster will move to.
+--- Show a translucent ghost of this token standing at loc, like the one a drag shows, until Destroy() is called on the result. Only a picture on this client: the token does not move. The Monster AI's plan preview uses it to show where a monster will move to. Also works for a character with no token on this map, such as a dead creature or one on another map (dmhub.GetCharacterById): the ghost is drawn from its character data, and dmhub.SetMovementCrossSection given that character draws it with this ghost's picture.
 --- @param loc Loc
 --- @return nil|LuaMultiObjectReference
 function CharacterToken:CreateGhost(loc) end

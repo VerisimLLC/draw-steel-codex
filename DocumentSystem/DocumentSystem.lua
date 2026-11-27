@@ -7172,8 +7172,10 @@ function CustomDocument.CreateTabbedViewer(placement)
             g_journal.viewer = element
         end,
 
+        --below the action bar, like the rail windows: Escape cancels a cast
+        --or move before it closes a journal tab (4RYX4G4U).
         captureEscape = true,
-        escapePriority = EscapePriority.EXIT_DIALOG,
+        escapePriority = EscapePriority.DMHUB_TOKEN,
         escape = function(element)
             if element.data.activeTabId then
                 element:FireEvent("closeTab", element.data.activeTabId)
@@ -10694,8 +10696,10 @@ function PanelDocument:CreateInterface(args)
         --kind-default escape activation disabled: as the newest listener
         --it won the escape race. Pinned windows clear captureEscape in
         --SyncPinnedState.
+        --The window is workspace, not a mode: it ranks below the action bar
+        --so Escape cancels a cast or move first (4RYX4G4U).
         captureEscape = tabbed,
-        escapePriority = EscapePriority.EXIT_DIALOG,
+        escapePriority = EscapePriority.DMHUB_TOKEN,
         escape = function(element)
             if Pinned() then
                 return

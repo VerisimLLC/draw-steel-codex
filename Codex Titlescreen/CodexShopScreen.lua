@@ -4570,6 +4570,84 @@ local ShowItemDetailsInternal = function(args)
 	--explicit width rather than "100%": a floating child's percentage resolves
 	--against the containing dialog, not its own parent (see
 	--detailsBackingGradient below for the same trap).
+	--Dice bundles: while a die in the bundle row (m_bundleDiceRow) is hovered,
+	--that die's own banner background fades in over the hero art. One layer per
+	--die, built when the bundle is shown so the art has loaded by the time the
+	--die is hovered. Rolling a die pins its art, so it stays up after the mouse
+	--leaves until another die is rolled. setBackdrops { images } rebuilds the
+	--layers; showBackdrop(image) fades that one in and the rest out (nil = the
+	--pinned art, or none); pinBackdrop(image) pins and shows it;
+	--clearBackdrop unpins and hides everything.
+	--- @type Panel|nil
+	local m_bundleBackdrop = nil
+	if not args.gift then
+		local m_layers = {}
+		local m_pinned = nil
+		m_bundleBackdrop = gui.Panel{
+			floating = true,
+			interactable = false,
+			halign = "left",
+			valign = "top",
+			hmargin = 0,
+			vmargin = 0,
+			width = g_bannerDisplayWidth,
+			height = g_bannerDisplayHeight,
+
+			--Only the fade class carries the transitionTime, so it applies in
+			--both directions (same pattern as the dice banner's xfadeLayer).
+			styles = {
+				{
+					selectors = {"bundleBackdrop", "fade"},
+					opacity = 0,
+					transitionTime = 0.4,
+				},
+			},
+
+			setBackdrops = function(element, images)
+				m_layers = {}
+				m_pinned = nil
+				local children = {}
+				for _,image in ipairs(images) do
+					if image ~= nil and image ~= "" and m_layers[image] == nil then
+						local layer = gui.Panel{
+							classes = {"bundleBackdrop", "fade"},
+							floating = true,
+							interactable = false,
+							bgimage = image,
+							bgcolor = "white",
+							halign = "left",
+							valign = "top",
+							width = g_bannerDisplayWidth,
+							height = g_bannerDisplayHeight,
+						}
+						m_layers[image] = layer
+						children[#children+1] = layer
+					end
+				end
+				element.children = children
+			end,
+
+			showBackdrop = function(element, image)
+				if image == nil then
+					image = m_pinned
+				end
+				for layerImage,layer in pairs(m_layers) do
+					layer:SetClass("fade", layerImage ~= image)
+				end
+			end,
+
+			pinBackdrop = function(element, image)
+				m_pinned = image
+				element:FireEvent("showBackdrop", image)
+			end,
+
+			clearBackdrop = function(element)
+				m_pinned = nil
+				element:FireEvent("showBackdrop", nil)
+			end,
+		}
+	end
+
 	local m_heroBanner
 	if args.gift then
 		m_heroBanner = m_imageDisplay
@@ -4581,6 +4659,8 @@ local ShowItemDetailsInternal = function(args)
 			halign = "center",
 
 			m_imageDisplay,
+
+			m_bundleBackdrop,
 
 			gui.Panel{
 				floating = true,
@@ -4705,6 +4785,12 @@ local ShowItemDetailsInternal = function(args)
 	--invisible hitbox), numDice/numFaces (the seeded roll), restScale
 	--(optional resting-size multiplier for this cage's dice; hover/roll
 	--sizes unaffected), label (optional caption under the dice).
+	--Bundle cages (see m_bundleDiceRow) also pass: assetid (roll this dice set
+	--instead of the viewed item's), forItemId (seed only while this item, the
+	--bundle, is the one viewed), itemid (analytics),
+	--inline (lay the cage out in its parent's flow instead of floating at x),
+	--sharedGlobals = false (leave the dice globals alone on destroy; the
+	--Dice showcase cages own them), and onHover / onDehover / onRoll callbacks.
 	local MakeTryDiceCage = function(cageArgs)
 		local captionLabel = nil
 		if cageArgs.label ~= nil then
@@ -4732,12 +4818,14 @@ local ShowItemDetailsInternal = function(args)
 		local diceCageCtor = gui.Panel
 		pcall(function() diceCageCtor = gui.DicePreview or gui.Panel end)
 
+		local inline = cageArgs.inline == true
+
 		return gui.Panel{
 			classes = {"collapseOnGift"},
-			floating = true,
-			halign = "left",
+			floating = not inline,
+			halign = cond(inline, "center", "left"),
 			valign = "center",
-			x = cageArgs.x,
+			x = cond(inline, nil, cageArgs.x),
 			width = cageArgs.width,
 			height = 96,
 			flow = "vertical",
@@ -4800,9 +4888,11 @@ local ShowItemDetailsInternal = function(args)
 				destroy = function(element)
 					pcall(function() element:CancelDicePreviewRoll() end)
 					pcall(function() element:SetAsDicePreviewPanel(false) end)
-					pcall(function() dice.SetPreviewRollScreenBounds(false) end)
-					pcall(function() dice.SetPreviewDiceSpacing(1.0) end)
-					pcall(function() dice.SetRollPreviewModel("") end)
+					if cageArgs.sharedGlobals ~= false then
+						pcall(function() dice.SetPreviewRollScreenBounds(false) end)
+						pcall(function() dice.SetPreviewDiceSpacing(1.0) end)
+						pcall(function() dice.SetRollPreviewModel("") end)
+					end
 				end,
 
 				--The reused details panel toggles visibility via show/hideProductDetails
@@ -4818,7 +4908,14 @@ local ShowItemDetailsInternal = function(args)
 				--sitting on a non-dice item's page. Treat a non-Dice item exactly
 				--like the panel being hidden.
 				refreshItem = function(element, item)
-					if item == nil or item.itemType ~= "Dice" then
+					--Bundle cages (forItemId) belong to one bundle's page only.
+					local wanted
+					if cageArgs.forItemId ~= nil then
+						wanted = item ~= nil and item.id == cageArgs.forItemId
+					else
+						wanted = item ~= nil and item.itemType == "Dice"
+					end
+					if not wanted then
 						element:FireEvent("hideProductDetails")
 						return
 					end
@@ -4852,7 +4949,10 @@ local ShowItemDetailsInternal = function(args)
 					--pick up the current item's set/material: UpdatePreview retains a
 					--same-size die and would otherwise keep the previous item's look.
 					pcall(function() element:CancelDicePreviewRoll() end)
-					pcall(function() dice.SetRollPreviewModel(item.assetid) end)
+					--The override is global, but the seeded dice keep the set they
+					--spawned in, so bundle cages can each set their own in turn.
+					local assetid = cageArgs.assetid or item.assetid
+					pcall(function() dice.SetRollPreviewModel(assetid) end)
 					dmhub.Roll{
 						preview = true, ["local"] = true, silent = true,
 						previewPanel = element,
@@ -4863,7 +4963,7 @@ local ShowItemDetailsInternal = function(args)
 							--(cancel covers the too-weak-drag and teardown paths).
 							analytics.Event{
 								type = "shopTryDiceRoll",
-								itemid = item.id,
+								itemid = cageArgs.itemid or item.id,
 								dice = string.format("%dd%d", cageArgs.numDice, cageArgs.numFaces),
 							}
 							if element.valid then element:FireEvent("requestReseed") end
@@ -4885,16 +4985,30 @@ local ShowItemDetailsInternal = function(args)
 				--Hover wobble + click/drag-to-roll on this cage's resting dice.
 				hover = function(element)
 					pcall(function() element:DicePreviewMouseEnter() end)
+					if cageArgs.onHover ~= nil then
+						cageArgs.onHover()
+					end
 				end,
 				dehover = function(element)
 					pcall(function() element:DicePreviewMouseLeave() end)
+					if cageArgs.onDehover ~= nil then
+						cageArgs.onDehover()
+					end
 				end,
 				click = function(element)
 					---@cast element DicePreview
 					pcall(function() element:DicePreviewClick() end)
+					if cageArgs.onRoll ~= nil then
+						cageArgs.onRoll()
+					end
 				end,
+				--onRoll fires as the drag starts (and harmlessly every frame of
+				--it), since the drag can leave the cage before it is released.
 				dragging = function(element)
 					pcall(function() element:DicePreviewDragThink() end)
+					if cageArgs.onRoll ~= nil then
+						cageArgs.onRoll()
+					end
 				end,
 				drag = function(element)
 					pcall(function() element:DicePreviewDragEnd() end)
@@ -4902,6 +5016,101 @@ local ShowItemDetailsInternal = function(args)
 			},
 
 			captionLabel,
+		}
+	end
+
+	--Dice bundles: a rollable d10 of each dice set in the bundle, under the
+	--hero banner, captioned with the set's name. Hovering one fades that set's
+	--banner background into the hero banner (m_bundleBackdrop). The cages are
+	--rebuilt only when a different bundle is shown; for any other item the row
+	--empties and collapses.
+	local m_bundleDiceRow = nil
+	if m_bundleBackdrop ~= nil then
+		local backdrop = m_bundleBackdrop
+
+		--The bundle's Dice items, sorted by name so the row order is stable.
+		--- @param item ShopItemLua
+		--- @return ShopItemLua[]
+		local function BundleDiceItems(item)
+			local result = {}
+			if item == nil or not item.hasBundle then
+				return result
+			end
+			for itemid,_ in pairs(item.bundle) do
+				local sub = assets.shopItems[itemid]
+				if sub ~= nil and sub.itemType == "Dice" and sub.assetid ~= nil and sub.assetid ~= "" then
+					result[#result+1] = sub
+				end
+			end
+			table.sort(result, function(a, b) return tostring(a.name) < tostring(b.name) end)
+			return result
+		end
+
+		m_bundleDiceRow = gui.Panel{
+			classes = {"collapsed"},
+			flow = "horizontal",
+			wrap = true,
+			width = g_bannerDisplayWidth,
+			height = "auto",
+			halign = "center",
+			vmargin = 8,
+			data = { bundleid = nil },
+
+			--Runs after the details-wide refreshItem pass, which has already
+			--re-seeded cages kept from the same bundle; only new cages need it.
+			showProductDetails = function(element, item)
+				--Each visit starts on the bundle's own art, whatever was hovered
+				--or rolled when the page was last left.
+				backdrop:FireEvent("clearBackdrop")
+				local diceItems = BundleDiceItems(item)
+				element:SetClass("collapsed", #diceItems == 0)
+				if #diceItems == 0 then
+					if element.data.bundleid ~= nil then
+						element.data.bundleid = nil
+						element.children = {}
+						backdrop:FireEvent("setBackdrops", {})
+					end
+					return
+				end
+
+				if element.data.bundleid == item.id then
+					return
+				end
+				element.data.bundleid = item.id
+
+				local children = {}
+				local images = {}
+				for _,diceItem in ipairs(diceItems) do
+					local image = ReadItemBannerConfig(diceItem).backgroundImage
+					images[#images+1] = image
+					children[#children+1] = MakeTryDiceCage{
+						inline = true,
+						width = 150,
+						cageWidth = 150,
+						numDice = 1,
+						numFaces = 10,
+						label = diceItem.name,
+						assetid = diceItem.assetid,
+						forItemId = item.id,
+						itemid = diceItem.id,
+						sharedGlobals = false,
+						onHover = function()
+							backdrop:FireEvent("showBackdrop", image)
+						end,
+						onDehover = function()
+							backdrop:FireEvent("showBackdrop", nil)
+						end,
+						onRoll = function()
+							backdrop:FireEvent("pinBackdrop", image)
+						end,
+					}
+				end
+				element.children = children
+				backdrop:FireEvent("setBackdrops", images)
+				for _,child in ipairs(children) do
+					child:FireEventTree("refreshItem", item)
+				end
+			end,
 		}
 	end
 
@@ -5822,6 +6031,8 @@ local ShowItemDetailsInternal = function(args)
 					element.children = m_footerItems
 				end,
 			},
+
+			m_bundleDiceRow,
 
 			--Info/cart column: artist, price and Add to Cart. The name and
 			--description live in the banner overlay above, so they are

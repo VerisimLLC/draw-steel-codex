@@ -259,12 +259,6 @@ Styles = {
 			uiscale = { x = 1, y = 0.001 },
 		}),
 
-		--make sure dockable panels are interactable.
-		gui.Style{
-			selectors = {"dockablePanel"},
-			bgimage = "panels/square.png",
-		},
-
 		--dropdowns.
 
 		gui.Style{

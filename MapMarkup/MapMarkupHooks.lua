@@ -366,17 +366,9 @@ local function GetMarkupSelectedWall()
         return nil
     end
 
-    --The dock ancestor is optional: panel content can be hosted outside the
-    --dock (e.g. the document system's PanelDocument bridge), so only use it
-    --for the highlight, never as a gate.
-    local dockPanel = m.markupHud:FindParentWithClass("dockablePanel")
-
     --erase/delete are custom map tools, not wall drawing: publish no wall so
     --the engine building tools stay inactive while they run.
     if m.mode ~= "walls" or m.toolId == "erase" or m.toolId == "delete" or not m.arm.Armed() then
-        if dockPanel ~= nil then
-            dockPanel:SetClass("highlightPanel", false)
-        end
         return nil
     end
 
@@ -393,9 +385,6 @@ local function GetMarkupSelectedWall()
     --Gated on the engine tool actually being "points", like the fallback
     --below, so the exception can never leak into wall drawing.
     if m.solidMode and not (m.toolId == "points" and dmhub.GetSettingValue("buildingtool") == "points") then
-        if dockPanel ~= nil then
-            dockPanel:SetClass("highlightPanel", false)
-        end
         return nil
     end
 
@@ -418,15 +407,9 @@ local function GetMarkupSelectedWall()
     end
 
     if guid == nil or assets.walls[guid] == nil then
-        if dockPanel ~= nil then
-            dockPanel:SetClass("highlightPanel", false)
-        end
         return nil
     end
 
-    if dockPanel ~= nil then
-        dockPanel:SetClass("highlightPanel", true)
-    end
     return guid
 end
 

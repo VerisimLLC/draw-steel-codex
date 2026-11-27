@@ -1648,14 +1648,10 @@ local function BuildRules()
     }
 end
 
---Font Size (120-140%: grow and wrap). With the icon-rail UI the engine no
---longer enlarges fonts (it zooms rail windows instead), so the full-screen
---sheet scales its own text; without it the engine already does, so 1.
+--Font Size (120-140%: grow and wrap). The engine does not enlarge fonts (it
+--zooms rail windows instead), so the full-screen sheet scales its own text.
 ---@return number
 local function FontScale()
-    if dmhub.GetSettingValue("iconrail") ~= true then
-        return 1
-    end
     local scale = ThemeEngine.GetAccessibility().scale or 1
     if type(scale) ~= "number" or scale <= 0 then
         return 1

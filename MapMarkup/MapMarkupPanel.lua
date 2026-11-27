@@ -1039,7 +1039,7 @@ end
 --after Escape: Escape disarms and drops focus, then a press on a chip or tab
 --put focus back here with the panel still disarmed. The host's
 --click-to-focus then saw focus already held and skipped panelFocused (see
---ClaimTabFocus / FocusPanelContent), so the panel showed its focus edge but
+--ClaimTabFocus), so the panel showed its focus edge but
 --could not draw until it was closed and reopened.
 --m.arm.Set runs before SetFocus because claiming MapTools can make another
 --tool drop its GUI focus.
@@ -1358,9 +1358,9 @@ CreateMarkupEditor = function()
                 return
             end
             m.arm.Set(false)
-            --give up focus with the tool: both hosts skip the panelFocused
-            --nudge while focus is already here (ClaimTabFocus /
-            --FocusPanelContent guard on it), so keeping focus would mean
+            --give up focus with the tool: the host skips the panelFocused
+            --nudge while focus is already here (ClaimTabFocus guards on
+            --it), so keeping focus would mean
             --the next click on the panel does NOT re-arm. Dropping it also
             --puts the host's focus highlight out, which is the visible
             --"tool down".
@@ -1392,28 +1392,6 @@ CreateMarkupEditor = function()
             m.arm.Set(false)
             if gui.ChildHasFocus(element) then
                 gui.SetFocus(nil)
-            end
-        end,
-
-        --The dockablePanel ancestor can be nil: content can be hosted outside
-        --the dock (PanelDocument bridge), and focus events can fire while the
-        --panel is detached. Guard like Objects.lua does.
-        --
-        --These now only drive the host's focus HIGHLIGHT. They no longer
-        --touch `markuparmed`: focus is not the armed state any more, so a
-        --focus steal must not put the armed dot out while the tool is still
-        --live. m.arm.Set owns that event.
-        childfocus = function(element)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", true)
-            end
-        end,
-
-        childdefocus = function(element)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
             end
         end,
 

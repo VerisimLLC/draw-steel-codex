@@ -13494,13 +13494,6 @@ function TacPanel.SectionsContainer()
         width = "100%",
         height = "auto",
         flow = "vertical",
-        monitor = GetDockablePanelsSetting(),
-        events = {
-            monitor = function(element)
-                dmhub.SetPref(TacPanel.KeyName(), nil)
-                sortChildren(element, ActiveOrder())
-            end,
-        },
 
         reorderSections = function(element, draggedId, targetId)
             if draggedId == targetId then return end

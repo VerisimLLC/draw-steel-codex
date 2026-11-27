@@ -41,20 +41,16 @@ local TIER_BUFFER = 40
 --the content scrolls instead of squashing.
 local MIN_CONTENT_HEIGHT = HeroSheetWindow.MIN_HEIGHT - TITLE_HEIGHT
 
---- How much the window's inside is zoomed. With the icon rail on, the engine
---- holds font magnification at 1, so the sheet zooms by Font Size as the
---- rail's windows do; with it off the engine already magnifies every font,
---- so zooming too would double-scale.
+--- How much the window's inside is zoomed. The engine holds font
+--- magnification at 1, so the sheet zooms by Font Size as the rail's
+--- windows do.
 --- @return number
 function HeroSheetWindow.Zoom()
-    if dmhub.GetSettingValue("iconrail") == true then
-        return (dmhub.GetSettingValue("fontsize") or 100) * 0.01
-    end
-    return 1
+    return (dmhub.GetSettingValue("fontsize") or 100) * 0.01
 end
 
---The Font Size that picks the tier: the layout is the window divided by it
---in both rail modes, so a large font moves to a narrower tier either way.
+--The Font Size that picks the tier: the layout is the window divided by it,
+--so a large font moves to a narrower tier.
 --- @return number
 local function TierScale()
     local scale = (dmhub.GetSettingValue("fontsize") or 100) * 0.01
@@ -1202,9 +1198,9 @@ function HeroSheetWindow.Create(args)
             end
         end,
 
-        --Font Size or the icon rail changed: zoom and tier follow at once;
+        --Font Size changed: zoom and tier follow at once;
         --Transparent UI changed: the backdrop frosts or goes solid.
-        multimonitor = {"fontsize", "iconrail", "graphics:uiblur"},
+        multimonitor = {"fontsize", "graphics:uiblur"},
         monitor = function(element)
             --plates change with Transparent UI too, so the rules are rebuilt.
             element.styles = WindowStyles()
@@ -1464,7 +1460,7 @@ function HeroSheetWindow.ShowPopup(args)
         data = {
             onClose = args.onClose,
         },
-        multimonitor = {"fontsize", "iconrail"},
+        multimonitor = {"fontsize"},
         monitor = function(element)
             Layout()
         end,

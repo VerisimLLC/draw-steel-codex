@@ -220,7 +220,7 @@ function PuzzlePlace.MenuEntries(id, close)
                 PuzzlePlace.PutOnTable(id, nil)
             end }
         end
-        if rawget(_G, "IconRailKeyAdd") ~= nil and dmhub.GetSettingValue("iconrail") == true then
+        if rawget(_G, "IconRailKeyAdd") ~= nil then
             entries[#entries + 1] = { text = "Add to your rail", click = function()
                 close()
                 PuzzlePlace.AddToRail(id, "left", nil)

@@ -2364,7 +2364,7 @@ local function BuildWindow()
             element.data.wasOpen = open
             element:FireEventTree("paint")
         end,
-        multimonitor = { "fontsize", "iconrail" },
+        multimonitor = { "fontsize" },
         monitor = function(element)
             local useRows = HeroSheetWindow.DialogWidth(WINDOW_WIDTH) < ROWS_BELOW
             if useRows ~= g_useRows then

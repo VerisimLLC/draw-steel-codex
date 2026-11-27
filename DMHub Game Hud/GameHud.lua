@@ -1213,9 +1213,6 @@ function GameHud:CreateToolbarPanel()
 					gui.Tooltip(text)(element)
 				end,
 				rightClick = function(element)
-					if dmhub.GetSettingValue("uilocked") then
-						return
-					end
 					local menuItems = {
 						{
 							text = "Remove from toolbar",
@@ -1304,16 +1301,10 @@ function GameHud:CreateToolbarPanel()
         icon = "ui-icons/Plus.png",
 		popupPositioning = "panel",
 
-		monitor = "uilocked",
-
 		events = {
 
 			create = function(element)
-				element:SetClass("collapsed", dmhub.GetSettingValue("uilocked") or #buttons >= 8)
-			end,
-
-			monitor = function(element)
-				element:FireEvent("create")
+				element:SetClass("collapsed", #buttons >= 8)
 			end,
 
 			click = function(element)
@@ -1430,14 +1421,6 @@ function GameHud:CreateToolbarPanel()
 	resultPanel:FireEvent("update")
 
     return resultPanel
-end
-
-function GameHud:Docks()
-    local result = {}
-    result[#result+1] = rawget(self, "leftDock")
-    result[#result+1] = rawget(self, "rightDock")
-    result[#result+1] = rawget(self, "floatingDock")
-    return result
 end
 
 local g_presentableDialogs = {}
@@ -2053,7 +2036,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--gamehud:CreateSidePanel(),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
-			gamehud:CreateDocks(),
 
 			--ORDER IS Z-ORDER: panels have no z-index, so a later sibling draws
 			--over an earlier one. The documents layer hosts every floating
@@ -2210,21 +2192,17 @@ function GameHud.RegisterPresentableDialog(args)
 end
 
 --Right margin for the right-side hosts (ability sidebar and standalone
---roll host). With the legacy docks a fixed 364 column is reserved for
---the right dock. In icon-rail mode the dock is gone, so the hosts sit
---near the right edge -- clearing only the rail's button column -- and
---slide left, as far as needed to fully clear floating panel windows
---parked against the right edge (RailWindowsRightIntrusion), stopping
---only when the host itself would run off the left of the screen.
-local RIGHT_HOST_LEGACY_MARGIN = 364
+--roll host). The hosts sit near the right edge -- clearing only the
+--rail's button column -- and slide left, as far as needed to fully clear
+--panel windows parked against the right edge (RailWindowsRightIntrusion),
+--stopping only when the host itself would run off the left of the screen.
+--a window counts as parked on the right when it reaches this close to the edge.
+local RIGHT_HOST_INTRUSION_DEPTH = 364
 --rail column: 12 edge margin + 40 button + a small gap.
 local RIGHT_HOST_RAIL_MARGIN = 60
 --breathing room between the host and whatever the rail column ends in.
 local RIGHT_HOST_RAIL_GAP = 8
 local function RightHostMargin(hostWidth)
-    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
-        return RIGHT_HOST_LEGACY_MARGIN
-    end
     --the rail column itself. RIGHT_HOST_RAIL_MARGIN covers the ordinary
     --button strip, but a custom-interface takeover can mount a far wider
     --widget there -- the EotW hero roster is a stack of 132-unit cards --
@@ -2240,14 +2218,14 @@ local function RightHostMargin(hostWidth)
     if rawget(_G, "RailWindowsRightIntrusion") ~= nil then
         --the reserve keeps the host on screen: its own width plus a
         --left rail column's worth of clearance.
-        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN,
+        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_INTRUSION_DEPTH,
             hostWidth + RIGHT_HOST_RAIL_MARGIN)
     end
     return math.max(column, intrusion)
 end
 
 --Keep a right-side host's margin tracking RightHostMargin(). Polled:
---the inputs (the iconrail setting, window drags/opens/closes) have no
+--the inputs (window drags/opens/closes) have no
 --single change event, and the check is a handful of table reads.
 local function TrackRightHostMargin(panel)
     --both hosts declare fixed numeric widths; fall back to the wider of
@@ -2278,7 +2256,7 @@ function GameHud:CreateAbilityDisplayPanel()
         styles = ThemeEngine.GetStyles(),
         height = "100%",
         width = 360,
-        rmargin = RIGHT_HOST_LEGACY_MARGIN,
+        rmargin = RIGHT_HOST_RAIL_MARGIN,
         halign = "right",
         valign = "center",
         interactable = false,
@@ -2310,7 +2288,7 @@ function GameHud:CreateStandaloneRollHost()
         styles = ThemeEngine.GetStyles(),
         width = 540,
         height = "auto",
-        rmargin = RIGHT_HOST_LEGACY_MARGIN,
+        rmargin = RIGHT_HOST_RAIL_MARGIN,
         halign = "right",
         valign = "center",
         flow = "vertical",

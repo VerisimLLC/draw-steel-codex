@@ -11,10 +11,6 @@ DockablePanel.Register{
 	name = "Maps",
     menu = "game",
 	icon = "phosphor/map-trifold.png",
-	--summoned from the Game menu it opens as a floating window over the
-	--map (like the launchable dialog it used to be), not docked. It can
-	--still be dragged into a dock.
-	preferFloating = true,
 	--the map list scrolls itself (it is a tree with its own scroll
 	--region), so no wrapper scroll here.
 	vscroll = false,

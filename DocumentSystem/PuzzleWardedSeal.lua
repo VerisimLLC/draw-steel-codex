@@ -28,21 +28,6 @@ local function WardColours()
     return { bg = "#15121cff", border = "#6c5a8cff", lit = "#f2c96bff", rune = "#e9e2f5ff", cursor = "#56b4e9ff", thick = 8 }
 end
 
---The ward's pictures are fixed pixels, so they follow the player's UI scale. With the icon
---rail on, the engine zooms the whole window instead.
----@return number
-local function ArtScale()
-    if dmhub.GetSettingValue("iconrail") == true then
-        return 1
-    end
-    local scale = 1
-    pcall(function() scale = ThemeEngine.GetAccessibility().scale or 1 end)
-    if type(scale) ~= "number" or scale <= 0 then
-        return 1
-    end
-    return scale
-end
-
 --Keyboard play for the hands: a command context while the seal window has the focus.
 local COMMAND_CONTEXT = "wardseal"
 local KEY_COMMANDS = {}
@@ -1125,11 +1110,12 @@ local function Render(ctx)
         return m_ctx:Assist("text") and math.floor(px * 1.35) or px
     end
 
-    --the ward's pictures: "Larger ward" and the UI scale.
+    --the ward's pictures, enlarged by "Larger ward". The engine zooms the whole window
+    --for the UI scale, so the pixels here are not scaled for it.
     ---@param px number
     ---@return number
     local function Art(px)
-        return math.floor(px * (m_ctx:Assist("large") and 1.5 or 1) * ArtScale())
+        return math.floor(px * (m_ctx:Assist("large") and 1.5 or 1))
     end
 
     --keys reach the seal only while its window itself holds the focus (not the chat box).
@@ -2261,7 +2247,7 @@ local function Render(ctx)
                 json(m_ctx.state or {}), json(Puzzle.ReadKept(m_ctx.id)), json(m_ctx.config or {}),
                 tostring(m_ctx.readonly), tostring(Puzzle.TimeLeft(m_ctx.id) ~= nil), tok ~= nil and tok.charid or "",
                 tostring(m_ctx:Assist("confirm")), tostring(m_ctx:Assist("large")), tostring(m_ctx:Assist("text")),
-                tostring(IsDMOrPlayerHost()), tostring(WardColours().thick), tostring(ArtScale()),
+                tostring(IsDMOrPlayerHost()), tostring(WardColours().thick),
             }, "|")
             if sig ~= m_signature then
                 m_signature = sig

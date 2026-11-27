@@ -396,11 +396,6 @@ end
 --non-drag path for the shortcut feature). Returns a list to APPEND to
 --the document row's normal context menu -- never a menu of its own,
 --which would shadow the standard verbs (Share to Chat, Rename, ...).
---Empty when rail mode is off (per-user setting in Settings > General,
---"New Experimental UI", on by default).
-local function RailAvailable()
-    return dmhub.GetSettingValue("iconrail") == true
-end
 
 --Only a CustomDocument-backed row can actually go on a rail: the layout
 --key is "doc:<id>" and IconRailDocAdd resolves it against the
@@ -430,7 +425,7 @@ end
 
 local function RailAddMenuEntries(element, doc)
     local result = {}
-    if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not RailAvailable() then
+    if doc == nil or rawget(_G, "IconRailDocAdd") == nil then
         return result
     end
     if not RailCanTakeDocument(doc) then
@@ -457,7 +452,7 @@ end
 --same way document rows get theirs.
 local function RailAddCharacterEntries(element, charid)
     local result = {}
-    if charid == nil or rawget(_G, "IconRailCharacterAdd") == nil or not RailAvailable() then
+    if charid == nil or rawget(_G, "IconRailCharacterAdd") == nil then
         return result
     end
     result[#result + 1] = {

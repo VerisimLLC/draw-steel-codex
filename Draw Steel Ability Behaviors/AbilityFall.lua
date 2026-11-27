@@ -430,31 +430,6 @@ function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets,
 		text = DigVerticalDescribe(chosen),
 	}
 
-	--Dock to the LEFT of the right-hand dock (which holds the ability/power-roll
-	--panel) so the picker sits over the map and never covers the dock. The dock is
-	--user-resizable, so read its live width rather than using a fixed margin, and
-	--keep it in sync via think in case the dock is resized while the picker is open.
-	local DOCK_GAP = 14
-	local function CurrentDockInset()
-		--Wrapped so a torn-down dock (whose userdata can throw on index during
-		--teardown) can never break the think tick; fall back to just the gap.
-		local ok, inset = pcall(function()
-			local d = rawget(gamehud, "rightDock")
-			if d ~= nil and d.valid and (not d:HasClass("offscreen")) then
-				return (d.renderedWidth or 0) + DOCK_GAP
-			end
-			return DOCK_GAP
-		end)
-		if ok and type(inset) == "number" then
-			return inset
-		end
-		return DOCK_GAP
-	end
-
-	--Track the applied inset in a local: the panel's rmargin is settable but not
-	--readable (reading it errors), so we compare against this instead of the element.
-	local lastInset = CurrentDockInset()
-
 	local panel
 	panel = gui.Panel{
 		classes = {"dig-modal"},
@@ -462,20 +437,7 @@ function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets,
 		height = "auto",
 		halign = "right",
 		valign = "center",
-		rmargin = lastInset,
-		thinkTime = 0.25,
-		think = function(element)
-			--Fully guarded: if a Lua reload ever orphans this dialog while it is
-			--open, the leftover panel's think keeps firing against a torn-down
-			--element. The pcall makes that a silent no-op instead of log spam.
-			pcall(function()
-				local inset = CurrentDockInset()
-				if inset ~= lastInset then
-					lastInset = inset
-					element.rmargin = inset
-				end
-			end)
-		end,
+		rmargin = 14,
 		flow = "vertical",
 		bgimage = "panels/square.png",
 		bgcolor = C_bgAlt,

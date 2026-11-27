@@ -617,10 +617,9 @@ local function RailKey(rec)
     return "mapwindow:" .. rec.id
 end
 
---Docked on a rail that is actually showing (with the rail off, a docked
---window's button goes back on the table).
+--Docked on a rail: the window's button is there rather than on the table.
 local function IsDocked(rec)
-    return RailModeActive() and IconRailKeySlot(RailKey(rec)) ~= nil
+    return IconRailKeySlot(RailKey(rec)) ~= nil
 end
 
 --A caption control in the native style of the app's title bar: a
@@ -9356,11 +9355,6 @@ do
         end
     end
 
-    --The icon rail is the workspace's button bar ("New Experimental UI").
-    local function RailInUse()
-        return dmhub.GetSettingValue("iconrail") == true and rawget(_G, "IconRailKeyAdd") ~= nil
-    end
-
     --Turns a table item into a rail button: place(key) puts the entry's
     --rail key on a rail and says whether it did; then the item leaves the
     --table, as a minimized map window's button does when docked.
@@ -9570,7 +9564,7 @@ do
                         CustomDocument.OpenContent(CustomDocument.FindJournalEntry(item.entryid))
                     end),
                 }
-                if RailInUse() then
+                if rawget(_G, "IconRailKeyAdd") ~= nil then
                     entries[#entries+1] = GuardedEntry("Dock to Left Rail", function()
                         element.popup = nil
                         DockDocItem(item, function(key) return IconRailKeyAdd(key, "left") end)

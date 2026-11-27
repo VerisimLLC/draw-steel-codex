@@ -35,45 +35,16 @@ end
 
 local g_screenArea = core.Vector4(0,0,0,0)
 
---function called by dmhub to see what area of the screen is occupied by the hud.
+--Called by the engine to learn how much of the screen edges the hud covers
+--(x = left, y = right, z = top, w = bottom, as fractions of the screen).
+--Panels float over the map as rail windows now, so nothing is reserved.
 function Hud.GetScreenHudArea(self)
-	local left = 0
-	local right = 0
-    
-	if gamehud ~= nil and not dmhub.GetSettingValue("graphics:uiblur") then
-		if rawget(gamehud, "leftDock") ~= nil and (not gamehud.leftDock:HasClass("offscreen")) and #gamehud.leftDock.data.GetChildren() > 0 then
-			left = (DockablePanel.DockWidth/1920) * (1920/1080) / (self.dialog.width/self.dialog.height)
-		end
-		if rawget(gamehud, "rightDock") ~= nil and (not gamehud.rightDock:HasClass("offscreen")) and #gamehud.rightDock.data.GetChildren() > 0 then
-			right = DockablePanel.DockWidth/1920 * (1920/1080) / (self.dialog.width/self.dialog.height)
-		end
-	end
-
-    g_screenArea.x = left
-    g_screenArea.y = right
     return g_screenArea
 end
 
-local g_worldPanelArea = core.Vector4(0,0,0,0)
-
---same as above but special version for World Panel
+--Same as above for the World Panel host.
 function Hud.GetScreenHudAreaWorldPanel(self)
-	local left = 0
-	local right = 0
-    
-	if gamehud ~= nil then
-        --the GetChildren() calls are expensive. Try to work out a more efficient way to do them if we need to have them.
-		if gamehud:has_key("leftDock") and (not gamehud.leftDock:HasClass("offscreen")) then --and #gamehud.leftDock.data.GetChildren() > 0 then
-			left = (DockablePanel.DockWidth/1920) * (1920/1080) / (self.dialog.width/self.dialog.height)
-		end
-		if gamehud:has_key("rightDock") and (not gamehud.rightDock:HasClass("offscreen")) then --and #gamehud.rightDock.data.GetChildren() > 0 then
-			right = DockablePanel.DockWidth/1920 * (1920/1080) / (self.dialog.width/self.dialog.height)
-		end
-	end
-
-    g_worldPanelArea.x = left
-    g_worldPanelArea.y = right
-    return g_worldPanelArea
+    return g_screenArea
 end
 
 --- Owner-routed modals: a modal fired from a panel living in a native

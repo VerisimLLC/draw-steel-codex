@@ -80,21 +80,7 @@ CreateClipboard = function(options)
         width = "100%",
         height = "auto",
 
-        --The dockablePanel ancestor can be nil: panel content can be hosted
-        --outside the dock (the document system's PanelDocument bridge), and
-        --focus events can fire while detached. Guard like Objects.lua does.
-        childfocus = function(element)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", true)
-            end
-        end,
-
         childdefocus = function(element, focusInfo)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
-            end
             dmhub.SetSettingValue("selectiontool", "none")
         end,
 

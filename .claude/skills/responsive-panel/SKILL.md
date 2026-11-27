@@ -251,7 +251,7 @@ Handling 364 is necessary; looking good at 1500 is the other half.
   handler are also laid out the same frame. `gui.LayoutSettleDiagnostics()` counts the late
   layouts; `{log = true}` logs who caused each one.
 - **`uiscale` is the blunt instrument.** It scales a whole subtree (and DOES participate in
-  layout, unlike `scale`), which is how `dockscale` shrinks the docks. It is a zoom, not
+  layout, unlike `scale`). It is a zoom, not
   responsiveness -- text AND chrome scale together, and it has a pivot trap: set `pivot` via
   `selfStyle` on an ATTACHED panel using the named form (`{x=0, y=0}`), never positionally and
   never only in the constructor, or it silently stays centered. Reach for it only when the

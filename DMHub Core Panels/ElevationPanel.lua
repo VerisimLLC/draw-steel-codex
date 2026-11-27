@@ -268,9 +268,9 @@ CreateHeightmapEditor = function()
         --active panel before closing itself: while a tool is live, Escape
         --means "put it down", and claiming the press is what stops the same
         --keystroke also closing the window. Disarmed, we do not claim it.
-        --Focus goes with the tool -- both hosts skip the panelFocused nudge
-        --while focus is already here (ClaimTabFocus / FocusPanelContent guard
-        --on it), so keeping focus would mean the next click does NOT re-arm.
+        --Focus goes with the tool -- the host skips the panelFocused nudge
+        --while focus is already here (ClaimTabFocus guards on it), so
+        --keeping focus would mean the next click does NOT re-arm.
         panelEscape = function(element, claim)
             if not HeightmapArmed() then
                 return
@@ -291,23 +291,6 @@ CreateHeightmapEditor = function()
         destroy = function(element)
             if g_heightmapEditor == element then
                 SetHeightmapArmed(false)
-            end
-        end,
-
-        --The dockablePanel ancestor can be nil: panel content can be hosted
-        --outside the dock (the document system's PanelDocument bridge), and
-        --focus events can fire while detached. Guard like Objects.lua does.
-        childfocus = function(element)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", true)
-            end
-        end,
-
-        childdefocus = function(element)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
             end
         end,
 

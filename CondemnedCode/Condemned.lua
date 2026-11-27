@@ -3621,9 +3621,8 @@ local mapButtons = rawget(_G, "MapButtons")
 --The Condemned's Director tools belong to the campaign, not to a map, so they sit on
 --the Director's own icon rail (added to the right rail the first time) rather than the
 --live map window's rail. Each is a rail key "condemned:<id>" drawn by the rail entry
---type below. With the rail mode off there is no icon rail, so the same buttons fall
---back to the old MapButtons bar. A function scope keeps these locals off the main
---chunk, which is near Lua's 200-local limit.
+--type below. A function scope keeps these locals off the main chunk, which is near
+--Lua's 200-local limit.
 ;(function()
     --id -> button. Add further campaign tools here and to ORDER.
     local BUTTONS = {
@@ -3762,30 +3761,22 @@ local mapButtons = rawget(_G, "MapButtons")
         }
     end
 
-    --the MapButtons registry outlives a reload of this file, so drop the old registration
-    --first; the loop below registers the fallback only while the rail mode is off.
-    if mapButtons ~= nil then
-        for _, id in ipairs(ORDER) do
-            mapButtons.Unregister("condemned:" .. id)
-        end
+    --Seed after a rail layout is in place (entering the game, or a View applied), never
+    --before: a layout written before the first-entry check makes a fresh game look
+    --already arranged, so its built-in View is skipped.
+    local panelDocument = rawget(_G, "PanelDocument")
+    if panelDocument ~= nil and panelDocument.OnRailLayoutApplied ~= nil then
+        panelDocument.OnRailLayoutApplied("condemned", function()
+            if not mod.unloaded and dmhub.isDM then
+                SeedRail()
+            end
+        end)
     end
 
     dmhub.Coroutine(function()
-        local seeded = false
-        --true while the buttons sit on the map's button bar; nil forces the loop below to add them again
-        ---@type boolean|nil
-        local fallback = false
         --a 1 or 0 per button in ORDER for whether the story has reached it; a change redraws the rail
         local reachedBefore = nil
         while not mod.unloaded do
-            local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
-            if not railMode then
-                --seed again when the rail comes back, in case a button unlocked while it was off
-                seeded = false
-            elseif dmhub.isDM and not seeded then
-                seeded = true
-                SeedRail()
-            end
             local reached = ""
             for _, id in ipairs(ORDER) do
                 reached = reached .. (StageReached(BUTTONS[id]) and "1" or "0")
@@ -3796,37 +3787,13 @@ local mapButtons = rawget(_G, "MapButtons")
             if not popupOpen then
                 --only Directors have these buttons, so players' rails are left alone
                 if reachedBefore ~= nil and reached ~= reachedBefore and dmhub.isDM then
-                    if railMode then
-                        SeedRail()
-                        local rebuild = rawget(_G, "IconRailRebuildSoon")
-                        if rebuild ~= nil then
-                            rebuild()
-                        end
+                    SeedRail()
+                    local rebuild = rawget(_G, "IconRailRebuildSoon")
+                    if rebuild ~= nil then
+                        rebuild()
                     end
-                    --the button-bar loop below only runs when fallback changes; nil makes it register
-                    --the bar again now, so a button that just unlocked or locked shows or goes
-                    fallback = nil
                 end
                 reachedBefore = reached
-            end
-            local wantFallback = mapButtons ~= nil and not railMode
-            if wantFallback ~= fallback then
-                fallback = wantFallback
-                for _, id in ipairs(ORDER) do
-                    if fallback and StageReached(BUTTONS[id]) then
-                        mapButtons.Register("condemned:" .. id, {
-                            name = BUTTONS[id].name,
-                            icon = BUTTONS[id].icon,
-                            tooltip = BUTTONS[id].name,
-                            directorOnly = true,
-                            click = function(element)
-                                OpenPopup(id, element)
-                            end,
-                        })
-                    else
-                        mapButtons.Unregister("condemned:" .. id)
-                    end
-                end
             end
             coroutine.yield(1)
         end

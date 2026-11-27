@@ -140,10 +140,7 @@ end
 
 --Resolve which of an editor's hud instances is armed -- live, mounted,
 --and holding GUI focus. Destroyed instances are swept from the list as a
---side effect, so a stale entry can never shadow a live one. The
---"dockablePanel" ancestor, when there is one, only carries the legacy
---highlight class; instances hosted outside a dock (icon-rail panel
---windows, PanelDocument) arm just the same.
+--side effect, so a stale entry can never shadow a live one.
 local function ArmedHud(list)
     local armed = nil
     for i = #list, 1, -1 do
@@ -151,12 +148,7 @@ local function ArmedHud(list)
         if hud == nil or not hud.valid then
             table.remove(list, i)
         else
-            local focused = hud.parent ~= nil and gui.ChildHasFocus(hud)
-            local dockPanel = hud:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", focused)
-            end
-            if focused then
+            if hud.parent ~= nil and gui.ChildHasFocus(hud) then
                 armed = hud
             end
         end
@@ -197,10 +189,6 @@ local function DisarmHudList(list)
         else
             if hud.parent ~= nil and gui.ChildHasFocus(hud) then
                 gui.SetFocus(nil)
-            end
-            local dockPanel = hud:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
             end
         end
     end
@@ -979,27 +967,16 @@ CreateTerrainEditor = function(options)
             end
         end,
         
-        --The dockablePanel ancestor can be nil: panel content can be hosted
-        --outside the dock (the document system's PanelDocument bridge), and
-        --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
             --Focus IS this editor's armed state, so gaining it is arming:
             --claim the map and put any latched tool (Map Markup, Elevation)
             --down. options.layer is "terrain" or "effects", the ids these
             --editors register under.
             MapTools.Claim(options.layer)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", true)
-            end
         end,
 
         childdefocus = function(element)
             MapTools.Release(options.layer)
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
-            end
         end,
 
         data = {
@@ -1774,9 +1751,6 @@ CreateBuildingEditor = function()
             end
         end, 
 
-        --The dockablePanel ancestor can be nil: panel content can be hosted
-        --outside the dock (the document system's PanelDocument bridge), and
-        --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
             --Focus IS this editor's armed state, so gaining it is arming:
             --claim the map and put any latched tool (Map Markup, Elevation)
@@ -1784,18 +1758,10 @@ CreateBuildingEditor = function()
             --only while this panel already holds focus, so a polled re-press
             --can never turn into a claim the user did not make.
             MapTools.Claim("building")
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", true)
-            end
         end,
 
         childdefocus = function(element)
             MapTools.Release("building")
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
-            end
         end,
 
         data = {

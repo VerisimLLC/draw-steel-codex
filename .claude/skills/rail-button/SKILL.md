@@ -207,17 +207,16 @@ Remove `defs[id]`, write the setting, and remove the `"button:" .. id` key from
 
 ### Rebuilding the rail
 
-`RebuildIconRails` is file-local, but `EnsureIconRail()` and `RailModeActive()` are
-globals, and the off/on path is the designed rebuild:
+`RebuildIconRails` is file-local; call the global `IconRailRebuildSoon()`, which
+rebuilds both rails on the next frame (repeated calls in one frame coalesce):
 
 ```lua
-dmhub.SetSettingValue("iconrail", false); EnsureIconRail()
-dmhub.SetSettingValue("iconrail", true);  EnsureIconRail()
+IconRailRebuildSoon()
 ```
 
 This is only needed for **face/layout** changes (new button, name, icon, @slots,
 @bgcolor, deletion). Script-body-only edits are live at next click without it. If the
-rail misbehaves after the toggle, `mcp__dmhub__reload_lua` is the blunt reliable reset.
+rail misbehaves after the rebuild, `mcp__dmhub__reload_lua` is the blunt reliable reset.
 
 ## Writing the script itself
 

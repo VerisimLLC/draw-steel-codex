@@ -6088,9 +6088,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
             end,
 
             --The bar's scale: the aspect-ratio fit it always had, times the
-            --Font Size setting as a flat zoom in icon-rail mode, the rails'
-            --way (PanelDocument.WindowUIScale -- the engine holds font
-            --magnification at 1 there, so scaling the root is how the bar
+            --Font Size setting as a flat zoom, the rails' way
+            --(PanelDocument.WindowUIScale -- the engine holds font
+            --magnification at 1, so scaling the root is how the bar
             --follows the setting at all). Clamped so the scaled bar can
             --never grow wider than the dock-free screen width.
             setBarScale = function(element)
@@ -6117,8 +6117,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                 element.selfStyle.uiscale = scale
             end,
 
-            --a live Font Size (or rail mode) change re-applies the zoom.
-            multimonitor = {"fontsize", "iconrail"},
+            --a live Font Size change re-applies the zoom.
+            multimonitor = {"fontsize"},
             monitor = function(element)
                 element:FireEvent("setBarScale")
             end,

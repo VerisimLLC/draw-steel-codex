@@ -3513,20 +3513,10 @@ mod.shared.CreateObjectEditor = function(options)
 			--Elevation Editor) puts itself down. See
 			--DMHub Core UI/MapToolArbiter.lua.
 			MapTools.Claim("objects")
-
-			local dockablePanel = element:FindParentWithClass("dockablePanel")
-			if dockablePanel ~= nil then
-            	dockablePanel:SetClass("highlightPanel", true)
-			end
         end,
 
         childdefocus = function(element, focusInfo)
 			MapTools.Release("objects")
-
-			local dockablePanel = element:FindParentWithClass("dockablePanel")
-			if dockablePanel ~= nil then
-            	dockablePanel:SetClass("highlightPanel", false)
-			end
 
 			if focusInfo.oldFocus ~= element and focusInfo.newFocus == nil and (not dmhub.KeyPressed("Escape")) then
 				focusInfo.newFocus = element
@@ -3605,25 +3595,14 @@ local function ObjectEditorOnScreen(element)
 	return true
 end
 
---This used to require a "dockablePanel" ANCESTOR, which doubled as the
---liveness check and as the thing carrying the legacy highlight class. That
---ancestor only exists in a DOCK, so hosted anywhere else -- notably an
---icon-rail panel window -- object editing mode never armed at all, meaning
---locked objects could not be clicked. Liveness is now checked directly and
---the dock ancestor is only used for the highlight class, when there is one.
+--Object editing mode is on while the Objects panel is up, on screen and
+--holding focus. This is what lets locked objects be clicked.
 dmhub.ObjectEditingEnabled = function()
 	if m_objectEditor == nil or (not m_objectEditor.valid) or m_objectEditor.parent == nil then
 		return false
 	end
 
-	local focused = gui.ChildHasFocus(m_objectEditor) and ObjectEditorOnScreen(m_objectEditor)
-
-	local dockPanel = m_objectEditor:FindParentWithClass("dockablePanel")
-	if dockPanel ~= nil then
-		dockPanel:SetClass("highlightPanel", focused)
-	end
-
-	return focused
+	return gui.ChildHasFocus(m_objectEditor) and ObjectEditorOnScreen(m_objectEditor)
 end
 
 --Somebody else armed a map tool: object editing mode is focus-armed, so

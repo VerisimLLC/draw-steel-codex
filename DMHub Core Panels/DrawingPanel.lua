@@ -339,28 +339,15 @@ CreateWhiteboardPanel = function()
         end,
 
  
-        --The dockablePanel ancestor can be nil: panel content can be hosted
-        --outside the dock (the document system's PanelDocument bridge), and
-        --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
             --Focus IS the whiteboard's armed state, so gaining it is arming:
             --claim the map so any latched map tool (Map Markup, the Elevation
             --Editor) puts itself down. See DMHub Core UI/MapToolArbiter.lua.
             MapTools.Claim("whiteboard")
-
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", true)
-            end
         end,
 
         childdefocus = function(element)
             MapTools.Release("whiteboard")
-
-            local dockPanel = element:FindParentWithClass("dockablePanel")
-            if dockPanel ~= nil then
-                dockPanel:SetClass("highlightPanel", false)
-            end
         end,
     }
 

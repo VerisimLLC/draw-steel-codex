@@ -6700,13 +6700,10 @@ function CustomDocument.CreateTabbedViewer(placement)
     end
 
     --What a maximized journal fills: the documents layer, clear of the icon
-    --rails (their 12-unit margin, 40-unit buttons and a gap) when they are on.
+    --rails (their 12-unit margin, 40-unit buttons and a gap).
     local function MaximizedRect()
         local w, h = LayerSize()
-        local inset = 0
-        if dmhub.GetSettingValue("iconrail") == true then
-            inset = math.floor((12 + 40 + 8) * PanelDocument.WindowUIScale())
-        end
+        local inset = math.floor((12 + 40 + 8) * PanelDocument.WindowUIScale())
         return {x = inset, y = 0, w = w - 2 * inset, h = h}
     end
 
@@ -8034,19 +8031,14 @@ local function DocumentWindowStyles()
     return dialogStyles
 end
 
---In the icon-rail UI the Font Size setting acts as a flat zoom on these
---windows: the window renders at uiscale = fontsize/100 around its
---top-left corner while the engine holds font magnification at 1
---(GameConfig.cs does this whenever iconrail is on), so the content
---inside is unchanged -- the whole window is simply scaled. Outside rail
---mode windows stay at scale 1 and the setting magnifies fonts as it
---always has. Window geometry (x/y/width/height, _tmp_location, the
---resize handles) all stays in the unscaled panel units.
+--The Font Size setting acts as a flat zoom on these windows: the window
+--renders at uiscale = fontsize/100 around its top-left corner while the
+--engine holds font magnification at 1 (GameConfig.cs, because the
+--iconrail setting is on), so the content inside is unchanged -- the whole
+--window is simply scaled. Window geometry (x/y/width/height,
+--_tmp_location, the resize handles) all stays in the unscaled panel units.
 local function WindowUIScale()
-    if dmhub.GetSettingValue("iconrail") == true then
-        return (dmhub.GetSettingValue("fontsize") or 100) * 0.01
-    end
-    return 1
+    return (dmhub.GetSettingValue("fontsize") or 100) * 0.01
 end
 
 --args may carry placement overrides for the window:
@@ -8243,7 +8235,7 @@ function CustomDocument:PresentDocument(args)
             element.selfStyle.uiscale = scale
         end,
 
-        multimonitor = {"fontsize", "iconrail"},
+        multimonitor = {"fontsize"},
         monitor = function(element)
             element:FireEvent("setWindowScale")
         end,
@@ -9742,9 +9734,8 @@ function PanelDocument:CreateInterface(args)
             return
         end
         if tab.reg.focusOnClick then
-            --Already ours: leave focus exactly where it is. See the dock's
-            --copy in FocusPanelContent -- a press on one of the panel's own
-            --controls bubbles up here too (presses do not swallow by
+            --Already ours: leave focus exactly where it is. A press on one
+            --of the panel's own controls bubbles up here too (presses do not swallow by
             --default), and re-grabbing to the content root wipes focus
             --state the panel's controls track themselves. The Objects
             --palette's ctrl/shift multi-select reads the previously focused
@@ -9760,11 +9751,10 @@ function PanelDocument:CreateInterface(args)
         end
     end
 
-    --Mirror the dock host's content contract (CreateDockablePanelInstance):
-    --content() inside a vscroll parent unless the registration opts out.
-    --Content anchors to the top of the window: the dock sizes its slots
-    --to hug content, but our window height is fixed, and a short panel
-    --left to the default centering floats in a void.
+    --The registration's content contract: content() inside a vscroll
+    --parent unless the registration opts out. Content anchors to the top
+    --of the window: the window height is fixed, and a short panel left to
+    --the default centering floats in a void.
     --
     --DEFERRED BUILD: the wrapper (and the window chrome around it)
     --renders on the frame the window opens; reg.content() -- the
@@ -10406,7 +10396,7 @@ function PanelDocument:CreateInterface(args)
         if reg == nil then
             return
         end
-        --same gate as the docks: a saved tab must not be the way back in.
+        --a saved tab must not be the way back in to a panel this user may not have.
         if not DockablePanel.PanelPermittedForUser(reg) then
             return
         end
@@ -10628,9 +10618,8 @@ function PanelDocument:CreateInterface(args)
     }
 
     --The FOCUS EDGE: a bright accent line down the window's left side
-    --while this window's content holds the GUI focus -- the docks'
-    --dockPanelFocusOutline treatment, restored to the rail windows
-    --(David 2026-08-15). It was removed with the tab-strip rework in
+    --while this window's content holds the GUI focus (David 2026-08-15).
+    --It was removed with the tab-strip rework in
     --favor of the header chip's "armed" accent; both live now -- the
     --chip names WHICH tab is armed, the edge is the at-a-glance "this
     --window is the active one" a name cannot give from peripheral
@@ -10881,9 +10870,8 @@ function PanelDocument:CreateInterface(args)
                 bold = true,
                 priority = 10,
             },
-            --The focus edge. Repeated here rather than inherited from
-            --DefaultStyles (where the docks' copy lives): panels on the
-            --documents layer do NOT get that global cascade, which is
+            --The focus edge. These rules live here, not in DefaultStyles:
+            --panels on the documents layer do NOT get that global cascade, which is
             --exactly why everything here carries its own `styles`. Without
             --these two rules the edge panel exists, sits in the right
             --place, and draws nothing at all.
@@ -11144,7 +11132,7 @@ end
 ----------------------------------------------------------------------
 -- Panel icon rail
 -- ---------------
--- Experimental alternative host for the dockable panels: translucent
+-- The host for the registered panels (DockablePanel.Register): translucent
 -- icon rails down the left and right edges of the screen. Clicking an
 -- icon opens the panel in a document window beside the rail (one such
 -- "transient" window at a time); dragging a window makes it stick where
@@ -11156,47 +11144,7 @@ end
 -- A window can also be PINNED (the push-pin in its title bar, or the
 -- rail button's context menu): a pinned window is locked in place -- no
 -- close, no drag, no resize -- and always comes back with the rails.
---
--- ON by default; toggled per-user from Settings > General ("New
--- Experimental UI"), or via /toggle iconrail. The dock system is
--- untouched while the rail is off; while it is on, each side's dock is
--- slid away and its handle tab hidden, so the rails are the way panels
--- are reached (the Panels menu still toggles the docks).
 ----------------------------------------------------------------------
-
---forward-declared (defined next to SyncDockHandles): slides the docks
---off screen when the rail mode turns on and back on screen when it
---turns off.
-local SyncDocksToRailMode
-
---The iconrail setting itself is registered early, in DockablePanel.lua
---("DMHub Core UI"): the title bar reads it through EffectiveDockScale at
---its own load time, well before this file loads, and reading an
---unregistered setting logs an engine error. Its onchange dispatches to
---this global, which owns the actual mode-switch behavior.
-function IconRailSettingChanged()
-    if mod.unloaded then
-        return
-    end
-    --docks first, so the rails built below see the updated dock
-    --visibility and come up uncollapsed immediately (syncDockMode
-    --reads the dock settings at rail create).
-    if SyncDocksToRailMode ~= nil then
-        SyncDocksToRailMode()
-    end
-    EnsureIconRail()
-    --rail mode changes the EFFECTIVE dock scale (the Dock Scale
-    --setting reads as 1 while the rail is on -- see
-    --DockablePanel.EffectiveDockScale), so live docks re-apply it the
-    --same way the dockscale setting's own onchange does.
-    if gamehud ~= nil and rawget(gamehud, "leftDock") ~= nil then
-        for _,dock in ipairs(gamehud:Docks()) do
-            if dock ~= nil and dock.valid then
-                dock:FireEvent("setScale")
-            end
-        end
-    end
-end
 
 --Which rail windows are open and where, for this game:
 --{ [panelKey] = {x = ..., y = ..., width = ..., height = ...} }.
@@ -11394,26 +11342,6 @@ local function RailRenameKeyList(list, renames)
     return changed
 end
 
---Dock lists hold DISPLAY names rather than keys, so they match
---case-insensitively and take the renamed panel's registered name.
-local function RailRenameNameList(list, renames)
-    if type(list) ~= "table" then
-        return false
-    end
-    local changed = false
-    for i, name in ipairs(list) do
-        if type(name) == "string" then
-            local newKey = renames[string.lower(name)]
-            if newKey ~= nil then
-                local reg = DockablePanel.GetRegistration(newKey)
-                list[i] = (reg ~= nil and reg.name) or newKey
-                changed = true
-            end
-        end
-    end
-    return changed
-end
-
 --Rewrite a view layout payload (the shape ViewsCaptureLayout produces).
 local function RailRenameLayout(layout, renames)
     if type(layout) ~= "table" then
@@ -11434,11 +11362,6 @@ local function RailRenameLayout(layout, renames)
         changed = RailRenameKeyedTable(layout.tabs, renames) or changed
         for _, tabs in pairs(layout.tabs) do
             changed = RailRenameKeyList(tabs, renames) or changed
-        end
-    end
-    if type(layout.docks) == "table" then
-        for _, side in ipairs({"left", "right"}) do
-            changed = RailRenameNameList(layout.docks[side], renames) or changed
         end
     end
     return changed
@@ -12491,7 +12414,7 @@ local function RailLayout()
             end
         else
             --a panel behind a setting (`available`) keeps its slot but draws nothing while
-            --off, as the docks and window tabs already do (History / Use Old Action Log).
+            --off, as window tabs already do (History / Use Old Action Log).
             local reg = DockablePanel.GetRegistration(displayName)
             available = PanelDocument.Get(displayName) ~= nil
                 and (reg == nil or reg.available == nil or reg.available())
@@ -12885,9 +12808,6 @@ local function MaybeMinimizeCharacterWindow(key, dialog)
         dialog:SetClass("dockingIntoRail", false)
     end
 
-    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
-        return false
-    end
     local charid = string.match(key, "^character:(.+)$")
     if charid == nil then
         return false
@@ -12932,9 +12852,6 @@ end
 --up and down as the drag moves; leaving the band restores the window
 --mid-drag, so dragging back out re-emerges the full panel.
 local function CharacterWindowDragging(key, dialog)
-    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
-        return
-    end
     local charid = string.match(key, "^character:(.+)$")
     if charid == nil then
         return
@@ -13128,48 +13045,43 @@ function ToggleCharacterPanelDocument(charid, anchorToken, anchorPanel)
         end
     end
 
-    if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
-        --while the rail hosts windows, character windows opened from the
-        --token launcher behave like rail windows: dragging one makes it
-        --stick where it lands (or docks it as a rail card at the screen
-        --edge), and closing it forgets the stuck record.
-        presentArgs.onMoved = function(element)
-            if MaybeMinimizeCharacterWindow(key, element) then
-                return
-            end
-            --clamp only after the dock check: dropping a character window
-            --past the screen edge is how it docks into the rail.
-            PanelDocument.ClampDroppedWindow(element, doc)
-            RailRememberWindow(key, element.x, element.y, doc)
+    --character windows opened from the token launcher behave like rail
+    --windows: dragging one makes it stick where it lands (or docks it as a
+    --rail card at the screen edge), and closing it forgets the stuck record.
+    presentArgs.onMoved = function(element)
+        if MaybeMinimizeCharacterWindow(key, element) then
+            return
         end
-        --a plain resize keeps a stuck window's recorded size current
-        --(a transient window has no record and this is a no-op).
-        presentArgs.onResized = function(element)
-            RailRememberWindowSize(key, doc)
-        end
-        presentArgs.onDragging = function(element)
-            CharacterWindowDragging(key, element)
-        end
-        presentArgs.close = function()
-            RailForgetWindow(key)
-            doc:ClosePanel()
-            RefreshRails()
-        end
-        --escape: dismiss without touching the rail records, same as the
-        --rail windows' escapeClose.
-        presentArgs.escapeClose = function()
-            doc:ClosePanel()
-            RefreshRails()
-        end
+        --clamp only after the dock check: dropping a character window
+        --past the screen edge is how it docks into the rail.
+        PanelDocument.ClampDroppedWindow(element, doc)
+        RailRememberWindow(key, element.x, element.y, doc)
+    end
+    --a plain resize keeps a stuck window's recorded size current
+    --(a transient window has no record and this is a no-op).
+    presentArgs.onResized = function(element)
+        RailRememberWindowSize(key, doc)
+    end
+    presentArgs.onDragging = function(element)
+        CharacterWindowDragging(key, element)
+    end
+    presentArgs.close = function()
+        RailForgetWindow(key)
+        doc:ClosePanel()
+        RefreshRails()
+    end
+    --escape: dismiss without touching the rail records, same as the
+    --rail windows' escapeClose.
+    presentArgs.escapeClose = function()
+        doc:ClosePanel()
+        RefreshRails()
     end
 
     --the header popout button: move this character's panel into its own
-    --native OS window, exactly as a rail window's does. Offered whether
-    --or not the rail is hosting windows -- a character window is a
-    --window like any other -- and the popout's pop-in button brings it
-    --back through OpenIconRailWindow, which resolves character keys.
-    --The in-app window's current size rides along so the panel keeps its
-    --footprint across the transition.
+    --native OS window, exactly as a rail window's does. The popout's
+    --pop-in button brings it back through OpenIconRailWindow, which
+    --resolves character keys. The in-app window's current size rides along
+    --so the panel keeps its footprint across the transition.
     presentArgs.popout = function()
         local d = doc:try_get("_tmp_dialog")
         local geometry = nil
@@ -13544,72 +13456,6 @@ local function RailSlotOccupied(side, slot, excludeKey)
     return false
 end
 
---While the rail is on, the rails ARE how panels are reached, so the
---docks' own slide-away handle tabs are hidden; they come back the moment
---the mode is turned off. (Dock visibility itself is still toggleable
---from the Panels menu and by Views.) Docks are rebuilt by reloads and
---theme changes, so the rail's think re-applies this continuously rather
---than relying on a one-shot.
-local function SyncDockHandles()
-    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
-        return
-    end
-    local railOn = RailModeActive()
-    for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
-        if dock ~= nil and dock.valid then
-            for _, child in ipairs(dock.children) do
-                if child.valid and child:HasClass("dockHandle") then
-                    child:SetClass("collapsed", railOn)
-                end
-            end
-        end
-    end
-end
-
---Whether a side dock holds no panels. False while the docks are not up, or
---while the saved layout still has panels for it (the dock is mid-rebuild, or
---its last panel is being dragged out).
-function PanelDocument.SideDockEmpty(side)
-    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
-        return false
-    end
-    local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
-    if dock == nil or (not dock.valid) or #dock:GetChildrenWithClasses({"dockablePanelContainer"}) > 0 then
-        return false
-    end
-    --docks are saved in GameHud:Docks() order: left, right, floating.
-    local saved = dmhub.GetSettingValue(GetDockablePanelsSetting()) or {}
-    local savedDock = (saved.docks or {})[cond(side == "right", 2, 1)]
-    return savedDock == nil or savedDock.panels == nil or #savedDock.panels == 0
-end
-
---Toggling the rail moves the docks with it: rail ON slides both docks
---off screen (the rail replaces them); rail OFF slides both back in.
---Called ONLY from the iconrail setting's onchange -- EnsureIconRail
---also runs at EnterGame and after a Lua reload, where forcing the
---docks would trample a dock the user deliberately re-opened from the
---Panels menu while in rail mode.
---The "offscreen" class is applied to the docks DIRECTLY as well as via
---the dock settings: normally the dock handle's monitor event applies
---it, but SyncDockHandles collapses those handles in rail mode and
---collapsed panels process no events -- which is why flipping the
---setting used to leave the docks stranded on screen until a restart.
-SyncDocksToRailMode = function()
-    local railOn = RailModeActive()
-    dmhub.SetSettingValue("leftdockoffscreen", railOn)
-    dmhub.SetSettingValue("rightdockoffscreen", railOn)
-    if gamehud ~= nil and rawget(gamehud, "leftDock") ~= nil then
-        for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
-            if dock ~= nil and dock.valid then
-                dock:SetClass("offscreen", railOn)
-            end
-        end
-    end
-    --recalculate the map's drawable area for the new dock state, same
-    --as the handle's monitor would: 0 = docks gone, map full width.
-    dmhub.UpdateScreenHudArea(cond(railOn, 0, 1))
-end
-
 --Open a rail window for the named panel. placement = {x=,y=,width=,
 --height=} places and sizes it; nil lets PresentDocument use the
 --session-remembered location and size. (There is no `tabs` override any
@@ -13754,7 +13600,7 @@ end
 -- host built here replaces the rail window: it owns the panel's whole
 -- style cascade -- a popped-out panel is the ROOT of its own hierarchy,
 -- so nothing above it supplies Styles.Default (normally the GameHud
--- root) or the theme (normally the docks / the rail window root). Both
+-- root) or the theme (normally the rail window root). Both
 -- ride here explicitly, plus the popout's own chrome rules.
 --
 -- Known Phase-1 limits (see POPOUT_PANELS_PLAN.md at the repo root):
@@ -15581,40 +15427,6 @@ HideRailCardGhost = function()
     end
 end
 
---Remove any dock header bar left mounted on a dock by an older build:
---the rail no longer hands panels over to the docks, so its dock-side
---chrome is gone. Docks outlive a Lua reload, so this sweeps rather than
---assuming a fresh dock.
-local function RemoveDockTrayButtons()
-    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
-        return
-    end
-    for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
-        if dock ~= nil and dock.valid then
-            for _, child in ipairs(dock.children) do
-                if child.valid and child:HasClass("iconRailDockHeader") then
-                    child:DestroySelf()
-                end
-            end
-            --...and any button an even older build left inside a panel's
-            --own title bar.
-            for _, child in ipairs(dock.children) do
-                if child.valid and child:HasClass("dockablePanelContainer") then
-                    local wrapper = child.children[1]
-                    if wrapper ~= nil and wrapper.valid then
-                        for _, g in ipairs(wrapper.children or {}) do
-                            if g.valid and g:HasClass("iconRailDockButton") then
-                                g:DestroySelf()
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
-
 --Rearrange mode (context menu > Rearrange...): the only time rail
 --buttons can be dragged. While on, buttons wiggle, the tray button
 --becomes the red stop-X (Escape also exits), and a trash drop zone
@@ -15780,22 +15592,6 @@ local function RailAddPanel(name, side)
     list[#list + 1] = { key = key, name = name, slot = maxSlot + 1 }
     SaveRailLayout(sides, inert)
     RebuildIconRails()
-end
-
---Rail mode gate, exported so other surfaces (the Panels menu, the
---journal) can ask without repeating the setting lookup. The mode is
---a per-user setting in Settings > General ("New Experimental UI"),
---on by default; it used to be opt-in, and to additionally require
---devmode() while the rail was a dev-only trial.
---A custom-interface takeover (see PanelDocument.RailCustomInterfaceId)
---forces the mode ON regardless of the setting: the docks slide away and
---windows host on the layer exactly as in rail mode, with the mod's
---widgets standing in for the button columns.
-function RailModeActive()
-    if PanelDocument.RailCustomInterfaceId() ~= nil then
-        return true
-    end
-    return dmhub.GetSettingValue("iconrail") == true
 end
 
 --The id of the custom interface that currently owns the rail surface
@@ -16192,20 +15988,6 @@ function IconRailRebuildSoon()
     end)
 end
 
---Closing a panel from a dock (its right-click > Close) also takes its
---button off the rail and saves the layout. The dock and the rail are two
---views of one workspace: without this the button stays, and the panel
---comes straight back the next time the dock is filled from the rail.
-if rawget(_G, "RegisterDockablePanelClosedHandler") ~= nil then
-    RegisterDockablePanelClosedHandler("iconrail", function(panelName)
-        if not RailModeActive() then
-            return
-        end
-        --no-ops when the panel is not on a rail.
-        RailMovePanel(string.lower(panelName), "remove")
-    end)
-end
-
 --Which rail a panel's button sits on, and in which slot, or nil when it
 --has no button (never added, parked "off", or grouped under another
 --panel).
@@ -16462,16 +16244,10 @@ local function RailGroupAddEntries(element, ownerKey)
     return entries
 end
 
---While the rail is on, the RAIL hosts panels -- not the docks. Opening a
---panel from a menu, a keybind or a by-name request used to build a dock
---container regardless, and because the docks are slid away in rail mode
---the dock path pulled one back on screen to show it. Take ownership
---instead and do exactly what pressing the panel's rail button does.
+--The RAIL hosts every panel. Opening one from a menu, a keybind or a
+--by-name request does exactly what pressing the panel's rail button does.
 if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
     RegisterDockablePanelOpenHandler("iconrail", function(panelName, operation)
-        if not RailModeActive() then
-            return false
-        end
         if DocumentsLayer() == nil then
             return false
         end
@@ -16481,7 +16257,7 @@ if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
         local ownerKey = PanelDocument.WindowOwner(key)
         local doc = RailPanelDocument(ownerKey)
         if doc == nil then
-            --not something the rail can host; let the dock have it.
+            --not available to this user (AvailableRegistration).
             return false
         end
 
@@ -16557,17 +16333,14 @@ end
 
 --The "/" hotkey (ChatPanel.cs fires a "slash" chat event when the key is
 --pressed with no UI element focused) exists to focus the chat input and
---start typing a command. It only ever reached a chat panel that was
---already built, which in rail mode is usually none at all: the docks are
---slid off screen and chat is summoned as a window. So "/" did nothing.
+--start typing a command. It only ever reaches a chat input that is
+--already built, which is usually none at all: chat is summoned as a window.
 --
 --Here the rail treats "/" as "open chat and start typing": summon the
 --chat window exactly as its rail button would, then hand the keystroke
 --on via the window's "slashChat" event, which activates the chat tab
 --and delivers a "slash" to the input once the deferred build has made
---one. When a dock hosting chat is on screen (rail off / dock slid back
---in), this does nothing and the dock input's own slash handler keeps
---the focus, as before.
+--one.
 local function RailSlashOpensChat()
     local doc = PanelDocument.Get("Chat")
     if doc == nil then
@@ -16585,16 +16358,6 @@ local function RailSlashOpensChat()
         host:SetAsLastSibling()
         host:FireEventTree("slashChat")
         return
-    end
-
-    --...or sitting in a dock. Only a dock that is on screen counts: the
-    --whole point of this is that the offscreen copy cannot be typed into.
-    local reg = DockablePanel.GetRegistration("Chat")
-    if reg ~= nil and reg.identifier ~= nil then
-        local instance = DockablePanel.FindInstance(reg.identifier)
-        if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil then
-            return
-        end
     end
 
     --the same summon the rail button performs: one transient window at a
@@ -16882,8 +16645,7 @@ function PanelDocument.PresentedStage()
 end
 
 --Is chat already in front of the player? A native popout (its own OS
---window) always is. A rail window or an on-screen dock instance counts
---only while nothing has buried it: behind a full-screen stage it is as
+--window) always is. A rail window counts only while nothing has buried it: behind a full-screen stage it is as
 --invisible as a closed window, and a message arriving then deserves the
 --bubble just the same.
 function PanelDocument.ChatInFront()
@@ -16892,7 +16654,7 @@ end
 
 --- Whether a panel is already in front of the player (ChatInFront, for any panel).
 --- @param key string The panel's rail key, lowercase ("chat").
---- @param panelName string Its DockablePanel registration name ("Chat").
+--- @param panelName string Its DockablePanel registration name ("Chat"). Unused.
 --- @return boolean
 function PanelDocument.PanelInFront(key, panelName)
     if PanelDocument.IsPoppedOut(key) then
@@ -16909,13 +16671,6 @@ function PanelDocument.PanelInFront(key, panelName)
     if PanelDocument.IsPanelActive(key) then
         local dialog = PanelDocument.FindHostDialog(key)
         if dialog == nil or inFront(dialog) then
-            return true
-        end
-    end
-    local reg = DockablePanel.GetRegistration(panelName)
-    if reg ~= nil and reg.identifier ~= nil then
-        local instance = DockablePanel.FindInstance(reg.identifier)
-        if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil and inFront(instance) then
             return true
         end
     end
@@ -17014,8 +16769,7 @@ end
 
 --- Rebuilds the icon rails from the stored layout: for a panel whose `available` answer
 --- changed (History's "Use Old Action Log" swaps History and the Action Log). A panel no
---- longer available loses its open window (its record stays, for when it comes back), and
---- the docks are rebuilt so the panel standing in for it takes its place.
+--- longer available loses its open window (its record stays, for when it comes back).
 function PanelDocument.RebuildRails()
     for _, doc in pairs(g_panelDocuments) do
         local reg = DockablePanel.GetRegistration(doc:try_get("panelName") or "")
@@ -17025,9 +16779,6 @@ function PanelDocument.RebuildRails()
     end
     if RebuildIconRails ~= nil then
         RebuildIconRails()
-    end
-    if not RailModeActive() and rawget(_G, "gamehud") ~= nil then
-        DockablePanel.Deserialize()
     end
 end
 
@@ -23588,14 +23339,9 @@ local function CreateIconRail(side, entries, opts)
             --    without moving them. Ungrouped (group-capable) buttons
             --    get the cut-out alone: the visible "child space" the
             --    user drops a panel into to form a group.
+            --rearrange mode builds group-capable strips expanded.
             local flyoutClasses = {"iconRailGroupFlyout"}
-            if g_railRearranging and groupCapable then
-                --railStripPinned marks a strip built expanded, so the
-                --rail's syncDockMode can re-assert the open state without
-                --also popping open the EMPTY collapsed flyouts that
-                --document/character buttons carry.
-                flyoutClasses[#flyoutClasses + 1] = "railStripPinned"
-            else
+            if not (g_railRearranging and groupCapable) then
                 flyoutClasses[#flyoutClasses + 1] = "collapsed"
             end
             if g_railRearranging and groupCapable then
@@ -24503,13 +24249,6 @@ local function CreateIconRail(side, entries, opts)
                 --(the band math above is for the screen-edge rails).
                 if windowedRail then
                     overPanel = true
-                end
-                --docks are not panel-document windows, but a dock visible
-                --on this side always underlies the strip band -- the strip
-                --opens straight across it. Err toward the card: text and
-                --loose buttons over ANY panel is the failure mode.
-                if not overPanel then
-                    overPanel = dmhub.GetSettingValue(string.format("%sdockoffscreen", side)) == false
                 end
                 --the fill lives on the backdrop layer, sized to the
                 --current name (see UpdateStripCard); the flyout itself
@@ -25768,71 +25507,6 @@ local function CreateIconRail(side, entries, opts)
             }
         end,
 
-        --each rail and its own side's dock are mutually exclusive: while
-        --this side's dock is on screen the whole rail collapses (the
-        --Panels menu is the way back); the other side is unaffected.
-        --Children collapse individually rather than the rail root so the
-        --root's think keeps running to un-collapse later.
-        --The map's drawable area must be recalculated when dock
-        --visibility changes: the dock handles used to do this from their
-        --monitor events, but the rail collapses those handles and
-        --collapsed panels don't process events -- without this call the
-        --map stays squeezed as if the docks were still on screen.
-        syncDockMode = function(element)
-            --the docks are a screen-edge matter.
-            if windowedRail then
-                return
-            end
-            local dockVisible = not dmhub.GetSettingValue(side .. "dockoffscreen")
-            --an empty dock on screen shows nothing but still hides this rail, and
-            --rail mode has no menu row to put it away: slide it back off.
-            if dockVisible and RailModeActive() and PanelDocument.SideDockEmpty(side) then
-                dmhub.SetSettingValue(side .. "dockoffscreen", true)
-                dockVisible = false
-            end
-            if element.data.lastDockVisible ~= dockVisible then
-                element.data.lastDockVisible = dockVisible
-                --mirror the dock's slide class here too: its own
-                --handle's monitor normally applies it, but the rail
-                --collapses the handles (collapsed panels process no
-                --events), so without this a Panels-menu dock toggle
-                --changes the setting and the dock never moves.
-                if gamehud ~= nil and rawget(gamehud, "leftDock") ~= nil then
-                    local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
-                    if dock ~= nil and dock.valid then
-                        dock:SetClass("offscreen", not dockVisible)
-                    end
-                end
-                dmhub.UpdateScreenHudArea(1)
-            end
-            for _, child in ipairs(element.children) do
-                if child.valid then
-                    if child:HasClass("iconRailGroupFlyout") then
-                        --the member strips live on the root now (siblings
-                        --of their buttons, see the flyout construction)
-                        --and manage their own collapsed state -- hover
-                        --opens them, rearrange mode pins them open. The
-                        --dock sync may only ever HIDE them; blanket
-                        --un-collapsing here popped every strip open on
-                        --the think cadence (field report 2026-08-08).
-                        if dockVisible then
-                            child:SetClass("collapsed", true)
-                        elseif child:HasClass("railStripPinned") then
-                            --rearrange mode pins strips open; re-assert it
-                            --in case a dock toggle hid them mid-mode.
-                            child:SetClass("collapsed", false)
-                        end
-                    else
-                        child:SetClass("collapsed", dockVisible)
-                    end
-                end
-            end
-        end,
-
-        create = function(element)
-            element:FireEvent("syncDockMode")
-        end,
-
         --"/" with nothing focused: summon chat and start typing. Only one
         --rail is registered as a chat listener (see BuildIconRails) so
         --this runs once, whichever rail the chat button lives on.
@@ -25901,22 +25575,6 @@ local function CreateIconRail(side, entries, opts)
                 end
             end
             element:FireEventTree("refreshRail")
-            --docks may have been toggled from the Panels menu, and docks
-            --rebuild their children on layout changes; keep the rail's
-            --collapsed state, the hidden dock handles, and the
-            --dock-mounted tray buttons all in step.
-            element:FireEvent("syncDockMode")
-            if side == "left" then
-                SyncDockHandles()
-                RemoveDockTrayButtons()
-            end
-            --NOTE: the dock is only mirrored from the rail ONCE, when the
-            --tray opens it. No continuous enforcement here: a running
-            --sync fought the user's own dock management (closing a
-            --rail-layout panel in the dock snapped it back open within
-            --half a second; earlier it also destroyed panels opened via
-            --the Panels menu). The dock is free-form while open;
-            --re-toggling the tray re-syncs it to the rail.
         end,
 
         --Rail styling: shared with the dock-mounted tray button, see
@@ -26068,29 +25726,6 @@ local function WrapRailOverflow(sides)
     end
 end
 
---Slide the docks off screen for a custom-interface takeover WITHOUT
---touching the dock settings: SyncDocksToRailMode writes them, which would
---permanently trample the user's dock layout for what is a per-game-mode
---takeover. The class is transient by design -- the next game entry
---re-syncs the docks from the settings as usual.
-PanelDocument.SyncDocksOffscreenForCustomInterface = function(offscreen)
-    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
-        return
-    end
-    for _, side in ipairs({"left", "right"}) do
-        local dock = cond(side == "left", gamehud.leftDock, gamehud.rightDock)
-        if dock ~= nil and dock.valid then
-            if offscreen then
-                dock:SetClass("offscreen", true)
-            else
-                --restore to what the settings say (rail mode may still
-                --legitimately keep the dock off screen).
-                dock:SetClass("offscreen", dmhub.GetSettingValue(side .. "dockoffscreen") == true)
-            end
-        end
-    end
-end
-
 --A custom interface owns the rail surface: mount one wrapper per side
 --holding whatever widget the mod supplies (GameHud.CustomInterfaceRailPanel),
 --plus an optional bottom-corner wrapper per side
@@ -26162,11 +25797,6 @@ PanelDocument.BuildCustomInterfaceRails = function(layer)
                 --the standard rail cadence, so provider widgets can run
                 --refreshRail-driven behaviors (unread badges, lit states).
                 element:FireEventTree("refreshRail")
-                if side == "left" and not bottom then
-                    SyncDockHandles()
-                    RemoveDockTrayButtons()
-                    PanelDocument.SyncDocksOffscreenForCustomInterface(true)
-                end
             end,
 
             --"/" with nothing focused summons chat, exactly like the real
@@ -26212,8 +25842,6 @@ PanelDocument.BuildCustomInterfaceRails = function(layer)
     if g_iconRails.left ~= nil then
         chat.events:Listen(g_iconRails.left)
     end
-
-    PanelDocument.SyncDocksOffscreenForCustomInterface(true)
 end
 
 local function BuildIconRails()
@@ -26315,7 +25943,7 @@ RebuildIconRails = function()
     DestroyIconRails()
     --map windows' rails rebuild with these (MapRail.Signature).
     MapRail.version = (MapRail.version or 0) + 1
-    if RailModeActive() and DocumentsLayer() ~= nil then
+    if DocumentsLayer() ~= nil then
         BuildIconRails()
     end
 end
@@ -26335,7 +25963,6 @@ PanelDocument.RailCustomInterfaceRebuild = function()
         if mod.unloaded then
             return
         end
-        PanelDocument.SyncDocksOffscreenForCustomInterface(PanelDocument.RailCustomInterfaceId() ~= nil)
         DestroyIconRails()
         EnsureIconRail()
     end)
@@ -26363,7 +25990,6 @@ end
 --used to recolor a beat after the crossfade instead of under it.
 --UpdateStyle is exactly SetStyleDirty, and the dirty time propagates down
 --to every descendant, so one call per styled root does the whole subtree.
---ThemeSettingsDialog's Apply pokes the docks the same way.
 ThemeEngine.OnThemeChanged(mod, function()
     for _, rail in pairs(g_iconRails) do
         if rail ~= nil and rail.valid then
@@ -26545,14 +26171,10 @@ function MapButtons.Styles()
 end
 
 --how far in from the right edge the bar's right end sits: just inboard
---of the right rail (its zoomed width plus one slot gap) while the rail
---mode is on, else the rail's own edge inset. Layer units: the bar zooms
---about its top-right corner (setRailScale), so the corner stays put.
+--of the right rail (its zoomed width plus one slot gap). Layer units: the
+--bar zooms about its top-right corner (setRailScale), so the corner stays put.
 function MapButtons.RightInset()
-    if RailModeActive() then
-        return ICON_RAIL_LEFT + (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * WindowUIScale()
-    end
-    return ICON_RAIL_LEFT
+    return ICON_RAIL_LEFT + (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * WindowUIScale()
 end
 
 function MapButtons.CreateButton(def, index)
@@ -26696,11 +26318,10 @@ function MapButtons.Build()
         end
     end
 
-    --with the table up and the rail mode on, these buttons are on the map
-    --rail instead (MapRail); the bar is for the full-screen map and the
-    --dock UI.
+    --with the table up these buttons are on the map rail instead (MapRail);
+    --the bar is for the full-screen map.
     local tabletop = rawget(_G, "Tabletop")
-    if RailModeActive() and tabletop ~= nil and tabletop.IsActive() then
+    if tabletop ~= nil and tabletop.IsActive() then
         return
     end
 
@@ -26909,10 +26530,10 @@ function MapRail.LiveWindowState()
     return tabletop.LiveWindowState()
 end
 
---the map rail exists only in rail mode, and steps aside for rearranging
---(its buttons are not the user's to move).
+--the map rail steps aside for rearranging (its buttons are not the user's
+--to move) and for a custom interface.
 function MapRail.Active()
-    return RailModeActive() and not g_railRearranging and PanelDocument.RailCustomInterfaceId() == nil
+    return not g_railRearranging and PanelDocument.RailCustomInterfaceId() == nil
 end
 
 --- What a map window's rails are built from; Tabletop rebuilds them when
@@ -27152,35 +26773,9 @@ do
     end
 end
 
---Create or destroy the rails to match the setting; restore pinned windows
---when they come up. Safe to call any time.
+--Build the rails if they are not up; restore pinned windows when they come
+--up. Safe to call any time.
 function EnsureIconRail()
-    --The rail (and everything riding it -- Views, doc shortcuts, dock
-    --handoff) follows the "New Experimental UI" setting in Settings >
-    --General, which now defaults ON. (It was an opt-in trial before
-    --that, and devmode-gated before that.)
-    local enabled = RailModeActive()
-
-    if not enabled then
-        --don't strand rearrange mode across a disable/re-enable (the
-        --setter is not used here: it would rebuild rails we are about
-        --to destroy).
-        g_railRearranging = false
-        --toolkit strips ride the rail mode: they survive rail REBUILDS
-        --(they are layer children), but the mode turning off takes them
-        --with it.
-        for tkid in pairs(g_railToolkitStrips) do
-            HideToolkitStrip(tkid)
-        end
-        DestroyIconRails()
-        --restore the docks' own handles and remove the dock-mounted
-        --tray buttons.
-        SyncDockHandles()
-        RemoveDockTrayButtons()
-        dmhub.UpdateScreenHudArea(1)
-        return
-    end
-
     --a custom-interface takeover builds the mod's widgets instead of the
     --button columns and restores nothing: the custom interface owns what
     --is on screen. Mode flips mid-session are handled by the rails' own
@@ -27223,10 +26818,6 @@ function EnsureIconRail()
             end
         end
         BuildIconRails()
-        SyncDockHandles()
-        RemoveDockTrayButtons()
-        PanelDocument.SyncDocksOffscreenForCustomInterface(true)
-        dmhub.UpdateScreenHudArea(1)
         return
     end
 
@@ -27281,25 +26872,13 @@ function EnsureIconRail()
         return
     end
 
-    --sweep rails (and dock tray buttons) left behind by a previous
-    --module generation: panels outlive a Lua reload, and a stale rail's
+    --sweep rails left behind by a previous module generation: panels outlive a Lua reload, and a stale rail's
     --closures reference dead module state (it renders identically,
     --stacked under the new one, and its clicks open windows the new
     --generation cannot see).
     for _, child in ipairs(layer.children) do
         if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailGhostLine") or child:HasClass("iconRailCardGhost") or child:HasClass("iconRailTrash") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast") or child:HasClass("iconRailToolkitStrip")) then
             child:DestroySelf()
-        end
-    end
-    if gamehud ~= nil and rawget(gamehud, "leftDock") ~= nil then
-        for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
-            if dock ~= nil and dock.valid then
-                for _, child in ipairs(dock.children) do
-                    if child.valid and child:HasClass("iconRailDockButton") then
-                        child:DestroySelf()
-                    end
-                end
-            end
         end
     end
 
@@ -27325,11 +26904,6 @@ function EnsureIconRail()
     end
 
     BuildIconRails()
-    SyncDockHandles()
-    RemoveDockTrayButtons()
-    --recalculate the map's drawable area (see syncDockMode): fixes a
-    --stale squeeze left from before the rail owned this.
-    dmhub.UpdateScreenHudArea(1)
 
     PanelDocument.RailRestoreOpenWindows(true)
 end
@@ -27411,11 +26985,10 @@ dmhub.RegisterEventHandler("EnterGame", function()
         --switching views is an advanced feature, so the default is
         --chosen for them (Lisa+David review 2026-07-19 for players;
         --David 2026-08-08 extended it to Directors, whose default used
-        --to be Custom). Only when the rail mode is on, no view is
-        --active, and they have no saved views or window arrangement
-        --in this game yet. Players who had pinned windows used to lose
+        --to be Custom). Only when no view is active and they have no
+        --saved views or window arrangement in this game yet. Players who had pinned windows used to lose
         --them all when they came back into the game.
-        if RailModeActive() and (dmhub.GetSettingValue("viewsactive") or "") == "" then
+        if (dmhub.GetSettingValue("viewsactive") or "") == "" then
             local nothingOfTheirs = true
             for _, id in ipairs({"viewsstash", "iconrailpins", "iconrailpanelpinned", "iconrailtabs", "iconraillayout"}) do
                 local value = dmhub.GetSettingValue(id)
@@ -27436,16 +27009,13 @@ dmhub.RegisterEventHandler("EnterGame", function()
         --Already on a built-in? Pick up any stock layout we have shipped
         --since it was applied. Runs after the block above so a view just
         --auto-applied is already stamped current and this no-ops.
-        if RailModeActive() and rawget(_G, "ViewsCheckForBuiltinUpdateOnEntry") ~= nil then
+        if rawget(_G, "ViewsCheckForBuiltinUpdateOnEntry") ~= nil then
             ViewsCheckForBuiltinUpdateOnEntry()
         end
 
         --last, so a module's own placement never makes a new user's empty layout look like
-        --theirs to the first-entry check above. Only with the rail on: a placement written
-        --while it is off would stop that check applying the built-in View once it is on.
-        if RailModeActive() then
-            PanelDocument.RunRailLayoutApplied()
-        end
+        --theirs to the first-entry check above.
+        PanelDocument.RunRailLayoutApplied()
     end)
 end)
 
@@ -27510,7 +27080,7 @@ setting{
     default = {},
 }
 
---Built-in templates (Views brief D4: no pins, docks closed, both rails).
+--Built-in templates (Views brief D4: no pins, both rails).
 --Editable freely: these are the stock arrangements, iterated in-app.
 --
 --BUMP `version` WHENEVER YOU CHANGE A LAYOUT HERE. Users who never
@@ -27576,9 +27146,6 @@ local g_viewBuiltins = {
                 },
             },
             pins = {},
-            docks = { left = {}, right = {} },
-            leftDockOff = true,
-            rightDockOff = true,
         },
     },
     --The Director rail with the Director-only panels taken out, same
@@ -27630,9 +27197,6 @@ local g_viewBuiltins = {
                 ["chat"] = { "chat", "safety" },
             },
             pins = {},
-            docks = { left = {}, right = {} },
-            leftDockOff = true,
-            rightDockOff = true,
         },
     },
 }
@@ -27649,7 +27213,10 @@ local function ViewsEmptyish(v)
     return v == nil or (type(v) == "table" and next(v) == nil)
 end
 
-local function ViewsDeepEqual(a, b)
+--Layouts saved before the side docks were retired still carry their keys
+--(docks, leftDockOff, rightDockOff); the top level of a comparison skips
+--them so those views do not read as changed. nested is set on recursion.
+local function ViewsDeepEqual(a, b, nested)
     if a == b then
         return true
     end
@@ -27660,12 +27227,14 @@ local function ViewsDeepEqual(a, b)
         return false
     end
     for k, v in pairs(a) do
-        if not ViewsDeepEqual(v, b[k]) then
+        local retired = (not nested) and (k == "docks" or k == "leftDockOff" or k == "rightDockOff")
+        if not retired and not ViewsDeepEqual(v, b[k], true) then
             return false
         end
     end
     for k, v in pairs(b) do
-        if a[k] == nil and not ViewsEmptyish(v) then
+        local retired = (not nested) and (k == "docks" or k == "leftDockOff" or k == "rightDockOff")
+        if not retired and a[k] == nil and not ViewsEmptyish(v) then
             return false
         end
     end
@@ -27964,12 +27533,6 @@ function ViewsCaptureLayout()
         pins = DeepCopy(dmhub.GetSettingValue("iconrailpins") or {}),
         pinned = DeepCopy(dmhub.GetSettingValue("iconrailpanelpinned") or {}),
         tabs = DeepCopy(dmhub.GetSettingValue("iconrailtabs") or {}),
-        docks = {
-            left = DockablePanel.GetDockPanels("left"),
-            right = DockablePanel.GetDockPanels("right"),
-        },
-        leftDockOff = dmhub.GetSettingValue("leftdockoffscreen") == true,
-        rightDockOff = dmhub.GetSettingValue("rightdockoffscreen") == true,
         railHidden = DeepCopy(dmhub.GetSettingValue("iconrailhidden") or {}),
     }
 end
@@ -28070,19 +27633,13 @@ function ViewsUnavailableForLayout(layout)
             check(key)
         end
     end
-    local docks = layout.docks or {}
-    for _, side in ipairs({"left", "right"}) do
-        for _, name in ipairs(docks[side] or {}) do
-            check(string.lower(name))
-        end
-    end
     return result
 end
 
 --Apply a layout payload to the live workspace. Diff-based (A4): open
 --windows shared between the outgoing and incoming arrangements keep
---their live instances and are repositioned; dock panel instances are
---reused by SetDockPanels. Pins clamp to the current screen (A7).
+--their live instances and are repositioned. Pins clamp to the current
+--screen (A7).
 --Returns the list of skipped-as-unavailable entries ({name, reason};
 --A3).
 function ViewsApplyLayout(layout)
@@ -28159,24 +27716,6 @@ function ViewsApplyLayout(layout)
             end
         end
     end
-
-    --docks: contents filtered to available panels at apply time (the
-    --stored view keeps the full list -- A3), then visibility.
-    local docks = layout.docks or {}
-    for _, side in ipairs({"left", "right"}) do
-        local names = {}
-        for _, name in ipairs(docks[side] or {}) do
-            --a panel that can't show keeps its place when one stands in for it: the
-            --dock shows the stand-in (DockablePanel's DockStandIn).
-            local reg = DockablePanel.GetRegistration(name)
-            if PanelDocument.Get(name) ~= nil or (reg ~= nil and DockablePanel.StandIn(reg) ~= nil) then
-                names[#names + 1] = name
-            end
-        end
-        DockablePanel.SetDockPanels(side, names)
-    end
-    dmhub.SetSettingValue("leftdockoffscreen", layout.leftDockOff ~= false)
-    dmhub.SetSettingValue("rightdockoffscreen", layout.rightDockOff ~= false)
 
     --rail visibility travels with the view. At most one side hidden: a
     --record naming both keeps only the left.

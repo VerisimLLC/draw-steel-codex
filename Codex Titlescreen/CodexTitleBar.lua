@@ -3827,16 +3827,14 @@ Search.RegisterProvider{
     end,
 }
 
--- The search box used to be exactly as wide as the right dock below it
--- (364 * dockscale). It is now deliberately narrower by this fraction so the
--- status labels sharing the bar (map name, initiative mode) get the space back;
--- the box still tracks the dock scale, it just sits inset from the dock edge.
+-- The search box's natural width is this fraction of a 364 panel column, so
+-- the status labels sharing the bar (map name, initiative mode) keep room.
 local g_searchWidthFraction = 0.9
 
 --assigns the forward declaration up by the fit controller, which needs the
 --box's natural width to know how much narrowing it has left to give
 function SearchBoxWidth()
-    return math.floor(364 * g_searchWidthFraction * DockablePanel.EffectiveDockScale())
+    return math.floor(364 * g_searchWidthFraction)
 end
 
 local function CreateSearchBar()
@@ -8330,93 +8328,11 @@ local function CreateTopBar()
                     end
                 end
 
-                local locked = dmhub.GetSettingValue("uilocked")
-                local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
-
-                --rail mode has no Lock Panels row (see below), so it must not
-                --honour the lock either -- a user who locked in dock mode and
-                --then switched would find every row disabled with nothing left
-                --to unlock it. Locking is a dock concept; the rail ignores it.
-                if locked and not railMode then
-                    for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
-                        p.disabled = true
-                    end
-                end
-
-                --In rail mode the rows keep their DEFAULT click: it routes
-                --through the rail's open handler, which toggles the panel's
-                --rail window and adds a rail shortcut on first open. A
-                --shortcut already on the rail is never removed from here
-                --(David, 2026-08-08) -- removal lives on the rail's own
-                --context menu and rearrange trash. Only the check needs
-                --overriding: the default tracks the DOCK instance, which is
-                --slid away in rail mode, so light the row while the panel
-                --is shown anywhere on the rail surface instead.
-                if railMode then
-                    for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
-                        local panelName = p.text
-                        if panelName ~= nil and p.submenu == nil then
-                            p.check = PanelDocument.IsPanelShown(string.lower(panelName))
-                        end
-                    end
-                end
-
-                --Dock/lock rows are dock-mode only: in rail mode the docks are
-                --slid off screen and the rail owns placement, so toggling a
-                --dock or resetting the dock layout does nothing visible, and
-                --the lock has no meaning (David, 2026-08-08).
-                if not railMode then
-                    --icons so the dock rows align with the panel rows below,
-                    --which all carry check gutter + icon + text.
-                    table.insert(dockablePanels, 1, {
-                        text = "Left Dock",
-                        icon = "phosphor/sidebar-simple.png",
-                        check = not dmhub.GetSettingValue("leftdockoffscreen"),
-                        group = "panel",
-
-                        click = function()
-                            dmhub.SetSettingValue("leftdockoffscreen", not dmhub.GetSettingValue("leftdockoffscreen"))
-                        end,
-                    })
-
-                    table.insert(dockablePanels, 1, {
-                        text = "Right Dock",
-                        icon = "phosphor/sidebar-simple.png",
-                        check = not dmhub.GetSettingValue("rightdockoffscreen"),
-                        group = "panel",
-
-                        click = function()
-                            dmhub.SetSettingValue("rightdockoffscreen", not dmhub.GetSettingValue("rightdockoffscreen"))
-                        end,
-                    })
-
-                    table.insert(dockablePanels, 1, {
-                        text = "Reset Panels",
-                        icon = "icons/icon_tool/icon_power.png",
-                        group = "panel",
-
-                        click = function()
-                            dmhub.ResetSetting(GetDockablePanelsSetting())
-                            InitDockablePanels()
-                        end,
-                    })
-
-                    table.insert(dockablePanels, 1, {
-                        text = cond(locked, "Unlock Panels", "Lock Panels"),
-                        icon = cond(locked, "icons/icon_tool/icon_tool_30.png", "icons/icon_tool/icon_tool_30_unlocked.png"),
-                        check = locked,
-                        group = "panel",
-                        click = function()
-                            dmhub.SetSettingValue("uilocked", not locked)
-                        end,
-                    })
-                end
-
                 --Workspace Views: the Panels menu is the ONLY switcher
                 --UI (Lisa+David review 2026-07-19 removed the rail chip),
                 --so it carries the full verb set: switch, save, save-as,
-                --reset, manage. Only in rail mode (A6).
-                if rawget(_G, "ViewsListForUser") ~= nil and railMode then
+                --reset, manage.
+                if rawget(_G, "ViewsListForUser") ~= nil then
                     local active = ViewsActiveId()
                     local drift = ViewsIsDrifted()
                     local viewItems = {}

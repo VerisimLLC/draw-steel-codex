@@ -1411,18 +1411,6 @@ setting{
 }
 
 setting{
-	id = "leftdockoffscreen",
-	storage = "pergamepreference",
-	default = false,
-}
-
-setting{
-	id = "rightdockoffscreen",
-	storage = "pergamepreference",
-	default = false,
-}
-
-setting{
 	id = "diceequipped",
 	description = "Dice Set",
 	help = "Which dice set to use for dice rolls",

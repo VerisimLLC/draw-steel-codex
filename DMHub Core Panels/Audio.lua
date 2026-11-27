@@ -4749,8 +4749,6 @@ local function CreatePlayerSoundPanel()
 		ambienceIdleLabel,
 	}
 
-	local dockFitAttempts = 0
-
 	local rootPanel
 	rootPanel = gui.Panel{
 		halign = "left",
@@ -4761,40 +4759,6 @@ local function CreatePlayerSoundPanel()
 
 		refreshAudio = function(element)
 			element:FireEventTree("refreshPlayingAudio")
-		end,
-
-		--The dock registers a fixed 470px height shared with the DM panel
-		--(role is not known yet at registration time). The player panel is
-		--much shorter, so fix up the dock's height after this panel actually
-		--builds -- see playerDockFit, mirroring DockablePanel.lua's minimize
-		--path. Retries a few times because the dock parents may not be
-		--attached yet on the first scheduled tick; gives up quietly after
-		--that (the panel just keeps the taller registration height).
-		create = function(element)
-			element:ScheduleEvent("playerDockFit", 0.05)
-		end,
-
-		playerDockFit = function(element)
-			local inst = element:FindParentWithClass("dockablePanel")
-			local container = element:FindParentWithClass("dockablePanelContainer")
-			local dock = element:FindParentWithClass("dock")
-			if inst == nil or container == nil or dock == nil then
-				dockFitAttempts = dockFitAttempts + 1
-				if dockFitAttempts < 10 then
-					element:ScheduleEvent("playerDockFit", 0.2)
-				end
-				return
-			end
-			local h = 330
-			local tabSpacing = 40
-			local dockScale = DockablePanel.EffectiveDockScale()
-			inst.data.minHeight = h
-			inst.data.maxHeight = h
-			container.data.minHeight = h + tabSpacing
-			container.data.maxHeight = h/dockScale + tabSpacing
-			container.selfStyle.height = h + tabSpacing
-			dock:FireEvent("fitChildren")
-			dock:FireEvent("layoutChanged")
 		end,
 
 		nowPlayingSection,

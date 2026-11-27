@@ -33,18 +33,10 @@ DockablePanel.Register {
 | `icon` | string | Asset path for the tab icon |
 | `dmonly` | boolean | If `true`, only the Director sees this panel |
 | `vscroll` | boolean | Enable built-in vertical scrolling |
-| `minHeight` | number | Minimum pixel height when docked |
+| `minHeight` | number | Minimum pixel height of the panel |
 | `content` | function | Factory that returns a `gui.Panel` tree |
 
-The framework in `DMHub Core UI/DockablePanel.lua` manages two independent dock configurations -- one for players (`dockablepanelsplayer_v1`) and one for the Director (`dockablepanelsgm_v2`). It picks the right config at runtime via:
-
-```lua
-function GetDockablePanelsSetting()
-    return cond(dmhub.isDM, dockablePanelsDMSetting, dockablePanelsPlayerSetting)
-end
-```
-
-Both configs are stored as `pergamepreference` settings, so each game session can have its own panel layout.
+`DMHub Core UI/DockablePanel.lua` is only the registry. Panels open as windows from the icon rail (`DocumentSystem/DocumentSystem.lua`), which also saves each user's rail and window layout and the built-in Director and Player Views.
 
 ---
 

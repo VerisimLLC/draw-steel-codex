@@ -477,19 +477,6 @@ CreateThemeSettingsDialog = function()
 
                             fadeOut(transition, 0.6)
                             audio.FireSoundEvent("Notify.PalleteChange_Apply")
-
-                            local hud = GameHud.instance
-                            if hud then
-                                if rawget(hud, "leftDock") then
-                                    hud.leftDock:UpdateStyle()
-                                end
-                                if rawget(hud, "rightDock") then
-                                    hud.rightDock:UpdateStyle()
-                                end
-                                if rawget(hud, "floatingDock") then
-                                    hud.floatingDock:UpdateStyle()
-                                end
-                            end
                         end)
                     end)
                 end,

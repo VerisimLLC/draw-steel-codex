@@ -8606,6 +8606,26 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                         CopyHoverTexts(rollProperties ~= nil and rollProperties:try_get("multitargets") or nil)
                         local rolled = rollInfo ~= nil and rollInfo.properties or nil
+                        --The ability resolves from the roll's chat message, which can miss an
+                        --edge or bane pressed while the dice were still rolling (or while this
+                        --dialog was hidden). Copy this dialog's target rows over when they differ.
+                        local liveRows = rollProperties ~= nil and rollProperties:try_get("multitargets") or nil
+                        if rolled ~= nil and rolled ~= rollProperties and liveRows ~= nil then
+                            local rolledRows = rolled:try_get("multitargets") or {}
+                            local rowsDiffer = #rolledRows ~= #liveRows
+                            for i, liveRow in ipairs(liveRows) do
+                                local rolledRow = rolledRows[i]
+                                for _, field in ipairs({"tokenid", "boons", "banes", "tiersDelta", "autosuccess", "autofailure", "nottierone", "nottierthree"}) do
+                                    if rolledRow == nil or rolledRow[field] ~= liveRow[field] then
+                                        rowsDiffer = true
+                                    end
+                                end
+                            end
+                            if rowsDiffer then
+                                rolled.multitargets = DeepCopy(liveRows)
+                                pcall(function() rollInfo:UploadProperties(rolled) end)
+                            end
+                        end
                         if rolled ~= nil and rolled ~= rollProperties then
                             CopyHoverTexts(rolled:try_get("multitargets"))
                         end

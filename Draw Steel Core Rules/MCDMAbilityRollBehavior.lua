@@ -813,8 +813,27 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         local m_rollInfo
         local m_rollInfoKey
         local m_finished = false
+        --Edges and banes changed while the dice are still rolling (a hero pressing a
+        --triggered bane at once). Written to the roll's chat message when they land.
+        local m_pendingRollProperties = nil
         local m_tierFinished = nil
         local m_multitargetResults = nil
+
+        --Writes roll properties to this roll's chat message, so the table and every
+        --client's chat card show the result with those edges and banes.
+        local function UploadToRollMessage(props)
+            for _,msg in ipairs(chat.messages) do
+                if msg.key == m_rollInfoKey then
+                    msg:UploadProperties(props)
+                    return
+                end
+            end
+            --a re-roll's key may not be listed as its own message.
+            if m_rollInfo ~= nil then
+                pcall(function() m_rollInfo:UploadProperties(props) end)
+            end
+        end
+
         --The roll dialog's selected target (charid), and whether the roll has
         --more than one target. With several targets an "or" click is recorded
         --for the selected target only; see the tier label's press handler.
@@ -936,6 +955,11 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_endTime = nil
                     m_finished = true
 
+                    if m_pendingRollProperties ~= nil then
+                        UploadToRollMessage(m_pendingRollProperties)
+                        m_pendingRollProperties = nil
+                    end
+
                     local tier = DiceResultToTier(m_rollInfo)
 
                     local multitargets = CalculateMultitargetsFromRollProperties(m_rollInfo, nil)
@@ -974,20 +998,14 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
 
             recalculatedMultiTargets = function(element, multiTargets, rollProperties)
                 if not m_finished then
+                    --before the throw there is no message yet: the throw itself sends these.
+                    if m_rollInfoKey ~= nil then
+                        m_pendingRollProperties = rollProperties
+                    end
                     return
                 end
 
-                local message
-                for _,msg in ipairs(chat.messages) do
-                    if msg.key == m_rollInfoKey then
-                        message = msg
-                        break
-                    end
-                end
-
-                if message ~= nil then
-                    message:UploadProperties(rollProperties)
-                end
+                UploadToRollMessage(rollProperties)
             end,
 
             beginRoll = function(element, rollInfo, rollid)
@@ -2548,6 +2566,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             local modifiersUsed = rollProperties:try_get("modifiersUsed", {})
 
             if targetToken ~= nil then
+                --Record the tier this target resolves at, after edges, banes and tier
+                --changes; behaviors limited to some tiers (an Invoke on Tier 3) read it.
+                tier = EffectiveTier(targetToken)
                 if rollProperties:try_get("tierSuppressed") then
                     --this means that the caster is 'silenced' and results based on tier won't apply.
                     options.symbols.cast:SetTierResult(targetToken, -1)
@@ -2561,7 +2582,6 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.total = m_result.total
 
             if targetToken ~= nil then
-                tier = EffectiveTier(targetToken)
                 targetRollProperties = TierPropertiesFor(targetToken)
 
                 local command = ResolveTierOrChoices(rollProperties, targetRollProperties, tier, targetRollProperties.tiers[tier], targetToken, casterToken, ability)

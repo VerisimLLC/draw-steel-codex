@@ -1122,6 +1122,9 @@ local function CreateStaminaBar(charid, opts)
     --hero, no Recovery left, at max, or dead).
     ---@type number|nil
     local m_heal = nil
+    --true while the mouse is on the recoveries circle or its "+": the
+    --preview only shows then (previewRecovery).
+    local m_previewing = false
     --the creature's damage and heal entries at the last refresh, with the
     --largest amounts seen. Only a new or bigger one plays a sound.
     --- @type nil|table<string, {damage: number, heal: number}>
@@ -1203,7 +1206,7 @@ local function CreateStaminaBar(charid, opts)
         --the recovery preview: from the fill's end (it slides with the
         --fill), or from 0 while dying, to where one Recovery would land.
         local recStart, recWidth, recOver = 0, 0, false
-        if m_heal ~= nil and m_heal > 0 and m_display == "val" and m_max > 0 and m_cur + m_heal > 0 then
+        if m_previewing and m_heal ~= nil and m_heal > 0 and m_display == "val" and m_max > 0 and m_cur + m_heal > 0 then
             local finish
             if m_cur > 0 then
                 recStart = pct
@@ -1279,6 +1282,12 @@ local function CreateStaminaBar(charid, opts)
         monitorGame = "/characters",
         refreshGame = function(element)
             element:FireEvent("refreshCard")
+        end,
+
+        --the recoveries circle is hovered (true) or left (false).
+        previewRecovery = function(element, on)
+            m_previewing = on == true
+            Paint()
         end,
 
         --point the bar at another character (the hero sheet's switcher). The
@@ -1883,6 +1892,13 @@ local function CreateRecoveriesCircle(charid, barHolder, spendOnClick)
             label.text = tostring(current)
             element:SetClass("empty", current <= 0)
         end,
+        --hover: the bar beside it shows what one Recovery would heal.
+        hover = function(element)
+            barHolder:FireEventTree("previewRecovery", true)
+        end,
+        dehover = function(element)
+            barHolder:FireEventTree("previewRecovery", false)
+        end,
         linger = function(element)
             local tok = dmhub.GetCharacterById(charid)
             if tok == nil or not tok.valid or tok.properties == nil then
@@ -1990,6 +2006,13 @@ local function CreateSpendRecoveryButton(charid, barHolder)
                 element:SetClass("collapsed", not show)
                 barHolder.selfStyle.width = cond(show, "100%-48", "100%-25")
             end
+        end,
+        --hover: the bar shows what spending one would heal, as the circle's does.
+        hover = function(element)
+            barHolder:FireEventTree("previewRecovery", true)
+        end,
+        dehover = function(element)
+            barHolder:FireEventTree("previewRecovery", false)
         end,
         linger = function(element)
             local amount = SpendableRecovery(dmhub.GetCharacterById(charid))

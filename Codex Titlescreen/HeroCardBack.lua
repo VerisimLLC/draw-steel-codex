@@ -609,6 +609,36 @@ local function StaminaStrip(c, tok)
 
     --heroes: recoveries, victories, hero tokens. Monsters have none of those;
     --theirs is the Free strike, which the rules put beside Stamina.
+    --one recovery's worth on the bar, from current Stamina to where it would
+    --land (from 0 while dying). Under temp Stamina, which a recovery doesn't
+    --touch. Hidden until the Recoveries stat is hovered.
+    local previewSegment = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        halign = "left",
+        x = preview ~= nil and Px(math.max(0, preview.from)) or 0,
+        width = preview ~= nil and math.max(0, Px(preview.to) - Px(math.max(0, preview.from))) or 0,
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = cond(preview ~= nil and preview.wasted > 0, COLOR_RECOVERY_OVER, COLOR_RECOVERY_FITS),
+        interactable = false,
+    }
+    --the Recoveries stat: its hover also shows the preview, until the mouse leaves.
+    local function ShowsPreview(stat)
+        if preview == nil or tok == nil then
+            return stat
+        end
+        local showTip = stat.events.hover
+        stat.events.hover = function(element)
+            previewSegment:SetClass("collapsed", false)
+            showTip(element)
+        end
+        stat.events.dehover = function(element)
+            previewSegment:SetClass("collapsed", true)
+        end
+        return stat
+    end
+
     local bottomRow
     if isHero then
         bottomRow = gui.Panel{
@@ -618,7 +648,7 @@ local function StaminaStrip(c, tok)
             interactable = false,
             --hovers: the hero sheet's own words for recoveries and victories,
             --and the tac panel's rules and history for hero tokens.
-            Hover(StripStat(recText, "46%", "left"), function()
+            ShowsPreview(Hover(StripStat(recText, "46%", "left"), function()
                 local tip = T("herosheet.card.recovery_tip", { value = string.format("%d", recValue or 0) })
                 if preview ~= nil then
                     local from, to = string.format("%d", preview.from), string.format("%d", preview.to)
@@ -633,7 +663,7 @@ local function StaminaStrip(c, tok)
                     tip = tip .. "\n\n" .. sources
                 end
                 return tip
-            end),
+            end)),
             Hover(StripStat(PairText("Victories", victories), "24%", "center"), function()
                 local resource = Try(function() return c:GetHeroicResourceName() end) or T("herosheet.card.resource_fallback")
                 return T("herosheet.card.victories_tip", { victories = string.format("%d", victories), resource = resource })
@@ -700,19 +730,7 @@ local function StaminaStrip(c, tok)
                 bgcolor = COLOR_DYING,
                 interactable = false,
             },
-            --one recovery's worth, from current Stamina to where it would
-            --land (from 0 while dying). Under temp Stamina, which a recovery
-            --doesn't touch.
-            gui.Panel{
-                floating = true,
-                halign = "left",
-                x = preview ~= nil and Px(math.max(0, preview.from)) or 0,
-                width = preview ~= nil and math.max(0, Px(preview.to) - Px(math.max(0, preview.from))) or 0,
-                height = "100%",
-                bgimage = "panels/square.png",
-                bgcolor = cond(preview ~= nil and preview.wasted > 0, COLOR_RECOVERY_OVER, COLOR_RECOVERY_FITS),
-                interactable = false,
-            },
+            previewSegment,
             gui.Panel{
                 floating = true,
                 halign = "left",

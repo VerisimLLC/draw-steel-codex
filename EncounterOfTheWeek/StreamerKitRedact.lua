@@ -46,7 +46,10 @@
 --      characteristics = { might, agility, reason, intuition, presence },
 --      resource = { name, value }, recoveries = { cur, max }, surges,
 --      victories, conditions = { { id, name } }, active,
---      portrait = { image, rect = { x1, y1, x2, y2 } }, player } },
+--      portrait = { image, rect = { x1, y1, x2, y2 } }, player,
+--      back = { className, subclass, ancestry, kit, winded, death,
+--               recoveryValue, heroTokens, speed, disengage, stability,
+--               skills = { name }, abilities = { { name, kind, cost } } } } },
 --    monsters = { {
 --      id, name, namePrivate, monsterType, squad, minion, hidden,
 --      stamina = { cur, max }, dead, ev, notes, role, organization, level,
@@ -104,6 +107,11 @@ local MAX_MONTAGE_LOG = 12
 local ENTRY_KINDS = { opportunity = true, threat = true }
 local MAX_ACTIONS = 12
 local MAX_TARGETS = 10
+--the back of a hero's card (what any player sees turning it over).
+local MAX_BACK_SKILLS = 40
+local MAX_BACK_ABILITIES = 30
+local BACK_ABILITY_KINDS = { signature = true, heroic = true, main = true, maneuver = true, triggered = true, other = true }
+local MAX_SHORT = 60
 local TARGET_STATES = { winded = true, dying = true, killed = true }
 local ENTRY_STATES = { open = true, taken = true, vanquished = true }
 local MONTAGE_PHASES = { rounds = true, consequences = true, done = true }
@@ -210,6 +218,57 @@ local function List(list, max)
         result[#result + 1] = list[i]
     end
     return result
+end
+
+--- A short label (a name, a size), or nil.
+--- @param s any
+--- @return nil|string
+local function Short(s)
+    s = Str(s)
+    if s ~= nil and #s > MAX_SHORT then
+        s = string.sub(s, 1, MAX_SHORT)
+    end
+    return s
+end
+
+--- The back of a hero's card: known fields only, lists capped. Never notes,
+--- gear, complications or anything else the raw table may carry.
+--- @param back any
+--- @return nil|table
+local function HeroBack(back)
+    if type(back) ~= "table" then
+        return nil
+    end
+    local out = {
+        subclass = Short(back.subclass),
+        kit = Short(back.kit),
+        winded = Whole(back.winded),
+        death = Whole(back.death),
+        recoveryValue = Whole(back.recoveryValue),
+        heroTokens = Whole(back.heroTokens),
+        speed = Whole(back.speed),
+        disengage = Whole(back.disengage),
+        stability = Whole(back.stability),
+        skills = {},
+        abilities = {},
+    }
+    for _, skill in ipairs(List(back.skills, MAX_BACK_SKILLS)) do
+        local name = Short(skill)
+        if name ~= nil then
+            out.skills[#out.skills + 1] = name
+        end
+    end
+    for _, a in ipairs(List(back.abilities, MAX_BACK_ABILITIES)) do
+        if type(a) == "table" and Short(a.name) ~= nil then
+            local cost = Whole(a.cost)
+            out.abilities[#out.abilities + 1] = {
+                name = Short(a.name),
+                kind = BACK_ABILITY_KINDS[a.kind] and a.kind or "other",
+                cost = (cost ~= nil and cost > 0 and cost <= 99) and cost or nil,
+            }
+        end
+    end
+    return out
 end
 
 --- A creature named in an action, or nil when viewers may not learn of it.
@@ -440,6 +499,7 @@ local function RedactHero(hero)
         className = Str(hero.className),
         ancestry = Str(hero.ancestry),
         portrait = Portrait(hero.portrait),
+        back = HeroBack(hero.back),
         player = Str(hero.player),
     }
     if type(hero.characteristics) == "table" then

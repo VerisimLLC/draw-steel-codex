@@ -502,4 +502,35 @@ end)()
     AssertNoLeaks(out, "portraits")
 end)()
 
+;(function()
+    -- the back of a hero's card: known fields only, lists capped.
+    local raw = Fixture()
+    local skills, abilities = {}, {}
+    for i = 1, 50 do skills[i] = "Skill " .. i end
+    for i = 1, 40 do abilities[i] = { name = "Ability " .. i, kind = "heroic", cost = i, text = SECRET } end
+    abilities[1] = { name = "Judgment", kind = SECRET, cost = 3 }
+    abilities[2] = { name = "", kind = "main" }
+    raw.heroes[1].back = {
+        className = "Censor", subclass = "Paragon", ancestry = "Human", kit = string.rep("K", 200),
+        winded = 16.4, death = -16, recoveryValue = 11, heroTokens = 2,
+        speed = 5, disengage = 1, stability = 2,
+        skills = skills, abilities = abilities,
+        notes = SECRET, gear = { SECRET }, complication = SECRET, downtime = SECRET,
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    local b = out.heroes[1].back
+    check(b ~= nil and b.subclass == "Paragon", "subclass")
+    check(b.winded == 16 and b.death == -16 and b.recoveryValue == 11 and b.heroTokens == 2, "thresholds and counts")
+    check(b.speed == 5 and b.disengage == 1 and b.stability == 2, "movement")
+    check(#b.kit == 60, "a long name is cut short")
+    check(#b.skills == 40, "skills capped: " .. #b.skills)
+    check(#b.abilities == 29, "abilities capped, the unnamed one dropped: " .. #b.abilities)
+    check(b.abilities[1].name == "Judgment" and b.abilities[1].kind == "other", "an unknown kind reads other")
+    check(b.abilities[2].cost == 3 and b.abilities[2].text == nil, "cost kept, text dropped")
+    check(b.notes == nil and b.gear == nil and b.complication == nil and b.downtime == nil, "nothing else rides along")
+    AssertNoLeaks(out, "hero back")
+    raw.heroes[1].back = SECRET
+    check(StreamerKitRedact.Redact(raw).heroes[1].back == nil, "a non-table back is dropped")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

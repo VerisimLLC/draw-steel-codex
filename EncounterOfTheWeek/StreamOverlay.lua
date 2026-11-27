@@ -632,6 +632,10 @@ local VIEWER_MAX_BYTES = 48000
 --then: it can under-report, never over-report.
 local g_usedAbilities = {}
 local g_usedAbilitiesCombat = nil
+--each monster's initiative group from the last combat (charid -> {group,
+--title}), kept after it ends; cleared when the next combat starts.
+local g_monsterGroups = {}
+local g_monsterGroupsCombat = nil
 
 --- A characteristic's value, or nil.
 --- @param props Creature
@@ -706,6 +710,102 @@ local function HeroPlayer(token)
     return name
 end
 
+--The card back's slow reads (abilities, skills, kit), per hero, reused for
+--a while: the sheet's ability list builds a feature index each time.
+local BACK_CACHE_SECONDS = 10
+local g_backCache = {}
+
+--the hero's own ability groups the back lists (free strikes and the standard
+--actions are every hero's, so they stay off).
+local BACK_ABILITY_GROUPS = { main = true, maneuver = true, triggered = true, other = true }
+
+--- The slow part of the card back: subclass, kit, skills and abilities.
+--- @param token CharacterToken
+--- @param props creature
+--- @return table
+local function HeroBackSlow(token, props)
+    local now = dmhub.Time()
+    local cached = g_backCache[token.charid]
+    if cached ~= nil and now - cached.at < BACK_CACHE_SECONDS then
+        return cached.back
+    end
+    local back = { skills = {}, abilities = {} }
+    --a hero's class reads live on character (GetClass, GetSubClass).
+    local hero = props --[[@as character]]
+    pcall(function()
+        local classItem = hero:GetClass()
+        if classItem ~= nil then
+            back.className = classItem.name
+            local sub = hero:GetSubClass(classItem)
+            back.subclass = sub ~= nil and sub.name or nil
+        end
+    end)
+    pcall(function() back.ancestry = props:RaceOrMonsterType() end)
+    pcall(function()
+        local kit = props:Kit()
+        back.kit = kit ~= nil and kit.name or nil
+    end)
+    pcall(function()
+        for _, skill in ipairs(Skill.SkillsInfo) do
+            if props:ProficientInSkill(skill) then
+                back.skills[#back.skills + 1] = skill.name
+            end
+        end
+        table.sort(back.skills)
+    end)
+    pcall(function()
+        local sheet = rawget(_G, "EotwHeroSheet")
+        local d = sheet ~= nil and sheet.Data(token, {"resource", "abilities"}) or nil
+        for _, group in ipairs(d ~= nil and d.abilities or {}) do
+            if BACK_ABILITY_GROUPS[group.id] then
+                for _, item in ipairs(group.items or {}) do
+                    local kind = group.id
+                    local cost = nil
+                    if item.category == "Signature Ability" then
+                        kind = "signature"
+                    elseif item.ability ~= nil then
+                        pcall(function()
+                            if item.ability.resourceCost == CharacterResource.heroicResourceId then
+                                cost = tonumber(item.ability:try_get("resourceNumber", 1))
+                            end
+                        end)
+                        if cost ~= nil then
+                            kind = "heroic"
+                        end
+                    end
+                    back.abilities[#back.abilities + 1] = { name = item.name, kind = kind, cost = cost }
+                end
+            end
+        end
+    end)
+    g_backCache[token.charid] = { at = now, back = back }
+    return back
+end
+
+--- The back of the hero's card, as every player can turn it over in the
+--- app (HeroCardBack.lua): the tac panel's public reads. Never the hero's
+--- notes, gear, complications or downtime.
+--- @param token CharacterToken
+--- @param props creature
+--- @return table
+local function HeroBack(token, props)
+    local slow = HeroBackSlow(token, props)
+    local back = {
+        className = slow.className, subclass = slow.subclass, ancestry = slow.ancestry, kit = slow.kit,
+        skills = slow.skills, abilities = slow.abilities,
+    }
+    pcall(function() back.winded = props:BloodiedThreshold() end)
+    pcall(function() back.death = props:KillThresholdStamina() end)
+    pcall(function() back.recoveryValue = props:RecoveryAmount() end)
+    pcall(function() back.heroTokens = props:GetHeroTokens() end)
+    pcall(function() back.speed = props:CurrentMovementSpeed() end)
+    pcall(function()
+        back.disengage = props:GetCustomAttribute(CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"])
+    end)
+    pcall(function() back.stability = props:Stability() end)
+    return back
+end
+
 --- @param token CharacterToken
 --- @param activeTokenIds table<string, boolean>
 --- @return table raw hero (see StreamerKitRedact)
@@ -749,6 +849,11 @@ local function RawHero(token, activeTokenIds)
     pcall(function() hero.level = props:CharacterLevel() end)
     pcall(function() hero.portrait = HeroPortrait(token) end)
     pcall(function() hero.player = HeroPlayer(token) end)
+    pcall(function()
+        hero.back = HeroBack(token, props)
+        hero.className = hero.back.className
+        hero.ancestry = hero.back.ancestry
+    end)
     return hero
 end
 
@@ -945,9 +1050,43 @@ end
 --- @return nil|table
 --The last montage seen to finish (its block as of its "done" phase): the
 --feed keeps it as pastMontage, so viewers can still look back at it after
---the next beat starts. Replaced when another montage finishes; lost if the
---publisher reloads.
+--the next beat starts. Replaced when another montage finishes; after a
+--reload it comes back from the saved totals (SavedMontage).
 local g_pastMontage = nil
+
+--- The last finished montage from the encounter doc's saved totals, for when
+--- g_pastMontage was lost (a reload): title and totals, no board or log.
+--- @return nil|table
+local function SavedMontage()
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return nil
+    end
+    local doc = montage.GetDoc()
+    local script = montage.FindMapScript()
+    local beats = script and script.parse and script.parse.beats or {}
+    local bestIndex, best = nil, nil
+    for key, totals in pairs(doc.data.montageTotals or {}) do
+        local index = tonumber(string.match(tostring(key), "^b(%d+)$"))
+        local beat = index ~= nil and beats[index] or nil
+        if type(totals) == "table" and beat ~= nil and beat.kind == "montage" and (bestIndex == nil or index > bestIndex) then
+            bestIndex = index
+            local rounds = #(beat.rounds or {})
+            best = {
+                title = beat.title,
+                round = math.max(rounds, 1),
+                rounds = rounds,
+                phase = "done",
+                successes = tonumber(totals.successes) or 0,
+                failures = tonumber(totals.failures) or 0,
+                unvanquished = tonumber(totals.unvanquished) or 0,
+                board = {},
+                log = {},
+            }
+        end
+    end
+    return best
+end
 
 --- The montage block (see StreamerKitRedact), phase "done" included.
 --- @return nil|table
@@ -1054,6 +1193,10 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
         g_usedAbilities = {}
         g_usedAbilitiesCombat = combatid
     end
+    if combatid ~= nil and combatid ~= g_monsterGroupsCombat then
+        g_monsterGroups = {}
+        g_monsterGroupsCombat = combatid
+    end
 
     local raw = {
         mode = summary.mode,
@@ -1129,6 +1272,12 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
             print("StreamOverlay:: montage snapshot failed:", montage)
         end
     end
+    if raw.mode ~= "montage" and g_pastMontage == nil then
+        local ok, saved = pcall(SavedMontage)
+        if ok then
+            g_pastMontage = saved
+        end
+    end
     if raw.mode ~= "montage" and g_pastMontage ~= nil then
         raw.pastMontage = g_pastMontage
     end
@@ -1177,6 +1326,8 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                 monster.minion = monster.squad ~= nil
                 pcall(function() monster.monsterType = props:GetMonsterType() end)
                 --the initiative group it acts with, and the group's title.
+                --Remembered per monster, so the groups outlive the initiative
+                --queue: the end-of-fight list and the recap card stay grouped.
                 local initiative = rawget(_G, "InitiativeQueue")
                 if q ~= nil and initiative ~= nil then
                     pcall(function()
@@ -1184,8 +1335,15 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                         if groupid ~= nil then
                             monster.group = groupid
                             monster.groupTitle = q:DescribeEntry(groupid)
+                            g_monsterGroups[token.charid] = { group = groupid, title = monster.groupTitle }
                         end
                     end)
+                elseif q == nil then
+                    local remembered = g_monsterGroups[token.charid]
+                    if remembered ~= nil then
+                        monster.group = remembered.group
+                        monster.groupTitle = remembered.title
+                    end
                 end
                 monster.conditions = MonsterConditions(props)
                 monster.abilities, monster.villainActions = RawMonsterAbilities(token, used)
@@ -1220,6 +1378,17 @@ local function FitViewerToSize(viewer)
         text = dmhub.ToJson(viewer)
         if #text > VIEWER_MAX_BYTES then
             viewer.pastMontage.log = {}
+            text = dmhub.ToJson(viewer)
+        end
+    end
+    --then the card backs' long lists: abilities, then skills.
+    for _, field in ipairs({"abilities", "skills"}) do
+        if #text > VIEWER_MAX_BYTES then
+            for _, hero in ipairs(viewer.heroes or {}) do
+                if hero.back ~= nil then
+                    hero.back[field] = {}
+                end
+            end
             text = dmhub.ToJson(viewer)
         end
     end

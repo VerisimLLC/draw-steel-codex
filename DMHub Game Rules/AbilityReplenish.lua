@@ -945,3 +945,32 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
 
     return result
 end
+
+--Block Editor block (DMHub Utils/BlockBehaviors.lua); fields it does not show are kept as saved.
+Block.RegisterBehaviorBlock{
+    id = "ability.resource",
+    family = "step",
+    group = "resources",
+    label = "Gain or spend a resource",
+    desc = "Creatures gain or spend a resource: Heroic Resource, surges, Recoveries, ...",
+    sentence = { { slot = "mode" }, " ", { slot = "quantity" }, " ", { slot = "resource" }, " for ", { slot = "who" } },
+    slots = {
+        mode = { kind = "choice", default = "replenish", options = { { id = "replenish", text = "Gain" }, { id = "expend", text = "Spend" } } },
+        quantity = { kind = "formula", style = "formula", default = "1", options = { { id = "1", text = "1" }, { id = "2", text = "2" } } },
+        resource = { kind = "choice", default = "", options = Block.TableOptions("characterResources") },
+        who = Block.WhoSlot(),
+    },
+    fits = { "step" },
+    order = 80,
+    claims = { "ActivatedAbilityReplenishBehavior" },
+    accept = function(behavior)
+        --a quantity worked out by a table has no single formula to show.
+        return type(rawget(behavior, "quantity")) ~= "table"
+    end,
+    fields = {
+        mode = { field = "mode", default = "replenish" },
+        quantity = { field = "quantity", default = "1" },
+        resource = { field = "resourceid", default = "" },
+        who = Block.WhoField(),
+    },
+}

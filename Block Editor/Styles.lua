@@ -936,6 +936,11 @@ local function _editorBlockStyles()
             priority = 11,
         },
         {
+            selectors = {"label", "beWordEmpty"},
+            opacity = 0.6,
+            priority = 11,
+        },
+        {
             selectors = {"label", "beWord", "beWordHot"},
             bgcolor = Fixed(FIXED.WORD_FILL_HOT),
             color = Fixed(FIXED.WORD_TEXT_HOT),

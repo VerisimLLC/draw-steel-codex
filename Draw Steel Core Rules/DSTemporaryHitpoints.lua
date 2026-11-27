@@ -268,3 +268,23 @@ function ActivatedAbilityGrantTemporaryStaminaBehavior:EditorItems(parentPanel)
 
     return result
 end
+--Block Editor block (DMHub Utils/BlockBehaviors.lua); the chat message is kept as saved.
+Block.RegisterBehaviorBlock{
+    id = "ability.tempstamina",
+    family = "step",
+    group = "help",
+    label = "Temporary Stamina",
+    desc = "Creatures gain temporary Stamina.",
+    sentence = { "Give ", { slot = "who" }, " ", { slot = "amount" }, " temporary Stamina" },
+    slots = {
+        who = Block.WhoSlot(),
+        amount = { kind = "formula", style = "formula", default = "5", options = { { id = "5", text = "5" }, { id = "10", text = "10" } } },
+    },
+    fits = { "step" },
+    order = 210,
+    claims = { "ActivatedAbilityGrantTemporaryStaminaBehavior" },
+    fields = {
+        who = Block.WhoField(),
+        amount = { field = "stamina", default = 5 },
+    },
+}

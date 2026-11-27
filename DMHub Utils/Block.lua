@@ -35,6 +35,7 @@ local mod = dmhub.GetModLoading()
 --- @field default any the value a new block starts with; a list of option ids for "many"
 --- @field options? {id: string, text: string}[]|fun(): {id: string, text: string}[] the choices of a "choice" or "many" slot, or the suggestions of a "formula"; a function is asked each time, for lists read from data tables
 --- @field style? string how its word looks: "formula" draws it in the mono font
+--- @field empty? string shown faintly when the value reads as nothing (an optional part: "+ duration")
 
 --- A colour group: what kind of block this is. Colours are fixed (never theme tokens).
 --- @class BlockGroup
@@ -63,8 +64,9 @@ local mod = dmhub.GetModLoading()
 --- @field capitalize? boolean capitalises the sentence's first letter (one that starts with a slot)
 --- @field shelf? boolean false keeps it off the shelf (it only arrives by reading a record)
 --- @field claims? string[] the behaviour typeNames this block may read (others are never offered to it)
---- @field read? fun(behavior: table, ctx: table): table|nil the block's slot values for a saved behaviour, or nil when it cannot show this one (it then opens as an Advanced block)
---- @field write? fun(values: table, saved: table|nil, ctx: table): table a behaviour for the values; saved is a copy of the behaviour it was read from (keep every field the block does not claim), nil for a new block
+--- @field read? fun(behavior: table, ctx: BlockContext): table|nil, table<string, BlockInstance[]>|nil the block's slot values for a saved behaviour, and the lists in its bodies; nil when it cannot show this one (it then opens as an Advanced block)
+--- @field write? fun(values: table, saved: table|nil, ctx: BlockContext, bodies: table<string, BlockInstance[]>): table a behaviour for the values and bodies; saved is a copy of the behaviour it was read from (keep every field the block does not claim), nil for a new block
+--- @field tier? BlockTierInfo set on a block that shows one part of a power roll tier
 --- @field stub? boolean a placeholder with no record reading or writing yet
 
 --- A list of blocks inside a block. A power roll has one per tier; a wrapper has one.
@@ -170,10 +172,33 @@ local mod = dmhub.GetModLoading()
 --- @field words string
 --- @field order? number
 
---- A block that holds other blocks (Only if, an aura, a companion, ...).
+--- How a tier block maps to the tier grammar's segments (BlockTiers.lua).
+--- @class BlockTierInfo
+--- @field kinds string[] the segment kinds it shows (rule ids, "todo", "empty")
+--- @field accepts? fun(values: table): boolean whether it shows a segment of one of its kinds (two blocks can split a kind)
+--- @field from? fun(values: table): table the block's values for a segment's values; the segment's values as they are when absent
+--- @field words? fun(values: table): string the tier words for edited values; absent, the values are the rule's own and its compile writes them
+
+--- What a block's read and write are given (BERecordCache builds it).
+--- @class BlockContext
+--- @field host BlockHost
+--- @field record table the record whose steps these are (a nested ability for its own steps)
+--- @field forced? boolean every piece is being saved as if edited (the round-trip test)
+--- @field OpenSteps fun(behaviors: table[]|nil, record: table): BlockInstance[] reads a nested list of steps (an ability inside a step) as blocks
+--- @field SaveSteps fun(instances: BlockInstance[], saved: table[]|nil, record: table): table[], boolean writes them back; true when the list is untouched (keep the saved one)
+
+--- A grouping the editor shows as a block holding steps (Only if, Strained,
+--- a mode), read from a field every behaviour has. Neighbouring steps with the
+--- same key share one wrapper block; outer wrappers have a lower order.
 --- @class BlockWrapper
 --- @field id string
 --- @field order? number
+--- @field block string the BlockDecl drawn for it, with one body
+--- @field body? string that body's id ("steps")
+--- @field key fun(behavior: table, ctx: BlockContext): string|nil what a saved behaviour groups by, nil when it is not wrapped
+--- @field values fun(key: string, ctx: BlockContext): table the wrapper block's values for a key
+--- @field keyOf fun(values: table, ctx: BlockContext): string|nil the key a wrapper block's values stand for
+--- @field apply fun(behavior: table, key: string|nil, ctx: BlockContext) sets the behaviour's field so key() gives this key (nil: not wrapped)
 
 --- A ready-made feature: several blocks added together.
 --- @class BlockRecipe
@@ -194,7 +219,9 @@ local mod = dmhub.GetModLoading()
 --- @field bodies? table<string, BlockInstance[]> by BlockBody id, for a block that holds others
 --- @field uid? string the editor's id for this placed block, unique within its record
 --- @field src? integer the position of the saved behaviour it was read from (BERecordCache)
---- @field openValues? table<string, any> its values as opened, so an unchanged block writes back its saved behaviour
+--- @field openSignature? string its values and bodies as opened (Block.InstanceSignature), so an unchanged block writes back what it was read from
+--- @field openContext? table<string, string> the wrapper keys it was opened inside, by wrapper id
+--- @field saved? table what a block's read keeps to write an unchanged piece back as it was (a tier segment)
 
 --- @class Block
 Block = {}
@@ -316,7 +343,7 @@ end
 
 --- @param entry BlockWrapper
 function Block.RegisterWrapper(entry)
-    if Validate("wrapper", entry, {}) then
+    if Validate("wrapper", entry, { block = "string", key = "function", values = "function", keyOf = "function", apply = "function" }) then
         Store("wrapper", entry)
     end
 end
@@ -525,6 +552,57 @@ function Block.Instantiate(blockId)
         end
     end
     return instance
+end
+
+--- A stable string for a plain value: tables by sorted keys, so two equal
+--- values always give the same string.
+--- @param value any
+--- @return string
+local function Signature(value)
+    if type(value) ~= "table" then
+        return type(value) .. ":" .. tostring(value)
+    end
+    local keys = {}
+    for key in pairs(value) do
+        keys[#keys + 1] = key
+    end
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    local parts = {}
+    for i, key in ipairs(keys) do
+        parts[i] = tostring(key) .. "=" .. Signature(value[key])
+    end
+    return "{" .. table.concat(parts, ",") .. "}"
+end
+
+--- A stable string for a plain value (tables by sorted keys).
+--- @param value any
+--- @return string
+function Block.ValueSignature(value)
+    return Signature(value)
+end
+
+--- What a placed block shows: its block, values and (in order) the blocks in
+--- its bodies. Editor bookkeeping (uid, src, saved, ...) is left out, so two
+--- signatures differ only when the author changed something.
+--- @param instance BlockInstance
+--- @return string
+function Block.InstanceSignature(instance)
+    local bodies = {}
+    for bodyId, list in pairs(instance.bodies or {}) do
+        local items = {}
+        for i, inner in ipairs(list) do
+            items[i] = Block.InstanceSignature(inner)
+        end
+        bodies[bodyId] = "[" .. table.concat(items, ";") .. "]"
+    end
+    return tostring(instance.block) .. "|" .. Signature(instance.values or {}) .. "|" .. Signature(bodies)
+end
+
+--- Whether a placed block (and everything inside it) is as it was opened.
+--- @param instance BlockInstance
+--- @return boolean
+function Block.InstanceUnchanged(instance)
+    return instance.openSignature ~= nil and instance.openSignature == Block.InstanceSignature(instance)
 end
 
 --- A slot's options, asking for them when they are a function.

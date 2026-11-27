@@ -3390,3 +3390,116 @@ function AbilityInvocation.ActivateInvocationPrompt(casterToken, triggerid)
         end
     end)
 end
+
+----------------------------------------------------------------------------
+-- Block Editor blocks (DMHub Utils/BlockBehaviors.lua). An invoke reads as one
+-- of three blocks by its abilityType; fields a block does not show (targeting,
+-- parameters, prompts) are kept as saved.
+----------------------------------------------------------------------------
+
+--- The kind of ability an invoke uses ("custom" when the field is absent).
+--- @param behavior table
+--- @return string
+local function _invokeType(behavior)
+    local abilityType = rawget(behavior, "abilityType")
+    if type(abilityType) ~= "string" then
+        return "custom"
+    end
+    return abilityType
+end
+
+Block.RegisterBehaviorBlock{
+    id = "ability.invokenamed",
+    family = "step",
+    group = "abilities",
+    label = "Use an ability by name",
+    desc = "Someone uses one of their abilities, found by its name.",
+    sentence = { { text = "Then", bold = true }, " ", { slot = "who" }, " use ", { slot = "name" } },
+    slots = {
+        who = Block.WhoSlot(),
+        name = { kind = "text", default = "", empty = "an ability" },
+    },
+    fits = { "step" },
+    order = 52,
+    claims = { "ActivatedAbilityInvokeAbilityBehavior" },
+    accept = function(behavior)
+        return _invokeType(behavior) == "named"
+    end,
+    new = function()
+        local behavior = ActivatedAbilityInvokeAbilityBehavior.new{ customAbility = ActivatedAbility.Create() }
+        behavior.abilityType = "named"
+        return behavior
+    end,
+    fields = {
+        who = Block.WhoField(),
+        name = { field = "namedAbility", default = "" },
+    },
+}
+
+Block.RegisterBehaviorBlock{
+    id = "ability.invokestandard",
+    family = "step",
+    group = "abilities",
+    label = "Use a standard ability",
+    desc = "Someone uses a standard ability (shift, spend a Recovery, ...).",
+    sentence = { { text = "Then", bold = true }, " ", { slot = "who" }, " use ", { slot = "ability" } },
+    slots = {
+        who = Block.WhoSlot(),
+        ability = { kind = "choice", default = "", options = Block.TableOptions("standardAbilities") },
+    },
+    fits = { "step" },
+    order = 54,
+    claims = { "ActivatedAbilityInvokeAbilityBehavior" },
+    accept = function(behavior)
+        return _invokeType(behavior) == "standard"
+    end,
+    new = function()
+        local behavior = ActivatedAbilityInvokeAbilityBehavior.new{ customAbility = ActivatedAbility.Create() }
+        behavior.abilityType = "standard"
+        return behavior
+    end,
+    fields = {
+        who = Block.WhoField(),
+        ability = { field = "standardAbility", default = "" },
+    },
+}
+
+Block.RegisterBehaviorBlock{
+    id = "ability.newability",
+    family = "step",
+    group = "abilities",
+    label = "Use a new ability",
+    desc = "Someone uses another ability, with its own steps inside.",
+    sentence = { { text = "Then", bold = true }, " ", { slot = "who" }, " use a new ability: ", { slot = "prompt" } },
+    slots = {
+        who = Block.WhoSlot(),
+        prompt = { kind = "text", default = "", empty = "+ prompt" },
+    },
+    bodies = { { id = "steps", fits = "step" } },
+    fits = { "step" },
+    order = 50,
+    claims = { "ActivatedAbilityInvokeAbilityBehavior" },
+    accept = function(behavior)
+        return _invokeType(behavior) == "custom" and type(rawget(behavior, "customAbility")) == "table"
+    end,
+    new = function()
+        local customAbility = ActivatedAbility.Create()
+        customAbility.name = "Invoked Ability"
+        return ActivatedAbilityInvokeAbilityBehavior.new{ customAbility = customAbility }
+    end,
+    fields = {
+        who = Block.WhoField(),
+        prompt = { field = "promptText", default = "" },
+    },
+    readBodies = function(behavior, ctx)
+        local customAbility = rawget(behavior, "customAbility")
+        return { steps = ctx.OpenSteps(rawget(customAbility, "behaviors"), customAbility) }
+    end,
+    writeBodies = function(behavior, bodies, ctx)
+        local customAbility = rawget(behavior, "customAbility")
+        local steps, untouched = ctx.SaveSteps(bodies.steps or {}, rawget(customAbility, "behaviors"), customAbility)
+        if not untouched then
+            customAbility.behaviors = steps
+        end
+    end,
+}

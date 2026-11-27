@@ -332,8 +332,10 @@ function BESlots.SentenceRow(args)
                 _chips(children, decl, slotId, slot, value, onChange, gap)
             else
                 local words = _splitWords(run.text)
-                if #words == 0 then
-                    words = { { word = "...", spaced = false } }
+                --an optional slot that reads as nothing shows its placeholder, faint.
+                local empty = #words == 0
+                if empty then
+                    words = { { word = slot.empty or "...", spaced = false } }
                 end
                 --- @param newValue any
                 --- @param source Panel the clicked word, which finds the editor
@@ -341,13 +343,20 @@ function BESlots.SentenceRow(args)
                     local shown = Block.SlotText(decl --[[@as BlockDecl]], slotId, newValue)
                     onChange(slotId, newValue, T("blockeditor.change.set", { what = shown }), source)
                 end
+                local wordClasses = {"beWord"}
+                if slot.style == "formula" then
+                    wordClasses[#wordClasses + 1] = "beWordFormula"
+                end
+                if empty then
+                    wordClasses[#wordClasses + 1] = "beWordEmpty"
+                end
                 for i, entry in ipairs(words) do
                     local shown = "<u>" .. _escape(entry.word) .. "</u>"
                     if args.italic then
                         shown = "<i>" .. shown .. "</i>"
                     end
                     children[#children + 1] = gui.Label{
-                        classes = {"beWord", slot.style == "formula" and "beWordFormula" or nil},
+                        classes = wordClasses,
                         text = shown,
                         lmargin = (i == 1 and gap) and BEStyles.SIZES.WORD_GAP or 0,
                         --the space between two words of one slot is padding inside

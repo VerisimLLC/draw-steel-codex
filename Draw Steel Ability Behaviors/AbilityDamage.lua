@@ -612,3 +612,37 @@ function ActivatedAbilityDamageChatMessage:GetTargetTokens()
     end
     return result
 end
+
+--Block Editor block (DMHub Utils/BlockBehaviors.lua); fields it does not show are kept as saved.
+Block.RegisterBehaviorBlock{
+    id = "ability.damage",
+    family = "step",
+    group = "harm",
+    label = "Deal damage",
+    desc = "Deals damage to creatures, outside a power roll.",
+    sentence = { "Deal ", { slot = "amount" }, " ", { slot = "damageType" }, " damage to ", { slot = "who" } },
+    slots = {
+        amount = { kind = "formula", style = "formula", default = "2", options = { { id = "2", text = "2" }, { id = "Might", text = "Might" } } },
+        damageType = {
+            kind = "choice",
+            default = "",
+            empty = "+ type",
+            options = function()
+                local result = { { id = "", text = "" } }
+                for _, damageType in ipairs(Block.TierDamageTypes) do
+                    result[#result + 1] = { id = damageType, text = damageType }
+                end
+                return result
+            end,
+        },
+        who = Block.WhoSlot(),
+    },
+    fits = { "step" },
+    order = 30,
+    claims = { "ActivatedAbilityDamageBehavior" },
+    fields = {
+        amount = { field = "roll", default = "" },
+        damageType = { field = "damageType", default = "" },
+        who = Block.WhoField(),
+    },
+}

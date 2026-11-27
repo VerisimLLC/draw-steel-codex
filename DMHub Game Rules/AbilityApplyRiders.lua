@@ -160,3 +160,23 @@ function ActivatedAbilityApplyRidersBehavior:EditorItems(parentPanel)
 
     return {editor}
 end
+--Block Editor block (DMHub Utils/BlockBehaviors.lua).
+Block.RegisterBehaviorBlock{
+    id = "ability.riders",
+    family = "step",
+    group = "conditions",
+    label = "Add a condition rider",
+    desc = "Adds a rider to a condition the targets have.",
+    sentence = { "Add ", { slot = "rider" }, " to ", { slot = "condition" } },
+    slots = {
+        rider = { kind = "choice", default = "", options = Block.TableOptions("conditionRiders") },
+        condition = { kind = "choice", default = "", options = Block.TableOptions("charConditions") },
+    },
+    fits = { "step" },
+    order = 135,
+    claims = { "ActivatedAbilityApplyRidersBehavior" },
+    fields = {
+        rider = { field = "riderid", default = "" },
+        condition = { field = "conditionid", default = "" },
+    },
+}

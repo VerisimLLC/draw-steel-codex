@@ -4372,3 +4372,33 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 
     return g_baseActivatedAbilityCast(self, casterToken, targets, options)
 end
+
+----------------------------------------------------------------------------
+-- Block Editor block (DMHub Utils/BlockBehaviors.lua): a rule ("push 2;
+-- prone") is tier text, so its parts open as the same tier blocks a power
+-- roll tier holds, and an unedited part keeps its saved words.
+----------------------------------------------------------------------------
+
+Block.RegisterBehaviorBlock{
+    id = "ability.rule",
+    family = "step",
+    group = "conditions",
+    label = "Apply a result",
+    desc = "Applies results written like a power roll tier (damage, a condition, forced movement) without a roll.",
+    sentence = { "Apply to ", { slot = "who" }, ":" },
+    slots = { who = Block.WhoSlot() },
+    bodies = { { id = "results", fits = "tier" } },
+    fits = { "step" },
+    order = 70,
+    claims = { "ActivatedAbilityDrawSteelCommandBehavior" },
+    fields = { who = Block.WhoField() },
+    readBodies = function(behavior)
+        return { results = Block.TierInstances(rawget(behavior, "rule") or "") }
+    end,
+    writeBodies = function(behavior, bodies)
+        local rule = Block.TierText(bodies.results)
+        if (rawget(behavior, "rule") or "") ~= rule then
+            behavior.rule = rule
+        end
+    end,
+}

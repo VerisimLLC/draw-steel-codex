@@ -129,3 +129,23 @@ function ActivatedAbilityRememberBehavior:EditorItems(parentPanel)
     result[#result+1] = panel
     return result
 end
+--Block Editor block (DMHub Utils/BlockBehaviors.lua).
+Block.RegisterBehaviorBlock{
+    id = "ability.remember",
+    family = "logic",
+    group = "logic",
+    label = "Remember",
+    desc = "Works out a value and remembers it under a name for later steps.",
+    sentence = { "Remember ", { slot = "calculation" }, " as ", { slot = "name" } },
+    slots = {
+        calculation = { kind = "formula", style = "formula", default = "0", options = {} },
+        name = { kind = "text", default = "value" },
+    },
+    fits = { "step" },
+    order = 220,
+    claims = { "ActivatedAbilityRememberBehavior" },
+    fields = {
+        calculation = { field = "calculation", default = "0" },
+        name = { field = "memoryName", default = "value" },
+    },
+}

@@ -80,6 +80,8 @@ local DAMAGE_FORMULAS = {
 
 Block.RegisterBlock{
     id = "stub.powerroll",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "rolls",
     label = "Power roll",
@@ -122,6 +124,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.damage",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "harm",
     label = "Deal damage",
@@ -138,6 +142,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.condition",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "conditions",
     label = "Apply condition",
@@ -155,6 +161,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.newability",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "abilities",
     label = "Use a new ability",
@@ -172,6 +180,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.effect",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "effects",
     label = "Apply an effect",
@@ -196,6 +206,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.onlyif",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "logic",
     group = "logic",
     label = "Logic",
@@ -265,6 +277,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.tierdamage",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "harm",
     label = "Damage",
@@ -278,6 +292,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.tierpush",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "conditions",
     label = "Push, pull or slide",
@@ -304,6 +320,8 @@ Block.RegisterBlock{
 
 Block.RegisterBlock{
     id = "stub.tiercondition",
+    --a real block replaces it on the shelf; the demo record still uses this one.
+    shelf = false,
     family = "step",
     group = "conditions",
     label = "Condition",

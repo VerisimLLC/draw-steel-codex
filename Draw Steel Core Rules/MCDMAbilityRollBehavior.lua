@@ -4609,3 +4609,387 @@ function ActivatedAbilityPowerRollBehavior.CustomRoll(options)
         symbols = {}
     })
 end
+
+----------------------------------------------------------------------------
+-- Block Editor: the power roll as a block (DMHub Utils/Block.lua). Its three
+-- tiers hold tier blocks, one per part of the tier text, read and written by
+-- the tier grammar (DMHub Utils/BlockTiers.lua), so an unedited part keeps its
+-- saved words.
+----------------------------------------------------------------------------
+
+local g_rollStats = { might = "Might", agility = "Agility", reason = "Reason", intuition = "Intuition", presence = "Presence" }
+
+--- The stat id a power roll uses ("2d10 + Might" -> "might"), or nil when the
+--- roll is not the plain 2d10 plus one characteristic.
+--- @param roll any
+--- @return string|nil
+local function _rollStat(roll)
+    if type(roll) ~= "string" then
+        return nil
+    end
+    local word = string.match(roll, "^%s*2d10%s*%+%s*(%a+)%s*$")
+    if word == nil or g_rollStats[string.lower(word)] == nil then
+        return nil
+    end
+    return string.lower(word)
+end
+
+local TIER_BODIES = { "tier1", "tier2", "tier3" }
+
+Block.RegisterBehaviorBlock{
+    id = "ability.powerroll",
+    family = "step",
+    group = "rolls",
+    label = "Power roll",
+    desc = "Roll 2d10 plus a characteristic; each tier holds what happens on that result.",
+    sentence = { { text = "Power roll", bold = true }, " + ", { slot = "stat" } },
+    slots = { stat = { kind = "stat", default = "might" } },
+    bodies = {
+        { id = "tier1", fits = "tier", label = "11 or lower", sublabel = "tier 1" },
+        { id = "tier2", fits = "tier", label = "12 to 16", sublabel = "tier 2" },
+        { id = "tier3", fits = "tier", label = "17 or higher", sublabel = "tier 3" },
+    },
+    fits = { "step" },
+    order = 10,
+    claims = { "ActivatedAbilityPowerRollBehavior" },
+    accept = function(behavior)
+        local tiers = rawget(behavior, "tiers")
+        return _rollStat(rawget(behavior, "roll")) ~= nil and type(tiers) == "table" and #tiers == 3
+    end,
+    new = function()
+        return ActivatedAbilityPowerRollBehavior.new{ roll = "2d10 + Might", tiers = { "", "", "" } }
+    end,
+    fields = {
+        stat = {
+            read = function(behavior)
+                return _rollStat(rawget(behavior, "roll"))
+            end,
+            write = function(behavior, value)
+                behavior.roll = "2d10 + " .. (g_rollStats[value] or "Might")
+            end,
+        },
+    },
+    readBodies = function(behavior)
+        local bodies = {}
+        for i, bodyId in ipairs(TIER_BODIES) do
+            bodies[bodyId] = Block.TierInstances(rawget(behavior, "tiers")[i])
+        end
+        return bodies
+    end,
+    writeBodies = function(behavior, bodies)
+        local tiers = rawget(behavior, "tiers")
+        if type(tiers) ~= "table" then
+            tiers = {}
+            behavior.tiers = tiers
+        end
+        for i, bodyId in ipairs(TIER_BODIES) do
+            local text = Block.TierText(bodies[bodyId])
+            if tiers[i] ~= text then
+                tiers[i] = text
+            end
+        end
+    end,
+}
+
+--- The tier text of a power roll block's tiers, for the ability card.
+--- @param instance BlockInstance a placed "ability.powerroll"
+--- @return string[]
+function ActivatedAbilityPowerRollBehavior.BlockTierTexts(instance)
+    local result = {}
+    for i, bodyId in ipairs(TIER_BODIES) do
+        result[i] = Block.TierText((instance.bodies or {})[bodyId])
+    end
+    return result
+end
+
+--- The roll's characteristic as a word, for the ability card ("Might").
+--- @param instance BlockInstance a placed "ability.powerroll"
+--- @return string
+function ActivatedAbilityPowerRollBehavior.BlockRollWord(instance)
+    return g_rollStats[(instance.values or {}).stat] or "?"
+end
+
+--Tier blocks. Their values are the tier grammar's, except damage, whose
+--amount reads as one formula ("3 + M") and is written back as words.
+
+--- The amount of a damage segment as one formula: "3 + M", "{2*Reason}", "5 + M or A".
+--- @param values table damage, formulaDamage or kitDamage values
+--- @return string
+local function _damageAmount(values)
+    if values.formula ~= nil then
+        return "{" .. tostring(values.formula) .. "}"
+    end
+    local amount = tostring(values.base or "0")
+    if type(values.characteristics) == "table" then
+        local letters = values.characteristics
+        if #letters <= 2 then
+            amount = amount .. " + " .. table.concat(letters, " or ")
+        else
+            amount = amount .. " + " .. table.concat(letters, ", ", 1, #letters - 1) .. ", or " .. letters[#letters]
+        end
+    elseif values.characteristic ~= nil then
+        amount = amount .. " + " .. tostring(values.characteristic)
+    end
+    return amount
+end
+
+--- @param values table
+--- @return table
+local function _damageFrom(values)
+    return { amount = _damageAmount(values), damageType = values.damageType or "untyped" }
+end
+
+--- @param values table
+--- @param added boolean
+--- @return string
+local function _damageWords(values, added)
+    local typeWords = ""
+    if values.damageType ~= nil and values.damageType ~= "untyped" then
+        typeWords = values.damageType .. " "
+    end
+    return tostring(values.amount) .. " " .. typeWords .. "damage" .. (added and " (added)" or "")
+end
+
+--- The damage types, as slot options; untyped reads as nothing.
+--- @return {id: string, text: string}[]
+local function _damageTypeOptions()
+    local result = { { id = "untyped", text = "" } }
+    for _, damageType in ipairs(Block.TierDamageTypes) do
+        result[#result + 1] = { id = damageType, text = damageType }
+    end
+    return result
+end
+
+local DAMAGE_KINDS = { "damage", "formulaDamage", "kitDamage" }
+local DAMAGE_AMOUNTS = { { id = "2 + M", text = "2 + M" }, { id = "3 + M", text = "3 + M" } }
+
+Block.RegisterBlock{
+    id = "tier.damage",
+    family = "step",
+    group = "harm",
+    label = "Damage",
+    desc = "Damage dealt on this tier.",
+    sentence = { { slot = "amount" }, " ", { slot = "damageType" }, " damage" },
+    slots = {
+        amount = { kind = "formula", style = "formula", default = "2 + M", options = DAMAGE_AMOUNTS },
+        damageType = { kind = "choice", default = "untyped", options = _damageTypeOptions, empty = "+ type" },
+    },
+    fits = { "tier" },
+    order = 110,
+    tier = {
+        kinds = DAMAGE_KINDS,
+        accepts = function(values) return not values.added end,
+        from = _damageFrom,
+        words = function(values) return _damageWords(values, false) end,
+    },
+}
+
+Block.RegisterBlock{
+    id = "tier.addeddamage",
+    family = "step",
+    group = "harm",
+    label = "Extra damage",
+    desc = "Damage added to the ability's damage on this tier.",
+    sentence = { { slot = "amount" }, " ", { slot = "damageType" }, " damage (added)" },
+    slots = {
+        amount = { kind = "formula", style = "formula", default = "2", options = DAMAGE_AMOUNTS },
+        damageType = { kind = "choice", default = "untyped", options = _damageTypeOptions, empty = "+ type" },
+    },
+    fits = { "tier" },
+    order = 115,
+    tier = {
+        kinds = DAMAGE_KINDS,
+        accepts = function(values) return values.added == true end,
+        from = _damageFrom,
+        words = function(values) return _damageWords(values, true) end,
+    },
+}
+
+Block.RegisterBlock{
+    id = "tier.forced",
+    family = "step",
+    group = "conditions",
+    label = "Push, pull or slide",
+    desc = "Forced movement on this tier.",
+    sentence = { { slot = "movement" }, " ", { slot = "distance" } },
+    slots = {
+        movement = {
+            kind = "choice",
+            default = "push",
+            options = {
+                { id = "push", text = "push" },
+                { id = "pull", text = "pull" },
+                { id = "slide", text = "slide" },
+                { id = "vertical push", text = "vertical push" },
+                { id = "vertical pull", text = "vertical pull" },
+                { id = "vertical slide", text = "vertical slide" },
+                { id = "vertical push straight up", text = "vertical push straight up" },
+            },
+        },
+        distance = { kind = "number", default = 1 },
+    },
+    fits = { "tier" },
+    order = 120,
+    tier = { kinds = { "forced" } },
+}
+
+--- The conditions, riders or effects the tier grammar knows, as slot options.
+--- @param lookup string a Block.TierLookups key
+--- @param none? {id: string, text: string} an option for nothing, first
+--- @return fun(): {id: string, text: string}[]
+local function _lookupOptions(lookup, none)
+    return function()
+        local result = {}
+        local ok, rows = pcall(Block.TierLookups[lookup])
+        for _, row in ipairs(ok and rows or {}) do
+            local text = row.name or row.words
+            if type(text) == "string" then
+                result[#result + 1] = { id = row.id, text = string.lower(text) }
+            end
+        end
+        table.sort(result, function(a, b) return a.text < b.text end)
+        if none ~= nil then
+            table.insert(result, 1, none)
+        end
+        return result
+    end
+end
+
+local TIER_DURATIONS = {
+    { id = "none", text = "" },
+    { id = "save ends", text = "(save ends)" },
+    { id = "EoT", text = "(EoT)" },
+    { id = "EoE", text = "(EoE)" },
+}
+
+Block.RegisterBlock{
+    id = "tier.condition",
+    family = "step",
+    group = "conditions",
+    label = "Condition",
+    desc = "A condition on this tier.",
+    sentence = { { slot = "condition" }, " ", { slot = "rider" }, " ", { slot = "duration" } },
+    slots = {
+        condition = { kind = "choice", default = "", options = _lookupOptions("conditions") },
+        rider = { kind = "choice", default = "none", options = _lookupOptions("riders", { id = "none", text = "" }), empty = "+ rider" },
+        duration = { kind = "choice", default = "save ends", options = TIER_DURATIONS, empty = "+ duration" },
+    },
+    fits = { "tier" },
+    order = 130,
+    tier = {
+        kinds = { "condition" },
+        from = function(values)
+            return { condition = values.condition, rider = values.rider or "none", duration = values.duration or "none" }
+        end,
+        words = function(values)
+            local rule = Block.GetTierRule("condition")
+            return rule ~= nil and rule.compile{
+                condition = values.condition,
+                rider = values.rider ~= "none" and values.rider or nil,
+                duration = values.duration ~= "none" and values.duration or nil,
+            } or ""
+        end,
+    },
+}
+
+Block.RegisterBlock{
+    id = "tier.effect",
+    family = "step",
+    group = "effects",
+    label = "Ongoing effect",
+    desc = "An ongoing effect from the compendium on this tier.",
+    sentence = { { slot = "effect" }, " ", { slot = "duration" } },
+    slots = {
+        effect = { kind = "choice", default = "", options = _lookupOptions("effects") },
+        duration = { kind = "choice", default = "save ends", options = { TIER_DURATIONS[2], TIER_DURATIONS[3], TIER_DURATIONS[4] } },
+    },
+    fits = { "tier" },
+    order = 140,
+    tier = { kinds = { "effect" } },
+}
+
+Block.RegisterBlock{
+    id = "tier.potency",
+    family = "step",
+    group = "potency",
+    label = "Potency",
+    desc = "What follows only happens when the target's characteristic is below a strength.",
+    sentence = { "if ", { slot = "characteristic" }, " < ", { slot = "threshold" } },
+    slots = {
+        characteristic = {
+            kind = "choice",
+            default = "M",
+            options = { { id = "M", text = "M" }, { id = "A", text = "A" }, { id = "R", text = "R" }, { id = "I", text = "I" }, { id = "P", text = "P" } },
+        },
+        threshold = {
+            kind = "choice",
+            default = "weak",
+            options = { { id = "weak", text = "weak" }, { id = "average", text = "average" }, { id = "strong", text = "strong" } },
+        },
+    },
+    bodies = { { id = "inner", fits = "tier" } },
+    fits = { "tier" },
+    order = 150,
+    tier = { kinds = { "potency" } },
+}
+
+Block.RegisterBlock{
+    id = "tier.surges",
+    family = "step",
+    group = "rolls",
+    label = "Surges",
+    desc = "The target gains surges on this tier.",
+    sentence = { "the target gains ", { slot = "count" }, " surges" },
+    slots = { count = { kind = "number", default = 1 } },
+    fits = { "tier" },
+    order = 160,
+    tier = { kinds = { "surges" } },
+}
+
+Block.RegisterBlock{
+    id = "tier.both",
+    family = "step",
+    group = "logic",
+    label = "Both",
+    desc = "Two results joined by \"and\".",
+    sentence = { { text = "Both", bold = true } },
+    slots = {},
+    bodies = { { id = "first", fits = "tier" }, { id = "second", fits = "tier" } },
+    fits = { "tier" },
+    shelf = false,
+    order = 170,
+    tier = { kinds = { "both" } },
+}
+
+Block.RegisterBlock{
+    id = "tier.note",
+    family = "step",
+    group = "display",
+    label = "Card text",
+    desc = "Words on the card the game does not apply (saved after a #).",
+    sentence = { { slot = "text" } },
+    slots = { text = { kind = "text", default = "" } },
+    tag = "Text",
+    italic = true,
+    fits = { "tier" },
+    order = 180,
+    tier = { kinds = { "note" } },
+}
+
+--Words no tier block reads: kept as written, and still applied by the game's
+--own reading of the tier.
+Block.RegisterBlock{
+    id = Block.TIER_TEXT_BLOCK,
+    family = "step",
+    group = "advanced",
+    label = "Tier words",
+    desc = "Tier words no block reads yet. They are kept as written.",
+    sentence = { { slot = "text" } },
+    slots = { text = { kind = "text", default = "" } },
+    tag = "Words",
+    italic = true,
+    shelf = false,
+    fits = { "tier" },
+    order = 190,
+    tier = { kinds = { "todo", "empty" } },
+}

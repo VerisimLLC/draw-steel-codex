@@ -2848,3 +2848,43 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
 
 	return result
 end
+
+--Block Editor block (DMHub Utils/BlockBehaviors.lua); which effects, stacks and prompts are kept as saved.
+Block.RegisterBehaviorBlock{
+    id = "ability.endeffects",
+    family = "step",
+    group = "help",
+    label = "End effects",
+    desc = "Ends conditions or ongoing effects on creatures.",
+    sentence = { "End ", { slot = "purgeType" }, " (", { slot = "mode" }, ") on ", { slot = "who" } },
+    slots = {
+        purgeType = {
+            kind = "choice",
+            default = "all",
+            options = {
+                { id = "all", text = "every effect" },
+                { id = "chosen", text = "the chosen effects" },
+                { id = "one", text = "one chosen effect" },
+                { id = "replace", text = "and replace effects" },
+            },
+        },
+        mode = {
+            kind = "choice",
+            default = "conditions",
+            options = {
+                { id = "conditions", text = "conditions" },
+                { id = "conditions_and_effects", text = "conditions and effects" },
+                { id = "effect", text = "a specific effect" },
+            },
+        },
+        who = Block.WhoSlot(),
+    },
+    fits = { "step" },
+    order = 90,
+    claims = { "ActivatedAbilityPurgeEffectsBehavior" },
+    fields = {
+        purgeType = { field = "purgeType", default = "all" },
+        mode = { field = "mode", default = "conditions" },
+        who = Block.WhoField(),
+    },
+}

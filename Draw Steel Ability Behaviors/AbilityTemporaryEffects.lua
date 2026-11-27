@@ -146,3 +146,35 @@ function ActivatedAbilityApplyAbilityDurationEffect:EditorItems(parentPanel)
 	self:MomentaryEffectEditor(parentPanel, result)
 	return result
 end
+--Block Editor block (DMHub Utils/BlockBehaviors.lua): shows the effect's name;
+--its modifiers and timing are kept as saved.
+Block.RegisterBehaviorBlock{
+    id = "ability.durationeffect",
+    family = "step",
+    group = "effects",
+    label = "Effect while the ability lasts",
+    desc = "Gives creatures an effect until the ability finishes.",
+    sentence = { "Until the ability ends, ", { slot = "who" }, " have ", { slot = "name" } },
+    slots = {
+        who = Block.WhoSlot(),
+        name = { kind = "text", default = "", empty = "an effect" },
+    },
+    fits = { "step" },
+    order = 65,
+    claims = { "ActivatedAbilityApplyAbilityDurationEffect" },
+    accept = function(behavior)
+        return type(rawget(behavior, "momentaryEffect")) == "table"
+    end,
+    fields = {
+        who = Block.WhoField(),
+        name = {
+            read = function(behavior)
+                return rawget(rawget(behavior, "momentaryEffect"), "name")
+            end,
+            write = function(behavior, value)
+                behavior.momentaryEffect.name = value
+            end,
+            default = "",
+        },
+    },
+}

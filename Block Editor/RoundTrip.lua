@@ -70,12 +70,49 @@ function BERoundTrip.FindAbility(name)
     return nil
 end
 
+--- Whether a list (or anything inside it) holds an Advanced block, and
+--- whether it holds tier words no tier block reads.
+--- @param list BlockInstance[]|nil
+--- @param advancedBlock string|nil
+--- @return boolean advanced, boolean words
+local function _scan(list, advancedBlock)
+    local advanced, words = false, false
+    for _, instance in ipairs(list or {}) do
+        if instance.block == advancedBlock then
+            advanced = true
+        elseif instance.block == Block.TIER_TEXT_BLOCK then
+            words = true
+        end
+        for _, body in pairs(instance.bodies or {}) do
+            local innerAdvanced, innerWords = _scan(body, advancedBlock)
+            advanced = advanced or innerAdvanced
+            words = words or innerWords
+        end
+    end
+    return advanced, words
+end
+
+--- How many of each block a list holds, inside other blocks too.
+--- @param list BlockInstance[]|nil
+--- @param counts? table<string, integer>
+--- @return table<string, integer>
+local function _counts(list, counts)
+    counts = counts or {}
+    for _, instance in ipairs(list or {}) do
+        counts[instance.block] = (counts[instance.block] or 0) + 1
+        for _, body in pairs(instance.bodies or {}) do
+            _counts(body, counts)
+        end
+    end
+    return counts
+end
+
 --- Runs the check.
 --- @param forced? boolean save every piece through its writer
---- @return {total: integer, identical: integer, allBlocks: integer, locked: table<string, integer>, failures: {name: string, where: string, diff: string}[]}
+--- @return {total: integer, identical: integer, allBlocks: integer, allRead: integer, blocks: table<string, integer>, locked: table<string, integer>, failures: {name: string, where: string, diff: string}[]}
 function BERoundTrip.Run(forced)
     local host = Block.Get("host", "ability") --[[@as BlockHost|nil]]
-    local report = { total = 0, identical = 0, allBlocks = 0, locked = {}, failures = {} }
+    local report = { total = 0, identical = 0, allBlocks = 0, allRead = 0, blocks = {}, locked = {}, failures = {} }
     if host == nil then
         dmhub.Error("BlockEditor: no ability host is registered.")
         return report
@@ -92,14 +129,15 @@ function BERoundTrip.Run(forced)
             else
                 diff = { error = tostring(result) }
             end
-            local advanced = false
-            for _, instance in ipairs(model.blocks) do
-                if instance.block == host.advancedBlock then
-                    advanced = true
-                end
-            end
+            local advanced, words = _scan(model.blocks, host.advancedBlock)
             if not advanced then
                 report.allBlocks = report.allBlocks + 1
+                if not words then
+                    report.allRead = report.allRead + 1
+                end
+            end
+            for blockId, count in pairs(_counts(model.blocks)) do
+                report.blocks[blockId] = (report.blocks[blockId] or 0) + count
             end
             for slotId, _ in pairs(model.locked or {}) do
                 report.locked[slotId] = (report.locked[slotId] or 0) + 1
@@ -126,9 +164,21 @@ end
 --- @return string
 function BERoundTrip.Describe(report, forced)
     local lines = {
-        string.format("Block Editor round trip%s: %d of %d abilities save back identical; %d open with every step as a block.",
-            forced and " (forced through the writers)" or "", report.identical, report.total, report.allBlocks),
+        string.format("Block Editor round trip%s: %d of %d abilities save back identical; %d open with every step as a block (%d of them with every tier word read too).",
+            forced and " (forced through the writers)" or "", report.identical, report.total, report.allBlocks, report.allRead),
     }
+    local used = {}
+    for blockId, count in pairs(report.blocks or {}) do
+        used[#used + 1] = { id = blockId, count = count }
+    end
+    table.sort(used, function(a, b) return a.count > b.count end)
+    local usedText = {}
+    for i, entry in ipairs(used) do
+        usedText[i] = string.format("%s %d", entry.id, entry.count)
+    end
+    if #usedText > 0 then
+        lines[#lines + 1] = "Blocks opened: " .. table.concat(usedText, ", ")
+    end
     local locked = {}
     for slotId, count in pairs(report.locked) do
         locked[#locked + 1] = string.format("%s %d", slotId, count)

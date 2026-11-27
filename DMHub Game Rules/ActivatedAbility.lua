@@ -7620,3 +7620,96 @@ function ActivatedAbility.DescribeEffectSource(ability, casterToken)
     end
     return string.format("Applied by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name)
 end
+
+----------------------------------------------------------------------------
+-- Block Editor blocks (DMHub Utils/BlockBehaviors.lua) for the behaviours
+-- declared in this file. Fields a block does not show are kept as saved.
+----------------------------------------------------------------------------
+
+--How an ongoing effect's duration reads in a block, by the Advanced editor's duration ids.
+local g_blockDurations = {
+    { id = "turn", text = "until the end of the turn" },
+    { id = "endround", text = "until the end of the round" },
+    { id = "endnextround", text = "until the end of the next round" },
+    { id = "end_of_next_turn", text = "until the end of their next turn" },
+    { id = "save_ends", text = "(save ends)" },
+    { id = "rounds", text = "for some rounds" },
+    { id = "rounds_end_turn", text = "for some rounds, from the end of the turn" },
+    { id = "until_rest", text = "until they take a respite" },
+    { id = "until_long_rest", text = "until they take a long rest" },
+    { id = "eoe", text = "until the end of the encounter" },
+    { id = "eoe_or_dying", text = "until the end of the encounter or they are dying" },
+    { id = "momentary", text = "for a moment" },
+    { id = "indefinite", text = "indefinitely" },
+}
+
+Block.RegisterBehaviorBlock{
+    id = "ability.applyeffect",
+    family = "step",
+    group = "effects",
+    label = "Apply an effect",
+    desc = "Puts an ongoing effect on creatures.",
+    sentence = { "Apply ", { slot = "effect" }, " to ", { slot = "who" }, " ", { slot = "duration" } },
+    slots = {
+        effect = { kind = "choice", default = "", options = Block.TableOptions("characterOngoingEffects") },
+        who = Block.WhoSlot(),
+        duration = { kind = "choice", default = "eoe", options = g_blockDurations },
+    },
+    fits = { "step" },
+    order = 60,
+    claims = { "ActivatedAbilityApplyOngoingEffectBehavior" },
+    accept = function(behavior)
+        --an effect chosen by a formula has no single effect to show.
+        return rawget(behavior, "ongoingEffectSource") ~= "formula"
+    end,
+    fields = {
+        effect = { field = "ongoingEffect", default = "" },
+        who = Block.WhoField(),
+        duration = {
+            read = function(behavior)
+                local duration = rawget(behavior, "duration")
+                if duration == nil then
+                    return "indefinite"
+                elseif duration == 0 then
+                    return "turn"
+                elseif type(duration) == "number" then
+                    return rawget(behavior, "durationUntilEndOfTurn") and "rounds_end_turn" or "rounds"
+                end
+                return tostring(duration)
+            end,
+            write = function(behavior, value)
+                if value == "turn" then
+                    behavior.duration = 0
+                elseif value == "rounds" or value == "rounds_end_turn" then
+                    local rounds = tonumber(rawget(behavior, "duration"))
+                    behavior.duration = (rounds ~= nil and rounds > 0) and rounds or 1
+                    behavior.durationUntilEndOfTurn = value == "rounds_end_turn"
+                elseif value == "indefinite" then
+                    behavior.duration = nil
+                else
+                    behavior.duration = value
+                end
+            end,
+        },
+    },
+}
+
+Block.RegisterBehaviorBlock{
+    id = "ability.heal",
+    family = "step",
+    group = "help",
+    label = "Heal",
+    desc = "Creatures regain Stamina.",
+    sentence = { "Heal ", { slot = "who" }, " for ", { slot = "amount" }, "." },
+    slots = {
+        who = Block.WhoSlot(),
+        amount = { kind = "formula", style = "formula", default = "1", options = { { id = "Recovery Value", text = "Recovery Value" } } },
+    },
+    fits = { "step" },
+    order = 200,
+    claims = { "ActivatedAbilityHealBehavior" },
+    fields = {
+        who = Block.WhoField(),
+        amount = { field = "roll", default = "" },
+    },
+}

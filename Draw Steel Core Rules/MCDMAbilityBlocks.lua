@@ -246,6 +246,42 @@ local function _text(model, slotId)
     return Block.SlotText({ id = "ability", sentence = {}, slots = SLOTS } --[[@as BlockDecl]], slotId, value)
 end
 
+--- The first placed block of a kind in a list or anywhere inside it, or nil.
+--- @param list BlockInstance[]|nil
+--- @param blockId string
+--- @return BlockInstance|nil
+local function _findBlock(list, blockId)
+    for _, instance in ipairs(list or {}) do
+        if instance.block == blockId then
+            return instance
+        end
+        for _, body in pairs(instance.bodies or {}) do
+            local found = _findBlock(body, blockId)
+            if found ~= nil then
+                return found
+            end
+        end
+    end
+    return nil
+end
+
+--- How many placed blocks of a kind a list holds, inside other blocks too.
+--- @param list BlockInstance[]|nil
+--- @param blockId string
+--- @return integer
+local function _countBlocks(list, blockId)
+    local count = 0
+    for _, instance in ipairs(list or {}) do
+        if instance.block == blockId then
+            count = count + 1
+        end
+        for _, body in pairs(instance.bodies or {}) do
+            count = count + _countBlocks(body, blockId)
+        end
+    end
+    return count
+end
+
 --- A tier's text as card parts, with a lone characteristic letter as a chip.
 --- @param text string
 --- @return (string|{chip: string})[]
@@ -268,6 +304,206 @@ local function _tierParts(text)
     end
     return parts
 end
+
+----------------------------------------------------------------------------
+-- Wrappers: fields every behaviour has that limit when it runs, shown as a
+-- block holding the steps they limit (BlockWrapper in DMHub Utils/Block.lua).
+-- Outer first: a mode, then Strained, then a tier, then an "Only if" test.
+----------------------------------------------------------------------------
+
+--- A list of numbers as a key ("2,3"), or nil for none.
+--- @param list any
+--- @return string|nil
+local function _listKey(list)
+    if type(list) ~= "table" or #list == 0 then
+        return nil
+    end
+    local parts = {}
+    for i, item in ipairs(list) do
+        parts[i] = tostring(item)
+    end
+    return table.concat(parts, ",")
+end
+
+--- A key back to its list of numbers.
+--- @param key string|nil
+--- @return number[]|nil
+local function _keyList(key)
+    if key == nil then
+        return nil
+    end
+    local list = {}
+    for item in string.gmatch(key, "[^,]+") do
+        list[#list + 1] = tonumber(item) or item
+    end
+    return list
+end
+
+--- The names of an ability's modes for a key ("Spend 1 Ferocity").
+--- @param key string
+--- @param record table
+--- @return string
+local function _modeNames(key, record)
+    local modeList = record ~= nil and rawget(record, "modeList") or nil
+    local names = {}
+    for _, number in ipairs(_keyList(key) or {}) do
+        local mode = type(modeList) == "table" and modeList[number] or nil
+        local text = mode ~= nil and rawget(mode, "text") or nil
+        names[#names + 1] = type(text) == "string" and text or ("mode " .. tostring(number))
+    end
+    return table.concat(names, " or ")
+end
+
+Block.RegisterBlock{
+    id = "ability.mode",
+    family = "logic",
+    group = "logic",
+    label = "Only in a mode",
+    desc = "The steps inside only happen when the ability is used in this mode.",
+    sentence = { { text = "Only when used as", bold = true }, " ", { slot = "mode" }, ":" },
+    slots = { mode = { kind = "fixed", default = "" } },
+    bodies = { { id = "steps", fits = "step" } },
+    fits = { "step" },
+    shelf = false,
+}
+
+Block.RegisterWrapper{
+    id = "ability.mode",
+    order = 10,
+    block = "ability.mode",
+    key = function(behavior)
+        return _listKey(rawget(behavior, "modesSelected"))
+    end,
+    values = function(key, ctx)
+        return { modes = key, mode = _modeNames(key, ctx.record) }
+    end,
+    keyOf = function(values)
+        return values.modes
+    end,
+    apply = function(behavior, key)
+        behavior.modesSelected = _keyList(key)
+    end,
+}
+
+Block.RegisterBlock{
+    id = "ability.strained",
+    family = "logic",
+    group = "logic",
+    label = "Only if Strained",
+    desc = "The steps inside only happen when you are (or are not) Strained.",
+    sentence = { { text = "Only if", bold = true }, " you are ", { slot = "strain" }, ":" },
+    slots = {
+        strain = { kind = "choice", default = "strained", options = { { id = "strained", text = "Strained" }, { id = "unstrained", text = "not Strained" } } },
+    },
+    bodies = { { id = "steps", fits = "step" } },
+    fits = { "step" },
+    order = 72,
+}
+
+Block.RegisterWrapper{
+    id = "ability.strained",
+    order = 20,
+    block = "ability.strained",
+    key = function(behavior)
+        local strain = rawget(behavior, "strainSelection")
+        if type(strain) ~= "string" or strain == "" then
+            return nil
+        end
+        return strain
+    end,
+    values = function(key)
+        return { strain = key }
+    end,
+    keyOf = function(values)
+        return values.strain
+    end,
+    apply = function(behavior, key)
+        behavior.strainSelection = key
+    end,
+}
+
+Block.RegisterBlock{
+    id = "ability.ontier",
+    family = "logic",
+    group = "logic",
+    label = "Only on a tier",
+    desc = "The steps inside only happen on some power roll results.",
+    sentence = { { text = "Only on", bold = true }, " ", { slot = "tiers" }, ":" },
+    slots = {
+        tiers = {
+            kind = "choice",
+            default = "3",
+            options = {
+                { id = "1", text = "a result of 11 or lower" },
+                { id = "2", text = "a result of 12 to 16" },
+                { id = "3", text = "a result of 17 or higher" },
+                { id = "1,2", text = "a result of 16 or lower" },
+                { id = "2,3", text = "a result of 12 or higher" },
+                { id = "1,3", text = "a result of 11 or lower, or 17 or higher" },
+            },
+        },
+    },
+    bodies = { { id = "steps", fits = "step" } },
+    fits = { "step" },
+    order = 74,
+}
+
+Block.RegisterWrapper{
+    id = "ability.ontier",
+    order = 30,
+    block = "ability.ontier",
+    key = function(behavior)
+        return _listKey(rawget(behavior, "tiersSelected"))
+    end,
+    values = function(key)
+        return { tiers = key }
+    end,
+    keyOf = function(values)
+        return values.tiers
+    end,
+    apply = function(behavior, key)
+        behavior.tiersSelected = _keyList(key)
+    end,
+}
+
+Block.RegisterBlock{
+    id = "ability.onlyif",
+    family = "logic",
+    group = "logic",
+    label = "Only if",
+    desc = "The steps inside only happen for targets that pass a test.",
+    sentence = { { text = "Only if", bold = true }, " ", { slot = "test" }, ":" },
+    slots = { test = { kind = "formula", style = "formula", default = "Target.Winded", options = {} } },
+    bodies = { { id = "steps", fits = "step" } },
+    fits = { "step" },
+    order = 76,
+}
+
+Block.RegisterWrapper{
+    id = "ability.onlyif",
+    order = 40,
+    block = "ability.onlyif",
+    key = function(behavior)
+        local filter = rawget(behavior, "filterTarget")
+        if type(filter) ~= "string" or string.find(filter, "%S") == nil then
+            return nil
+        end
+        return filter
+    end,
+    values = function(key)
+        return { test = key }
+    end,
+    keyOf = function(values)
+        local test = values.test
+        if type(test) ~= "string" or string.find(test, "%S") == nil then
+            return nil
+        end
+        return test
+    end,
+    apply = function(behavior, key)
+        behavior.filterTarget = key
+    end,
+}
 
 --Steps no block reads: shown by name, saved back untouched.
 Block.RegisterBlock{
@@ -343,18 +579,29 @@ Block.RegisterHost{
                 },
             },
         }
-        --until the power roll has its own block (milestone 2b), the card reads the saved roll.
-        for _, behavior in ipairs(record ~= nil and rawget(record, "behaviors") or {}) do
-            local typeName = nil
-            pcall(function() typeName = behavior.typeName end)
-            if typeName == "ActivatedAbilityPowerRollBehavior" then
-                local roll = tostring(rawget(behavior, "roll") or "")
-                card.roll = string.gsub(roll, "^2d10%s*%+%s*", "Power Roll + ") .. ":"
-                card.tiers = {}
-                for i, tier in ipairs(rawget(behavior, "tiers") or {}) do
-                    card.tiers[i] = { parts = _tierParts(tostring(tier)) }
+        --the first power roll block, wherever it sits (it may be inside a wrapper).
+        local roll = _findBlock(model.blocks, "ability.powerroll")
+        if roll ~= nil then
+            card.roll = string.format("Power Roll + %s:", ActivatedAbilityPowerRollBehavior.BlockRollWord(roll))
+            card.tiers = {}
+            for i, text in ipairs(ActivatedAbilityPowerRollBehavior.BlockTierTexts(roll)) do
+                --"#" marks words the game skips but the card shows: drop the mark.
+                card.tiers[i] = { parts = _tierParts((string.gsub(text, "#%s*", ""))) }
+            end
+        else
+            --a roll no block reads (2d10 + Reason Modifier, ...): the card reads the saved roll.
+            for _, behavior in ipairs(record ~= nil and rawget(record, "behaviors") or {}) do
+                local typeName = nil
+                pcall(function() typeName = behavior.typeName end)
+                if typeName == "ActivatedAbilityPowerRollBehavior" then
+                    local savedRoll = tostring(rawget(behavior, "roll") or "")
+                    card.roll = string.gsub(savedRoll, "^2d10%s*%+%s*", "Power Roll + ") .. ":"
+                    card.tiers = {}
+                    for i, tier in ipairs(rawget(behavior, "tiers") or {}) do
+                        card.tiers[i] = { parts = _tierParts(tostring(tier)) }
+                    end
+                    break
                 end
-                break
             end
         end
         if type(values.effect) == "string" and values.effect ~= "" then
@@ -365,14 +612,13 @@ Block.RegisterHost{
     checks = function(model, record)
         --- @type BlockCheck[]
         local result = {}
-        local advanced = 0
-        for _, instance in ipairs(model.blocks or {}) do
-            if instance.block == "ability.advanced" then
-                advanced = advanced + 1
-            end
-        end
+        local advanced = _countBlocks(model.blocks, "ability.advanced")
         if advanced > 0 then
             result[#result + 1] = { severity = "warning", text = string.format("No block reads %d of the steps yet: they open as Advanced blocks and save back unchanged.", advanced) }
+        end
+        local words = _countBlocks(model.blocks, Block.TIER_TEXT_BLOCK)
+        if words > 0 then
+            result[#result + 1] = { severity = "warning", text = string.format("%d parts of the tier text are words no block reads yet: they are kept as written.", words) }
         end
         if model.savesUnchanged == true then
             result[#result + 1] = { severity = "success", text = "Saves back unchanged." }

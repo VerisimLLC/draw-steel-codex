@@ -79,3 +79,23 @@ function ActivatedAbilityFloatTextBehavior:EditorItems(parentPanel)
 
 	return result
 end
+--Block Editor block (DMHub Utils/BlockBehaviors.lua); the colour is kept as saved.
+Block.RegisterBehaviorBlock{
+    id = "ability.floattext",
+    family = "step",
+    group = "display",
+    label = "Float text",
+    desc = "Shows words floating over creatures on the map.",
+    sentence = { "Show ", { slot = "text" }, " over ", { slot = "who" } },
+    slots = {
+        text = { kind = "text", default = "" },
+        who = Block.WhoSlot(),
+    },
+    fits = { "step" },
+    order = 230,
+    claims = { "ActivatedAbilityFloatTextBehavior" },
+    fields = {
+        text = { field = "text", default = "" },
+        who = Block.WhoField(),
+    },
+}

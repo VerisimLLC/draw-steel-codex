@@ -28,6 +28,9 @@ local mod = dmhub.GetModLoading()
 --- @field blocks BlockInstance[] the record's steps, in order; a block may hold more lists in its bodies
 --- @field values? table<string, any> the record's own fields that header rows show, by slot id
 --- @field nextUid? integer the next number BEState.NewUid hands out
+--- @field openValues? table<string, any> the header values as opened (BERecordCache writes only slots that differ)
+--- @field savesUnchanged? boolean whether an untouched save matched the record when it opened (shown in the checks)
+--- @field locked? table<string, boolean> header slots shown but never written: their writer could not reproduce the record
 --- @field hidden? boolean soft-deleted; undo clears it
 
 --- Where a list of blocks lives in a model: the record's own list (owner nil),

@@ -41,7 +41,13 @@ local function _demoHost(decl)
             return true
         end,
         upload = function(record, model)
-            print(string.format("BLOCKEDITOR:: (phase 1) would upload '%s' with %d blocks", model.name, #model.blocks))
+            --phase 2a: saving is worked out and logged, not sent (milestone 2c sends it).
+            if record ~= nil and decl ~= nil then
+                local same, diff = BERecordCache.SavesUnchanged(model, record, decl)
+                print(string.format("BLOCKEDITOR:: would upload '%s': %s", model.name, same and "unchanged" or json(diff)))
+            else
+                print(string.format("BLOCKEDITOR:: would upload '%s' with %d blocks", model.name, #model.blocks))
+            end
         end,
     }
 end
@@ -256,7 +262,12 @@ function BlockEditor.Open(record)
     local model = nil
     if record ~= nil then
         decl = Block.FindHost(record)
-        model = _emptyModel(record)
+        if decl ~= nil and decl.fields ~= nil then
+            model = BERecordCache.Open(record, decl)
+            model.savesUnchanged = BERecordCache.SavesUnchanged(model, record, decl)
+        else
+            model = _emptyModel(record)
+        end
     else
         decl = Block.Get("host", DEMO_HOST) --[[@as BlockHost|nil]]
         if decl ~= nil and decl.demo ~= nil then
@@ -409,13 +420,23 @@ end
 
 Commands.RegisterMacro{
     name = "blockeditor",
-    summary = "open the Block Editor on its demo ability (developers)",
-    doc = "Usage: /blockeditor\nOpens the Block Editor on the stub ability host's demo record (\"Out of the Way!\"). Every block and the page come from stub registrations; edits, undo and the upload timer work, and the upload is only logged. Developer mode only.",
+    summary = "open an ability in the Block Editor (developers)",
+    doc = "Usage: /blockeditor [ability name]\nWith a name, opens that class or subclass ability as blocks; steps no block reads yet open as Advanced blocks. Without one, opens the stub demo (\"Out of the Way!\"). Edits, undo and the upload timer work; the upload is only logged. Developer mode only.",
     command = function(str)
         if not BlockEditor._isDeveloper() then
             dmhub.Log("The Block Editor is in development: turn on developer mode to open it.")
             return
         end
-        BlockEditor.Open()
+        local name = trim(str or "")
+        if name == "" then
+            BlockEditor.Open()
+            return
+        end
+        local ability = BERoundTrip.FindAbility(name)
+        if ability == nil then
+            dmhub.Log(string.format("No class or subclass ability is called '%s'.", name))
+            return
+        end
+        BlockEditor.Open(ability)
     end,
 }

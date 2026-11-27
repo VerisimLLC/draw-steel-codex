@@ -258,9 +258,10 @@ function BESidePanel.Create(host)
             if model == nil then
                 return
             end
+            local record = state.sources[model.id]
             local children = {}
             if host.checks ~= nil then
-                local ok, checks = pcall(host.checks, model)
+                local ok, checks = pcall(host.checks, model, record)
                 checks = ok and checks or {}
                 local header, rule = BEStyles.SectionHeader{
                     title = T("blockeditor.side.checks"),
@@ -274,7 +275,7 @@ function BESidePanel.Create(host)
                 end
             end
             if host.card ~= nil then
-                local ok, card = pcall(host.card, model)
+                local ok, card = pcall(host.card, model, record)
                 if ok and type(card) == "table" then
                     children[#children + 1] = gui.Panel{
                         width = "100%",

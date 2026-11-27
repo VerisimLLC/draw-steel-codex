@@ -33,7 +33,7 @@ local mod = dmhub.GetModLoading()
 --- @class BlockSlot
 --- @field kind string which control edits it: "number", "choice", "stat", "test", "text", "formula", "many" (a list of chips), ...
 --- @field default any the value a new block starts with; a list of option ids for "many"
---- @field options? {id: string, text: string}[] the choices of a "choice" or "many" slot, or the suggestions of a "formula"
+--- @field options? {id: string, text: string}[]|fun(): {id: string, text: string}[] the choices of a "choice" or "many" slot, or the suggestions of a "formula"; a function is asked each time, for lists read from data tables
 --- @field style? string how its word looks: "formula" draws it in the mono font
 
 --- A colour group: what kind of block this is. Colours are fixed (never theme tokens).
@@ -62,6 +62,9 @@ local mod = dmhub.GetModLoading()
 --- @field italic? boolean draws the sentence in italics
 --- @field capitalize? boolean capitalises the sentence's first letter (one that starts with a slot)
 --- @field shelf? boolean false keeps it off the shelf (it only arrives by reading a record)
+--- @field claims? string[] the behaviour typeNames this block may read (others are never offered to it)
+--- @field read? fun(behavior: table, ctx: table): table|nil the block's slot values for a saved behaviour, or nil when it cannot show this one (it then opens as an Advanced block)
+--- @field write? fun(values: table, saved: table|nil, ctx: table): table a behaviour for the values; saved is a copy of the behaviour it was read from (keep every field the block does not claim), nil for a new block
 --- @field stub? boolean a placeholder with no record reading or writing yet
 
 --- A list of blocks inside a block. A power roll has one per tier; a wrapper has one.
@@ -99,6 +102,12 @@ local mod = dmhub.GetModLoading()
 --- @field tiers? {parts: (string|{chip: string})[]}[] one per tier; a chip is a shaded characteristic letter
 --- @field effect? {label: string, text: string}
 
+--- One of the record's own fields as a header slot: how it reads and writes.
+--- @class BlockField
+--- @field read fun(record: table): any the slot value
+--- @field write fun(record: table, value: any, original: any) sets the record's fields for a value; original is the value read when opened, so a writer can keep the saved spelling
+--- @field touches string[] the record fields it reads and writes
+
 --- One line in a host's checks.
 --- @class BlockCheck
 --- @field severity string "success", "warning" or "danger"
@@ -116,9 +125,12 @@ local mod = dmhub.GetModLoading()
 --- @field toolbar? {label: string, field: string, options: {id: string, text: string}[]} a dropdown in the title bar ("Belongs to")
 --- @field shelfSections? {title: string, fits: string}[] the shelf's sections: each lists the blocks that fit one kind of list
 --- @field templates? {label: string, items: string[]} pills that start a new record from a template ("Start from:")
---- @field card? fun(model: table): BlockCard the book-style card for the side panel
---- @field checks? fun(model: table): BlockCheck[] problems and notes about the record
+--- @field card? fun(model: table, record?: table): BlockCard the book-style card for the side panel; record is the one opened, when there is one
+--- @field checks? fun(model: table, record?: table): BlockCheck[] problems and notes about the record
 --- @field demo? table a ready-made model, opened when the editor has no record (developers)
+--- @field fields? table<string, BlockField> the record's own fields, by the header slot that shows them
+--- @field stepsField? string the record field holding its list of steps ("behaviors")
+--- @field advancedBlock? string the block a step opens as when no block reads it
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
 --- @field upload? fun(record: table) sends one record to the server; the editor uploads the table row when absent
 --- @field order? number
@@ -181,6 +193,8 @@ local mod = dmhub.GetModLoading()
 --- @field values table<string, any> by slot id
 --- @field bodies? table<string, BlockInstance[]> by BlockBody id, for a block that holds others
 --- @field uid? string the editor's id for this placed block, unique within its record
+--- @field src? integer the position of the saved behaviour it was read from (BERecordCache)
+--- @field openValues? table<string, any> its values as opened, so an unchanged block writes back its saved behaviour
 
 --- @class Block
 Block = {}
@@ -513,6 +527,22 @@ function Block.Instantiate(blockId)
     return instance
 end
 
+--- A slot's options, asking for them when they are a function.
+--- @param slot BlockSlot
+--- @return {id: string, text: string}[]
+function Block.SlotOptions(slot)
+    local options = slot.options
+    if type(options) == "function" then
+        local ok, result = pcall(options)
+        if ok and type(result) == "table" then
+            return result
+        end
+        Report("a slot's options failed: " .. tostring(result))
+        return {}
+    end
+    return options or {}
+end
+
 --- How a slot's value reads in the sentence: a choice's text, a stat's or a
 --- test's words, otherwise the value itself.
 --- @param decl BlockDecl
@@ -532,7 +562,7 @@ function Block.SlotText(decl, slotId, value)
         return table.concat(texts, ", ")
     end
     if slot.kind == "choice" or slot.kind == "many" or slot.kind == "formula" then
-        for _, option in ipairs(slot.options or {}) do
+        for _, option in ipairs(Block.SlotOptions(slot)) do
             if option.id == value then
                 return option.text
             end

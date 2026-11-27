@@ -46,7 +46,7 @@ end
 local function _choices(slot)
     local result = {}
     if slot.kind == "choice" or slot.kind == "formula" then
-        for _, option in ipairs(slot.options or {}) do
+        for _, option in ipairs(Block.SlotOptions(slot)) do
             result[#result + 1] = { text = option.text, value = option.id }
         end
         if slot.kind == "formula" then
@@ -244,7 +244,7 @@ local function _chips(row, decl, slotId, slot, value, onChange, gap)
         end,
         press = function(element)
             local entries = {}
-            for _, option in ipairs(slot.options or {}) do
+            for _, option in ipairs(Block.SlotOptions(slot)) do
                 local taken = false
                 for _, item in ipairs(chosen) do
                     if item == option.id then
@@ -320,7 +320,15 @@ function BESlots.SentenceRow(args)
                 value = slot.default
             end
             local gap = #children > 0 and pendingSpace
-            if slot.kind == "many" then
+            if slot.kind == "fixed" then
+                --a value shown but not edited here (an Advanced block's summary).
+                for i, entry in ipairs(_splitWords(run.text)) do
+                    children[#children + 1] = _plainWord(entry.word, {
+                        gap = #children > 0 and (i > 1 or gap),
+                        italic = args.italic,
+                    })
+                end
+            elseif slot.kind == "many" then
                 _chips(children, decl, slotId, slot, value, onChange, gap)
             else
                 local words = _splitWords(run.text)

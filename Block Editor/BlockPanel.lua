@@ -111,7 +111,8 @@ function BEBlockPanel.Create(instance)
     end
     local uid = instance.uid or ""
     local SIZES = BEStyles.SIZES
-    local inset = SIZES.SENTENCE_INSET + (decl.tag ~= nil and SIZES.TAG_INSET or 0)
+    --a tag's width grows with its text ("Text", "Advanced").
+    local inset = SIZES.SENTENCE_INSET + (decl.tag ~= nil and (SIZES.TAG_INSET + 10 * math.max(0, #decl.tag - 4)) or 0)
     local sentenceWidth = "100%-" .. inset
 
     --- @type Panel

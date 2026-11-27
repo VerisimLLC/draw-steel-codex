@@ -394,6 +394,29 @@ local function TurnInfo(q)
     return turn, active
 end
 
+--- A combatant's turn this round, as the initiative bar shows it: "now" while
+--- its turn runs, "acted" once taken, "waiting" before. Nil out of combat.
+--- @param q nil|InitiativeQueue
+--- @param token CharacterToken
+--- @param activeTokenIds table<string, boolean>
+--- @return nil|string
+local function TurnStatusOf(q, token, activeTokenIds)
+    if q == nil then
+        return nil
+    end
+    if activeTokenIds[token.charid] then
+        return "now"
+    end
+    local status = nil
+    pcall(function()
+        local initid = InitiativeQueue.GetInitiativeId(token)
+        if initid ~= nil and q:HasInitiative(initid) then
+            status = cond(q:HasHadTurn(initid), "acted", "waiting")
+        end
+    end)
+    return status
+end
+
 --- The encounter's title as players see it, e.g. "The Goblin Ambush".
 --- @return nil|string
 local function EncounterTitle()
@@ -1286,6 +1309,7 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
         if token.valid and token.properties ~= nil then
             local ok, hero = pcall(RawHero, token, activeTokenIds)
             if ok then
+                hero.turnStatus = TurnStatusOf(q, token, activeTokenIds)
                 raw.heroes[#raw.heroes + 1] = hero
             end
         end
@@ -1346,6 +1370,7 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                     end
                 end
                 monster.conditions = MonsterConditions(props)
+                monster.turnStatus = TurnStatusOf(q, token, activeTokenIds)
                 monster.abilities, monster.villainActions = RawMonsterAbilities(token, used)
                 raw.monsters[#raw.monsters + 1] = monster
             end

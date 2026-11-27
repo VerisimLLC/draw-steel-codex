@@ -533,4 +533,23 @@ end)()
     check(StreamerKitRedact.Redact(raw).heroes[1].back == nil, "a non-table back is dropped")
 end)()
 
+;(function()
+    -- each combatant's turn this round: three known values, nothing else.
+    local raw = Fixture()
+    raw.heroes[1].turnStatus = "now"
+    raw.heroes[2].turnStatus = "acted"
+    raw.monsters[1].turnStatus = "waiting"
+    raw.monsters[2].turnStatus = SECRET
+    local out = StreamerKitRedact.Redact(raw)
+    check(out.heroes[1].turnStatus == "now" and out.heroes[2].turnStatus == "acted", "hero turn status")
+    local byId = {}
+    for _, foe in ipairs(out.foes.list) do byId[foe.id] = foe end
+    local m1 = byId[raw.monsters[1].id]
+    check(m1 == nil or m1.turnStatus == "waiting", "foe turn status")
+    for _, foe in ipairs(out.foes.list) do
+        check(foe.turnStatus == nil or foe.turnStatus == "now" or foe.turnStatus == "acted" or foe.turnStatus == "waiting", "only known turn values")
+    end
+    AssertNoLeaks(out, "turn status")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

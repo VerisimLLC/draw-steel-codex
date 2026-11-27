@@ -59,6 +59,8 @@
 --    events = { { seq, t, kind, whoId, who, targetId, target, amount, crit } },
 --    monsters[i].group, groupTitle: the initiative group it acts with
 --      (InitiativeQueue.GetInitiativeId) and that group's title.
+--    heroes[i].turnStatus, monsters[i].turnStatus: "now"|"acted"|"waiting",
+--      this round's turn as the initiative bar shows it (combat only).
 --    actions = nil | { { t, round, ability, villain,
 --      actor = { id, name, secret, hero },
 --      roll = { total, tier },
@@ -481,6 +483,18 @@ function StreamerKitRedact.MonsterBand(stamina, dead)
     return "healthy"
 end
 
+--a combatant's turn this round, as the initiative bar shows it.
+local TURN_STATUSES = { now = true, acted = true, waiting = true }
+
+--- @param s any
+--- @return nil|string
+local function TurnStatus(s)
+    if type(s) == "string" and TURN_STATUSES[s] then
+        return s
+    end
+    return nil
+end
+
 local function RedactHero(hero)
     local name = PublicName(hero)
     local stamina = type(hero.stamina) == "table" and hero.stamina or {}
@@ -493,6 +507,7 @@ local function RedactHero(hero)
         state = HeroState(hero, cur, max),
         conditions = Conditions(hero.conditions, false),
         active = hero.active == true,
+        turnStatus = TurnStatus(hero.turnStatus),
         victories = Whole(hero.victories),
         surges = Whole(hero.surges),
         level = Whole(hero.level),
@@ -524,6 +539,7 @@ local function RedactMonster(monster)
         minion = monster.minion == true,
         state = StreamerKitRedact.MonsterBand(monster.stamina, monster.dead == true),
         conditions = Conditions(monster.conditions, true),
+        turnStatus = TurnStatus(monster.turnStatus),
         abilities = {},
         villainActions = {},
     }

@@ -68,10 +68,11 @@ local CONDITIONS = {
     { id = "weakened", text = "weakened" },
 }
 
---The suggestions a formula word offers; the author can also type one.
-local DAMAGE_FORMULAS = {
-    { id = "3 + M", text = "3 + M" },
-    { id = "2 + M", text = "2 + M" },
+--The kinds of tier damage amount (one per kind, never one per value).
+local DAMAGE_KINDS_OF_AMOUNT = {
+    { name = "A number", example = "3", value = "3" },
+    { name = "A number plus a characteristic", example = "3 + M", value = "3 + M" },
+    { name = "A formula", example = "{2 * Reason}", value = "{2 * Reason}" },
 }
 
 ----------------------------------------------------------------------------
@@ -132,7 +133,7 @@ Block.RegisterBlock{
     desc = "Deals damage to a creature.",
     sentence = { "Deal ", { slot = "amount" }, " damage to ", { slot = "who" }, "." },
     slots = {
-        amount = { kind = "formula", style = "formula", default = "2", options = DAMAGE_FORMULAS },
+        amount = { kind = "formula", style = "formula", default = "2", amount = true, dice = true },
         who = { kind = "choice", default = "target", options = WHO },
     },
     fits = { "step" },
@@ -284,7 +285,7 @@ Block.RegisterBlock{
     label = "Damage",
     desc = "Damage dealt by a power roll tier. Only goes inside a tier.",
     sentence = { { slot = "amount" }, " damage" },
-    slots = { amount = { kind = "formula", style = "formula", default = "2 + M", options = DAMAGE_FORMULAS } },
+    slots = { amount = { kind = "formula", style = "formula", default = "2 + M", kinds = DAMAGE_KINDS_OF_AMOUNT } },
     fits = { "tier" },
     order = 110,
     stub = true,

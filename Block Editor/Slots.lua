@@ -11,15 +11,15 @@ local mod = dmhub.GetModLoading()
 
     The pickers are chosen by the slot's kind (choice, stat, test, number,
     formula, text, many). A host or block never draws its own controls: it
-    declares slots, and BESlots draws them (plan section 2).
+    declares slots, and BESlots draws them (plan section 2). An amount slot
+    (BlockSlot.amount) opens the kinds of amount, and shows each number, stat
+    and sign of its formula as a word of its own; a number slot opens a box.
 ]]
 
 local T = UIText.T
 
 --- @class BESlots
 BESlots = {}
-
-local NUMBER_CHOICES = { 1, 2, 3, 4, 5 }
 
 --- The words of a text, each with whether a space came before it.
 --- @param text string
@@ -65,12 +65,6 @@ local function _choices(slot)
         end
         result[#result + 1] = "-"
         result[#result + 1] = { text = T("blockeditor.menu.build_test"), disabled = true }
-    elseif slot.kind == "number" then
-        for _, number in ipairs(NUMBER_CHOICES) do
-            result[#result + 1] = { text = tostring(number), value = number }
-        end
-        result[#result + 1] = "-"
-        result[#result + 1] = { text = T("blockeditor.menu.formula"), action = "type" }
     else
         result[#result + 1] = { text = T("blockeditor.menu.edit_text"), action = "type" }
     end
@@ -161,6 +155,333 @@ local function _openPicker(word, slot, value, commit)
         end,
     }
 end
+
+----------------------------------------------------------------------------
+-- The amount picker (ledger: one entry per kind, never one per value). An
+-- amount slot (BlockSlot.amount) lists the kinds of amount, each with a real
+-- example; searching a stat ("agility") makes the examples use it. What the
+-- example shows (the stat, the sign, the numbers) is then changed on the
+-- block: each is its own word (_formulaWords below).
+----------------------------------------------------------------------------
+
+--- The names an amount can be based on, for the stat menu and the search:
+--- the registered stats, Level, and the slot's own extra names.
+--- @param slot BlockSlot
+--- @return string[]
+local function _amountNames(slot)
+    local result = {}
+    for _, stat in ipairs(Block.All("stat")) do
+        --- @cast stat BlockStat
+        result[#result + 1] = stat.words
+    end
+    result[#result + 1] = "Level"
+    for _, name in ipairs(slot.names or {}) do
+        result[#result + 1] = name
+    end
+    return result
+end
+
+--- The name a search is for ("agi" -> "Agility"), or nil.
+--- @param slot BlockSlot
+--- @param query string lower case
+--- @return string|nil
+local function _searchedName(slot, query)
+    if query == "" then
+        return nil
+    end
+    for _, name in ipairs(_amountNames(slot)) do
+        if string.sub(string.lower(name), 1, #query) == query then
+            return name
+        end
+    end
+    return nil
+end
+
+--- The kinds an amount picker lists, for a search.
+--- @param slot BlockSlot
+--- @param query string lower case
+--- @return {name: string, example: string, value?: string, action?: string, words: string}[]
+local function _amountKinds(slot, query)
+    if slot.kinds ~= nil then
+        local result = {}
+        for _, kind in ipairs(slot.kinds) do
+            result[#result + 1] = { name = kind.name, example = kind.example, value = kind.value, words = string.lower(kind.name .. " " .. kind.example) }
+        end
+        return result
+    end
+    local named = _searchedName(slot, query)
+    local stat = named or "Might"
+    local result = {
+        { name = T("blockeditor.amount.number"), example = T("blockeditor.amount.number_example"), action = "number", words = "number amount flat fixed" },
+        {
+            name = T("blockeditor.amount.stat"),
+            example = named ~= nil and T("blockeditor.amount.stat_found", { stat = named }) or T("blockeditor.amount.stat_example"),
+            value = stat,
+            words = "stat characteristic attribute",
+        },
+        {
+            name = T("blockeditor.amount.math"),
+            example = named ~= nil and T("blockeditor.amount.math_found", { stat = named }) or T("blockeditor.amount.math_example"),
+            value = (named or "Level") .. " + 1",
+            words = "math plus minus times multiply add subtract divide half double",
+        },
+        { name = T("blockeditor.amount.level"), example = T("blockeditor.amount.level_example"), value = "1 + (1 when Level >= 5 else 0)", words = "level echelon scale grows bonus" },
+        { name = T("blockeditor.amount.test"), example = T("blockeditor.amount.test_example"), value = "2 when Target.Winded else 1", words = "if when else choose test depends" },
+    }
+    if slot.dice then
+        result[#result + 1] = { name = T("blockeditor.amount.dice"), example = T("blockeditor.amount.dice_example"), value = "1d6", words = "random dice roll d6 d10" }
+    end
+    return result
+end
+
+--- Opens the amount picker at the pointer.
+--- @param word Panel the clicked word
+--- @param slot BlockSlot
+--- @param value any the current value
+--- @param commit fun(value: any)
+local function _openAmountPicker(word, slot, value, commit)
+    local current = value ~= nil and tostring(value) or ""
+
+    --- @type Panel
+    local list
+    --- @param query string
+    local function Fill(query)
+        local rows = {}
+        local named = slot.kinds == nil and _searchedName(slot, query) ~= nil
+        for _, kind in ipairs(_amountKinds(slot, query)) do
+            --a search for a stat keeps the kinds that use one; any other search filters by words.
+            local shown
+            if query == "" then
+                shown = true
+            elseif named then
+                shown = string.find(kind.words, "stat", 1, true) ~= nil or string.find(kind.words, "math", 1, true) ~= nil
+            else
+                shown = string.find(string.lower(kind.name) .. " " .. kind.words, query, 1, true) ~= nil
+            end
+            if shown then
+                rows[#rows + 1] = gui.Panel{
+                    classes = {"beAmountRow"},
+                    press = function(element)
+                        word.popup = nil
+                        if kind.action == "number" then
+                            local number = tonumber(current) ~= nil and current or "1"
+                            if number ~= current then
+                                commit(number)
+                            end
+                            _openTextBox(word, number, commit)
+                        elseif kind.value ~= current then
+                            commit(kind.value)
+                        end
+                    end,
+                    gui.Label{ classes = {"beAmountName"}, text = kind.name, interactable = false },
+                    gui.Label{ classes = {"beAmountExample"}, text = _escape(kind.example), interactable = false },
+                }
+            end
+        end
+        rows[#rows + 1] = gui.Panel{
+            classes = {"beAmountRow"},
+            press = function(element)
+                word.popup = nil
+                _openTextBox(word, value, commit)
+            end,
+            gui.Label{ classes = {"beAmountName"}, text = T("blockeditor.menu.formula"), interactable = false },
+        }
+        list.children = rows
+    end
+
+    list = gui.Panel{
+        classes = {"beAmountList"},
+    }
+    local children = {
+        gui.Label{ classes = {"beAmountTitle"}, text = T("blockeditor.amount.title"), interactable = false },
+    }
+    if current ~= "" then
+        children[#children + 1] = gui.Label{
+            classes = {"beAmountNow"},
+            text = T("blockeditor.amount.now", { value = _escape(current) }),
+            interactable = false,
+        }
+    end
+    if slot.kinds == nil then
+        children[#children + 1] = gui.SearchInput{
+            classes = {"searchInput", "beAmountSearch"},
+            placeholderText = T("blockeditor.amount.search"),
+            search = function(element, text)
+                Fill(string.lower(trim(text or "")))
+            end,
+        }
+    end
+    children[#children + 1] = list
+    Fill("")
+
+    word.popupsInheritStyles = true
+    word.popupPositioning = "mouse"
+    word.popup = gui.Panel{
+        classes = {"framedPanel", "beAmountPicker"},
+        interactable = true,
+        swallowPress = true,
+        children = children,
+    }
+end
+
+--- A path into a formula tree: the keys from the root to a node.
+--- @param ast BlockFormulaNode
+--- @param path string[]
+--- @return BlockFormulaNode|nil
+local function _nodeAt(ast, path)
+    --- @type BlockFormulaNode|nil
+    local node = ast
+    for _, key in ipairs(path) do
+        node = node ~= nil and node[key] or nil
+    end
+    return node
+end
+
+--- A copy of a formula tree with the node at path replaced.
+--- @param ast BlockFormulaNode
+--- @param path string[]
+--- @param replacement BlockFormulaNode
+--- @return BlockFormulaNode
+local function _replaced(ast, path, replacement)
+    if #path == 0 then
+        replacement.comments = ast.comments
+        return replacement
+    end
+    local copy = DeepCopy(ast)
+    local parent = copy
+    for i = 1, #path - 1 do
+        parent = parent[path[i]]
+    end
+    local old = parent[path[#path]]
+    replacement.parens = replacement.parens or (old ~= nil and old.parens or nil)
+    parent[path[#path]] = replacement
+    return copy
+end
+
+--- The pieces an amount formula shows as on the block: each number, stat and
+--- sign is its own piece with its own picker. Nil when the text is not a
+--- formula; anything else shows as one piece typed as a formula.
+--- @param text string
+--- @return BlockFormulaNode|nil ast, {text: string, edit?: string, path?: string[]}[]|nil pieces
+local function _formulaPieces(text)
+    local ast = Block.ParseFormula(text)
+    if ast == nil then
+        return nil, nil
+    end
+    local pieces = {}
+    local function Walk(node, path)
+        for _ = 1, node.parens or 0 do
+            pieces[#pieces + 1] = { text = "(" }
+        end
+        if node.k == "num" then
+            pieces[#pieces + 1] = { text = tostring(node.v), edit = "number", path = path }
+        elseif node.k == "id" and node.path ~= nil and #node.path == 1 then
+            pieces[#pieces + 1] = { text = node.path[1], edit = "stat", path = path }
+        elseif node.k == "bin" and not node.unary and node.l ~= nil and node.r ~= nil then
+            local left, right = { table.unpack(path) }, { table.unpack(path) }
+            left[#left + 1] = "l"
+            right[#right + 1] = "r"
+            Walk(node.l, left)
+            pieces[#pieces + 1] = { text = node.opText or node.op, edit = "sign", path = path }
+            Walk(node.r, right)
+        elseif node.k == "when" and node.v ~= nil and node.c ~= nil then
+            local value, test, otherwise = { table.unpack(path) }, { table.unpack(path) }, { table.unpack(path) }
+            value[#value + 1] = "v"
+            test[#test + 1] = "c"
+            otherwise[#otherwise + 1] = "e"
+            Walk(node.v --[[@as BlockFormulaNode]], value)
+            pieces[#pieces + 1] = { text = T("blockeditor.amount.if") }
+            pieces[#pieces + 1] = { text = Block.PrintFormula(node.c), edit = "formula", path = test }
+            if node.e ~= nil then
+                pieces[#pieces + 1] = { text = T("blockeditor.amount.otherwise") }
+                Walk(node.e, otherwise)
+            end
+        else
+            local copy = DeepCopy(node)
+            copy.parens = nil
+            pieces[#pieces + 1] = { text = Block.PrintFormula(copy), edit = "formula", path = path }
+        end
+        for _ = 1, node.parens or 0 do
+            pieces[#pieces + 1] = { text = ")" }
+        end
+    end
+    Walk(ast, {})
+    return ast, pieces
+end
+
+--- The picker for one piece of an amount on the block.
+--- @param word Panel the clicked word
+--- @param slot BlockSlot
+--- @param value any the slot's value
+--- @param ast BlockFormulaNode the parsed value
+--- @param piece {text: string, edit?: string, path?: string[]}
+--- @param commit fun(value: any)
+local function _openPiecePicker(word, slot, value, ast, piece, commit)
+    local path = piece.path or {}
+    --- @param replacement BlockFormulaNode
+    local function Put(replacement)
+        commit(Block.PrintFormula(_replaced(ast, path, replacement)))
+    end
+    --- @param text string typed text for the piece
+    local function PutText(text)
+        local parsed = Block.ParseFormula(text)
+        if parsed ~= nil then
+            Put(parsed)
+        end
+    end
+    if piece.edit == "number" or piece.edit == "formula" then
+        _openTextBox(word, piece.text, PutText)
+        return
+    end
+    local entries = {}
+    if piece.edit == "stat" then
+        for _, name in ipairs(_amountNames(slot)) do
+            entries[#entries + 1] = { text = name, group = "1", check = name == piece.text, click = function()
+                word.popup = nil
+                if name ~= piece.text then
+                    Put({ k = "id", path = { name } })
+                end
+            end }
+        end
+    elseif piece.edit == "sign" then
+        local node = _nodeAt(ast, path)
+        local signs = {
+            { op = "+", text = T("blockeditor.amount.sign_plus") },
+            { op = "-", text = T("blockeditor.amount.sign_minus") },
+            { op = "*", text = T("blockeditor.amount.sign_times") },
+            { op = "/", text = T("blockeditor.amount.sign_divide") },
+        }
+        for _, sign in ipairs(signs) do
+            local op = sign.op
+            entries[#entries + 1] = { text = sign.text, group = "1", check = node ~= nil and node.op == op, click = function()
+                word.popup = nil
+                if node ~= nil and node.op ~= op then
+                    local copy = DeepCopy(node)
+                    copy.op = op
+                    copy.opText = nil
+                    Put(copy)
+                end
+            end }
+        end
+    end
+    entries[#entries + 1] = { text = T("blockeditor.amount.change"), group = "2", click = function()
+        word.popup = nil
+        _openAmountPicker(word, slot, value, commit)
+    end }
+    word.popupsInheritStyles = true
+    word.popupPositioning = "mouse"
+    word.popup = gui.ContextMenu{
+        entries = entries,
+        click = function()
+            word.popup = nil
+        end,
+    }
+end
+
+--For tests/block_amount_test.lua: the picker's logic without drawing it.
+BESlots._amountKinds = _amountKinds
+BESlots._formulaPieces = _formulaPieces
+BESlots._replaced = _replaced
 
 --- Lights every word of one slot together, so a slot that wraps across lines
 --- reads as one thing under the pointer.
@@ -340,6 +661,10 @@ function BESlots.SentenceRow(args)
                 --- @param newValue any
                 --- @param source Panel the clicked word, which finds the editor
                 local function Commit(newValue, source)
+                    --a field saved as a number stays a number when the new value is one.
+                    if type(value) == "number" and tonumber(newValue) ~= nil then
+                        newValue = tonumber(newValue)
+                    end
                     local shown = Block.SlotText(decl --[[@as BlockDecl]], slotId, newValue)
                     onChange(slotId, newValue, T("blockeditor.change.set", { what = shown }), source)
                 end
@@ -349,6 +674,40 @@ function BESlots.SentenceRow(args)
                 end
                 if empty then
                     wordClasses[#wordClasses + 1] = "beWordEmpty"
+                end
+                --an amount shows each number, stat and sign as its own word (a lone
+                --number opens the kinds of amount instead).
+                local ast, pieces = nil, nil
+                if slot.amount and not empty and value ~= nil then
+                    ast, pieces = _formulaPieces(tostring(value))
+                end
+                if ast ~= nil and pieces ~= nil and not (#pieces == 1 and pieces[1].edit == "number") then
+                    for i, piece in ipairs(pieces) do
+                        local pieceGap = #children > 0 and (i > 1 or gap)
+                        if piece.edit == nil then
+                            children[#children + 1] = _plainWord(piece.text, { gap = pieceGap, italic = args.italic })
+                        else
+                            local pieceId = slotId .. "#" .. i
+                            children[#children + 1] = gui.Label{
+                                classes = wordClasses,
+                                text = "<u>" .. _escape(piece.text) .. "</u>",
+                                lmargin = pieceGap and BEStyles.SIZES.WORD_GAP or 0,
+                                lpad = 4,
+                                rpad = 4,
+                                data = { slot = pieceId },
+                                hover = function(element)
+                                    _lightSlot(element.parent, pieceId)
+                                end,
+                                dehover = function(element)
+                                    _lightSlot(element.parent, nil)
+                                end,
+                                press = function(element)
+                                    _openPiecePicker(element, slot, value, ast, piece, function(newValue) Commit(newValue, element) end)
+                                end,
+                            }
+                        end
+                    end
+                    words = {}
                 end
                 for i, entry in ipairs(words) do
                     local shown = "<u>" .. _escape(entry.word) .. "</u>"
@@ -371,7 +730,14 @@ function BESlots.SentenceRow(args)
                             _lightSlot(element.parent, nil)
                         end,
                         press = function(element)
-                            _openPicker(element, slot, value, function(newValue) Commit(newValue, element) end)
+                            local function Done(newValue) Commit(newValue, element) end
+                            if slot.kind == "number" then
+                                _openTextBox(element, value, Done)
+                            elseif slot.amount or slot.kinds ~= nil then
+                                _openAmountPicker(element, slot, value, Done)
+                            else
+                                _openPicker(element, slot, value, Done)
+                            end
                         end,
                     }
                 end

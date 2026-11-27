@@ -138,7 +138,7 @@ Block.RegisterBehaviorBlock{
     desc = "Works out a value and remembers it under a name for later steps.",
     sentence = { "Remember ", { slot = "calculation" }, " as ", { slot = "name" } },
     slots = {
-        calculation = { kind = "formula", style = "formula", default = "0", options = {} },
+        calculation = { kind = "formula", style = "formula", default = "0", amount = true },
         name = { kind = "text", default = "value" },
     },
     fits = { "step" },

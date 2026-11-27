@@ -4783,7 +4783,13 @@ local function _damageTypeOptions()
 end
 
 local DAMAGE_KINDS = { "damage", "formulaDamage", "kitDamage" }
-local DAMAGE_AMOUNTS = { { id = "2 + M", text = "2 + M" }, { id = "3 + M", text = "3 + M" } }
+--The kinds of tier damage amount, as the book writes them (one per kind, not per value).
+local DAMAGE_KINDS_OF_AMOUNT = {
+    { name = "A number", example = "3", value = "3" },
+    { name = "A number plus a characteristic", example = "3 + M", value = "3 + M" },
+    { name = "Plus a choice of characteristics", example = "3 + M or A", value = "3 + M or A" },
+    { name = "A formula", example = "{2 * Reason}", value = "{2 * Reason}" },
+}
 
 Block.RegisterBlock{
     id = "tier.damage",
@@ -4793,7 +4799,7 @@ Block.RegisterBlock{
     desc = "Damage dealt on this tier.",
     sentence = { { slot = "amount" }, " ", { slot = "damageType" }, " damage" },
     slots = {
-        amount = { kind = "formula", style = "formula", default = "2 + M", options = DAMAGE_AMOUNTS },
+        amount = { kind = "formula", style = "formula", default = "2 + M", kinds = DAMAGE_KINDS_OF_AMOUNT },
         damageType = { kind = "choice", default = "untyped", options = _damageTypeOptions, empty = "+ type" },
     },
     fits = { "tier" },
@@ -4814,7 +4820,7 @@ Block.RegisterBlock{
     desc = "Damage added to the ability's damage on this tier.",
     sentence = { { slot = "amount" }, " ", { slot = "damageType" }, " damage (added)" },
     slots = {
-        amount = { kind = "formula", style = "formula", default = "2", options = DAMAGE_AMOUNTS },
+        amount = { kind = "formula", style = "formula", default = "2", kinds = DAMAGE_KINDS_OF_AMOUNT },
         damageType = { kind = "choice", default = "untyped", options = _damageTypeOptions, empty = "+ type" },
     },
     fits = { "tier" },

@@ -622,7 +622,7 @@ Block.RegisterBehaviorBlock{
     desc = "Deals damage to creatures, outside a power roll.",
     sentence = { "Deal ", { slot = "amount" }, " ", { slot = "damageType" }, " damage to ", { slot = "who" } },
     slots = {
-        amount = { kind = "formula", style = "formula", default = "2", options = { { id = "2", text = "2" }, { id = "Might", text = "Might" } } },
+        amount = { kind = "formula", style = "formula", default = "2", amount = true, dice = true },
         damageType = {
             kind = "choice",
             default = "",

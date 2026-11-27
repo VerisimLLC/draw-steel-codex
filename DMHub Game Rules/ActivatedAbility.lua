@@ -7698,7 +7698,7 @@ Block.RegisterBehaviorBlock{
     sentence = { "Heal ", { slot = "who" }, " for ", { slot = "amount" }, "." },
     slots = {
         who = Block.WhoSlot(),
-        amount = { kind = "formula", style = "formula", default = "1", options = { { id = "Recovery Value", text = "Recovery Value" } } },
+        amount = { kind = "formula", style = "formula", default = "1", amount = true, dice = true, names = { "Recovery Value" } },
     },
     fits = { "step" },
     order = 200,

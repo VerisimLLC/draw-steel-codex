@@ -807,6 +807,80 @@ local function _editorChromeStyles()
             color = "@fgMuted",
             textWrap = true,
         },
+
+        -- The amount picker (Slots.lua): a title, what the slot is now, a
+        -- search, then one row per kind of amount with its example.
+        {
+            selectors = {"beAmountPicker"},
+            width = 380,
+            height = "auto",
+            flow = "vertical",
+            pad = 10,
+            borderBox = true,
+        },
+        {
+            selectors = {"label", "beAmountTitle"},
+            width = "100%",
+            height = "auto",
+            fontSize = 16,
+            bold = true,
+            color = "@fgStrong",
+            bmargin = 4,
+        },
+        {
+            selectors = {"label", "beAmountNow"},
+            width = "100%",
+            height = "auto",
+            fontFace = "@input",
+            fontSize = 13,
+            color = "@fgMuted",
+            bmargin = 6,
+            textWrap = true,
+        },
+        {
+            selectors = {"beAmountSearch"},
+            width = "100%",
+            bmargin = 6,
+        },
+        {
+            selectors = {"beAmountList"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+        },
+        {
+            selectors = {"beAmountRow"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            hpad = 8,
+            vpad = 5,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "clear",
+            cornerRadius = 4,
+        },
+        {
+            selectors = {"beAmountRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"label", "beAmountName"},
+            width = "100%",
+            height = "auto",
+            fontSize = 14,
+            bold = true,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "beAmountExample"},
+            width = "100%",
+            height = "auto",
+            fontFace = "@input",
+            fontSize = 13,
+            color = "@fgMuted",
+            textWrap = true,
+        },
     }
 end
 

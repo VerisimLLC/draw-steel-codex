@@ -278,7 +278,7 @@ Block.RegisterBehaviorBlock{
     sentence = { "Give ", { slot = "who" }, " ", { slot = "amount" }, " temporary Stamina" },
     slots = {
         who = Block.WhoSlot(),
-        amount = { kind = "formula", style = "formula", default = "5", options = { { id = "5", text = "5" }, { id = "10", text = "10" } } },
+        amount = { kind = "formula", style = "formula", default = "5", amount = true },
     },
     fits = { "step" },
     order = 210,

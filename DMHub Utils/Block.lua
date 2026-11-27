@@ -36,6 +36,10 @@ local mod = dmhub.GetModLoading()
 --- @field options? {id: string, text: string}[]|fun(): {id: string, text: string}[] the choices of a "choice" or "many" slot, or the suggestions of a "formula"; a function is asked each time, for lists read from data tables
 --- @field style? string how its word looks: "formula" draws it in the mono font
 --- @field empty? string shown faintly when the value reads as nothing (an optional part: "+ duration")
+--- @field amount? boolean a "formula" slot that holds an amount: its picker lists the kinds of amount (a number, a stat, a stat with math, more as you level, depends on a test), and each number, stat and sign is changed on the block
+--- @field dice? boolean an amount that may be a dice roll: the picker adds "A dice roll"
+--- @field names? string[] extra names an amount can be based on, beside the stats and Level ("Recovery Value")
+--- @field kinds? {name: string, example: string, value: string}[] the kinds a "formula" slot's picker lists when they are not the GoblinScript amounts (a tier's "3 + M"): one entry per kind, never one per value
 
 --- A colour group: what kind of block this is. Colours are fixed (never theme tokens).
 --- @class BlockGroup

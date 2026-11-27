@@ -84,6 +84,35 @@ text("blockeditor.change.move", [[Move {block}]])
 text("blockeditor.change.remove_chip", [[Remove {what}]])
 --The heading over the checks in the side column.
 text("blockeditor.side.checks", [[Checks]])
+
+--The amount picker: one row per kind of amount, each with an example. {stat}
+--is the stat the author searched for ("Agility").
+text("blockeditor.amount.title", [[What should this be?]])
+text("blockeditor.amount.now", [[<b>Now:</b> {value}]])
+text("blockeditor.amount.search", [[What should it be based on? e.g. level, might]])
+text("blockeditor.amount.number", [[A number]])
+text("blockeditor.amount.number_example", [[3]])
+text("blockeditor.amount.stat", [[A stat]])
+text("blockeditor.amount.stat_example", [[your Might (any characteristic, Level...)]])
+text("blockeditor.amount.stat_found", [[your {stat}]])
+text("blockeditor.amount.math", [[A stat with math]])
+text("blockeditor.amount.math_example", [[your Level + 4, your Might * 2]])
+text("blockeditor.amount.math_found", [[your {stat} + 4, your {stat} * 2]])
+text("blockeditor.amount.level", [[More as you level]])
+text("blockeditor.amount.level_example", [[1, then 2 from 5th level]])
+text("blockeditor.amount.test", [[Depends on a test]])
+text("blockeditor.amount.test_example", [[2 if the target is winded, otherwise 1]])
+text("blockeditor.amount.dice", [[A dice roll]])
+text("blockeditor.amount.dice_example", [[1d6]])
+--Words between the parts of "2 if Target.Winded otherwise 1" on a block.
+text("blockeditor.amount.if", [[if]])
+text("blockeditor.amount.otherwise", [[otherwise]])
+--The sign menu on a block's amount, and the way back to the kinds.
+text("blockeditor.amount.sign_plus", [[+ plus]])
+text("blockeditor.amount.sign_minus", [[- minus]])
+text("blockeditor.amount.sign_times", [[* times]])
+text("blockeditor.amount.sign_divide", [[/ divided by]])
+text("blockeditor.amount.change", [[Change what it is based on...]])
 text("blockeditor.check.unsaveable", [[{count} added blocks cannot be saved yet and will be left out: remove them, or use the Advanced editor.]])
 --Under the card in the side column.
 text("blockeditor.card_hint", [[Click any line on the card to change its wording.]])

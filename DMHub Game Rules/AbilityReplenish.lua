@@ -956,7 +956,7 @@ Block.RegisterBehaviorBlock{
     sentence = { { slot = "mode" }, " ", { slot = "quantity" }, " ", { slot = "resource" }, " for ", { slot = "who" } },
     slots = {
         mode = { kind = "choice", default = "replenish", options = { { id = "replenish", text = "Gain" }, { id = "expend", text = "Spend" } } },
-        quantity = { kind = "formula", style = "formula", default = "1", options = { { id = "1", text = "1" }, { id = "2", text = "2" } } },
+        quantity = { kind = "formula", style = "formula", default = "1", amount = true },
         resource = { kind = "choice", default = "", options = Block.TableOptions("characterResources") },
         who = Block.WhoSlot(),
     },

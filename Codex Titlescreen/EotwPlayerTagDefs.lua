@@ -56,9 +56,9 @@ EotwPlayerTagDefs = {
         { id = "keeper-of-the-rite", name = "Keeper of the Rite", description = "Helped bring 5 fallen heroes back from the grave.", style = "gold", hidden = true, rule = { counter = "ritesAided", atLeast = 5 } },
         { id = "challenger", name = "Challenger", description = "Took on Challenge Mode and won.", style = "ember", hidden = true, steam = "EOTW_CHALLENGER", rule = { counter = "challengeWins", atLeast = 1 } },
         { id = "glutton-for-punishment", name = "Glutton for Punishment", description = "Won 10 different encounters in Challenge Mode. Why stop now?", style = "ember", hidden = true, steam = "EOTW_GLUTTON_FOR_PUNISHMENT", rule = { counter = "challengeWins", atLeast = 10 } },
-        --PLACEHOLDER DATES: set `before` to the day after the playtest ends, and `opens` to
-        --the release day (usually the same day), before deploying to release.
-        { id = "founding-hero", name = "Founding Hero", description = "Fought for Blackbottom. Thank you.", style = "silver", hidden = true, opens = "2026-11-28", rule = { counter = "encountersPlayed", atLeast = 1, before = "2026-11-28" } },
+        --Given once, by the playtest reset (reset-playtest in cloudflare-game-server
+        --city.ts), to every account that had played; nobody can earn it afterwards.
+        { id = "founding-hero", name = "Founding Hero", description = "Fought for Blackbottom. Thank you.", style = "silver", hidden = true, rule = { manual = true } },
         --Given by hand (admin-grant-tag), never by a rule: an in-joke about devils' hoofprints pointing the wrong way.
         { id = "devil-podiatrist", name = "Devil Podiatrist", description = "Knows which way a devil's hoofprints should point.", style = "special", hidden = true, rule = { manual = true } },
         { id = "deathdefier", name = "Deathdefier", description = "Won in Deadly Mode and lived to tell it.", style = "slate", hidden = true, steam = "EOTW_DEATHDEFIER", rule = { counter = "deadlyWins", atLeast = 1 } },

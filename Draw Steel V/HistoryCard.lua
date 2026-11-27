@@ -469,9 +469,9 @@ local function OnlyDamage(who)
         and who.immune == nil and not who.resisted and not who.landedon
 end
 
---- True for an entry nested under an action that made a power roll of its own: a forced or
---- granted strike, which would be a separate roll at the table. The card gives it a section.
---- A roll hidden from players still counts: for them its numbers are already removed.
+--- True for an entry nested under an action that made its own power roll there, such as a
+--- forced or granted strike: a separate roll at the table, so the card gives it a section.
+--- A roll hidden from players still counts; for them its numbers are already gone.
 --- @param kid HistoryEntry
 --- @return boolean
 local function IsNestedRoll(kid)
@@ -2526,10 +2526,13 @@ local function NumbersRows(entry, kids, width, nested)
             rollSources = sharedOf[plain[1]]
         end
     end
+    --the rolls made inside this action get sections below, which draw what they set off: the
+    --opposed and table rolls here leave those out, so nothing is drawn twice.
+    local sectioned, setOff = NestedRolls(kids)
     --each side of an opposed power roll, under its roller's name: the same lines a test
     --line's own card shows. A roll players may not see keeps only its heading.
     for _, kid in ipairs(kids or {}) do
-        if kid.family == "test" and kid.cause ~= nil then
+        if kid.family == "test" and kid.cause ~= nil and not sectioned[kid.cause] then
             local name = kid.who ~= nil and History.ShownName(kid.who) or T("history.director")
             rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or T("history.numbers.roll")), width, kid.who)
             if kid.roll ~= nil and not kid.secretroll then
@@ -2596,7 +2599,7 @@ local function NumbersRows(entry, kids, width, nested)
 
     --a table the ability rolled on, under its roller's name, as the table line's own card has it.
     for _, kid in ipairs(kids or {}) do
-        if kid.family == "table" then
+        if kid.family == "table" and not (kid.cause ~= nil and sectioned[kid.cause]) then
             local name = kid.who ~= nil and History.ShownName(kid.who) or kid.roller or T("history.director")
             rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or T("history.table")), width, kid.who)
             AddTableLines(rows, width, kid)
@@ -2645,33 +2648,43 @@ local function NumbersRows(entry, kids, width, nested)
     end
 
     --each roll made inside this action, in the order rolled and all at one level: its own
-    --heading, receipt and targets on a faint panel, with what it set off inside it.
-    local sectioned, setOff = NestedRolls(kids)
+    --heading, receipt and targets on a faint panel, with what it set off inside it. One that
+    --fails to build is left out and logged, so the rest of the card still opens.
     for _, kid in ipairs(kids or {}) do
         if sectioned[kid.id] then
-            local inner = width - NESTED_INDENT
-            local lines = {SubHead(History.ShownName(kid.actor) .. History.DOT .. kid.ability.name, inner, kid.actor, true)}
-            for _, line in ipairs(NumbersRows(kid, setOff[kid.id], inner, true)) do
-                lines[#lines + 1] = line
+            local linkMap = g_linkMap
+            local ok, section = pcall(function()
+                local inner = width - NESTED_INDENT
+                local lines = {SubHead(History.ShownName(kid.actor) .. History.DOT .. kid.ability.name, inner, kid.actor, true)}
+                for _, line in ipairs(NumbersRows(kid, setOff[kid.id], inner, true)) do
+                    lines[#lines + 1] = line
+                end
+                return gui.Panel{
+                    classes = {"historyNested"},
+                    bgimage = "panels/square.png",
+                    border = {x1 = 2, y1 = 0, x2 = 0, y2 = 0},
+                    flow = "vertical",
+                    width = width,
+                    height = "auto",
+                    halign = "left",
+                    lpad = NESTED_LPAD,
+                    rpad = NESTED_RPAD,
+                    --the title's own top margin is the space above it.
+                    tpad = 0,
+                    bpad = 8,
+                    tmargin = 12,
+                    bmargin = 8,
+                    borderBox = true,
+                    children = lines,
+                }
+            end)
+            --the section's own entry set the links' map; the rest of this card is the action's.
+            g_linkMap = linkMap
+            if ok then
+                rows[#rows + 1] = section
+            else
+                print("History:: nested section failed:", section)
             end
-            rows[#rows + 1] = gui.Panel{
-                classes = {"historyNested"},
-                bgimage = "panels/square.png",
-                border = {x1 = 2, y1 = 0, x2 = 0, y2 = 0},
-                flow = "vertical",
-                width = width,
-                height = "auto",
-                halign = "left",
-                lpad = NESTED_LPAD,
-                rpad = NESTED_RPAD,
-                --the title's own top margin is the space above it.
-                tpad = 0,
-                bpad = 8,
-                tmargin = 12,
-                bmargin = 8,
-                borderBox = true,
-                children = lines,
-            }
         end
     end
 
@@ -3851,14 +3864,26 @@ function History.Why(entry, kids, nested)
     end
 
     --each roll made inside the action, in the order rolled: its heading, then its own lines.
+    --One whose lines fail to build is left out and logged, so the rest of the card still opens.
     for _, kid in ipairs(allKids) do
         if sectioned[kid.id] then
-            local lines = History.Why(kid, setOff[kid.id], true)
-            if #lines > 0 then
-                rows[#rows + 1] = {heading = History.ShownName(kid.actor) .. History.DOT .. AbilityNameLink(kid.actor, kid.ability.name), who = kid.actor}
-                for _, line in ipairs(lines) do
+            local linkMap = g_linkMap
+            local ok, section = pcall(function()
+                local lines = History.Why(kid, setOff[kid.id], true)
+                if #lines == 0 then
+                    return lines
+                end
+                table.insert(lines, 1, {heading = History.ShownName(kid.actor) .. History.DOT .. AbilityNameLink(kid.actor, kid.ability.name), who = kid.actor})
+                return lines
+            end)
+            --the roll's own entry set the links' map; the rest of this card is the action's.
+            g_linkMap = linkMap
+            if ok then
+                for _, line in ipairs(section) do
                     rows[#rows + 1] = line
                 end
+            else
+                print("History:: nested Why failed:", section)
             end
         end
     end

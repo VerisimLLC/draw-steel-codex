@@ -204,6 +204,18 @@ g_failUpload = false
 g_now = g_now + 3
 Check(state:Think() == false and #uploads == 3, "the failed record is sent again after the delay")
 
+--someone else's version replaces a record: its pending change and its undo
+--steps go, while a step that also touched another record keeps that part.
+state.undoStack, state.redoStack, state.dirty = {}, {}, {}
+Add({ "a", "b" })
+Add({ "a" })
+state:ReplaceRecord({ id = "a", name = "A (theirs)", blocks = {} }, { name = "A (theirs)" })
+Check(state:Model("a").name == "A (theirs)" and state.dirty.a == nil, "a replaced record is clean and shows the new version")
+Check(#state.undoStack == 1 and state.undoStack[1].before.a == nil and state.undoStack[1].before.b ~= nil,
+    "undo steps keep only the other records' parts")
+state:Undo()
+Check(state:Model("a").name == "A (theirs)" and #state:Model("b").blocks == 0, "undo then leaves the replaced record alone")
+
 --nested lists: every placed block has a uid, and a body is reached by its owner.
 local nested = { id = "n", name = "N", blocks = { Block.Instantiate("stub.powerroll") } }
 state:AddRecord(nested)

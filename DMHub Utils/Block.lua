@@ -88,6 +88,7 @@ local mod = dmhub.GetModLoading()
 --- @field id string
 --- @field sentence BlockSentencePart[]
 --- @field slots? table<string, BlockSlot>
+--- @field when? fun(values: table): boolean shows the row only while this is true (a count only once there is a limit)
 
 --- One section of a host's page (plan section 6).
 --- @class BlockHostSection
@@ -142,6 +143,7 @@ local mod = dmhub.GetModLoading()
 --- @field advancedBlock? string the block a step opens as when no block reads it
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
 --- @field upload? fun(record: table): boolean|nil uploads a record the editor has just written into (an ability: the class or subclass that holds it); false or an error keeps the change waiting to retry. Without it the window cannot save
+--- @field locate? fun(record: table): table|nil the record's current version in the game's tables, which an upload from elsewhere replaces; lets an open editor notice other people's changes
 --- @field records? fun(): {record: table, where: string}[] every record this host edits, for /blockroundtrip and for /blockeditor by name (developers)
 --- @field stepName? fun(step: table): string how a step no block reads is named on its Advanced block; its typeName split into words when absent
 --- @field order? number

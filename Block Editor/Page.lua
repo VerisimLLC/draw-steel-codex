@@ -80,8 +80,11 @@ end
 local function _headerGroup(rows)
     local children = {}
     for i, row in ipairs(rows) do
+        --- @type Panel|nil the hairline above this row, hidden with it
+        local rule = nil
         if i > 1 then
-            children[#children + 1] = gui.Panel{ classes = {"beHeaderRule"}, interactable = false }
+            rule = gui.Panel{ classes = {"beHeaderRule"}, interactable = false }
+            children[#children + 1] = rule
         end
         children[#children + 1] = gui.Panel{
             classes = {"beHeaderRow"},
@@ -89,6 +92,15 @@ local function _headerGroup(rows)
                 --- @cast state BEState
                 local model = state:Model()
                 if model == nil then
+                    return
+                end
+                local shown = row.when == nil or row.when(model.values or {}) == true
+                element:SetClass("collapsed", not shown)
+                if rule ~= nil then
+                    rule:SetClass("collapsed", not shown)
+                end
+                if not shown then
+                    element.children = {}
                     return
                 end
                 element.children = {

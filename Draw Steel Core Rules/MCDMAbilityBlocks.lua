@@ -193,6 +193,28 @@ local SLOTS = {
     range = { kind = "formula", style = "formula", default = 1, options = {} },
     count = { kind = "formula", style = "formula", default = 1, options = {} },
     target = { kind = "choice", default = "creature", options = TARGETS },
+    targetsAre = {
+        kind = "choice",
+        default = "together",
+        options = {
+            { id = "together", text = "all picked together" },
+            { id = "sequential", text = "picked one at a time, moving between them" },
+        },
+    },
+    limit = {
+        kind = "choice",
+        default = "none",
+        --the game's own periods (Draw Steel registers them in MCDMRules.lua).
+        options = function()
+            local result = {}
+            for _, option in ipairs(CharacterResource.usageLimitOptions or {}) do
+                local text = option.id == "none" and "none" or string.lower(option.text or option.id)
+                result[#result + 1] = { id = option.id, text = text }
+            end
+            return result
+        end,
+    },
+    charges = { kind = "formula", style = "formula", default = "1", options = {} },
 }
 
 --- The record's own fields, by the header slot that shows them.
@@ -277,6 +299,82 @@ local FIELDS = {
             end
         end,
     },
+}
+
+--- The ability's usage limit as saved, or the type's default ("none").
+--- @param record table
+--- @return table
+local function _limitOptions(record)
+    local options = Block.FieldValue(record, "usageLimitOptions")
+    if type(options) ~= "table" then
+        --some imports saved a string here; the game treats it as no limit.
+        return { resourceRefreshType = "none", charges = "0", resourceid = "none" }
+    end
+    return options
+end
+
+--- Writes one part of the usage limit, keeping the rest as saved. A new limit
+--- gets its own counter (the ability's guid) unless it already shares one.
+--- @param record table
+--- @param key string "resourceRefreshType" or "charges"
+--- @param value any
+local function _writeLimit(record, key, value)
+    local saved = rawget(record, "usageLimitOptions")
+    local options = type(saved) == "table" and DeepCopy(saved) or DeepCopy(_limitOptions(record))
+    options[key] = value
+    if options.resourceRefreshType ~= "none" then
+        if options.charges == nil or tostring(options.charges) == "0" then
+            options.charges = "1"
+        end
+        if options.resourceid == nil or options.resourceid == "none" then
+            options.resourceid = rawget(record, "guid") or dmhub.GenerateGuid()
+        end
+    end
+    record.usageLimitOptions = options
+end
+
+FIELDS.targetsAre = {
+    touches = { "sequentialTargeting" },
+    read = function(record)
+        return Block.FieldValue(record, "sequentialTargeting") == true and "sequential" or "together"
+    end,
+    write = function(record, value)
+        if value == "sequential" then
+            record.sequentialTargeting = true
+        else
+            --"together" is the game's default: leave it unsaved.
+            record.sequentialTargeting = nil
+        end
+    end,
+}
+
+FIELDS.limit = {
+    touches = { "usageLimitOptions" },
+    read = function(record)
+        local refresh = tostring(_limitOptions(record).resourceRefreshType or "none")
+        --"victory:3" (after 3 Victories) is the victory period with a count.
+        return (string.match(refresh, "^([^:]+)")) or "none"
+    end,
+    write = function(record, value)
+        _writeLimit(record, "resourceRefreshType", value)
+    end,
+    changed = function(values, previous)
+        --a new limit starts at one use, as the Advanced editor's does.
+        if values.limit ~= "none" and (values.charges == nil or tostring(values.charges) == "0") then
+            values.charges = "1"
+        end
+    end,
+}
+
+FIELDS.charges = {
+    touches = { "usageLimitOptions" },
+    read = function(record)
+        local charges = _limitOptions(record).charges
+        return charges ~= nil and tostring(charges) or "0"
+    end,
+    write = function(record, value)
+        _writeLimit(record, "charges", tostring(value))
+    end,
 }
 
 --- The text of a header value, as its row shows it.
@@ -664,9 +762,37 @@ local function _uploadOwner(ability)
     return true
 end
 
+--- The ability as its class or subclass holds it now. A change synced from
+--- another client replaces the class row, so the object the editor opened
+--- may no longer be the one in the table.
+--- @param ability table
+--- @return table|nil
+local function _locate(ability)
+    local guid = rawget(ability, "guid")
+    if guid == nil then
+        return nil
+    end
+    local source = nil
+    pcall(function() source = ability:FindCompendiumSource() end)
+    if source == nil then
+        return nil
+    end
+    local rows = dmhub.GetTable(source.tableid)
+    local item = rows ~= nil and rows[source.key] or nil
+    if type(item) ~= "table" then
+        return nil
+    end
+    local current = GetObjectAtPath(item, source.path)
+    if type(current) == "table" and rawget(current, "guid") == guid then
+        return current
+    end
+    return nil
+end
+
 Block.RegisterHost{
     id = "ability",
     upload = _uploadOwner,
+    locate = _locate,
     title = "Edit Ability",
     claims = function(record)
         local typeName = nil
@@ -686,6 +812,13 @@ Block.RegisterHost{
                 { id = "name", sentence = { { slot = "name" }, " is a ", { slot = "category" }, " that takes a ", { slot = "action" } }, slots = SLOTS },
                 { id = "cost", sentence = { "which costs ", { slot = "cost" }, " ", { slot = "resource" } }, slots = SLOTS },
                 { id = "keywords", sentence = { "and has the keywords ", { slot = "keywords" } }, slots = SLOTS },
+                { id = "limit", sentence = { "Usage limit: ", { slot = "limit" } }, slots = SLOTS },
+                {
+                    id = "charges",
+                    sentence = { "Uses before it refreshes: ", { slot = "charges" } },
+                    slots = SLOTS,
+                    when = function(values) return values.limit ~= nil and values.limit ~= "none" end,
+                },
                 { id = "flavor", sentence = { { text = "Flavor:", style = "aside" }, " ", { slot = "flavor" } }, slots = SLOTS },
             },
         },
@@ -695,6 +828,15 @@ Block.RegisterHost{
             rows = {
                 { id = "distance", sentence = { "Distance: ", { slot = "distance" }, " ", { slot = "range" } }, slots = SLOTS },
                 { id = "target", sentence = { "Target: ", { slot = "count" }, " ", { slot = "target" } }, slots = SLOTS },
+                {
+                    id = "targetsAre",
+                    sentence = { "Targets are ", { slot = "targetsAre" } },
+                    slots = SLOTS,
+                    --only an ability with more than one target can pick them one at a time.
+                    when = function(values)
+                        return values.targetsAre == "sequential" or tostring(values.count) ~= "1"
+                    end,
+                },
             },
         },
         { id = "req", title = "Can only be used when", optional = true, addText = "add a requirement" },

@@ -154,6 +154,9 @@ setting{
 --Seconds after the last change to a record before it uploads.
 BlockEditor.UPLOAD_DELAY = 2
 
+--Seconds the "updated by someone else" note stays under the title bar.
+BlockEditor.NOTICE_SECONDS = 6
+
 --How often the controller checks for uploads that are due, while any are.
 BlockEditor.UPLOAD_THINK_TIME = 0.5
 

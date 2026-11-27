@@ -236,4 +236,18 @@ for _, rule in ipairs(BEStyles.GetStyles()) do
 end
 Check(rest == #Block.All("group") and hover == rest, "every group has a colour rule and a hover rule")
 
+--real stats from a source replace the stub stats in the list; the stubs stay reachable by id.
+Check(#Block.All("stat") == 5, "the stub stats are listed while nothing real is declared")
+Block.RegisterSource{
+    id = "test.characteristics",
+    kind = "stat",
+    gather = function()
+        return { { id = "mgt", words = "Might", kind = "characteristic", order = 10 }, { id = "might", words = "Might (real)", kind = "characteristic", order = 20 } }
+    end,
+}
+Block.Gather()
+local stats = Block.All("stat")
+Check(#stats == 2 and stats[1].id == "mgt" and not stats[2].stub, "real stats replace the stubs, and a real entry beats a stub with its id")
+Check(Block.Get("stat", "agility") ~= nil, "a stub stat is still found by id")
+
 print(string.format("block_editor_test: %d checks passed", g_checks))

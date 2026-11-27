@@ -136,6 +136,19 @@ for _, case in ipairs(g_errorCases) do
     Check(ast == nil and type(err) == "string" and string.find(err, case[2], 1, true) ~= nil,
         "error for '" .. case[1] .. "': " .. tostring(err))
 end
+--rolls and comparisons read from the syntax tree, not by matching text.
+do
+    local dice, added, name = Block.SplitRoll("2d10 + Might")
+    Check(dice == "2d10" and added == "Might" and name == "Might", "a power roll splits into dice and a characteristic")
+    dice, added, name = Block.SplitRoll("2d10+Reason Modifier")
+    Check(dice == "2d10" and name == "Reason Modifier", "a name with a space is one name")
+    dice, added, name = Block.SplitRoll("2d10 + Might or Agility")
+    Check(dice == "2d10" and added == "Might or Agility" and name == nil, "a choice of characteristics is added, not one name")
+    Check(Block.SplitRoll("1d6") == nil and Block.SplitRoll("Might + 2d10") == nil, "other rolls do not split")
+    Check(Block.SameFormula("Might*2", "Might * 2") and not Block.SameFormula("Might * 2", "Might * 3"), "formulas compare by meaning")
+    Check(Block.SameFormula("not a ( formula", "not a ( formula") and not Block.SameFormula("(", ")"), "text that is not a formula compares exactly")
+end
+
 --deliberately the wrong type: the parser must refuse it, not raise.
 ---@diagnostic disable-next-line: param-type-mismatch
 Check(Block.ParseFormula(nil) == nil, "non-text is an error")

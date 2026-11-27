@@ -48,6 +48,20 @@ local function _same(a, b)
     return a == b
 end
 
+--- Whether a slot's new value is the one saved: formula slots compare by
+--- meaning (Block.SameFormula), so "Might*2" retyped as "Might * 2" keeps the
+--- saved spelling.
+--- @param slot BlockSlot|nil
+--- @param a any
+--- @param b any
+--- @return boolean
+local function _sameSlotValue(slot, a, b)
+    if slot ~= nil and slot.kind == "formula" and type(a) == "string" and type(b) == "string" and Block.SameFormula ~= nil then
+        return Block.SameFormula(a, b)
+    end
+    return _same(a, b)
+end
+
 --- A slot's value for a behaviour.
 --- @param behavior table
 --- @param codec BlockFieldCodec
@@ -116,7 +130,7 @@ function Block.RegisterBehaviorBlock(spec)
         local forced = ctx ~= nil and ctx.forced
         for slotId, codec in pairs(fields) do
             local value = values[slotId]
-            if forced or not _same(value, _readField(behavior, codec)) then
+            if forced or not _sameSlotValue((spec.slots or {})[slotId], value, _readField(behavior, codec)) then
                 _writeField(behavior, codec, value)
             end
         end

@@ -394,10 +394,9 @@ function Block.RegisterBlock(entry)
 end
 
 --- Registers a place other than this file's registries that declares entries,
---- read each time the lists are gathered. PHASE 2 HOOK: the blocks declared in
---- CharacterModifier.TypeInfo.<id>.block and on ActivatedAbility.RegisterType
---- arrive through this, from a source registered beside those types; nothing
---- registers one yet, so today it adds nothing.
+--- read each time the lists are gathered: for entries that come from game data
+--- known only once the rules have loaded (the Draw Steel characteristics, from
+--- creature.attributeIds, are the stat source in MCDMAbilityBlocks.lua).
 --- @param source {id: string, kind: string, gather: fun(): table[]}
 function Block.RegisterSource(source)
     if not Validate("source", source, { kind = "string", gather = "function" }) then
@@ -418,7 +417,8 @@ function Block.Gather()
 end
 
 --- The entries of a registry plus what its sources declare, by id. A source's
---- entry never replaces a direct registration with the same id.
+--- entry never replaces a direct registration with the same id, unless that
+--- registration is a stub (the stubs stand in until the real ones are declared).
 --- @param kind string
 --- @return table<string, table>
 local function Collect(kind)
@@ -438,10 +438,18 @@ local function Collect(kind)
         end
     end
     for id, entry in pairs(g_entries[kind]) do
-        result[id] = entry
+        local declared = result[id]
+        if not (entry.stub and declared ~= nil and not declared.stub) then
+            result[id] = entry
+        end
     end
     return result
 end
+
+--Registries whose entries are alternatives in one list (a stat menu): once a
+--real entry is declared, the stub entries leave the list (Block.Get still
+--finds them, for the stub demo).
+local STUBS_GIVE_WAY = { stat = true, test = true }
 
 --- Every entry of a registry, ordered by `order` (absent = 1000) and then by
 --- when it was first registered. Do not change the list returned: it is kept.
@@ -457,8 +465,20 @@ function Block.All(kind)
         Report(string.format("no registry named '%s'", tostring(kind)))
         return list
     end
-    for _, entry in pairs(Collect(kind)) do
-        list[#list + 1] = entry
+    local collected = Collect(kind)
+    local hasReal = false
+    if STUBS_GIVE_WAY[kind] then
+        for _, entry in pairs(collected) do
+            if not entry.stub then
+                hasReal = true
+                break
+            end
+        end
+    end
+    for _, entry in pairs(collected) do
+        if not (hasReal and entry.stub) then
+            list[#list + 1] = entry
+        end
     end
     local sequence = g_sequence[kind]
     table.sort(list, function(a, b)

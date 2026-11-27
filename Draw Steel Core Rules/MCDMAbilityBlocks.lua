@@ -12,6 +12,23 @@ local mod = dmhub.GetModLoading()
     Steps no block reads yet open as Advanced blocks and save back untouched.
 ]]
 
+--The Draw Steel characteristics as Block stats, read from the game's own
+--attribute list when the editor gathers its registries (they replace the stubs).
+Block.RegisterSource{
+    id = "ds.characteristics",
+    kind = "stat",
+    gather = function()
+        local result = {}
+        for i, attrid in ipairs(creature.attributeIds or {}) do
+            local info = (creature.attributesInfo or {})[attrid]
+            if info ~= nil then
+                result[#result + 1] = { id = attrid, words = info.description, kind = "characteristic", order = i * 10 }
+            end
+        end
+        return result
+    end,
+}
+
 --- The resources of a grouping, as slot options, by name.
 --- @param keep fun(resource: table): boolean
 --- @param none {id: string, text: string}
@@ -504,29 +521,44 @@ Block.RegisterBlock{
     order = 76,
 }
 
+--How each Only if test was spelled, by its plain form: steps whose tests mean
+--the same share one block, which shows (and writes) the author's spelling.
+local g_testSpelling = {}
+
+--- The plain form of a test, remembering how it was spelled.
+--- @param test any
+--- @return string|nil
+local function _testKey(test)
+    if type(test) ~= "string" or string.find(test, "%S") == nil then
+        return nil
+    end
+    local key = Block.FormulaCanonical(test) or test
+    if g_testSpelling[key] == nil then
+        g_testSpelling[key] = test
+    end
+    return key
+end
+
 Block.RegisterWrapper{
     id = "ability.onlyif",
     order = 40,
     block = "ability.onlyif",
     key = function(behavior)
-        local filter = rawget(behavior, "filterTarget")
-        if type(filter) ~= "string" or string.find(filter, "%S") == nil then
-            return nil
-        end
-        return filter
+        return _testKey(rawget(behavior, "filterTarget"))
     end,
     values = function(key)
-        return { test = key }
+        return { test = g_testSpelling[key] or key }
     end,
     keyOf = function(values)
-        local test = values.test
-        if type(test) ~= "string" or string.find(test, "%S") == nil then
-            return nil
+        local key = _testKey(values.test)
+        if key ~= nil then
+            --the block's text is how a step moved into it is written.
+            g_testSpelling[key] = values.test
         end
-        return test
+        return key
     end,
     apply = function(behavior, key)
-        behavior.filterTarget = key
+        behavior.filterTarget = key ~= nil and (g_testSpelling[key] or key) or nil
     end,
 }
 
@@ -677,7 +709,8 @@ Block.RegisterHost{
                 pcall(function() typeName = behavior.typeName end)
                 if typeName == "ActivatedAbilityPowerRollBehavior" then
                     local savedRoll = tostring(rawget(behavior, "roll") or "")
-                    card.roll = string.gsub(savedRoll, "^2d10%s*%+%s*", "Power Roll + ") .. ":"
+                    local dice, added = Block.SplitRoll(savedRoll)
+                    card.roll = (dice == "2d10" and ("Power Roll + " .. tostring(added)) or savedRoll) .. ":"
                     card.tiers = {}
                     for i, tier in ipairs(rawget(behavior, "tiers") or {}) do
                         card.tiers[i] = { parts = _tierParts(tostring(tier)) }

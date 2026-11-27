@@ -59,7 +59,7 @@ local function readSource(path)
     f:close()
     return source
 end
-for _, path in ipairs({ "DMHub Utils/Block.lua", "DMHub Utils/BlockBehaviors.lua", "Block Editor/RecordCache.lua" }) do
+for _, path in ipairs({ "DMHub Utils/Block.lua", "DMHub Utils/BlockFormula.lua", "DMHub Utils/BlockBehaviors.lua", "Block Editor/RecordCache.lua" }) do
     assert(load(readSource(path), path))()
 end
 
@@ -198,6 +198,12 @@ Check(saved.behaviors[1].roll == "5" and Equal(saved.behaviors[1].extra, { keep 
     "an edited block writes only its changed field and keeps the rest")
 Check(Equal(saved.behaviors[2], record.behaviors[2]) and Equal(saved.behaviors[4], record.behaviors[4]), "the other steps are untouched")
 Check(getmetatable(saved.behaviors[1]) == getmetatable(record.behaviors[1]), "an edited step keeps its type")
+
+--a formula retyped with the same meaning keeps its saved spelling.
+model = BERecordCache.Open(record, host)
+model.blocks[1].values.amount = "2+M"
+saved = BERecordCache.Save(model, record, host)
+Check(saved.behaviors[1].roll == "2 + M", "a formula that means the same is not rewritten")
 
 --moving a step out of its wrapper clears only that wrapper's field.
 model = BERecordCache.Open(record, host)

@@ -58,6 +58,8 @@ local cases = {
     { "2 damage; M < WEAK, slowed (save ends)", { "damage", "potency" } },
     { "9 + R fire damage", { "damage" } },
     { "{2*Reason} damage (added)", { "formulaDamage" } },
+    { "{Reason {at least 1} * 2} fire damage", { "formulaDamage" } },
+    { "push {Might {kit bonus}}", { "forced" } },
     { "5 + M or A damage", { "kitDamage" } },
     { "3 + M, R, I, or P holy damage", { "kitDamage" } },
     { "vertical push straight up 5; vertical pull 3", { "forced", "forced" } },

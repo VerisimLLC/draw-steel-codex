@@ -483,8 +483,10 @@ Block.RegisterTierRule{
     id = "formulaDamage",
     order = 20,
     match = function(text)
-        local formula, rest = text:match("^{([^{}|]+)}(.*)$")
-        if formula == nil then
+        --%b{} matches balanced braces, so a formula holding a {note} still reads.
+        local braced, rest = text:match("^(%b{})(.*)$")
+        local formula = braced ~= nil and braced:sub(2, -2) or nil
+        if formula == nil or formula == "" or formula:find("|", 1, true) ~= nil then
             return nil
         end
         local tail = ReadDamageTail(rest:lower())
@@ -600,7 +602,7 @@ Block.RegisterTierRule{
         for _, movement in ipairs(g_forcedMovements) do
             if lower:sub(1, #movement + 1) == movement .. " " then
                 local distance = lower:sub(#movement + 2):match("^(%d+)$")
-                if distance == nil and text:sub(#movement + 2):match("^{[^{}|]+}$") then
+                if distance == nil and text:sub(#movement + 2):match("^%b{}$") and not text:sub(#movement + 2):find("|", 1, true) then
                     distance = text:sub(#movement + 2)
                 end
                 if distance ~= nil then

@@ -506,3 +506,55 @@ function Block.PrintFormula(ast, options)
     end
     return table.concat(before, " ")
 end
+
+--- A formula's plain form (Block.PrintFormula canonical), or nil when the text
+--- is not a formula. Two spellings of one formula have the same plain form.
+--- @param text any
+--- @return string|nil
+function Block.FormulaCanonical(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    local ast = Block.ParseFormula(text)
+    if ast == nil then
+        return nil
+    end
+    return Block.PrintFormula(ast, { canonical = true })
+end
+
+--- Whether two formulas mean the same ("Might*2" and "Might * 2"); texts that
+--- are not formulas must match exactly.
+--- @param a any
+--- @param b any
+--- @return boolean
+function Block.SameFormula(a, b)
+    if a == b then
+        return true
+    end
+    local canonicalA, canonicalB = Block.FormulaCanonical(a), Block.FormulaCanonical(b)
+    return canonicalA ~= nil and canonicalA == canonicalB
+end
+
+--- A roll of dice plus something ("2d10 + Might", "2d10 + Might or Agility"),
+--- read from its syntax tree: the dice, what is added as written, and the
+--- added name when it is a single name. Nil for any other roll.
+--- @param text any
+--- @return string|nil dice, string|nil added, string|nil name
+function Block.SplitRoll(text)
+    if type(text) ~= "string" then
+        return nil, nil, nil
+    end
+    local ast = Block.ParseFormula(text)
+    if ast == nil or ast.k ~= "bin" or ast.op ~= "+" or ast.unary or ast.parens then
+        return nil, nil, nil
+    end
+    local dice, added = ast.l, ast.r
+    if dice == nil or dice.k ~= "dice" or added == nil then
+        return nil, nil, nil
+    end
+    local name = nil
+    if added.k == "id" and added.path ~= nil and #added.path == 1 and not added.parens then
+        name = added.path[1]
+    end
+    return tostring(dice.v), Block.PrintFormula(added), name
+end

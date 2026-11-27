@@ -4617,21 +4617,43 @@ end
 -- saved words.
 ----------------------------------------------------------------------------
 
-local g_rollStats = { might = "Might", agility = "Agility", reason = "Reason", intuition = "Intuition", presence = "Presence" }
+--- The characteristic stats, from the Block stat registry (the Draw Steel
+--- characteristics, declared in MCDMAbilityBlocks.lua).
+--- @return BlockStat[]
+local function _characteristics()
+    local result = {}
+    for _, stat in ipairs(Block.All("stat")) do
+        --- @cast stat BlockStat
+        if stat.kind == "characteristic" then
+            result[#result + 1] = stat
+        end
+    end
+    return result
+end
 
---- The stat id a power roll uses ("2d10 + Might" -> "might"), or nil when the
---- roll is not the plain 2d10 plus one characteristic.
+--- The stat id a power roll uses ("2d10 + Might" -> "mgt"), read from the
+--- roll's syntax tree; nil when it is not 2d10 plus one characteristic.
 --- @param roll any
 --- @return string|nil
 local function _rollStat(roll)
-    if type(roll) ~= "string" then
+    local dice, _, name = Block.SplitRoll(roll)
+    if dice ~= "2d10" or name == nil then
         return nil
     end
-    local word = string.match(roll, "^%s*2d10%s*%+%s*(%a+)%s*$")
-    if word == nil or g_rollStats[string.lower(word)] == nil then
-        return nil
+    for _, stat in ipairs(_characteristics()) do
+        if string.lower(stat.words) == string.lower(name) then
+            return stat.id
+        end
     end
-    return string.lower(word)
+    return nil
+end
+
+--- A characteristic's name for a stat id ("mgt" -> "Might").
+--- @param statId any
+--- @return string|nil
+local function _statWords(statId)
+    local stat = type(statId) == "string" and Block.Get("stat", statId) or nil
+    return stat ~= nil and stat.words or nil
 end
 
 local TIER_BODIES = { "tier1", "tier2", "tier3" }
@@ -4643,7 +4665,7 @@ Block.RegisterBehaviorBlock{
     label = "Power roll",
     desc = "Roll 2d10 plus a characteristic; each tier holds what happens on that result.",
     sentence = { { text = "Power roll", bold = true }, " + ", { slot = "stat" } },
-    slots = { stat = { kind = "stat", default = "might" } },
+    slots = { stat = { kind = "stat", default = "mgt" } },
     bodies = {
         { id = "tier1", fits = "tier", label = "11 or lower", sublabel = "tier 1" },
         { id = "tier2", fits = "tier", label = "12 to 16", sublabel = "tier 2" },
@@ -4665,7 +4687,7 @@ Block.RegisterBehaviorBlock{
                 return _rollStat(rawget(behavior, "roll"))
             end,
             write = function(behavior, value)
-                behavior.roll = "2d10 + " .. (g_rollStats[value] or "Might")
+                behavior.roll = "2d10 + " .. (_statWords(value) or "Might")
             end,
         },
     },
@@ -4706,7 +4728,7 @@ end
 --- @param instance BlockInstance a placed "ability.powerroll"
 --- @return string
 function ActivatedAbilityPowerRollBehavior.BlockRollWord(instance)
-    return g_rollStats[(instance.values or {}).stat] or "?"
+    return _statWords((instance.values or {}).stat) or "?"
 end
 
 --Tier blocks. Their values are the tier grammar's, except damage, whose

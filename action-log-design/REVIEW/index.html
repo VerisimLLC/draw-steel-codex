@@ -1,0 +1,1662 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Code documentation for the Draw Steel Codex DMHub mod">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>History: design review before the build (2026-11-04) - Draw Steel Codex Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Lato";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#history-design-review-before-the-build-2026-11-04" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Draw Steel Codex Wiki" class="md-header__button md-logo" aria-label="Draw Steel Codex Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Draw Steel Codex Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              History: design review before the build (2026-11-04)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/VerisimLLC/draw-steel-codex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VerisimLLC/draw-steel-codex
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../patterns/game-types/" class="md-tabs__link">
+          
+  
+  
+  Design Patterns
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../modules/definitions/" class="md-tabs__link">
+          
+  
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/file-index/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Draw Steel Codex Wiki" class="md-nav__button md-logo" aria-label="Draw Steel Codex Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Draw Steel Codex Wiki
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/VerisimLLC/draw-steel-codex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VerisimLLC/draw-steel-codex
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/module-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Module Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/loading-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loading System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/game-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/data-tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/token-mutations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Token Mutations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/shared-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shared Documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/ui-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/goblinscript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GoblinScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/definitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine API (Definitions)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/game-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Rules (Foundation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/draw-steel-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Draw Steel Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/character-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Character Builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/ui-panels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI & Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/abilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/document-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/utilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/file-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#step-by-step-from-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step (from 2026-11-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-big-finding-history-has-to-record-at-the-source-not-from-chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The big finding: History has to record at the source, not from chat
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-fixes-taken-one-at-a-time-from-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Fixes (taken one at a time from 2026-11-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-decisions-one-per-round" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Decisions, one per round
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-possible-rules-bugs-found-along-the-way-not-history-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Possible rules bugs found along the way (not History work)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="history-design-review-before-the-build-2026-11-04">History: design review before the build (2026-11-04)<a class="headerlink" href="#history-design-review-before-the-build-2026-11-04" title="Permanent link">&para;</a></h1>
+<p>Inputs: an independent fresh-eyes review of the design and prototype; a coverage audit of
+today's Action Log; David's feedback after the demo; a rules review in four parts
+(<code>rules-review/core.md</code>, <code>classes-1.md</code>, <code>classes-2.md</code>, <code>director.md</code>, about 700 events).
+Details and code references: BRIEF.md Appendix X and the four rules files.</p>
+<h2 id="step-by-step-from-2026-11-05">Step by step (from 2026-11-05)<a class="headerlink" href="#step-by-step-from-2026-11-05" title="Permanent link">&para;</a></h2>
+<p>James asked to take this in small steps. Step 1 decided the rule below; step 2 sorts each
+gap by it and says whether the fix is code, data or both; then the fixes and decisions.</p>
+<p><strong>Step 1, decided 2026-11-05: what earns a place.</strong> Did it change the table?
+- Glance: Stamina up or down; a condition or effect starting or ending; moved by someone
+  else, or falling; resources (Heroic Resource, surges, Malice, Hero Tokens, Recoveries);
+  winded, dying, death, minions dying.
+- Card only: what explains a number (edges and banes, kit bonuses, potency, immunity
+  amounts, which surge went where).
+- Left out: what changed nothing (walking on your own turn, a trigger that did nothing, a
+  start of turn where nothing happened).
+- Exception (James, 2026-11-06): a roll the table watched gets a line even if it changed
+  nothing, so a failed save shows, at the end of that turn, with Active on it.</p>
+<p><strong>Step 2: the gaps, one at a time.</strong> Gaps 1 and 2 below turned out to share one cause, so
+there are five: (1) results with no card or authored message; (2) effects ending;
+(3) winded, dying, death, minion deaths; (4) Malice; (5) passive modifiers unnamed.</p>
+<p>Gap 1, checked in data 2026-11-05. Prompted triggers (the player is asked, e.g. Wellspring
+of Grace through the shared "Spend Recovery" prompt) already post a card; what they lose is
+the cause. Truly automatic ones (no question asked) show nothing without a typed message:
+Righteous Phalanx (15 damage on entering, <code>classes/conduit.yaml:12006</code>), Edict of
+Unyielding Resolve (10 temporary Stamina each turn, <code>characterongoingeffects/
+edict-of-unyielding-resolve.yaml:52</code>), start-of-turn area damage (<code>MCDMCreature.lua:7144</code>).
+History replaces the Action Log, so today's cards and typed messages have nowhere else to
+show; History writes its own lines.</p>
+<p>Marker effects (proposed 2026-11-05, James's idea): ongoing effects already carry the
+editor's "Hidden" checkbox (<code>statusEffect = false</code>, <code>DMHub Compendium/OngoingEffectEditor.lua:182</code>;
+83 effects, Righteous Phalanx Target among them), which every token and sheet display
+honours (<code>DMHub Token UI/TokenUI.lua:337</code>). History leaves Hidden effects out. "Hidden from
+enemies" (26) follows the token rule. "Hidden on token" (98) is mixed: markers (Moved This
+Turn, Blitz Tracking, Chain Reaction Target) and real effects (Vanish, Levitate, Rivalry),
+so History shows them and the pure markers get "Hidden" ticked in data.
+Withdrawn the same day: "Hidden" also takes an effect off the Tac panel's chips, the only
+place a Director removes it by hand (James). The markers need their own History signal;
+the list is in <code>marker-effects.md</code>.
+Decided 2026-11-05 (James): a new checkbox on ongoing effects, ticked on markers, keeps them
+out of History and changes nothing else. Its label waits on the feature's name, which James
+reopened the same day.</p>
+<p><strong>Gap 1 closed 2026-11-05 (James).</strong> Code: History records damage, healing, temporary
+Stamina, conditions and resources where they happen, names the cause, and skips changes that
+changed nothing (temporary Stamina keeps the greater amount, <code>DSTemporaryHitpoints.lua:6</code>).
+Lingering area damage goes through one function (<code>creature:AuraDamage</code>,
+<code>MCDMCreature.lua:7144</code>), so one fix covers Wall of Fire, monster auras and zones. Data: tick
+"Hidden from History" (COPY.md H1) on the markers in <code>marker-effects.md</code> once James has
+checked the list. Prompted triggers already post a card; they gain their cause.</p>
+<p><strong>Gap 2, where effects end (checked 2026-11-05).</strong> A handful of places, not one per ability:
+removal (<code>creature:RemoveOngoingEffect</code>/<code>BySeq</code>, <code>RemoveMatchingOngoingEffects</code>,
+<code>RemoveOngoingEffectsOnTrigger</code>, <code>PurgeCondition</code>: saves, abilities that end a condition,
+dying, end of encounter, by hand); end of turn and end of round (<code>creature:EndTurn</code>,
+<code>creature:EndRound</code>, <code>DMHub Game Rules/Creature.lua:11183</code>, <code>:11230</code>); a sustain formula
+failing (<code>creature:RefreshToken</code> tidy-up, <code>:6134</code>); timers and concentration that lapse
+quietly (<code>CharacterOngoingEffectInstance:Expired</code>, <code>OngoingEffect.lua:531</code>, filtered out
+with no removal; History checks them at each turn end). Persistence adds its own piece
+(<code>creature:EndPersistentAbilityById</code>, <code>MCDMCreature.lua:7512</code>) for the cause and for walls
+and areas, which are not effects on a creature.
+<strong>Gap 2 closed 2026-11-05 (James):</strong> the broad fix plus the persistence piece; effects that
+end together are grouped (one line per turn end; one closing entry for the encounter, listing
+what ended by creature). Wording in the later sign-off round.</p>
+<p><strong>Gap 3, winded, dying, death, minion deaths (checked 2026-11-05).</strong> Detected in two places,
+taking damage (<code>MCDMCreature.lua:6806-6871</code>) and Stamina set directly, e.g. a hand edit
+(<code>:7069-7083</code>); each fires an event and a sound, never a log entry. Confirmed minion deaths
+fire once per batch (<code>squadminiondeaths</code>, <code>:6109</code>). Proposal: captions on the row that caused
+it (T14, signed off), a line when nothing did, recovery shown too, minions only once confirmed.
+<strong>Gap 3 closed 2026-11-05 (James), as proposed.</strong> Code only.</p>
+<p><strong>Gap 4, Malice (checked 2026-11-05).</strong> Correction to section 1: spending Malice on an
+ability already posts a card everyone sees (<code>MaliceSpentChatMessage</code>, <code>DSResources.lua:272</code>).
+Every other change goes only to the Director's counter tooltip. All changes pass through
+<code>CharacterResource.SetMalice</code> (<code>DSResources.lua:79</code>) with a reason already attached (start of
+combat, each round's gain, traits, "Manually set", end of combat), so the fix is one hook.
+Open: the rules leave it to the Director whether players see Malice (CRM:785-790).
+Who sees what today (from code, 2026-11-05): gains are Director-only (the action-bar counter's
+tooltip, the Encounter Wrangler). Players see every spend card, and a Malice tracker the
+Director places on the table as public (<code>DMHub Game Hud/TableDice.lua:2316</code>), whose hover
+shows the same history with reasons (<code>:2641</code>). So the codex's "Director's choice" is that
+tracker; the earlier "on by default" proposal was withdrawn. Revised proposal: keep today's
+split in History (players see spends, the Director sees every change); sharing stays the
+public tracker's job.
+<strong>Gap 4 closed 2026-11-05 (James), with the revised proposal.</strong> Code only (one hook in
+<code>SetMalice</code>); no new setting.</p>
+<p><strong>Gap 5, passive numbers (checked 2026-11-05).</strong> Card only by the rule (they explain a
+number). Most names already exist in three places: roll modifiers kept by the roller
+(<code>rollProperties.modifiersUsed</code>, <code>DSRollDialog.lua:3963</code>), kit bonuses written onto the
+ability ("Includes +2 damage from {kit} kit", <code>MCDMKit.lua:475</code>), immunity and weakness in
+the damage code. Left over: changes made outside a roll, e.g. healing halved through the
+"Stamina Regain Halved" attribute (<code>ActivatedAbility.lua:5089</code>), where the code knows the
+change but not which effect caused it. Possible data side: a bonus written straight into a
+formula instead of a named modifier shows as an unexplained total.
+Generic answer (James asked for no per-ability code, 2026-11-05): <code>creature:DescribeModifications</code>
+(<code>DMHub Game Rules/Creature.lua:7147</code>) and <code>DescribeModificationsToNamedCustomAttribute</code>
+(<code>MCDMCreature.lua:222</code>) already list every modifier that changed an attribute, with the
+value before and after; the Hero sheet's stat sources use them (<code>EotwHeroSheetData.lua:424-477</code>).
+So each place a number lands (the gap 1 hooks) asks those for the attributes it read. Any
+ability, item or DLC built from modifiers is named with no new code; only content that
+bypasses modifiers (a script editing numbers, a bonus typed into a formula) cannot be.
+<strong>Gap 5 closed 2026-11-05 (James), with the generic approach.</strong> Step 2 is done: all five
+gaps closed. Still open from it: James checks <code>marker-effects.md</code>; the new line wording
+(trigger results, temporary Stamina, effects ending and grouped endings, recovering from
+winded or dying) goes in one sign-off round. Next: the fixes in section 2, one at a time,
+then the decisions in section 3 (decision 1 is mostly settled by the gaps; its open part is
+whether F8 and F9 join the first build).</p>
+<h2 id="1-the-big-finding-history-has-to-record-at-the-source-not-from-chat">1. The big finding: History has to record at the source, not from chat<a class="headerlink" href="#1-the-big-finding-history-has-to-record-at-the-source-not-from-chat" title="Permanent link">&para;</a></h2>
+<p>Most of what players can't explain never reaches today's log, for a handful of reasons:
+- Automatic triggers post no ability card (<code>TriggeredAbility:ShowChatMessageOnCast</code>
+  returns <code>not mandatory</code>, <code>TriggeredAbility.lua:2644</code>; mandatory is the default). Their
+  per-target results are written onto that card, so with no card they are dropped
+  (<code>ActivatedAbility.lua:3174</code>). Their damage still shows when the author filled in the
+  damage behavior's chat message (<code>AbilityDamage.lua:56</code>), and immunity/weakness always
+  posts its own line. (Correction 2026-11-05: an earlier wording said they post nothing.)
+- Chat and the log are split by a filter: everything that is not plain chat goes to the
+  Action Log (<code>ChatPanel/ActionLogPanel.lua:31</code>), so nothing log-worthy is stuck in chat.
+- Damage, healing, temporary Stamina and resource lines appear only when the content author
+  typed a chat message on that behavior. Flat rule-text damage ("2 fire damage") posts
+  nothing. So coverage depends on authoring, ability by ability.
+- Nothing records an effect ending: end of turn, saves, dying, end of combat, a sustain
+  condition lost, persistence broken (the Elementalist's 5 x Reason rule only shows floating
+  text, <code>elementalist.yaml:4869</code>).
+- Winded, dying, death and minion deaths are events with sounds, never entries. Minion deaths
+  are chosen by whoever hit the squad, so History must record the confirmed deaths.
+- Malice changes are recorded only in a hover tooltip on the Director's counter.
+- Passive numbers (kit bonuses, captain, auras, the Mark) fold into rolls unnamed.</p>
+<p><strong>Proposal R: record at the source.</strong> History does not read chat. Each family of event is
+written where the game already handles it, so every ability and trait is covered without
+per-ability authoring, and the old chat cards can stay as they are.
+| Family | Recorded at | Shows as |
+|---|---|---|
+| F1 Actions, prompted triggers | <code>ActivatedAbility:Cast</code> | action row |
+| F2 Automatic triggers (traits, auras, class features) | the triggered cast, mandatory too | nested under its cause, else a line naming the feature |
+| F3 Damage, healing, temporary Stamina from any source (auras, terrain, start/end of turn, falls, collisions, hand edits) | the damage, heal and temporary Stamina code | numbers on the action, or a line with its source |
+| F4 Effects and conditions starting and ending, with why | inflict / remove condition and ongoing effect, persistence end, end of combat, dying | condition badges, "Ended" lines |
+| F5 Thresholds: winded, dying, death, confirmed minion deaths, strained, rampage, captain changes | the existing creature events | captions and lines |
+| F6 Resources with a structured cause: Heroic Resource, surges, Malice, Hero Tokens, Recoveries, Victories, losses at end of combat | the resource code (it already keeps a stat history) | lines, chips |
+| F7 Movement: push, pull, slide, stability, teleport, falls, collisions, wall breaks, with the path | <code>AbilityRelocateCreature</code> | captions, side view, map arrow |
+| F8 Rolls and play without an action: tests, montages, negotiation, respite, downtime, Dice panel, tables | the roll and those panels | compact rows |
+| F9 Director actions: reinforcements, villain actions, overrides, hand edits, reveals | the Director's tools | lines (players see what was visible) |
+| F10 Named modifiers for Why lines | roll dialog <code>modifiersUsed</code>, the damage code | Why lines |
+Recommendation: F1-F7 and F10 in the first build (every combat); F8 and F9 next.</p>
+<h2 id="2-fixes-taken-one-at-a-time-from-2026-11-05">2. Fixes (taken one at a time from 2026-11-05)<a class="headerlink" href="#2-fixes-taken-one-at-a-time-from-2026-11-05" title="Permanent link">&para;</a></h2>
+<p>Adopted: B1, B2, B3 with "{n} new below" counting rows (2026-11-05).
+B4 part 1 adopted 2026-11-05: side-view icon button on the movement caption; hovering it
+draws the movement arrow on the map. The engine change (draw an arrow and the side view from
+a saved start or path) is built here and proposed as an engine PR (James). James added: a
+faded ghost of the creature at its start square. The engine already has it,
+<code>CharacterToken:CreateGhost(loc)</code> (<code>Definitions/CharacterToken.lua:497</code>, used by the Monster
+AI's plan preview), so no engine change for that; a creature whose token is gone (a dead
+minion) gets no ghost.
+B4 part 2 adopted 2026-11-05: "Resisted" caption (T14), numbered faces on shared portraits,
+the gold badge becomes a diamond (the quiet count stays a circle).
+B5 adopted 2026-11-05: players see what they could see live. Spoiler modifiers follow the
+existing reveal (<code>PowerRollSpoilers</code>, <code>Timeline/EmbeddedRollDialog.lua:437</code>); minion Stamina
+and a monster's own numbers follow Monster Info unless the live roll showed them. Y13 without
+the number goes to the wording round.
+B6 adopted 2026-11-05: "+N" when faces don't fit, identical results grouped (pattern to the
+wording round), details built when opened.
+B7 adopted 2026-11-05: the card opens on the side with room, else inside the tray with a way
+back (label to the wording round); glance text at least 11 px at 100% Font Size.
+B8, "Active" decided 2026-11-05: always shown, in tray and card, as a small tag on the
+condition badge only.
+B8 adopted in full 2026-11-05: "Tier 1" everywhere ("&lt;=11" under it on the roll card only),
+search finds "turn 15", S5 now reads: Nothing matches "{search}". All eight fixes adopted.
+Wording still to propose (one round): trigger and temporary Stamina lines, effects ending
+and grouped endings, recovering from winded or dying, Y13 without minion Stamina, grouped
+identical results, the in-tray card's way back.</p>
+<p><strong>Built into the prototype 2026-11-05</strong> (artifact UPWo9XvYuaDiZ388xRES35, version 19; source in
+the session scratchpad <code>actionlog-proto/project/Main.dc.html</code>; checks <code>check3-6.js</code> pass, and
+each fix was looked at in the browser). Scenario additions so every fix shows: Zakaarior's free
+strike inside Test Monster Z 1's turn (B2); the Power Roll Test also hits the Tactician, Censor
+and Shadow for 10 each (B6 "+3" and grouping); a secret "Ambusher" edge on round 1's axe (B5);
+a "Window: wide/narrow" demo button (B7). Draft lines in the prototype, for the wording round:
+"5 damage was enough to kill one minion."; "Knocked prone: it did not resist"; "{names} each
+took {n} damage."; "Taken, each"; "Back"; the button's tooltip "Side view"; the free strike's
+"Free strike" and "Moved away without shifting" Why line. Not shown in the prototype: damage and
+healing apart in a fold (Zakaarior sits behind "+N"; checked in code), the card opening on the
+other side, lazy building.</p>
+<p><strong>James's review of the build, 2026-11-06 (prototype version 21).</strong>
+- Target cells: face on the left, number and full name beside it, captions on the line below.
+  One target takes the full width; two to four sit in two columns; past four, three cells and
+  "+N" with the rest named beside it. "Ally hit" became a caption on the cell (T13). Rows are
+  about half their old height. The tier pill sits on the caption line so names aren't cut.
+- Side-view button: sits on the movement caption's line. Icon is the real Phosphor glyph
+  <code>phosphor/arrow-elbow-right-down-bold.png</code> (the full ~9k set is in
+  <code>StreamingAssets/phosphor-icons.zip</code>, any name works; <code>assets.GetPhosphorIcons</code> searches it).
+- David's preview (D2), which had been parked in decision 2: when an action finishes and History
+  is closed or minimised, a "what happened" card shows beside the rail button or block for about
+  five seconds (longer with the pointer on it); never over an open tray; clicking opens History
+  on that action; gives way to the hover preview. The prototype's "Beside History" button stands
+  in for the setting. Setting wording goes to the wording round. D1 (own rail slot) stays in
+  decision 2.</p>
+<p><strong>Font check for wording (2026-11-06, read from the TextMeshPro assets).</strong> Berling is a static
+atlas. Not available: the arrow U+2192 and less-or-equal U+2264 (no label font's table has them;
+Berlingske Regular's fallback Newzald-Medium is dynamic and its source has them, but Bold has no
+fallbacks, so it can't be relied on). DrawSteelGlyphs has no arrow (it has the tier glyphs).
+Labels have no inline images, so a Phosphor arrow can't sit inside a sentence. Available: middle
+dot, en dash, times, single guillemet, curly quotes. Minus U+2212 is Regular-only through a
+fallback, so bold numbers in the Codex use a plain "-". Lua source stays ASCII, so these go in as
+byte escapes. This hits T5 ("Malice +{n} → {n}") and the card's "Stamina a → b" notes.</p>
+<p><strong>Wording group 1 signed off 2026-11-06 (COPY.md Round 4), with the caret rule:</strong> a lone number
+shows the new value, the Builder's caret (<code>HeroSheetCard.Mark</code>) and the size of the change; inside
+a sentence, "to". The players' round heading drops Malice, matching gap 4. Prototype version 22,
+with two sample lines: Reactor 1's Wall of Fire damage (turn 14) and the Troubadour's temporary
+Stamina (turn 15).</p>
+<p><strong>Reversed the same day after James tried it (prototype version 23):</strong> carets are out; they read
+like a sum and red clashed with the Builder. Every changed number now reads "{before} to {now}".
+Wording group 2 signed off with an Ended tag and the failed save line (COPY.md Round 4). The axe in
+turn 8 now slows Zakaarior (save ends) so his failed save shows in turn 12.</p>
+<p><strong>Wording round complete 2026-11-06:</strong> groups 1-5 signed off (COPY.md Round 4, L0-L38); no drafts left
+in the prototype. Still open: James checks <code>marker-effects.md</code>; decisions 1 (F8 and F9 scope), 2
+(defaults, rail, whether the preview and notifications stay two settings), 3 (several maps), 4
+(revert, undo, Director tools), 5 (out of combat, retention); then the build plan.</p>
+<p><strong>Decision 2 closed 2026-11-06 (James):</strong> own rail button below Chat; starts closed for everyone
+(he declined "on for the Director"); two settings stay; the rail button keeps the badge when the
+tray is off the table.
+<strong>Decision 3 closed 2026-11-06 (James):</strong> one History, following the map last clicked unless the
+pointer is on the tray or a card is open; a switcher only while two maps are in combat; badge and
+preview cover every map you can see; search covers the shown map and its previous encounter.
+<strong>Decision 4 closed 2026-11-06 (James):</strong> reverted rows stay, faded, tagged Reverted, out of the
+totals, with a Turn reverted line; History's document stays out of checkpoint backups. Undo stays
+on resource lines. Director tools stay on right-click (COPY.md L39-L42).
+<strong>Decision 5, three of four closed 2026-11-06 (James):</strong> Out of combat heading with compact lines;
+retention as above, across sessions, subject to the engine's document limits; ability card on hover
+in the card header (COPY.md L43-L45). Typed messages talked through: 759 fields in the data, 530
+different messages, 210 identical to the ability name, but others carry real explanation ("Gained 2
+surges (target killed, winded, or bleeding)"), so "ignore them" would lose information.
+<strong>Decision 5 closed 2026-11-06 (James):</strong> typed messages never reach the glance; in the card's Why
+they show as written unless they only repeat the ability's name.
+<strong>Decision 1 closed 2026-11-06 (James):</strong> all ten families before release (this replaces the "F1-F7 and
+F10 first" recommendation in section 1). Stages: combat first, then out of combat and Director
+actions. History runs beside the old log, off by default, until the last stage, then the old log
+goes in the same step that turns History on for everyone. <strong>All review decisions are closed.</strong>
+The prototype caught up with decisions 2-5 on 2026-11-06 (version 26; every item looked at in the
+browser): starts closed; Chat and History on separate rail buttons, History with Phosphor's
+<code>clock-counter-clockwise-bold</code>; rail badge; History notifications control; map switcher with a sample
+"Old Mill" fight; Reverted rows with a Turn reverted line; Out of combat; ability card on hovering the
+detail card's title; a typed message sample in turn 5's Why. Not in the prototype: Undo on resource
+lines, the Director's right-click menu, History following the last-clicked map. Next: the build plan. Prototype changes are batched until the fixes are through.</p>
+<ul>
+<li>B1 Numbers on the glance are what landed: a face shows the total taken including nested
+  triggers; folds show damage and healing separately; captions use taken numbers.</li>
+<li>B2 An actor face on a row whose actor isn't the turn's only creature (a Director's group
+  turn); an action with no cause sits as a line in the turn it happened in.</li>
+<li>B3 Nothing moves under the reader: no folding while the pointer is on the tray or a card
+  is open; the selected turn never folds; when scrolled up, hold position and show
+  "{n} new below".</li>
+<li>B4 Signals that are not hover-only or colour-only: the side view gets an icon button on
+  the movement caption (drop "Hover here for the side view"); hovering it also draws the
+  movement arrow on the map (David); a "Resisted" caption; duplicate portraits numbered; the
+  gold badge carries a shape, not colour alone. (The hero card's hover chip stays: James's
+  constraint.)</li>
+<li>B5 One visibility rule: the record shows players what they saw live; spoiler modifiers
+  stay redacted until revealed; anything not shown live (a monster's characteristic in a
+  Why line, minion Stamina) follows Monster Info.</li>
+<li>B6 Scale: a "+N" face when a strip or fold is full; identical outcomes grouped ("Goblins
+  1-4 each took 6"); results built lazily.</li>
+<li>B7 Font Size and narrow windows: the card opens on the side with room, or inside the tray
+  when there is none; glance text never smaller than 11 px at 100%.</li>
+<li>B8 Wording: one tier label everywhere ("Tier 1", the badge showing "&lt;=11" under it only
+  on the roll card); "Nothing in this encounter matches" becomes "Nothing matches"; search
+  accepts "turn 15"; "Active" shows the same way in tray and card.
+New wording in this block for sign-off: "{n} new below", "Nothing matches "{search}"."</li>
+</ul>
+<h2 id="3-decisions-one-per-round">3. Decisions, one per round<a class="headerlink" href="#3-decisions-one-per-round" title="Permanent link">&para;</a></h2>
+<ol>
+<li>What History records (Proposal R above), and the first-build scope.</li>
+<li>Defaults, the rail and notifications: History on its own rail slot, not in the Chat
+   group (David); what is on by default for players and the Director; the brief preview
+   beside the button or block when History is closed, reusing the chat speech bubble, with a
+   setting (David); the badge when the tray is off the table; the new-rows marker on an open
+   tray.</li>
+<li>Several maps, each in its own combat: one History per map, or one that follows the
+   focused map.</li>
+<li>Revert Turn, undo and the Director's tools: strike-through or erase on revert; Delete,
+   Hide from players, Clear; Undo on resource lines.</li>
+<li>Out of combat and keeping history: how play without rounds groups; how long History keeps
+   things between encounters and sessions; the ability card on hover; content authors' own
+   lines.</li>
+</ol>
+<h2 id="4-possible-rules-bugs-found-along-the-way-not-history-work">4. Possible rules bugs found along the way (not History work)<a class="headerlink" href="#4-possible-rules-bugs-found-along-the-way-not-history-work" title="Permanent link">&para;</a></h2>
+<p>The rules agents noted implementation differences from the rules. None are verified;
+each needs checking against the book before anyone changes code. Lists: core.md
+"Surprises", classes-1.md "Rules deviations noticed", classes-2.md "Surprises and data
+issues", director.md "Gaps in rules automation". Examples: no damage for being thrown
+cleanly through a wall; save-ends effects continuing after combat; Prophecy marked Gold with
+no modifiers; Quick and Brutal granting a maneuver where the rule grants a main and a move
+action; Materialize using a flat 2 instead of Reason; features not implemented (Warmaster,
+Masterwork, Templar, Oracular Visions and others).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

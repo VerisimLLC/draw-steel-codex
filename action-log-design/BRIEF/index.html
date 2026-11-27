@@ -1,0 +1,3878 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Code documentation for the Draw Steel Codex DMHub mod">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Action Log redesign - design brief (DRAFT, in discovery) - Draw Steel Codex Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Lato";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#action-log-redesign-design-brief-draft-in-discovery" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Draw Steel Codex Wiki" class="md-header__button md-logo" aria-label="Draw Steel Codex Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Draw Steel Codex Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Action Log redesign - design brief (DRAFT, in discovery)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/VerisimLLC/draw-steel-codex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VerisimLLC/draw-steel-codex
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../patterns/game-types/" class="md-tabs__link">
+          
+  
+  
+  Design Patterns
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../modules/definitions/" class="md-tabs__link">
+          
+  
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/file-index/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Draw Steel Codex Wiki" class="md-nav__button md-logo" aria-label="Draw Steel Codex Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Draw Steel Codex Wiki
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/VerisimLLC/draw-steel-codex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VerisimLLC/draw-steel-codex
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/module-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Module Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/loading-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loading System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/game-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/data-tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/token-mutations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Token Mutations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/shared-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shared Documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/ui-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/goblinscript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GoblinScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/definitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine API (Definitions)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/game-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Rules (Foundation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/draw-steel-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Draw Steel Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/character-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Character Builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/ui-panels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI & Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/abilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/document-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/utilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/file-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-framing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Framing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-decision-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Decision ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-current-state-audit-code-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A - Current-state audit (code, 2026-10-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix A - Current-state audit (code, 2026-10-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-feeds-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What feeds it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#overlap-with-newer-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overlap with newer surfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dormant-the-battle-log-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dormant: the Battle Log document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#style-debt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Style debt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-b-a-real-log-read-cold-jamess-screenshot-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix B - A real log, read cold (James's screenshot, 2026-10-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-c-why-would-anyone-want-a-full-session-log-reasoned-guesses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix C - Why would anyone want a full-session log? (reasoned guesses)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-d-precedent-scan-web-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix D - Precedent scan (web, 2026-10-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-e-option-b-explored-2026-10-23-provisional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix E - Option B explored (2026-10-23, provisional)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix E - Option B explored (2026-10-23, provisional)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anatomy-of-an-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anatomy of an entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-awkward-cases-and-how-b-handles-them-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The awkward cases and how B handles them (recommendations)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tested-against-the-needs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tested against the needs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-b-strains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where B strains
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#engine-reality-for-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine reality for B
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jamess-reaction-to-the-text-version-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        James's reaction to the text version (2026-10-23)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-f-surface-options-rail-panel-vs-tabletop-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix F - Surface options: rail panel vs tabletop (2026-10-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix F - Surface options: rail panel vs tabletop (2026-10-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-tabletop-offers-verified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the tabletop offers (verified)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommendation-pending-james" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommendation (pending James)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-g-playable-tabletop-mock-of-the-layered-approach-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix G - Playable tabletop mock of the layered approach (2026-10-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-h-jamess-play-test-of-the-mock-and-the-code-behind-it-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix H - James's play-test of the mock, and the code behind it (2026-10-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix H - James&#39;s play-test of the mock, and the code behind it (2026-10-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feedback
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-code-says" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the code says
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-i-revised-layered-design-after-the-play-test-proposal-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix I - Revised layered design after the play-test (proposal, 2026-10-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix I - Revised layered design after the play-test (proposal, 2026-10-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-the-glance-layer-lives-open-james-to-pick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the glance layer lives (open: James to pick)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-creature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per creature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-s5-fold-built-cheaply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The S5 fold, built cheaply
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-j-p1-mock-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix J - P1 mock (2026-10-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-k-every-case-in-the-p1-tray-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix K - Every case in the P1 tray (2026-10-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix K - Every case in the P1 tray (2026-10-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#row-grammar-it-settles-proposal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Row grammar it settles (proposal)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#player-view-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Player view differences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules-checked-clauderefheroeslua-and-draw-steel-rules-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules checked (ClaudeRefHeroes.lua and draw-steel-rules memory)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-yet-shown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not yet shown
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-l-shareable-p1-prototype-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix L - Shareable P1 prototype (2026-10-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-m-rickys-feedback-triaged-agreed-by-james-2026-10-24-with-the-change-below" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix M - Ricky's feedback, triaged (agreed by James 2026-10-24, with the change below)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix M - Ricky&#39;s feedback, triaged (agreed by James 2026-10-24, with the change below)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#proposed-rule-the-glance-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed rule: the glance budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verdicts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-n-prototype-round-2-rickys-points-folded-in-2026-10-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix N - Prototype round 2: Ricky's points folded in (2026-10-24)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-o-play-runs-two-turns-and-a-round-change-2026-10-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix O - Play runs two turns and a round change (2026-10-24)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-p-not-there-yet-james-2026-10-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix P - "Not there yet" (James, 2026-10-25)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix P - &#34;Not there yet&#34; (James, 2026-10-25)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interview-round-1-james-2026-10-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interview, round 1 (James, 2026-10-25)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#emerging-hypothesis-to-test-with-james" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emerging hypothesis (to test with James)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interview-round-2-james-2026-10-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interview, round 2 (James, 2026-10-25)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interview-round-3-james-2026-10-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interview, round 3 (James, 2026-10-25)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#finding-the-codex-already-remembers-state-on-the-things-themselves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding: the Codex already remembers state on the things themselves
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#candidate-reframe-to-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Candidate reframe (to test)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interview-round-4-james-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interview, round 4 (James, 2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-q-what-players-actually-report-in-app-feedback-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix Q - What players actually report (in-app feedback, 2026-10-26)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix Q - What players actually report (in-app feedback, 2026-10-26)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interview-round-5-james-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interview, round 5 (James, 2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persona-lens-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persona lens update
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-r-what-players-say-in-public-web-research-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix R - What players say in public (web research, 2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-s-readable-detail-proposal-2026-10-26-awaiting-james" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix S - Readable detail: proposal (2026-10-26, awaiting James)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix S - Readable detail: proposal (2026-10-26, awaiting James)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-play-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In play (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jamess-play-of-the-three-layouts-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        James's play of the three layouts (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#built-the-detail-card-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built: the detail card (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-t-what-it-takes-to-build-feasibility-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix T - What it takes to build (feasibility, 2026-10-26)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix T - What it takes to build (feasibility, 2026-10-26)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#works-today-ui-work-only-the-data-already-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Works today (UI work only, the data already exists)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#codex-changes-known-in-the-moment-not-kept-today" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Codex changes (known in the moment, not kept today)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#engine-checks-and-small-engine-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine checks and small engine work
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#still-to-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still to design
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-u-search-proposal-2026-10-26-awaiting-james" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix U - Search: proposal (2026-10-26, awaiting James)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix U - Search: proposal (2026-10-26, awaiting James)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-search-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built: search (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-v-the-minimised-tray-and-its-notification-proposal-2026-10-26-awaiting-james" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix V - The minimised tray and its notification: proposal (2026-10-26, awaiting James)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix V - The minimised tray and its notification: proposal (2026-10-26, awaiting James)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-the-minimised-tray-2026-10-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built: the minimised tray (2026-10-26)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-w-closing-the-open-decisions-2026-10-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix W - Closing the open decisions (2026-10-27)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix W - Closing the open decisions (2026-10-27)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-can-players-open-a-monsters-history-decided-yes-2026-10-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Can players open a monster's history? (decided: yes, 2026-10-27)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-wording-decided-2026-10-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Wording (decided 2026-10-27)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-turn-numbers-decided-2026-11-04-kept-after-briefly-dropping-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Turn numbers (decided 2026-11-04: kept, after briefly dropping them)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-x-design-review-before-the-build-2026-11-04-in-progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix X - Design review before the build (2026-11-04, in progress)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix X - Design review before the build (2026-11-04, in progress)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coverage-audit-what-todays-action-log-does-that-history-does-not-yet-say" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage audit: what today's Action Log does that History does not yet say
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#davids-feedback-after-the-demo-via-james-2026-11-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        David's feedback after the demo (via James, 2026-11-04)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#independent-design-review-fresh-eyes-reviewer-2026-11-04-code-references-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Independent design review (fresh-eyes reviewer, 2026-11-04; code references checked)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="action-log-redesign-design-brief-draft-in-discovery">Action Log redesign - design brief (DRAFT, in discovery)<a class="headerlink" href="#action-log-redesign-design-brief-draft-in-discovery" title="Permanent link">&para;</a></h1>
+<p>Status: Phase 1 framing signed; Phase 3 decision map next. Started 2026-10-23.</p>
+<h2 id="1-framing">1. Framing<a class="headerlink" href="#1-framing" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Problem: when something happens that a player or the Director did not follow, they
+  cannot find out what happened quickly. The log is hidden behind a rail button, shows
+  a noisy stream of bespoke cards, and buries the actual outcome (who lost how much
+  Stamina, which condition landed) in hover tooltips.</li>
+<li>Example question it must answer in seconds: "I did 7 damage, why did the monster only
+  take 5?" -&gt; poison damage, the monster has poison immunity 2.</li>
+<li>Who asked: David; Ricky raised it too. The dev team rarely refers to the log.</li>
+<li>Not bound to today's form. Same spirit as the tabletop HUD, which reframed VTT play
+  from map-first to table-first: the table holds the map and other things.</li>
+<li>Personas:</li>
+<li>Player who missed something ("why did I lose 14 Stamina?").</li>
+<li>Director settling a dispute or recovering from a mistake ("did the mark apply?").</li>
+<li>Set-and-forget player who never opens it.</li>
+<li>Primary job: recall first. Full-session needs are served as outputs, not as the
+  log's core design (see Open questions).</li>
+<li>Done looks like: TBD.</li>
+<li>Pillars (DRAFT, proposed 2026-10-23):</li>
+<li>Outcomes first, mechanics on request.</li>
+<li>Answer from where the question comes up (the creature, your hero, the round), not
+     only from a panel. At a physical table nobody keeps a log: memory is spoken and
+     tied to the creature and the moment.</li>
+<li>Record what happened when it happened; never re-draw history from live state.</li>
+</ul>
+<h2 id="2-decision-ledger">2. Decision ledger<a class="headerlink" href="#2-decision-ledger" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Decision</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-10-23</td>
+<td>Primary job = recall of recent play; detail one click away</td>
+<td>The log is opened after the fact, when someone is confused</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>Free to reimagine the form; no obligation to keep the panel</td>
+<td>Same reframing licence as the tabletop HUD</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>Personas: missed-something player, dispute-settling Director, set-and-forget player</td>
+<td>Agreed by James</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>PROVISIONAL: one entry = one action (option B), grouped by round and turn; mechanics one click away</td>
+<td>Answers "what landed on whom" directly; exploring in detail, may be discarded if it does not meet the needs</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>Encounter recap is already served by the victory screen (titles for heroes and monsters by contribution)</td>
+<td>James; no new recap output needed for that "why"</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>B3 (pictures first, older play folds up) is the strongest content model so far; not yet THE approach</td>
+<td>James: "miles ahead" of today, but the surface (rail panel vs tabletop) was never explored</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>Surface reopened: explore tabletop options before locking the panel</td>
+<td>James; the mockups had assumed a rail panel</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>Glance layer = P1, a History tray as a table item (being mocked)</td>
+<td>One home whatever the map window does; no new map chrome; fits "users arrange their UI"</td>
+</tr>
+<tr>
+<td>2026-10-23</td>
+<td>Symbols follow the roll dialog: edges and banes use its chevron (<code>drawsteel/Icons_Nav_CollapseArrow.png</code>, up for edge, two stacked for double), surges its lightning bolt (<code>game-icons/surge.png</code>)</td>
+<td>James: one symbol per concept across the roll and its record</td>
+</tr>
+<tr>
+<td>2026-10-24</td>
+<td>Ricky's feedback verdicts agreed (Appendix M), with forced movement shown as the targeting cross-section on hover</td>
+<td>James</td>
+</tr>
+<tr>
+<td>2026-10-24</td>
+<td>Glance budget: the glance line shows only what changed the outcome or spent something; the how lives in the detail</td>
+<td>Keeps the line readable as more cases fold in</td>
+</tr>
+<tr>
+<td>2026-10-26</td>
+<td>Continue from the latest P1 prototype; the gap is presentation and missing functions, not the concept</td>
+<td>James, after the reframing interview showed nothing better</td>
+</tr>
+<tr>
+<td>2026-10-26</td>
+<td>Rejected: the roll card as the history entry</td>
+<td>The timeline roll card itself does not show everything that shaped the roll (e.g. 3 edges and 1 bane netting to a double edge)</td>
+</tr>
+<tr>
+<td>2026-10-26</td>
+<td>Rejected as a default: 'since your last turn' catch-up</td>
+<td>Assumes how players use it; serves one or two player types; detail-minded players want a specific thing</td>
+</tr>
+<tr>
+<td>2026-10-26</td>
+<td>Detail opens as a card beside the tray (one at a time; the row stays highlighted), not inline; it reads what happened, then why (each change to the result as a contrast), then the numbers as a receipt</td>
+<td>James, after the three inline layouts all read as confusing: no container, five nesting levels, arithmetic first</td>
+</tr>
+<tr>
+<td>2026-10-26</td>
+<td>Search filters the tray in place: an always-visible field, suggestions that become chips (creatures, abilities, conditions, outcome words), chips and words all match, an Active tag on what is still on; History on a token or hero card opens the tray with that creature's chip (replacing the creature popover)</td>
+<td>James, approving Appendix U</td>
+</tr>
+<tr>
+<td>2026-10-26</td>
+<td>Minimised History is the standard window button with one badge: a grey count of unseen turns (your own turns excluded), gold when an unseen entry touched a creature you control; hover previews "Since you last looked"; opening clears it and lands on "New since you looked". The Director gets the grey count, gold only for players' hand edits</td>
+<td>James, approving Appendix V (two levels)</td>
+</tr>
+<tr>
+<td>2026-10-27</td>
+<td>David saw a demo of the prototype (tray, detail card, search, minimised block) and thinks it is great</td>
+<td>James; David asked for the redesign</td>
+</tr>
+<tr>
+<td>2026-10-27</td>
+<td>Players can open History on any token they can see; monster numbers in the detail follow Monster Info knowledge (Stamina tier, characteristics and immunities only once revealed)</td>
+<td>James, Appendix W 1</td>
+</tr>
+<tr>
+<td>2026-10-27</td>
+<td>Wording signed off and applied (COPY.md): the name is History; Why lines lead with the cause in Draw Steel's words, then what it did ("instead of", not "X, not Y"); surges are gained and spent; triggers quote the ability's Trigger line; the edge note follows the rules' wording</td>
+<td>James, two rounds</td>
+</tr>
+<tr>
+<td>2026-11-04</td>
+<td>No encounter-wide turn numbers: a turn is named by its round and creature ("Round 2, the Fury's turn"); folded groups read "5 earlier turns"</td>
+<td>James, Appendix W 3; applied to the prototype</td>
+</tr>
+<tr>
+<td>2026-11-04</td>
+<td>Reversed the same day: turn numbers stay (a small number on folded turns, "Turn 13" in headings, "Turns 5-9" groups, "Round 2, turn 13" in the card)</td>
+<td>James</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>What earns a place: did it change the table? Glance = Stamina, conditions/effects starting or ending, being moved or falling, resources, winded/dying/death/minion deaths. Card only = what explains a number (edges, banes, kit bonuses, potency, immunity amounts, surge split). Left out = what changed nothing (moving on your own turn, a trigger that did nothing, an empty start of turn)</td>
+<td>James, REVIEW.md "Step 1"</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>Marker effects stay out of History through a new checkbox on ongoing effects ("Hidden" can't be used: it also removes the Tac panel chip, the Director's manual remove). Label waits on the name. The name (N1, History) is reopened</td>
+<td>James, REVIEW.md gap 1</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>The name stays History, after a for and against (clashes noted: the Director's "Turn History" rewind dialog, the History lore skill)</td>
+<td>James</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>Gap 1 closed: History records results where they happen (damage, healing, temporary Stamina, conditions, resources), names the cause, skips what changed nothing; markers get "Hidden from History"</td>
+<td>James, REVIEW.md gap 1</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>Gap 2: the broad fix for effects ending (hooks at removal, end of turn, end of round, sustain tidy-up, lapsed timers) plus a persistence piece for its cause and for walls and areas</td>
+<td>James, REVIEW.md gap 2</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>Gaps 3-5 closed: winded/dying/death as signed-off captions (minions once confirmed, recovery shown); Malice keeps today's split (players see spends, Director sees all; sharing stays the public table tracker); passive numbers named generically through <code>DescribeModifications</code>, no per-ability code</td>
+<td>James, REVIEW.md gaps 3-5</td>
+</tr>
+<tr>
+<td>2026-11-05</td>
+<td>All eight fixes adopted one at a time (B1-B8), with James's additions: the map arrow's engine change is built here as an engine PR, and a faded ghost (<code>CreateGhost</code>) marks the start square; "Active" always shows; S5 becomes "Nothing matches "{search}"."</td>
+<td>James, REVIEW.md section 2</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>After reviewing the build: target cells use the tray's width (face, number and name, captions below); the side-view button sits on the movement line with a real Phosphor icon; David's brief "what happened" beside a closed History is built, with a setting</td>
+<td>James, REVIEW.md "James's review of the build"</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Every changed number reads "{before} to {now}" (no arrow in the fonts; carets tried and dropped); an Ended tag partners Active; a roll the table watched gets a line even if it changed nothing, so failed saves show</td>
+<td>James, COPY.md Round 4</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Rail and defaults: History gets its own rail button below Chat (the Chat group keeps Chat and Safety); starts closed for everyone, Director included, one click away; two settings stay (History notifications, History Sidebar Preview); the rail button keeps the badge when the tray is off the table</td>
+<td>James, REVIEW.md decision 2</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Several maps: one History showing one map's fight, the one last clicked (not while reading); a switcher only while more than one map is in combat; badge and preview cover every map you can see; search covers the shown map and its previous encounter</td>
+<td>James, REVIEW.md decision 3</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Revert keeps rows, faded with a Reverted tag, out of the totals, with a Turn reverted line; History's document is not registered for checkpoints. Undo stays on resource lines. Director keeps Hide/Reveal, Delete entry and Clear History on right-click</td>
+<td>James, REVIEW.md decision 4</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Out of combat: compact lines in time order under an Out of combat heading between encounters. Keeps this encounter, the previous one and what lies between, across sessions (engine check: document limits). Hovering the ability name in the card header shows the ability card</td>
+<td>James, REVIEW.md decision 5</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Typed messages: never on the glance; in the card's Why, as written, unless the message is only the ability's name (generic rule, no per-ability code)</td>
+<td>James, REVIEW.md decision 5</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>First-build scope: all ten families (F1-F10) before release, because History replaces the log and nothing may be lost. Built in stages, combat first, then out of combat and Director actions; History runs beside the old log, off by default, until the last stage; the old log goes in the same step that turns History on for everyone</td>
+<td>James, REVIEW.md decision 1</td>
+</tr>
+<tr>
+<td>2026-11-06</td>
+<td>Build plan signed off (BUILD-PLAN.md, 27 chunks). Retention gets a hard cap, performance first: try this encounter and the last, cull the oldest, build the newest 30-40 rows and more on scroll, as today's log does. Engine PR agreed in principle</td>
+<td>James</td>
+</tr>
+<tr>
+<td>2026-11-07</td>
+<td>History is a rail panel window like Chat, not a table item: the rail windows' frame and transparency, pin and pop out. Its height is the user's; Show all only unfolds every turn. Popped out, the card opens inside the window</td>
+<td>James, after the 2.1 feedback</td>
+</tr>
+<tr>
+<td>2026-11-13</td>
+<td>Sidebar Preview (3.4): the chat speech bubble is made generic and History reuses it; a row per new entry from someone else's turn (the badge's rule); an action is a header (actor . ability) over up to 2 target sentences and "and {n} more"; clicking a row opens History on that action with its card, elsewhere opens it at the marker; the bubble holds under the pointer (Chat's too); hovering the button or opening History fades it; it marks nothing seen</td>
+<td>James, 3.4 rounds 1-5</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-open-questions">3. Open questions<a class="headerlink" href="#3-open-questions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Which full-session "whys" are worth an output (encounter recap, session summary to a
+  journal, catch-up since your last turn)? Candidate list in Appendix C.</li>
+</ul>
+<h2 id="appendix-a-current-state-audit-code-2026-10-23">Appendix A - Current-state audit (code, 2026-10-23)<a class="headerlink" href="#appendix-a-current-state-audit-code-2026-10-23" title="Permanent link">&para;</a></h2>
+<h3 id="surface">Surface<a class="headerlink" href="#surface" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ChatPanel/ActionLogPanel.lua</code>: <code>DockablePanel.Register{name = "Action Log"}</code>, a rail
+  panel. Unread badge with a count of entries from other users since the panel was last
+  on screen (<code>actionlog:lastviewed</code> per-game preference).</li>
+<li>Chrome per entry: <code>CreateActionLogCard</code> - 40px token portrait, name, 6px colour bar
+  (player colour, or hard-coded <code>#AA0000</code> for monsters), indented 20px when "out of
+  turn".</li>
+<li>Lazy history: builds the newest 12 entries, loads 12 more on scroll to top.</li>
+<li>DM-only: right-click Delete Message / Clear Chat / Hide from players; per-roll
+  visibility eye.</li>
+<li>No search, no filter, no grouping beyond cast-adoption (below).</li>
+</ul>
+<h3 id="data-model">Data model<a class="headerlink" href="#data-model" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The log is a filtered view of the chat store: every message that is not plain chat,
+  data, object or a custom message on the "chat" channel.</li>
+<li>Engine cap: <code>ChatPanel.cs:2193</code> keeps only the newest <strong>128 messages, shared with
+  chat</strong>. One ability cast writes several messages (cast + roll + modifiers, heals,
+  resources, notes), so a busy combat holds a few rounds at most. Full-session search
+  is impossible on this store.</li>
+<li>Entries store ids, not snapshots: names, portraits and the out-of-turn indent are
+  read from LIVE state at render time. A deleted token makes its entries render as 0x0
+  (they vanish); a renamed token renames history; "out of turn" is computed against the
+  current initiative, not the one at the time.</li>
+</ul>
+<h3 id="what-feeds-it">What feeds it<a class="headerlink" href="#what-feeds-it" title="Permanent link">&para;</a></h3>
+<p>Roll messages (every dice roll: power rolls, tests, damage, initiative, Dice panel,
+macros, roll-on-table, downtime, montage). A power roll whose <code>castid</code> matches a cast
+card is nested under it. The power-roll card is also a LIVE interaction surface: amend
+edge/bane after the roll, tier rows highlight, amendable rows.</p>
+<p>17 custom card types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>File</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CastActivatedAbilityChatMessage</td>
+<td>DMHub Game Rules/ActivatedAbility.lua:2886</td>
+<td>ability name, type, "Executing...", 28px target portraits; per-target outcomes only in hover</td>
+</tr>
+<tr>
+<td>ActivatedAbilityDamageChatMessage</td>
+<td>Draw Steel Ability Behaviors/AbilityDamage.lua:454</td>
+<td>"N type damage" - only when the content author typed a chatMessage; also squad overflow damage (MCDMCreature.lua:6224)</td>
+</tr>
+<tr>
+<td>DamageModifierChatMessage</td>
+<td>Draw Steel Core Rules/MCDMCreature.lua:5308</td>
+<td>immunity/weakness changed a hit: shield chip, +/-N, source</td>
+</tr>
+<tr>
+<td>HealChatMessage</td>
+<td>DMHub Game Rules/AbilityReplenish.lua:147</td>
+<td>"Regained N Stamina"</td>
+</tr>
+<tr>
+<td>ResourceChatMessage</td>
+<td>Draw Steel V/ResourceChat.lua</td>
+<td>resource gain/consume, reason, Undo button</td>
+</tr>
+<tr>
+<td>MaliceSpentChatMessage</td>
+<td>Draw Steel Core Rules/DSResources.lua:112</td>
+<td>Malice diamond, ability, hover = ability card</td>
+</tr>
+<tr>
+<td>ActionLogNoteChatMessage</td>
+<td>DMHub Game Rules/AbilityReplenish.lua:203</td>
+<td>title + detail for a bonus already folded into a roll</td>
+</tr>
+<tr>
+<td>ActivatedAbilityTemporaryStaminaChatMessage</td>
+<td>Draw Steel Core Rules/DSTemporaryHitpoints.lua:20</td>
+<td>temp Stamina granted</td>
+</tr>
+<tr>
+<td>ActivatedAbilityPurgeEffectsChatMessage</td>
+<td>DMHub Game Rules/AbilityPurgeEffects.lua:24</td>
+<td>effects removed</td>
+</tr>
+<tr>
+<td>ActivatedAbilitySaveEndsToEotChatMessage</td>
+<td>Draw Steel Core Rules/MCDMAbilitySaveBehavior.lua:834</td>
+<td>save-ends converted to EoT</td>
+</tr>
+<tr>
+<td>TeleportChatMessage</td>
+<td>Draw Steel Ability Behaviors/AbilityTeleportToLineEnd.lua:9</td>
+<td>teleport</td>
+</tr>
+<tr>
+<td>StartOfTurnChatMessage</td>
+<td>Draw Steel Core Rules/MCDMInitiativeBar.lua:6785</td>
+<td>"Start of Turn" card for every turn</td>
+</tr>
+<tr>
+<td>BeginRoundChatMessage</td>
+<td>Draw Steel Core Rules/MCDMInitiativeBar.lua:6715</td>
+<td>"Draw Steel!" / "ROUND N" banner</td>
+</tr>
+<tr>
+<td>RollInitiativeChatMessage</td>
+<td>Draw Steel UI/DSInitiativeRoll.lua:1173</td>
+<td>initiative roll</td>
+</tr>
+<tr>
+<td>PatronsGazeChatMessage</td>
+<td>Draw Steel Acolyte/Acolyte.lua:509</td>
+<td>Acolyte risk roll (suppresses the standard roll card)</td>
+</tr>
+<tr>
+<td>SpoilerRevealChatMessage</td>
+<td>Timeline/EmbeddedRollDialog.lua:568</td>
+<td>Director revealed a hidden modifier</td>
+</tr>
+<tr>
+<td>AudioLogChatMessage</td>
+<td>DMHub Core Panels/Audio.lua:1014</td>
+<td>"Now playing" / sound effects</td>
+</tr>
+</tbody>
+</table>
+<p>Per-target outcomes recorded only in the cast card's portrait hover
+(<code>ActivatedAbility.RecordTokenMessage</code>, ~25 call sites): damage dealt, tier achieved,
+conditions applied/removed, potency resisted or not, Stamina regained, grabbed, surges
+lost, temp Stamina, carrier effects.</p>
+<p>Not found in the sweep (no log entry): forced movement (push/pull/slide), conditions
+applied or removed outside a cast, manual Stamina edits, winded/dying/death, end of
+turn, end of combat, Victories, respites.</p>
+<h3 id="overlap-with-newer-surfaces">Overlap with newer surfaces<a class="headerlink" href="#overlap-with-newer-surfaces" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Timeline/AbilitySidebar.lua</code> + <code>EmbeddedRollDialog.lua</code>: the live ability card and
+  roll dialog, with a read-only copy other players see. The log's "watch it happen" job
+  is now largely done there.</li>
+</ul>
+<h3 id="dormant-the-battle-log-document">Dormant: the Battle Log document<a class="headerlink" href="#dormant-the-battle-log-document" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Draw Steel Core Rules/MCDMEncounter.lua:2661-2825</code>: when an encounter ends, the
+  Director's client appends a permanent record to the <code>dsBattleLog</code> shared document
+  (max 200 battles): what was fought, outcome, duration, per-hero headline numbers
+  (damage, taken, prevented, kills, downed). Its own comment calls it "the reviewable
+  campaign history". Nothing outside the file reads it: no UI shows it.</li>
+<li>The outcome screen (<code>Draw Steel UI/DSVictoryScreen.lua</code>) already turns per-hero stats
+  into awarded roles at the end of combat.</li>
+</ul>
+<h3 id="style-debt">Style debt<a class="headerlink" href="#style-debt" title="Permanent link">&para;</a></h3>
+<p>Hard-coded colours (<code>#111111</code>, <code>#AA0000</code>, <code>white</code>, <code>#1194FF</code>, <code>#DE1E47</code>), a bespoke
+layout per card type, 40px dice faces and 28pt totals beside 11px subtext; not on the
+STYLE_GUIDE row grammar.</p>
+<h2 id="appendix-b-a-real-log-read-cold-jamess-screenshot-2026-10-23">Appendix B - A real log, read cold (James's screenshot, 2026-10-23)<a class="headerlink" href="#appendix-b-a-real-log-read-cold-jamess-screenshot-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>About nine entries fill a tall panel. Problems, in order of cost to the reader:</p>
+<ol>
+<li>Subject and object are ambiguous. "Orc Conduit / Roll Resistance vs Might / 10
+   damage; slowed (EoT)": did the Orc deal it or take it? Targets are tiny portraits on
+   some cards and absent on others.</li>
+<li>The result line is the ability's tier text, not what happened. "5 damage" with three
+   targets: to whom, and how much landed after immunity? Whether "slowed" applied
+   (potency) is not shown.</li>
+<li>The biggest things on screen are the least useful: dice faces and a 28pt total. The
+   outcome sits in small text below.</li>
+<li>Contradictions: a Free Strike marked "Aborted" still shows a roll and "6 damage";
+   Free Strike labelled "Main Action".</li>
+<li>Duplication: "Reactor 1 / 2 fire damage / 2 fire damage" (author text plus the
+   automatic line).</li>
+<li>One action spreads across several cards ("Power Roll Test" card, then a separate
+   "Power Roll Test: Power Roll" card).</li>
+<li>The colour bar is red on every entry, so it carries no information. Director-only
+   eye icons sit in every roll.</li>
+<li>No round or turn structure is visible in a scroll of this length.</li>
+</ol>
+<h2 id="appendix-c-why-would-anyone-want-a-full-session-log-reasoned-guesses">Appendix C - Why would anyone want a full-session log? (reasoned guesses)<a class="headerlink" href="#appendix-c-why-would-anyone-want-a-full-session-log-reasoned-guesses" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Why</th>
+<th>Better served by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Writing session notes or a recap</td>
+<td>A generated session summary written to a journal document</td>
+</tr>
+<tr>
+<td>"Who carried the fight" / bragging rights</td>
+<td>An encounter recap (the Battle Log record and outcome-screen stats already exist)</td>
+</tr>
+<tr>
+<td>Catching up after being away from the table or joining late</td>
+<td>"Since your last turn" catch-up, scoped to your hero</td>
+</tr>
+<tr>
+<td>Disputes about something two rounds ago</td>
+<td>Recall of the current encounter, searchable by creature</td>
+</tr>
+<tr>
+<td>Resource bookkeeping ("how many Recoveries did I spend?")</td>
+<td>The hero sheet's state, not a log</td>
+</tr>
+<tr>
+<td>Bug reports and support</td>
+<td>Developer logging; out of scope for the player-facing design</td>
+</tr>
+</tbody>
+</table>
+<h2 id="appendix-d-precedent-scan-web-2026-10-23">Appendix D - Precedent scan (web, 2026-10-23)<a class="headerlink" href="#appendix-d-precedent-scan-web-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>Items marked [unverified] rest on search snippets only.</p>
+<ul>
+<li>Pathfinder Kingmaker / Wrath (Owlcat): one line per action; hover lists every bonus
+  and penalty with its source; Combat / Dialogue / Events tabs; enemy stats gated by
+  knowledge ("?19-34"). Closest precedent for the "why". https://www.gamebanshee.com/kd8qf</li>
+<li>Baldur's Gate 3: players treat the combat log's math as the source of truth when
+  tooltips were wrong (2024). https://mein-mmo.de/baldurs-gate-3-luegt-seit-monaten-tooltips-falsch/</li>
+<li>Solasta: a tooltip saying why a roll had advantage was "one of the most requested"
+  features; without it players could not adapt their next turn. https://www.gamebanshee.com/3df88</li>
+<li>Hearthstone history bar: icons for the last ~7-10 plays, blue border yours, red
+  theirs, hover for detail. Cautionary case: an entry showed cast-time damage (20), not
+  what landed (30). https://hearthstone.wiki.gg/wiki/History</li>
+<li>Into the Breach: prevents the question by telegraphing outcomes in advance.</li>
+<li>Foundry core: no search; GM export to .txt. Modules fill the gap: Chat Trimmer
+  (combat rounds summarised, originals one click away, full-text search), Damage Log
+  (HP changes with undo; non-owners see less; no "why"), Dice Chronicle (end-of-session
+  stats and awards), and <strong>Draw Steel: Battle Log</strong> - a direct competitor that groups
+  the chat by battle phase. https://foundryvtt.com/packages/draw-steel-battle-log</li>
+<li>Roll20: chat persists across sessions; the Chat Archive has no search since 2019.
+  Users: players Ctrl+F the logs "to locate details in the story".
+  https://app.roll20.net/forum/permalink/7658843/</li>
+<li>D&amp;D Beyond Game Log: campaign-wide, cannot be cleared; complaints from 2021 to 2026.</li>
+<li>Owlbear Rodeo: deliberately minimal ("Recent Rolls").</li>
+</ul>
+<p>Why people want long history (evidence): finding story details later (Roll20), writing
+recaps (bloggers scan the roll log for rolls that changed what characters knew, chose,
+lost or risked), stats and awards (Foundry modules). Recap tools for absent players work
+from voice transcripts, not the VTT log. Weak or no evidence for streaming or AFK
+catch-up.</p>
+<p>Gaps nobody fills (opportunity):
+1. Dealt vs taken, with the reason ("7 dealt, 5 taken: poison immunity 2").
+2. Sessions as a unit (split, clear, recap by session).
+3. Built-in search and filter.
+4. Per-creature history ("what happened to this goblin").
+5. Hidden information: what detail each viewer may see.
+6. Glanceable and deep together.
+7. Log to recap material.</p>
+<h2 id="appendix-e-option-b-explored-2026-10-23-provisional">Appendix E - Option B explored (2026-10-23, provisional)<a class="headerlink" href="#appendix-e-option-b-explored-2026-10-23-provisional" title="Permanent link">&para;</a></h2>
+<p>Mockup: https://claude.ai/artifact/UpyCsCKpcPuCcsdcrpgzXN (two panels: James's screenshot
+re-expressed as B, interactive; and the awkward cases). All copy in it is placeholder.</p>
+<h3 id="anatomy-of-an-entry">Anatomy of an entry<a class="headerlink" href="#anatomy-of-an-entry" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Head: actor portrait, actor, ability, action type, expand caret.</li>
+<li>One line per target: portrait, name, condition chips (struck through when resisted),
+  a reduction marker when immunity/weakness changed the number, net Stamina change.</li>
+<li>Cost line when something was spent (Malice, Heroic Resource).</li>
+<li>Triggered actions nest under the action they interrupted.</li>
+<li>One click opens the detail: rolls with dice, every edge/bane and its cause, the
+  printed tier text, per-target math ("7 damage - 2 (damage immunity 2) = 5 taken;
+  Stamina 30 -&gt; 25"), potency checks, movement, who rolled and when.</li>
+<li>Grouped under Round and Turn headings.</li>
+</ul>
+<h3 id="the-awkward-cases-and-how-b-handles-them-recommendations">The awkward cases and how B handles them (recommendations)<a class="headerlink" href="#the-awkward-cases-and-how-b-handles-them-recommendations" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Triggered action mid-action</td>
+<td>Nested under the interrupted action, tagged Triggered</td>
+</tr>
+<tr>
+<td>Effects with no actor (Bleeding, aura damage, save ends)</td>
+<td>Compact effect row under the turn it happened in</td>
+</tr>
+<tr>
+<td>Resource ticks (start-of-turn Heroic Resource, Malice gain)</td>
+<td>Compact row under the turn; Malice on the round heading</td>
+</tr>
+<tr>
+<td>Director's manual edits (Stamina, conditions)</td>
+<td>Compact "Director changed X" row. Not logged today</td>
+</tr>
+<tr>
+<td>Forced movement, winded, dying, killed, minions killed</td>
+<td>Chips on the target line. Not logged today</td>
+</tr>
+<tr>
+<td>Minion squad</td>
+<td>One entry for the squad</td>
+</tr>
+<tr>
+<td>Hidden creature name</td>
+<td>"Unknown creature", as today</td>
+</tr>
+<tr>
+<td>Director-hidden roll</td>
+<td>Shown only on the Director's view, marked hidden</td>
+</tr>
+<tr>
+<td>Cancelled action with no effect</td>
+<td>One muted line</td>
+</tr>
+<tr>
+<td>Tests, free dice rolls, out-of-combat play</td>
+<td>Same row grammar, outside any round</td>
+</tr>
+<tr>
+<td>Sound log (signed HoH feature, per-player opt-in)</td>
+<td>Kept as a muted compact row for those who opted in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tested-against-the-needs">Tested against the needs<a class="headerlink" href="#tested-against-the-needs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>B alone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"I did 7, why did it take 5?"</td>
+<td>Yes: reduction marker at a glance, math one click away</td>
+</tr>
+<tr>
+<td>"Did the condition apply?" (Director dispute)</td>
+<td>Yes: chips, resisted ones struck through, potency in the detail</td>
+</tr>
+<tr>
+<td>"What did the monsters do while I was away?"</td>
+<td>Yes: round/turn headings plus one line per action</td>
+</tr>
+<tr>
+<td>"Why did I lose 14 Stamina?"</td>
+<td>Partly: needs a per-creature lens (search/filter category)</td>
+</tr>
+<tr>
+<td>Set-and-forget player</td>
+<td>No: needs outcomes surfaced outside the log (surface category)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="where-b-strains">Where B strains<a class="headerlink" href="#where-b-strains" title="Permanent link">&para;</a></h3>
+<ol>
+<li>An entry is complete only when the action resolves: it needs an in-progress state.</li>
+<li>Nesting a trigger needs a link from the triggered cast to the one it interrupted
+   (engine check; the roll dialog's trigger phase is the likely place).</li>
+<li>Revert Turn: entries after the checkpoint must be struck or removed.</li>
+<li>It needs a structured record per action, written when the action resolves.</li>
+</ol>
+<h3 id="engine-reality-for-b">Engine reality for B<a class="headerlink" href="#engine-reality-for-b" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The spine exists: <code>CastActivatedAbilityChatMessage</code> already carries castid, caster,
+  targets, status, and per-target outcomes via <code>RecordTokenMessage</code> (~25 call sites),
+  but as display strings. B makes them structured and snapshots names and portraits.</li>
+<li><code>DamageModifierChatMessage</code> is sent from <code>InflictDamageInstance</code>, which already
+  receives <code>symbols.cast</code>, so the reduction can attach to its action.</li>
+<li>Roll messages are separate chat messages and get pruned at 128; the detail layer must
+  snapshot roll results into the action record rather than point at them.</li>
+<li>B writes roughly one record per action where today writes three to five messages, so
+  the same cap holds more history (a data-model decision later).</li>
+</ul>
+<h3 id="jamess-reaction-to-the-text-version-2026-10-23">James's reaction to the text version (2026-10-23)<a class="headerlink" href="#jamess-reaction-to-the-text-version-2026-10-23" title="Permanent link">&para;</a></h3>
+<p>"Easier to read, but I still see a wall of text and bounce off it." Diagnosis:
+- Reading is serial; a glance needs things the eye picks up without reading (faces,
+  big numbers, icons, position). Every row was sentences at near-equal weight.
+- Names repeated three times per action (turn heading, actor, targets).
+- Every action from every round at the same level of detail.
+- Partly the mock: initials instead of token art, no condition icons.</p>
+<p>Two picture-first variants added to the canvas:
+- B2 "pictures first": the turn heading names the actor once; each action is its
+  ability name plus target portraits carrying the Stamina change, a condition badge
+  (slashed when resisted) and a shield badge when immunity changed the number. Text
+  lives only in the one-click detail.
+- B3 "older play folds up": as B2, but the further back, the coarser. Earlier turns
+  fold to one line (actor, then who they hurt and by how much); earlier rounds fold to
+  one line (who lost how much). A "New since you looked" divider marks where to start.</p>
+<h2 id="appendix-f-surface-options-rail-panel-vs-tabletop-2026-10-23">Appendix F - Surface options: rail panel vs tabletop (2026-10-23)<a class="headerlink" href="#appendix-f-surface-options-rail-panel-vs-tabletop-2026-10-23" title="Permanent link">&para;</a></h2>
+<h3 id="what-the-tabletop-offers-verified">What the tabletop offers (verified)<a class="headerlink" href="#what-the-tabletop-offers-verified" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The table is personal: maps live in windows on it; each user arranges their own
+  table; the Director shares items with a share button (<code>DMHub Game Hud/Tabletop.lua</code>,
+  <code>dmhubclient/TABLETOP_MAP_WINDOWS.md</code>).</li>
+<li><strong>Combat is per map</strong>: round, initiative and combat banner belong to the map's
+  window, and several windows can each be in combat. A banner missed because no
+  window showed the map plays when the map is next shown. Today's log is global, so two
+  fights on two maps interleave in it.</li>
+<li>Modules can put their own items on the table: <code>Tabletop.itemKinds[kind]</code> (available,
+  exists, name, size, face), moved, resized and removed like NPC cards, saved per user.
+  First user: the Audio soundboard pad.</li>
+<li>Rail entries for other modules: <code>RailEntryTypes</code> in DocumentSystem.lua.</li>
+<li>NPC/creature cards (built from the EotW hero card) and token HUDs exist.</li>
+<li>Table dice are deliberately unlogged "fidget rolls": a precedent for leaving things
+  out of the record.</li>
+<li>The Director's Screen: a private band for the Director's own items.</li>
+</ul>
+<h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Where it lives</th>
+<th>Reaches the set-and-forget player</th>
+<th>Fights on two maps</th>
+<th>Respects "users arrange their UI"</th>
+<th>Main risk</th>
+<th>Build</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1 Rail window</td>
+<td>A window opened from the rail (today's surface, B3 content)</td>
+<td>No</td>
+<td>Needs a map filter</td>
+<td>Fully</td>
+<td>Still hidden; only opened when confused</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>S2 Table item</td>
+<td>An object you lay on the table (a battle record), per user; the Director can share it</td>
+<td>Only if placed</td>
+<td>Needs a map filter</td>
+<td>Fully</td>
+<td>It is S1 with different chrome; new users never place it</td>
+<td>Low-medium (itemKinds exists)</td>
+</tr>
+<tr>
+<td>S3 On the map window</td>
+<td>A history strip on each map window, like the initiative bar: last few actions as portraits and numbers; click opens B3</td>
+<td>Yes: it is where they already look</td>
+<td>Scoped per map by nature</td>
+<td>Partly: it adds to the window's chrome (must fold away)</td>
+<td>Takes map space; tight in small windows</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>S4 On the creature</td>
+<td>Token hover and creature/hero cards show what happened to that creature, with causes</td>
+<td>Yes, for their own hero</td>
+<td>Per creature</td>
+<td>Fully</td>
+<td>Answers creature questions only; hover needs a non-hover path</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>S5 Pushed moments</td>
+<td>Each resolved action leaves a short card on the table that settles into a history pile or strip</td>
+<td>Yes</td>
+<td>Per map if it settles on the window</td>
+<td>No: it takes attention</td>
+<td>Noise mid-turn; overlaps the ability sidebar</td>
+<td>High</td>
+</tr>
+</tbody>
+</table>
+<h3 id="recommendation-pending-james">Recommendation (pending James)<a class="headerlink" href="#recommendation-pending-james" title="Permanent link">&para;</a></h3>
+<p>Layered, with no single "log" surface:
+- S3 is the glance: a per-map history strip on the map window, collapsible, whose
+  latest turn reads like B3.
+- S4 answers "what happened to me / to it" on the creature itself.
+- B3's full view opens from either, in a window the user places (rail or table:
+  S1 and S2 are the same view in two containers).
+- S5 only as a transition: the ability sidebar's live card shrinking into the strip
+  when the action resolves, which teaches where history lives.</p>
+<h2 id="appendix-g-playable-tabletop-mock-of-the-layered-approach-2026-10-23">Appendix G - Playable tabletop mock of the layered approach (2026-10-23)<a class="headerlink" href="#appendix-g-playable-tabletop-mock-of-the-layered-approach-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>Canvas board "Layered approach on the tabletop (playable)" (the canvas now opens on it):
+https://claude.ai/artifact/UpyCsCKpcPuCcsdcrpgzXN</p>
+<p>Real material from the running Codex (bridge, read-only; the bridge session was told
+before and after): the Inn of Beginnings map window with its tokens (screenshot), the
+app title bar and action bar, the rail buttons, token art and condition icons copied
+from the image cache with <code>assets:ResizeCachedImage</code>, and the marble surface texture
+from the engine repo (<code>Assets/Resources/Tabletop/TabletopMarble.jpg</code>). Numbers and
+copy are mock.</p>
+<p>What it shows:
+- S3 strip hanging from the map window's title bar (where Round 2 lives). Newest on the
+  right, pinned next to Full log; older turns shrink, Round 1 is one chip; the oldest
+  slide off the left edge. History in the title bar folds it away. Click an entry for
+  the B3 detail (rolls, tier, immunity math).
+- S4: click any token for what happened to it this encounter, with causes. The player's
+  hero card ("Your turn") lists what happened since their last turn (-14 Stamina).
+- Full view: Full log on the strip, or the rail's Action Log button, opens B3 as a
+  window on the table.
+- S5 transition (Play): the ability card slides in, dice roll, Tier 2 lights, -5 with
+  a shield and "8 - 3 immunity, pushed 2" rises over Reactor 1, then the card shrinks
+  into the strip's newest slot and the strip makes room for it.</p>
+<p>Open questions the mock raises:
+- The strip covers the top of the map: acceptable, or should it sit outside the window
+  frame (below the title bar, on the table)?
+- Does the token-click history clash with the existing token click (select) and the
+  token HUD? A hover card plus a click path may be needed.
+- Where does the hero card live for a player who already has the hero sheet open?</p>
+<h2 id="appendix-h-jamess-play-test-of-the-mock-and-the-code-behind-it-2026-10-23">Appendix H - James's play-test of the mock, and the code behind it (2026-10-23)<a class="headerlink" href="#appendix-h-jamess-play-test-of-the-mock-and-the-code-behind-it-2026-10-23" title="Permanent link">&para;</a></h2>
+<h3 id="feedback">Feedback<a class="headerlink" href="#feedback" title="Permanent link">&para;</a></h3>
+<ol>
+<li>The top of the map window is the initiative ribbon: the strip cannot hang there.
+   Outside the map might work, but a maximized map has no "outside".</li>
+<li>Hero cards are small (132 wide) and are getting a flip-to-back: no stacking
+   information on the face; at most a hover button that opens the log.</li>
+<li>Hovering a token shows the character panel; clicking gives the radial menu.
+   A "history" slot in the radial for your own hero is plausible; what a player sees
+   for a monster is an open point.</li>
+<li>The S5 fold (ability card into the history) is liked, with performance concerns.</li>
+</ol>
+<h3 id="what-the-code-says">What the code says<a class="headerlink" href="#what-the-code-says" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Map HUD: the initiative bar, and the Director's villain-action, reinforcements,
+  cues, encounter-actions and boss bands, move into the live window's overlay at the
+  top (<code>Tabletop.lua</code> <code>PlaceMapHuds</code>, <code>ScaleMapHuds</code>: full width 1180, shrinks in
+  narrower windows). Maximized, the window's titlebar rows move into a strip hung from
+  the app title bar and the map HUD starts below it.</li>
+<li>Maximized maps sit at the bottom of the stack; journals, panel windows, NPC cards and
+  other table items float over them. The Director's Screen is hidden while a map is
+  maximized.</li>
+<li>Table items from modules (<code>Tabletop.itemKinds</code>): moved, scaled and removed like NPC
+  cards, saved per user with the layout, keyed by a string. First user: the Audio pad.</li>
+<li>Action bar: bottom centre of the screen, not the map; its drawers already show the
+  last-used ability's icon; the trigger reaction panel is bottom centre too.</li>
+<li>Hero card (<code>Codex Titlescreen/EotwHeroCard.lua</code>): 132 x ~200. Card back
+  (<code>HeroCardBack.lua</code>, Lisa, prototype on main): a 26 px hover-only flip chip at top
+  centre (<code>CreateFlipButton</code>), back pages turned by footer arrows.</li>
+<li>Radial menu (<code>DMHub Token UI/TokenUI.lua:2633-2860</code>): on a token you control,
+  Character Sheet, Inventory and Emotes, plus the slots below. <strong>On a token you do not
+  control there is a radial too</strong>, with one or two slots: Monster Info (when the
+  <code>monsterinfo</code> setting is on) or View Portrait, and Rename (when players may rename
+  monsters). Free angles remain.</li>
+<li>Ghost animation precedent (<code>Tabletop.lua:2374</code> <code>AnimateGhost</code>): minimizing flies one
+  image panel (think every 0.01 s, about 0.26 s) and destroys it; the real window
+  collapses at once. No live panel tree is animated.</li>
+<li>Turn Rewind (<code>MCDMInitiativeBar.lua:411-1440</code>, prototype, on by default): while you
+  play your turn it keeps checkpoints before and after each ability and move, with a
+  plain-text list of what happened between them (Turn History dialog, <code>/rewind</code>). Local
+  to the acting client and that turn only. Opportunity: "rewind to before this" from
+  your own entries.</li>
+<li>Hero sheet performance rules (build plan, round 3): no per-frame work while idle,
+  push not rebuild, frost on one surface only. The log should meet the same bar.</li>
+</ul>
+<h2 id="appendix-i-revised-layered-design-after-the-play-test-proposal-2026-10-23">Appendix I - Revised layered design after the play-test (proposal, 2026-10-23)<a class="headerlink" href="#appendix-i-revised-layered-design-after-the-play-test-proposal-2026-10-23" title="Permanent link">&para;</a></h2>
+<h3 id="where-the-glance-layer-lives-open-james-to-pick">Where the glance layer lives (open: James to pick)<a class="headerlink" href="#where-the-glance-layer-lives-open-james-to-pick" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>P1 History tray (table item)</th>
+<th>P2 Under the map window</th>
+<th>P3 On the initiative ribbon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What</td>
+<td>A compact B3 strip as a table item (<code>Tabletop.itemKinds</code>), showing the live map's combat</td>
+<td>Hangs from the window's bottom edge, outside the frame</td>
+<td>Each creature's ribbon entry gets an outcome badge; hover or click shows its turn</td>
+</tr>
+<tr>
+<td>Maximized map</td>
+<td>Floats over it, like cards and journals do</td>
+<td>No outside: needs a second home (screen bottom-left)</td>
+<td>Comes along: the ribbon moves with the map HUD</td>
+</tr>
+<tr>
+<td>Covers the ribbon or map</td>
+<td>Only where the user puts it</td>
+<td>No</td>
+<td>Adds to the ribbon's crowding</td>
+</tr>
+<tr>
+<td>Users arrange their UI</td>
+<td>Yes: move, scale, put away; default spot in the built-in Views</td>
+<td>Fixed to the window</td>
+<td>Fixed</td>
+</tr>
+<tr>
+<td>Out of combat (tests, rolls)</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No ribbon out of combat</td>
+</tr>
+<tr>
+<td>Build</td>
+<td>Low to medium (item kinds exist)</td>
+<td>Medium, two homes</td>
+<td>Medium; touches a busy file</td>
+</tr>
+</tbody>
+</table>
+<p>Recommendation: P1. One home whatever the window does, no new map chrome, and it
+follows the rail philosophy. P3's idea (history keyed to turn order) is worth keeping
+as the tray's own grouping, which already runs by turn.</p>
+<h3 id="per-creature">Per creature<a class="headerlink" href="#per-creature" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Radial: a History slot on any token you can see. Your own hero: yes. A monster: open
+  question; recommendation: the events players already saw (no hidden numbers), with
+  Stamina only as Monster Knowledge allows.</li>
+<li>Table cards: a hover chip beside the flip chip, opening the same creature history.
+  Nothing added to the card's face.</li>
+<li>Both open one creature-history popover; "See all" opens the full log filtered to that
+  creature.</li>
+</ul>
+<h3 id="the-s5-fold-built-cheaply">The S5 fold, built cheaply<a class="headerlink" href="#the-s5-fold-built-cheaply" title="Permanent link">&para;</a></h3>
+<p>As the Tabletop's minimize does: the ability sidebar closes as it does today, and a
+single small ghost (the tray entry's look: two faces and a number, 3-4 panels) flies to
+the tray slot in about 0.3 s, then the real entry is appended (never a rebuild). No fold
+when the tray is not on screen; reduce-motion turns it off. Budget: under 0.5 ms CPU a
+frame during the fold, nothing while idle.</p>
+<h2 id="appendix-j-p1-mock-2026-10-23">Appendix J - P1 mock (2026-10-23)<a class="headerlink" href="#appendix-j-p1-mock-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>Canvas board "P1: History tray on the table (playable)"; the canvas opens on it. The
+earlier strip board is kept, marked superseded.
+- History tray: a table item at the left of the table (hover titlebar with close,
+  corner grips), B3 inside: Round 1 folded, earlier turns folded to one line, the latest
+  turn open with picture rows; click any turn or action for its detail. "Full log" grows
+  the same item to full height with every turn open. The rail's chat-bubble button puts
+  the tray on or off the table.
+- Radial: click any token. The History slot (gold, top) sits beside the real slots:
+  Character Sheet, Inventory, Emotes, View Portrait on your own hero; Monster Info on a
+  monster; View Portrait on another hero. It opens the creature's history; "Show only
+  them in History" filters the tray to that creature.
+- Hero cards (132 x 192): a History chip (gold, top left) shows on hover beside the flip
+  chip; nothing added to the face.
+- S5 fold: Play runs Dwarf Fury's Brutal Slam; the ability card closes as today and a
+  small stand-in (two faces and -5) flies into the tray's newest slot, then the entry
+  appears and the previous turn folds. No fold when the tray is off the table, filtered or
+  grown to the full log.
+- Monster history shows Healthy / Winded rather than numbers, to illustrate the Monster
+  Knowledge rule (open question).</p>
+<h2 id="appendix-k-every-case-in-the-p1-tray-2026-10-23">Appendix K - Every case in the P1 tray (2026-10-23)<a class="headerlink" href="#appendix-k-every-case-in-the-p1-tray-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>Canvas board "P1 tray: every case, Director or player view" (the canvas opens on it):
+four trays side by side. Switch Director / Player in the board's Tweaks (viewer).</p>
+<h3 id="row-grammar-it-settles-proposal">Row grammar it settles (proposal)<a class="headerlink" href="#row-grammar-it-settles-proposal" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Action row, glance: ability name, then chips for what shaped the roll, then the
+  targets (face, net number, condition badge, one or two captions).</li>
+<li>Chips: Edge / Double edge (green, up triangles), Bane / Double bane (red, down
+    triangles), Cancel out (muted), surges (gold, with what they bought), Heroic
+    Resource cost (blue diamond), Malice (red diamond), Critical (gold fill), and
+    neutral chips for Rerolled, Changed after the roll, +N from an ally.</li>
+<li>Captions under a face: Push N / Teleported N / Collision, Immunity -N, Fire
+    weakness +N, N soaked by temp, Resisted, Winded (amber), Dying (red), Killed and
+    N of M killed (red fill), Spent a Recovery, Ended X.</li>
+<li>Numbers: damage red, healing green, temporary Stamina blue.</li>
+<li>Action row, detail: Power roll (dice + characteristic + edges), the edge/bane line
+  naming each source and the tier change, the printed tier text (italic), surges and
+  what they bought, per-target math, cost, movement, who rolled and when.</li>
+<li>Compact rows for everything without an action: resource ticks (with the hero's
+  face), start/end-of-turn effects, saving throws (end of turn), auras, Director hand
+  edits, hidden rolls (hatched, Director only), dice, tables, class roll cards, sound.</li>
+<li>Banners: Draw Steel! with initiative, Combat ended with a link to the victory screen.</li>
+<li>Undo and revert: the undone row or the reverted turn stays, struck through, under a
+  "Director reverted..." row.</li>
+<li>Out of combat: tests, montage and negotiation rows end in a result chip instead of
+  target faces.</li>
+</ul>
+<h3 id="player-view-differences">Player view differences<a class="headerlink" href="#player-view-differences" title="Permanent link">&para;</a></h3>
+<p>Hidden rolls disappear; a hidden monster shows as "Unknown creature" with a dark face;
+monster Stamina numbers become Winded / Killed; Malice totals are kept (players already
+see what Malice bought).</p>
+<h3 id="rules-checked-clauderefheroeslua-and-draw-steel-rules-memory">Rules checked (ClaudeRefHeroes.lua and draw-steel-rules memory)<a class="headerlink" href="#rules-checked-clauderefheroeslua-and-draw-steel-rules-memory" title="Permanent link">&para;</a></h3>
+<p>Edges +2, double edge or bane = one tier, edge and bane cancel; natural 19-20 = Tier 3
+and a critical (another main action) on a main action; surges: up to 3 for extra damage
+equal to the highest characteristic each, or 2 for +1 potency on one target; cover =
+bane, high ground and flanking = edge; prone = edge for melee against it; Weakened =
+bane on power rolls; Bleeding = 1d6 + level on a main action; saving throws at end of
+turn, d10, 6+.</p>
+<h3 id="not-yet-shown">Not yet shown<a class="headerlink" href="#not-yet-shown" title="Permanent link">&para;</a></h3>
+<p>Several creatures' triggered actions on one roll (a stack), a roll with several
+damage types, an ability that hits allies and enemies alike, and a long minion
+squad fight.</p>
+<h2 id="appendix-l-shareable-p1-prototype-2026-10-23">Appendix L - Shareable P1 prototype (2026-10-23)<a class="headerlink" href="#appendix-l-shareable-p1-prototype-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>Standalone link for reviewers: https://claude.ai/artifact/UPWo9XvYuaDiZ388xRES35 (private
+until James shares it). The design canvas (UpyCsCKpcPuCcsdcrpgzXN) opens on its P1 board
+again, so the link already sent still shows P1.</p>
+<p>A two-round encounter on the Inn of Beginnings, from James's view (Dwarf Fury), with a
+"View as" control for the Director. The tray folds Round 1 and earlier Round 2 turns;
+everything unfolds, and every action opens its detail. It folds in the catalogue cases
+plus the four that were missing:
+1. A trigger stack on one roll: numbered rows under the action, in resolution order,
+   tagged Before the roll / After the roll / Free (Zakaarior's bane, the Censor's 3 holy,
+   the Null's Discipline +1).
+2. Several damage types in one hit: the caption reads "6 fire, 4 cold" and "Fire
+   immunity -3"; the detail does the math per type.
+3. An ability that hits allies and enemies: foes first, then an amber "Ally hit" group,
+   plus a "Hit an ally" chip.
+4. A minion squad across turns: one face for the squad, "2 of 4 killed", then "Squad
+   destroyed".
+Also: edge, double edge, bane, surges for damage and for potency, Malice costs, an ally
+bonus, conditions applied and resisted, winded, a hidden roll (Director view only), and
+monster Stamina as Healthy/Winded for players.
+The demo's roll card carries the roll dialog's edge/bane bar (BANE BANE X EDGE EDGE with
+chevrons) and surge bolts, lighting the double edge, the tier jump and two spent surges
+before the card closes and the stand-in flies into the tray.</p>
+<h2 id="appendix-m-rickys-feedback-triaged-agreed-by-james-2026-10-24-with-the-change-below">Appendix M - Ricky's feedback, triaged (agreed by James 2026-10-24, with the change below)<a class="headerlink" href="#appendix-m-rickys-feedback-triaged-agreed-by-james-2026-10-24-with-the-change-below" title="Permanent link">&para;</a></h2>
+<p>Ricky (dev, has thought about the log for a while) reviewed the P1 prototype. A data
+point, not a direction. He liked the roll moving into the log and the fold-and-drill.</p>
+<h3 id="proposed-rule-the-glance-budget">Proposed rule: the glance budget<a class="headerlink" href="#proposed-rule-the-glance-budget" title="Permanent link">&para;</a></h3>
+<p>The glance line shows only what changed the outcome or spent something: who, the
+ability, the tier, edges and banes, surges, costs, a critical, the net number per
+target, conditions (applied, resisted, immune), a state change (winded, dying,
+killed) and movement distance. Everything that explains how (sources, flat
+modifiers, per-target edge lists, paths, rolls) lives in the detail. Exceptions
+earn a place on the glance line only when they differ between targets.</p>
+<h3 id="verdicts">Verdicts<a class="headerlink" href="#verdicts" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Ricky's point</th>
+<th>Verdict</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Show why surges came (banked vs granted by e.g. Trained Assassin)</td>
+<td>Include</td>
+<td>Detail: each surge's source, and "lost if unused" (the roll dialog already knows this, EmbeddedRollDialog.lua:3747)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Show roll modifiers (e.g. +1 rolled damage on Fire abilities)</td>
+<td>Include</td>
+<td>Detail only: already inside the number; a chip each would crowd the line</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Different tiers per target (edges/banes per target; minion squads)</td>
+<td>Include</td>
+<td>Glance: per-target tier only when targets differ; detail lists each target's edges and banes (per-target boons exist, EmbeddedRollDialog.lua:1668)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Tier at a glance</td>
+<td>Include</td>
+<td>One tier badge per action (the roll card's &lt;=11 / 12-16 / 17+ badge); per-target badges only when they differ</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Minion squads attacking</td>
+<td>Include</td>
+<td>Caption "2 minions" on each target when they differ; detail per minion</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Forced movement shown as a path, falls</td>
+<td>Include, on hover</td>
+<td>Caption "Push 3, fell 10"; hovering it (or clicking, for a non-hover path) shows the side-on movement cross-section the targeting tooltip already draws (<code>MovementCrossSection.cs</code>, <code>dmhub.SetMovementCrossSection</code>, <code>MOVEMENT_CROSS_SECTION_REFERENCE.md</code>), with its red collision and fall badges. James 2026-10-24. Needs the path stored at the time and a way to rebuild it for the renderer (engine check)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Turn numbers ("look at turn 15")</td>
+<td>Include</td>
+<td>A small number on each turn heading; round headings stay</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Turn auto-populates Main / Maneuver / Move slots, colour coded, collapse after 30 s</td>
+<td>Partial</td>
+<td>Three small action pips on the current turn's heading only, filled as used. No empty placeholder rows. Turns fold when the next turn starts, not on a timer (a timer moves rows under the reader). Colour only alongside text</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Saving throws and condition ends, with the cause (save, end of turn, Healing Grace)</td>
+<td>Include</td>
+<td>A row each; the creature's history shows applied and ended. Not recorded today</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Target deaths</td>
+<td>Include</td>
+<td>Already: Killed caption; a row when death comes outside an action (Bleeding)</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Trigger consistency (Tactician's mark +4 damage, Talent's Feedback Loop source)</td>
+<td>Include, as a rule</td>
+<td>Every triggered or free effect sits under the action that set it off and names it. Engine work: link a triggered cast to its cause</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Condition immunity when a condition is inflicted</td>
+<td>Include</td>
+<td>Struck condition badge with an "Immune" caption, the same grammar as resisted</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Always open vs open when needed (Matt, Ricky: always; Lisa: hide by default, players found the old one confusing)</td>
+<td>Both, via defaults</td>
+<td>The tray is a table item; the built-in Views decide the default. Proposal: on for the Director, one click for players. Defaults category</td>
+</tr>
+</tbody>
+</table>
+<p>New persona: the always-on follower (Matt, Ricky): keeps it open and glances at it
+between turns. The tray's fold-by-age already serves them.</p>
+<p>Kept out on purpose: flat modifiers on the glance line, empty placeholder rows, timers,
+paths shown by default, per-target edge lists on the glance line.</p>
+<h2 id="appendix-n-prototype-round-2-rickys-points-folded-in-2026-10-24">Appendix N - Prototype round 2: Ricky's points folded in (2026-10-24)<a class="headerlink" href="#appendix-n-prototype-round-2-rickys-points-folded-in-2026-10-24" title="Permanent link">&para;</a></h2>
+<p>Same link (https://claude.ai/artifact/UPWo9XvYuaDiZ388xRES35), now 13 turns over two rounds.
+- Turn numbers on every turn (folded and open); round headings stay.
+- Fold by age, one level more: the compact tray shows Round 1 as one line, Round 2's
+  turns 5-9 as one "Turns 5-9" line, then turns 10-12 one line each, then the current
+  turn open. Full log opens everything.
+- Current turn heading carries Main / Maneuver / Move markers (Move used; Main fills when
+  Play resolves the Brutal Slam).
+- Tier badge on every action line (the roll card's &lt;=11 / 12-16 / 17+); per-target tier
+  badges only where targets differ (turn 6: Orc and Null Tier 2, the Fury Tier 1 because
+  of cover).
+- Minion squad attacking: "2 minions" / "1 minion" under each target (turn 2).
+- Surge sources in the detail (turn 10: 1 banked, 1 from Trained Assassin, lost if
+  unused); roll bonus in the detail (turn 11: +1 rolled damage on Fire abilities).
+- Saves and condition ends: the Null's end-of-turn save (turn 7), Slowed ending at end of
+  turn (turn 9), Grabbed ended by Healing Grace (turn 9) and by the grabber being pushed
+  away (turn 12).
+- Trigger causes: the Tactician's Mark +4 nested under the Shadow's strike that set it
+  off (turn 10); death shown as Killed.
+- Condition immunity: Frightened struck through with "Immune: frightened" (turn 12).
+- Forced movement: "Push 3 · fell 4" (turn 12) shows the side-on cross-section on hover
+  (click pins it), modelled on the targeting tooltip: ground silhouette on the tile grid,
+  pusher and mover, blue push arrow, red fall arrow, landing ghost with a red -6 fall
+  badge.</p>
+<h2 id="appendix-o-play-runs-two-turns-and-a-round-change-2026-10-24">Appendix O - Play runs two turns and a round change (2026-10-24)<a class="headerlink" href="#appendix-o-play-runs-two-turns-and-a-round-change-2026-10-24" title="Permanent link">&para;</a></h2>
+<p>Play on the prototype now runs about 16 seconds:
+1. Turn 13, Dwarf Fury: Brutal Slam (double edge, two surges) as before; the card closes
+   and its stand-in folds into the tray; Main fills on the turn heading.
+2. Turn 14, Reactor 1 (enemy): the turn heading appears and turn 13 folds to one line;
+   the read-only roll card a player sees while the Director rolls; the Troubadour's
+   trigger arrives before the roll (blue ring on the Troubadour, a "Triggered" strip on
+   the card, BANE lights); 13 - 2 = 11, Tier 1; -4 fire rises over the Fury and the
+   Elementalist; the Fury's hero card flashes red (the EotW card's hurt wash) and drops
+   to 9 / 33; the stand-in folds the attack, with the trigger nested, into the tray.
+3. Round 3: Round 2 folds to one line, the Round 3 heading shows the Malice gain, and the
+   Troubadour's turn opens with Drama +2.
+The "Turns a-b" group grows as turns pass (5-9, then 5-10): fold by age, live.</p>
+<h2 id="appendix-p-not-there-yet-james-2026-10-25">Appendix P - "Not there yet" (James, 2026-10-25)<a class="headerlink" href="#appendix-p-not-there-yet-james-2026-10-25" title="Permanent link">&para;</a></h2>
+<p>After the longer Play: better than today, but hard to parse what was going on, and
+"something about the design doesn't sit right". James's read: we may be tied to what an
+action log is in the current system and in other games, without having settled what it
+means for the Codex and Draw Steel. Re-opening the framing through an interview
+(candidate reframes in the session, not yet in the brief).</p>
+<h3 id="interview-round-1-james-2026-10-25">Interview, round 1 (James, 2026-10-25)<a class="headerlink" href="#interview-round-1-james-2026-10-25" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Real questions at the table: "What just happened? Where did that damage come from? Why
+  am I slowed?" Worst with collision and forced-movement damage, triggers and auras. The
+  answer is in today's log, but clicking in to get it is part of the problem. People open
+  the log or ask the Director.</li>
+<li>The longer Play was hard to parse: matching tray entries to tokens, a lot happening at
+  once, and telling prototype pieces from today's interface.</li>
+<li>Ideal in one sentence: "The Codex is great, it's clear what's happening and if I ever
+  miss anything, the action log catches me up in no time, I can even get a blow by blow if
+  I need it."</li>
+<li>Reframes: A partly (the answer at the thing that changed, but order of events still
+  matters); some B (the enemy turn); C on theme for cinematic moments; D cool but too
+  slow; E solved elsewhere.</li>
+<li>The cross-section on hover was not discoverable.</li>
+</ul>
+<h3 id="code-check">Code check<a class="headerlink" href="#code-check" title="Permanent link">&para;</a></h3>
+<p>When damage lands, the token floats only the number (<code>DMHub Token UI/TokenUI.lua:2150</code>,
+red <code>floatlabel</code>), though the damage entry already carries its type (including <code>collide</code>
+and <code>fall</code>) and the attacker id (used for the hit sound).</p>
+<h3 id="emerging-hypothesis-to-test-with-james">Emerging hypothesis (to test with James)<a class="headerlink" href="#emerging-hypothesis-to-test-with-james" title="Permanent link">&para;</a></h3>
+<p>Three layers, of which we have only designed the third:
+1. In the moment: the effect names its cause where it lands ("-2 collision", "-3 aura",
+   "Slowed: Power Roll Test"). Prevents most questions; the data already exists.
+2. Catch-up: the tray answers "what happened since I last looked", in order, folded,
+   with cinematic moments marked.
+3. Blow by blow: the detail one click away.
+Tying them together: hovering an entry lights its tokens on the map (and the reverse).
+Draw Steel angle: much of what hits you is indirect (forced movement, collisions, falls,
+triggers, auras, ongoing effects), often on someone else's turn; making the indirect
+visible is the Codex's job here. Anything with more to show (the cross-section) needs a
+visible cue, not hover on text.</p>
+<h3 id="interview-round-2-james-2026-10-25">Interview, round 2 (James, 2026-10-25)<a class="headerlink" href="#interview-round-2-james-2026-10-25" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The three-layer reading is not the whole answer: "something else is still nagging".</li>
+<li>Causes on the map: clutter is a real concern; a turn can have a lot of damage flying
+  around. Sound effects per damage type already help. A reason might help, but carefully.</li>
+<li>When people need catching up: when they weren't paying attention, not at a game phase:
+  someone came into the room, they were reading something else, they went to the toilet.</li>
+<li>Cinematic moments: tokens already show visual effects; marking them in the history is an
+  event row, and the map shows it. The list so far covers the moments James can think of.</li>
+</ul>
+<h3 id="interview-round-3-james-2026-10-25">Interview, round 3 (James, 2026-10-25)<a class="headerlink" href="#interview-round-3-james-2026-10-25" title="Permanent link">&para;</a></h3>
+<ul>
+<li>"Welcome back" card: asked how we would know the user wasn't there.</li>
+<li>"Told, not decoded": interesting; math-focused groups may find it harder to parse,
+  but with the blow-by-blow behind it, it could work.</li>
+<li>"One place" (live card and history as one strip): no. The Codex works hard to keep the
+  play space clear: only what players and Directors put there, plus what is needed when it
+  is needed (the roll dialog appears only as needed).</li>
+<li>"Your story first": no. A tactical game about synergising with teammates.</li>
+</ul>
+<h3 id="finding-the-codex-already-remembers-state-on-the-things-themselves">Finding: the Codex already remembers state on the things themselves<a class="headerlink" href="#finding-the-codex-already-remembers-state-on-the-things-themselves" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>StatHistory</code> (<code>DMHub Game Rules/Creature.lua:22-120</code>): each creature keeps its last 8
+  changes to Stamina, temporary Stamina, max Stamina, Heroic Resource, surges and other
+  resources: the note (cause), resulting value, who, when, disposition, attacker. Synced
+  with the creature.</li>
+<li>Shown on hover: the character panel's Stamina bar shows the Stamina history tooltip
+  (<code>MCDMCharacterPanel.lua:5313</code>, <code>gui.StatsHistoryTooltip</code>); table trackers (Malice, hero
+  medallions, counters) show their change history in a tooltip (<code>TableDice.lua:2617-2660</code>).</li>
+<li>Ongoing effects record who applied them (<code>casterInfo.tokenid</code>, <code>OngoingEffect.lua:384</code>).</li>
+<li>Absence: the engine tracks app focus (<code>Application.isFocused</code>, InputController's
+  background throttle; frame-time windows count <code>focusedSeconds</code>) but exposes no plain Lua
+  field for focus or input idle time. Small engine addition. It cannot tell "looking at the
+  screen but talking"; the new-since-you-looked marker and an on-demand button cover that.</li>
+</ul>
+<h3 id="candidate-reframe-to-test">Candidate reframe (to test)<a class="headerlink" href="#candidate-reframe-to-test" title="Permanent link">&para;</a></h3>
+<p>Not a log, but memory on the things: every piece of state on the table (Stamina,
+conditions, resources, Malice, trackers) remembers its own recent story and shows it when
+you look at it. The History tray is those memories woven into time order, for catching up
+and the blow by blow. Builds on systems that exist instead of a separate log store.</p>
+<h3 id="interview-round-4-james-2026-10-26">Interview, round 4 (James, 2026-10-26)<a class="headerlink" href="#interview-round-4-james-2026-10-26" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The conversation drifted away from the prototype; the latest prototype is the much
+  better direction, though still visually confusing.</li>
+<li>The real questions: on a table people control, how do they know there is something
+  in the history, and how do they bring it up fast? Idea: the minimized block (as other
+  tabletop HUD pieces) gets a small notification.</li>
+<li>Keep: the timeline power roll folding into the history (a great indicator); search.</li>
+<li>"Why am I slowed?": people hover the condition on their token (it shows who applied it
+  and with what), or open the log. Few know the Stamina history hover exists, and it only
+  answers about your own creature; only the Director sees everything. Splitting history
+  across many places segments it.</li>
+<li>Idle detection is unreliable (reading a phone at the desk). "Since your last turn" is
+  more promising.</li>
+<li>Replay and rewind: interesting, but performance worries on older laptops (Transparent UI
+  off, lowered settings); nobody should be locked out.</li>
+<li>Wants the missing piece that ties it together into an "oh, I understand" moment.</li>
+</ul>
+<h2 id="appendix-q-what-players-actually-report-in-app-feedback-2026-10-26">Appendix Q - What players actually report (in-app feedback, 2026-10-26)<a class="headerlink" href="#appendix-q-what-players-actually-report-in-app-feedback-2026-10-26" title="Permanent link">&para;</a></h2>
+<p>Searched 2,085 feedback tickets (titles and triage areas; full text for the 12 most
+relevant), read-only via the bug-fix scripts.
+1. The log is the source of truth, so it must show what landed.
+   - FRAKESH6: "action log shows the wrong damage when orc conduit uses their trigger to
+     give double edge" (rolled 7, the trigger made it 12, the log showed 7 and 9 damage).
+   - XP78F954: "I didn't get a second main action after my crit despite the log saying I
+     would."
+   - D2HJ593U: the dice showed 1, the log showed 2. J6JDYWGT: a double bane still logged
+     Tier 3.
+   - XJNFC7VA: a player reports a bug citing "you can see the roll in the action log":
+     players use it as evidence.
+2. Getting to it in the rail era.
+   - 7M3H2C59: "I can't pull up my Action Log." Pop-out bugs: 4FJ5VYME, K6H9J536,
+     ZDNC938Z, Y4AGUAW5.
+   - AM79CDYV: "Action Log and Chat windows always have a red dot on them." A notice that
+     is always on means nothing.
+3. Completeness and teammates' results.
+   - P94P9TDZ: "Missing 2 players rolls in the action log." JVDB4DH4: "My action log is
+     not updating." 985MMSPH: "Can't see other players result on Presence Test."
+4. "Why" questions beyond damage.
+   - M4QPGE2V: "Why did I get my Maneuver back?" XJNFC7VA: Drama gained on a roll that was
+     not a natural 19. 47Y6C8ET: "I don't really know what happened when I used Dramatic
+     Reversal."
+5. Noise: MYEJSNWK: "Provide a way to clear the action log. There is a bunch of junk in
+   there from my players experimenting."
+6. Hidden information: 48NDEWA9: the Draw Steel banner listed monsters still hidden.
+No GitHub issues in VerisimLLC mention the action log.</p>
+<h3 id="interview-round-5-james-2026-10-26">Interview, round 5 (James, 2026-10-26)<a class="headerlink" href="#interview-round-5-james-2026-10-26" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Not the roll card: the timeline roll card is not in its final form, and it does not show
+  everything that influenced a roll. Edges and banes cap at a double and cancel each
+  other: 3 edges and 1 bane show only as a double edge, and the player never learns there
+  were 3 edges. People go to the action log for that; the history detail must show it.</li>
+<li>The prototype's expanded detail is not as readable or quick to parse as it should be;
+  possibly just prototype finish, but it needs work.</li>
+<li>"Since your last turn": torn. It assumes how a player will use it. Player types (Robin
+  D. Laws' archetypes: tactician, storyteller, casual and the rest) all play Draw Steel in
+  the Codex; a round-up serves one or two of them. If we cannot tell what a player cares
+  about and serve the wrong thing, they dig anyway and it is no better than today.</li>
+<li>Conclusion: the latest prototype was closer; it may need better presentation and more
+  functionality rather than a new concept.</li>
+<li>Search terms people would use: creature names, ability names, conditions ("slowed" shows
+  why you are slowed). Not "turn 15".</li>
+<li>Turn numbers: James is not sold (order of turns rarely matters to him), but he is one
+  player type; open.</li>
+</ul>
+<h3 id="persona-lens-update">Persona lens update<a class="headerlink" href="#persona-lens-update" title="Permanent link">&para;</a></h3>
+<p>Design for Robin D. Laws' player types rather than a single "player": Power Gamer,
+Butt-Kicker, Tactician, Specialist, Method Actor, Storyteller, Casual Gamer. Each pulls a
+different layer: glance (Casual, Butt-Kicker), the roll's full arithmetic (Power Gamer,
+Tactician), search (Specialist, Tactician), cinematic moments (Storyteller, Butt-Kicker).
+Principle: let each pull what they want fast, rather than guessing and pushing a summary.</p>
+<h2 id="appendix-r-what-players-say-in-public-web-research-2026-10-26">Appendix R - What players say in public (web research, 2026-10-26)<a class="headerlink" href="#appendix-r-what-players-say-in-public-web-research-2026-10-26" title="Permanent link">&para;</a></h2>
+<p>Sources: r/drawsteel (all Codex posts Jan-Oct 2026 via the Arctic Shift archive, comments
+on ~25 threads), ~39 Steam reviews and Steam discussions, EN World. Quotes paraphrased
+except one; links in the session report. Some Steam reviewers and Reddit posters are
+testers or team-adjacent.</p>
+<p>Themes (independent sources):
+- Can't tell what the automation did or why: ~10. zupancia (23 Oct, regrets choosing the
+  Codex over Foundry): "Every session we have problems figuring out what the automations
+  have done and why." Also: is that right or a bug; a Null "pinballing" around the map
+  leaves a new Director asking what happened; stability and conditions applied without
+  explanation.
+- The log is too thin for the why: ~5 plus the team's own acknowledgement. Triggers fired
+  without anyone knowing which event they answered; a Recovery spent from a prompt nobody
+  could trace (HornScrub, 1 Sep). "See why a roll hit tier 3 and what made up the final
+  damage" (ThrowbackPie, 9 Jan). Codex team (10 Jan): plans for a more complete log with
+  references on everything.
+- Collapsing into one damage total felt less impactful than seeing the forced-movement-
+  into-a-wall maths (johnleeuk21, 9 Jan): clarity and drama.
+- Trigger prompts fleeting or hard to source: ~6. Whose step is next in multi-actor
+  resolution (Dramatic Reversal): ~3.
+- Requests: inventory changes in the log ("bookkeeping game changer").
+- Praise: conditions clear on tokens, initiative greys out who acted, minion grouping,
+  allies' trigger prompts help table talk, rewind, less bookkeeping: ~12.
+- Not found: complaints about Malice or the Director's turn; YouTube and other socials had
+  nothing indexed.</p>
+<p>Read: the strongest public pain is the why, especially for triggers and composite
+damage. It touches retention (a group considering moving to Foundry).</p>
+<h2 id="appendix-s-readable-detail-proposal-2026-10-26-awaiting-james">Appendix S - Readable detail: proposal (2026-10-26, awaiting James)<a class="headerlink" href="#appendix-s-readable-detail-proposal-2026-10-26-awaiting-james" title="Permanent link">&para;</a></h2>
+<p>Board "Expanded detail: three layouts" on the prototype link (image:
+<code>detail-options.png</code>). One roll opened three ways: Dwarf Fury's Brutal Slam, three edges
+(flanking with Zakaarior, target prone, high ground) and one bane (Reactor 1's trigger
+when targeted) netting to one edge: 7 + 2 + 2 = 11, Tier 1; then two surges and damage
+immunity 2: 7 taken.</p>
+<p>Rules note: three edges and one bane net to a single edge, not a double edge (edges count
+up to two; one bane cancels one). The code agrees
+(<code>MCDMAbilityRollBehavior.lua:80</code>, <code>GetRollModFromEdgesAndBanes</code>). That is the case the
+detail must explain: the player saw three reasons for an edge and got Tier 1.</p>
+<p>Options:
+- A. Receipt (recommended): two sums (power roll, then each target's damage) in the order
+  they happened, one fact per line, every number in one right-hand column, each edge and
+  bane named under the line it changed, with who or what granted it (face or icon).
+  Familiar maths for Power Gamers and Tacticians; the right column scans in a second.
+  Taller than today's grid.
+- B. Sum line: each sum on one line of chips; sources wait behind a hover. Shortest, but
+  it repeats the roll card's problem (the net hides the sources until you dig) and hover
+  is weak on touch and for people who do not know to try it.
+- C. Pictures: the roll dialog's edge/bane bar, a tier track showing how close the roll
+  came, the damage as a bar. Most visual; most to build; grows tall with several targets.</p>
+<p>Rules for any layout (the finish James asked for):
+- The detail uses the tray's full width, not the indent under the turn face.
+- Body text 14-15px; one fact per line; numbers in tabular figures in one column.
+- Order of resolution: roll, edges and banes, tier, then per target, then cost and who.
+- A trigger sits at the point in the chain where it fired and says what set it off
+  ("when targeted", "after the roll"), answering "which event did it respond to".
+- When a cancelled or capped source changed the tier, one muted line says what it would
+  have been ("Without the bane: double edge, Tier 2"). Only then.
+- Same symbols as the roll dialog: chevrons for edges and banes, the surge bolt.</p>
+<p>Engine check: a stored roll keeps only the net counts (<code>boons</code>, <code>banes</code>, and per-target
+offsets in <code>multitargets</code>; <code>CalculateMultitargetsFromRollProperties</code> caps each at two).
+The roll dialog knows each named source at roll time (<code>m_activeModifiers</code>, snapshotted
+per target as <code>modifiersUsed</code>, <code>EmbeddedRollDialog.lua:5642</code>), and edges added with the
+dialog's own +/- buttons have no source. Showing sources means writing a small list
+(source name, edge or bane, from whom, before or after the roll) into the roll when it is
+accepted, plus a "set by hand" entry for the buttons.</p>
+<h3 id="in-play-2026-10-26">In play (2026-10-26)<a class="headerlink" href="#in-play-2026-10-26" title="Permanent link">&para;</a></h3>
+<p>James asked to see the three layouts in play. The prototype link now has a "Detail
+layout" switch (A receipt / B sum line / C pictures) in its controls, applying to every
+action's detail in the tray, plus "Open the Brutal Slam" after Play.
+- Play: the Fury's roll card starts on a double edge (three edges); Reactor 1's trigger
+  fires when targeted (blue ring, "Triggered" strip) and the bar drops to one edge; 4 + 3 +
+  2 + 2 = 11, Tier 1; two surges; 7 taken after damage immunity 2.
+- Every action's detail is now structured data (roll, edge/bane sources, per-target sums,
+  triggers, costs) read by all three layouts, so the comparison holds across the tray:
+  per-target cover bane (turn 6), two damage types with a bonus and fire immunity
+  (turn 11), surge sources and a triggered Mark (turn 10), a bane that cost a tier
+  (turn 14), healing (turn 9), a fall (turn 12).
+- Scenario changes for consistency: Reactor 1 has damage immunity 2 (so turn 7 deals 4)
+  and was knocked prone in turn 7 (the prone edge's source); turn 11's two-type hit moved
+  to Test Monster Z 1 (fire immunity 3).</p>
+<h3 id="jamess-play-of-the-three-layouts-2026-10-26">James's play of the three layouts (2026-10-26)<a class="headerlink" href="#jamess-play-of-the-three-layouts-2026-10-26" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The layering confuses: the action row is indented, but its detail folds out unindented
+  (my full-width rule), so it is hard to tell whether there is more to expand, or where one
+  row's detail ends and the next row begins.</li>
+<li>All three layouts were hard to parse; it was hard to understand what had happened.
+Read: two problems. Structure: the detail has no container of its own, and the tray now
+has five nested levels (round, turn, action, detail, target) in 410px, with one signifier
+(a caret) doing two jobs. Content: every layout opens on arithmetic, not on what happened
+and why; the reader has to work the story out of the sums.
+Proposal (awaiting James): a detail card beside the tray instead of folding inline; the
+card opens on what happened, then why (each thing that changed the result, phrased as a
+contrast: "Tier 1, not Tier 2: ..."), then the numbers as a receipt.</li>
+</ul>
+<h3 id="built-the-detail-card-2026-10-26">Built: the detail card (2026-10-26)<a class="headerlink" href="#built-the-detail-card-2026-10-26" title="Permanent link">&para;</a></h3>
+<p>Same prototype link. Clicking an action row (chevron on the right) opens its card beside
+the tray; the tray keeps its shape and the row stays highlighted. Carets on the left only
+fold. The card: header (actor, ability, action type, round and turn, close), What
+happened (one sentence per creature, with face and number), Why (each change to the
+result as a contrast; "a straight roll" when nothing changed it; the fall line shows the
+side view on hover), The numbers (the receipt), who rolled and when. The A/B/C switch and
+layouts B and C are gone; the static comparison board stays on the canvas as a record.
+All 14 actions have What happened and Why copy, placeholder until signed off.
+Known gap: "Open the Brutal Slam" opens the card but does not scroll the tray to its row.</p>
+<h2 id="appendix-t-what-it-takes-to-build-feasibility-2026-10-26">Appendix T - What it takes to build (feasibility, 2026-10-26)<a class="headerlink" href="#appendix-t-what-it-takes-to-build-feasibility-2026-10-26" title="Permanent link">&para;</a></h2>
+<p>James: the History tray with the detail card is the direction; with search, and the
+token and hero-card history showing the same detail, it solves the problem. Question: how
+much works with today's code, and what has to change.</p>
+<h3 id="works-today-ui-work-only-the-data-already-exists">Works today (UI work only, the data already exists)<a class="headerlink" href="#works-today-ui-work-only-the-data-already-exists" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The tray as a table item and a rail toggle: <code>Tabletop.itemKinds</code> (the Audio pad is the
+  precedent).</li>
+<li>History from a token: the radial menu exists on tokens you control and on tokens you do
+  not (<code>DMHub Token UI/TokenUI.lua:2633-2860</code>, free angles left).</li>
+<li>History from a hero card: hover chips, as the flip chip does (<code>Codex Titlescreen/EotwHeroCard.lua</code>).</li>
+<li>The roll card folding into the tray: one-image ghost, as <code>AnimateGhost</code> does (<code>Tabletop.lua:2374</code>).</li>
+<li>Round and turn grouping: the round is readable when an event happens
+  (<code>dmhub.initiativeQueue.round</code>); turn starts are already logged.</li>
+<li>Roll facts: dice, total, net edges and banes, tier, per-target edge/bane offsets are on
+  the roll (<code>boons</code>, <code>banes</code>, <code>multitargets</code>); a power roll links to its cast by <code>castid</code>.</li>
+<li>Immunity and weakness: the damage code already works out the amount, rating, damage type,
+  source name, attacker and ability (<code>InflictDamageInstance</code>, <code>MCDMCreature.lua:5590-5660</code>),
+  and how much temporary Stamina soaked.</li>
+<li>Search, filters and the player view: client-side over the records; hidden rolls are
+  flagged, hidden tokens and monster Stamina are known.</li>
+</ul>
+<h3 id="codex-changes-known-in-the-moment-not-kept-today">Codex changes (known in the moment, not kept today)<a class="headerlink" href="#codex-changes-known-in-the-moment-not-kept-today" title="Permanent link">&para;</a></h3>
+<ol>
+<li>One history record per action. Today the per-target results are display strings
+   (<code>RecordTokenMessage</code>, 29 call sites, e.g. "9 untyped damage", "Tier 3 (...)") inside
+   the cast card, and names and portraits are read live (renames and deletions rewrite
+   history). Start the record in <code>ActivatedAbility:Cast</code> (<code>ActivatedAbility.lua:3133</code>, the
+   one funnel every ability goes through, with castid, caster and targets) and fill it as the
+   cast resolves: per target, the damage steps (tier damage, surges, bonuses, immunity or
+   weakness, temp Stamina, final), conditions (applied, resisted with potency, immune),
+   movement, state changes. Snapshot names and portraits. The largest piece.</li>
+<li>Edge and bane sources: the roll dialog knows each named source (<code>m_activeModifiers</code>,
+   <code>modifiersUsed</code> per target, <code>EmbeddedRollDialog.lua:5642</code>); save the list on the record
+   when the roll is accepted, plus "set by hand" for the dialog's +/- buttons.</li>
+<li>Damage bonuses and surge sources: from the same modifiers (e.g. "+1 rolled damage on
+   Fire abilities"); banked surges vs a feature's surges lost if unused (the dialog already
+   knows this, Appendix M).</li>
+<li>Trigger causes. Ability-use triggers already receive the cast that set them off
+   (<code>symbols.cast</code>, <code>TriggeredAbility.lua:1545</code>); reactions to attacked, damaged, collide
+   and similar events get the attacker but no cast id (e.g. the "attacked" event,
+   <code>ActivatedAbility.lua:3986</code>). Add the resolving cast's id to event info and stamp each
+   triggered cast with its event, triggering creature and cast, so it nests under its cause.
+   Triggers that add an edge or bane already appear as named roll modifiers.</li>
+<li>Conditions ending, with the cause: not logged today. <code>creature:RemoveOngoingEffect</code> is
+   central (<code>Creature.lua:7687</code>); callers pass why (end of turn, save, an ability, the
+   grabber moved away).</li>
+<li>Forced movement, collisions and falls: not logged today. Record distance, collisions,
+   fall and collision damage, and the path (<code>LuaPath:Serialize()</code>).</li>
+<li>Winded, dying and death, and the Director's manual Stamina edits: not logged today
+   (Stamina history keeps the last 8 per creature, too short to rebuild from).</li>
+<li>The card's words: a sentence builder that turns a record into "What happened" lines and
+   "Why" contrasts (one template per outcome type). All wording needs James's sign-off.</li>
+<li>Storage: the chat store keeps only the newest 128 messages, shared with chat
+   (<code>ChatPanel.cs:2193</code>), so a history long enough to search cannot live there. Put records
+   in a shared document per encounter (the dormant <code>dsBattleLog</code> document is the
+   precedent), keep the current and previous encounters, and decide what Revert Turn does:
+   register the document for checkpoints (entries roll back with the board) or mark
+   entries reverted (the struck-through rows the catalogue shows).</li>
+</ol>
+<h3 id="engine-checks-and-small-engine-work">Engine checks and small engine work<a class="headerlink" href="#engine-checks-and-small-engine-work" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Document limits: confirm a per-encounter document of a few hundred records, written on
+  every action, is within size and write-rate limits.</li>
+<li>Cross-section from history: <code>dmhub.SetMovementCrossSection</code> takes a live token and a
+  path, and draws today's terrain from the token's current position. Needs a way to build a
+  <code>LuaPath</code> from saved data (it has <code>Deserialize</code>, but Lua has no way to make an empty one)
+  and a start-position argument.</li>
+<li>Optional: the attack cross-section (<code>dmhub.SetAttackCrossSection</code>) could show why cover
+  gave a bane, but it reads current positions; history would need stored positions.</li>
+</ul>
+<h3 id="still-to-design">Still to design<a class="headerlink" href="#still-to-design" title="Permanent link">&para;</a></h3>
+<p>Search (where the box lives, what it matches, how results show), the minimized tray's
+notification, whether players can open a monster's history, the record's wording, turn
+numbers.</p>
+<h2 id="appendix-u-search-proposal-2026-10-26-awaiting-james">Appendix U - Search: proposal (2026-10-26, awaiting James)<a class="headerlink" href="#appendix-u-search-proposal-2026-10-26-awaiting-james" title="Permanent link">&para;</a></h2>
+<p>Needs it serves: "why am I slowed? just type slowed"; creature names, ability names,
+conditions (round 5); the creature filter from the radial and hero card is the same job.
+Lesson from the Stamina history hover: few people find what is hidden, so search is not.</p>
+<ol>
+<li>Where: a search field always visible in the tray header, beside Full log. Not behind an
+   icon.</li>
+<li>What it matches, live as you type: creature names (who acted, who was hit, who
+   triggered), ability names, conditions (applied, resisted, immune, ended), damage types,
+   and outcome words (killed, winded, dying, pushed, fell, collision, triggered, surge,
+   Malice, critical). Not dice or turn numbers.</li>
+<li>Suggestions while typing, grouped (Creatures, Abilities, Conditions, Other) with faces
+   and icons. Picking one makes a chip; chips combine ("Dwarf Fury" + "Slowed" = when the
+   Fury was slowed). The radial's and hero card's History open the tray with that
+   creature's chip, so there is one filter, not two. Free text still matches anything.</li>
+<li>Results (the fork): filter in place, recommended. The tray shows only matching
+   actions, still under their round and turn headings, unfolded, with the match
+   highlighted and a count; clicking one opens the detail card as now, the matching line
+   marked. Alternative: a flat list of result sentences replacing the tray, each jumping to
+   its place.</li>
+<li>Active now: a match whose effect is still on (Slowed until end of turn) gets an
+   "Active" tag, so "slowed" answers why you are slowed today, not only that you were.</li>
+<li>Scope: what the tray holds (this encounter and the previous one); results from the
+   previous encounter group under its own heading.</li>
+<li>Player view: search never reveals what the player cannot see (hidden creatures stay
+   "Unknown creature" and do not match by name; hidden rolls do not match).
+Wording below for sign-off (placeholder until then).</li>
+</ol>
+<h3 id="built-search-2026-10-26">Built: search (2026-10-26)<a class="headerlink" href="#built-search-2026-10-26" title="Permanent link">&para;</a></h3>
+<p>Same prototype link. A search field under the tray header ("Search creatures, abilities,
+conditions"). Typing filters live and shows suggestions grouped as Creatures, Abilities,
+Conditions and Other, ranked by names that start with what was typed, each with its match
+count; Enter or a click makes a chip, Backspace on an empty field removes the last one.
+Results filter the tray in place under their rounds and turns, unfolded, with a count;
+matching names, abilities and condition badges are marked; conditions still on carry
+"Active"; the detail card marks the matching lines. With a creature chip, a condition chip
+means that creature got (or gave) it, so "Dwarf Fury" + "Slowed" finds only the Reactor
+Pulse. History on a token's radial or a hero card opens the tray with that creature's chip
+(the creature popover is gone). Scenario change so "why am I slowed?" has an answer:
+Reactor Pulse now slows (save ends) on R&lt;1; the Fury is slowed (Active), the Elementalist
+resists. The previous-encounter scope is not shown: the mock has one encounter.
+James, after playing it: "yep i like it" (2026-10-26).</p>
+<h2 id="appendix-v-the-minimised-tray-and-its-notification-proposal-2026-10-26-awaiting-james">Appendix V - The minimised tray and its notification: proposal (2026-10-26, awaiting James)<a class="headerlink" href="#appendix-v-the-minimised-tray-and-its-notification-proposal-2026-10-26-awaiting-james" title="Permanent link">&para;</a></h2>
+<p>Code today: windows minimise into a 40 px button floating on the table or docked on the
+icon rail (<code>Tabletop.lua</code> 2329-2740; other files' windows use <code>Tabletop.MinimizeExternal</code>,
+the PDF viewer is the precedent). The button already takes a badge (<code>buttonOps.badge</code>
+{icon, color} with <code>badgeShown</code>; a map window shows a red sword while in combat) and a
+hover preview (<code>buttonOps.hover</code>). Table items do not minimise. The current log's rail
+marker counts every message from anyone else since the panel was last on screen
+(<code>ActionLogPanel.lua:43</code>), so in combat it is always on (ticket AM79CDYV).</p>
+<p>Proposal:
+- The block: History minimises like any window, into the standard 40 px button (floating
+  or docked on the rail), with the History icon. Click opens the tray at "New since you
+  looked".
+- Two levels of signal, so the strong one keeps its meaning:
+  - Quiet: a small grey count of turns you have not seen (out of combat: entries). A turn
+    with six entries counts once.
+  - Strong: gold, when something happened to a creature you control that you did not do
+    yourself: damage or healing, a condition put on or ended, forced movement, a fall or
+    collision, a triggered reaction that hit it, winded or dying, the Director changing its
+    Stamina or resources by hand.
+  - Both clear when you open the tray; nothing fades on a timer.
+- Hover: a preview card in the style of the map windows' hover, "Since you last looked":
+  up to three "What happened" lines, your creatures first, then "and N more turns", then
+  "Click to open".
+- The Director: the quiet count only, plus gold when a player changed something by hand
+  (Stamina, conditions, resources, an undo). Monsters are all theirs, so "your creatures"
+  would always be gold.
+- A setting to turn notifications off.
+Not proposed: toasts or pop-ups near the map (the table stays clear), a dot for every
+message (today's always-on dot).
+Code: the badge needs a count (an addition to <code>buttonOps.badge</code>); the rail's new-content
+marker already takes a count (<code>DockablePanel</code> <code>newContentCount</code>).</p>
+<h3 id="built-the-minimised-tray-2026-10-26">Built: the minimised tray (2026-10-26)<a class="headerlink" href="#built-the-minimised-tray-2026-10-26" title="Permanent link">&para;</a></h3>
+<p>Same prototype link. Hover the tray: its titlebar has a minimise dash; the tray becomes the
+40 px History block on the table. Minimising remembers what was on show. Play: the Fury's
+own turn adds nothing; the Reactor's Pulse hitting the Fury turns the badge gold "1"; the
+Troubadour's turn makes it "2". Hovering the block shows "Since you last looked" with the
+Fury's line first (gold edge), then the others, "and N more turns" when there are more,
+"Click to open". Opening (the block, or the rail button) clears it, unfolds the new turns,
+folds the earlier turns of that round into one line, and puts "New since you looked"
+before the first new turn. View as Director: grey count only (the scenario has no player
+hand edits). New wording: "Nothing new since you last looked." (for sign-off).</p>
+<h2 id="appendix-w-closing-the-open-decisions-2026-10-27">Appendix W - Closing the open decisions (2026-10-27)<a class="headerlink" href="#appendix-w-closing-the-open-decisions-2026-10-27" title="Permanent link">&para;</a></h2>
+<h3 id="1-can-players-open-a-monsters-history-decided-yes-2026-10-27">1. Can players open a monster's history? (decided: yes, 2026-10-27)<a class="headerlink" href="#1-can-players-open-a-monsters-history-decided-yes-2026-10-27" title="Permanent link">&para;</a></h3>
+<p>Recommendation: yes, on every token the player can see, in the same radial slot as on
+their own. It filters entries the tray already shows players, so it reveals nothing new.
+Numbers about a monster in the detail card follow Monster Info's knowledge
+(<code>Draw Steel Core Rules/MonsterKnowledge.lua</code>: per monster type, Stamina tier 0-3,
+characteristics, immunities, abilities; learned in play or revealed by the Director):
+Stamina at the tier players know (Healthy / Winded until exact), a characteristic or
+immunity value only once revealed; otherwise the line keeps its contrast without the
+number ("Reactor 1 could not resist" for "Reactor 1's Agility 1 could not resist").
+Innate immunities that change damage are already revealed automatically when they do.
+Alternatives: only creatures you control (monsters through search), or only while the
+Director's Monster Info setting is on.</p>
+<h3 id="2-wording-decided-2026-10-27">2. Wording (decided 2026-10-27)<a class="headerlink" href="#2-wording-decided-2026-10-27" title="Permanent link">&para;</a></h3>
+<p>Signed off in two rounds; see COPY.md. Applied to the prototype.</p>
+<h3 id="3-turn-numbers-decided-2026-11-04-kept-after-briefly-dropping-them">3. Turn numbers (decided 2026-11-04: kept, after briefly dropping them)<a class="headerlink" href="#3-turn-numbers-decided-2026-11-04-kept-after-briefly-dropping-them" title="Permanent link">&para;</a></h3>
+<p>Today in the prototype: a small number on each folded turn, "Turn 13" in each turn heading,
+"Turns 5-9" on the folded group, "Round 2, turn 13" in the detail card. Ricky asked for them
+("look at turn 15"); James is not sold; search does not use them.
+Recommendation: drop the encounter-wide turn number and name a turn by its round and
+creature, which is how Draw Steel and the table talk ("Round 2, the Fury's turn").
+Folded group: "5 earlier turns" (faces as now). Turn heading: "Dwarf Fury · Hero turn".
+Card: "Main action · Round 2". A solo creature's two turns: "first turn" / "second turn".
+Alternative: keep the numbers small and secondary, as now.</p>
+<h2 id="appendix-x-design-review-before-the-build-2026-11-04-in-progress">Appendix X - Design review before the build (2026-11-04, in progress)<a class="headerlink" href="#appendix-x-design-review-before-the-build-2026-11-04-in-progress" title="Permanent link">&para;</a></h2>
+<h3 id="coverage-audit-what-todays-action-log-does-that-history-does-not-yet-say">Coverage audit: what today's Action Log does that History does not yet say<a class="headerlink" href="#coverage-audit-what-todays-action-log-does-that-history-does-not-yet-say" title="Permanent link">&para;</a></h3>
+<p>Rule: coverage means nothing is lost; where today's way is weak, recommend the better one.
+Covered: the unread marker (the block's badge), round and turn starts, initiative, casts and
+per-target results, immunity and weakness, healing, temporary Stamina, conditions removed,
+teleports, Malice spent, bonuses folded into a roll, hidden rolls (Director only), pop-out
+problems (History is a table window). Amending edges, banes or the tier after a roll: today
+only while that roll is still the active roll (<code>MCDMAbilityRollBehavior.lua:3327</code>), the same
+control as the roll dialog's, so History loses nothing.
+Gaps:
+- G1 Director tools on entries. Today, right-click: Delete Message, Clear Chat, Hide from
+  players / Reveal to players (<code>ActionLogPanel.lua:885-910</code>), plus a visibility eye per roll.
+  Players asked for a way to clear experiment junk (ticket MYEJSNWK). History has none.
+- G2 Undo on resource changes (the Resource card's Undo button, <code>Draw Steel V/ResourceChat.lua</code>).
+- G3 The ability itself: today hovering a Malice spend shows the ability card. History names
+  abilities but never shows what they do.
+- G4 Rolls outside an action: Dice panel, macros, roll on a table, tests, montages,
+  negotiation, downtime, initiative, class roll cards (Acolyte), the Director revealing a
+  hidden modifier, and "Now playing" audio. Appendix K says compact rows for most; the
+  prototype shows none, and out-of-combat grouping (no rounds or turns) is undecided.
+- G5 Retention outside combat: History keeps this encounter and the previous one; what
+  happens between encounters, and next session, is undecided (today: the newest 128
+  messages, across sessions).
+- G6 Content authors' own lines: a damage behavior's authored chat message
+  (<code>AbilityDamage.lua:454</code>) has no place in the detail card yet.</p>
+<h3 id="davids-feedback-after-the-demo-via-james-2026-11-04">David's feedback after the demo (via James, 2026-11-04)<a class="headerlink" href="#davids-feedback-after-the-demo-via-james-2026-11-04" title="Permanent link">&para;</a></h3>
+<ul>
+<li>D1 Chat and History on separate rail buttons by default. Today both built-in Views
+  (Director, Player) group Chat, Action Log and Safety into one rail group
+  (<code>DocumentSystem.lua:26972</code>, <code>27031</code>). Change: History gets its own slot; the Chat group
+  keeps Chat and Safety.</li>
+<li>D2 A brief preview when something lands while History is closed or minimised; none when
+  it is open; a setting to turn it off. Precedent in the app: the chat speech bubble
+  (<code>DocumentSystem.lua:16400</code>): when chat is not on screen, a new message shows in a bubble
+  beside its rail button, lingers 5 s past the last message, up to 4 rows, placed to avoid
+  open windows, click opens chat. History would reuse it beside its button or block, with
+  the "What happened" line.</li>
+<li>D3 Hovering a forced movement also draws the movement arrow on the map where it
+  happened. <code>CharacterToken:MarkMovementArrow(targetLoc, options)</code> draws from the token's
+  current spot (<code>Definitions/CharacterToken.lua:465</code>); history needs it from a saved start.
+  Same engine ask as the cross-section from a saved path: one request covers both.</li>
+</ul>
+<h3 id="independent-design-review-fresh-eyes-reviewer-2026-11-04-code-references-checked">Independent design review (fresh-eyes reviewer, 2026-11-04; code references checked)<a class="headerlink" href="#independent-design-review-fresh-eyes-reviewer-2026-11-04-code-references-checked" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Glance numbers are not what landed: a face shows the strike's -13 while the card says 17
+   taken (the Mark's 4 sits on a trigger row); folds add up targets only and net damage
+   against healing (Zakaarior -1 = 9 taken, 8 healed); "7 fire" is dealt, the story says
+   4 taken. Fix: faces show the total taken including nested triggers; folds show damage and
+   healing apart; captions use taken numbers.</li>
+<li>Several creatures in one turn lose their actor: an initiative entry can hold several
+   tokens (<code>MCDMInitiativeBar.lua:38</code>, a Director's group turn), and action rows carry no
+   actor face. Fix: an actor face on any row whose actor is not the turn's only creature;
+   decide where actions with no cause sit (a free strike from an enemy moving away).</li>
+<li>Several maps each in their own combat: one tray per map, or one that follows the focused
+   map? Which fight the badge counts and search covers.</li>
+<li>Notifications only when minimised: "x" (off the table) silences everything; an open tray
+   never gets the "New since you last looked" marker; defaults (M #13) never reached the
+   ledger. Fix: decide defaults; the rail button keeps the badge when the tray is off; mark
+   new rows on an open tray too.</li>
+<li>Rows move under the reader: turns fold as the next starts; a card whose row folds stays
+   open with nothing highlighted. Fix: no auto-fold while the pointer is on the tray or a
+   card is open; never fold the selected turn; hold scroll and show "N new below".</li>
+<li>Hover-only and colour-only signals: the hero-card chip (James's constraint, kept), the
+   side view on hovered text ("Hover here for the side view"), creature names only in
+   tooltips, duplicate portraits for numbered monsters, resisted shown only as a greyed
+   icon, friend/foe by ring colour, gold vs grey badge by colour. Fix: an icon button for the
+   side view, a "Resisted" caption, numbered duplicate faces, a shape or face on the gold
+   badge.</li>
+<li>Monster Knowledge contradicts itself: minion Stamina appears in Y13 and the receipt; a
+   monster's own receipt shows its characteristic, which players already see on the live
+   read-only card; spoiler modifiers (<code>EmbeddedRollDialog.lua:425</code>) would be named as
+   sources. Fix: one rule, the receipt shows what players saw live; spoilers stay redacted.</li>
+<li>Revert, undo and Turn Rewind: Appendix T considered registering the History document
+   for checkpoints, which would erase history (pillar 3, dispute persona); Monster
+   Knowledge itself rolls back with checkpoints (<code>MonsterKnowledge.lua:59</code>). Fix: do not
+   register; append revert markers; count a revert once.</li>
+<li>Scale: ten targets wrap the strip and put ten sentences in the card; folds show 5 faces
+   with no "+N"; Show all or a creature chip unfolds a long fight at once (vscroll ~3 ms a
+   panel). Fix: "+N", grouped identical outcomes ("Goblins 1-4 each took 6"), lazy build.</li>
+<li>Wording between surfaces: "&lt;=11" badge vs "Tier 1"; S5 says "this encounter" though
+    search covers the previous one too; turn numbers kept but search ignores "turn 15";
+    "Active" in the tray only while searching but always in the card.</li>
+<li>Font Size and narrow windows: tray plus card need ~800 px; glance text at 9.5-10 px is
+    ~8 px at 80%. Fix: open the card on the side with room, or inside the tray when narrow;
+    a minimum glance text size.
+Questions it raised: one History per map or one following the focused map; the tray or
+block on by default for players; Revert Turn erases or strikes through; what replaces round
+and turn out of combat; History from a token adds to or replaces the search; a monster's
+receipt follows knowledge or the live card; is gold harm only, or any change.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

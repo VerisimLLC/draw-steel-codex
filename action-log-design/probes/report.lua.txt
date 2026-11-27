@@ -1,0 +1,14 @@
+local g = rawget(_G, "g_hprobe") or rawget(_G, "g_hprobew")
+if g == nil then return "no probe" end
+print("done", g.done, "seen", g.seen, "recordBytes", g.recordBytes)
+local keys = {}
+for k in pairs(g.stats) do keys[#keys+1] = k end
+table.sort(keys)
+for _, k in ipairs(keys) do
+    local b = g.stats[k]
+    if b.total ~= nil then
+        print(string.format("%4d+ writes %3d  pack %.1f begin %.1f  complete %.1f  total %.1f  worst %.1f ms | frames %d avg %.1f worst %.0f", k, b.n, (b.pack or 0) / math.max(1, b.n), b.begin / math.max(1, b.n), b.complete / math.max(1, b.n), b.total / math.max(1, b.n), b.worst, b.frames, b.frameSum / math.max(1, b.frames), b.frameWorst))
+    else
+        print(string.format("%4d+ seen %3d  latency avg %.0f worst %.0f ms | frames %d avg %.1f worst %.0f", k, b.n, b.lat / math.max(1, b.n), b.latWorst, b.frames, b.frameSum / math.max(1, b.frames), b.frameWorst))
+    end
+end

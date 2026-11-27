@@ -408,6 +408,21 @@ local function Roster()
     return result
 end
 
+--The roster's heroes in the Players party: the ones who can carry Gerold's head and
+--choose gear. Leaves out the pregens nobody plays, which wear collars but sit in
+--parties of their own. A hero a player owns reports the Players party as its party,
+--so a player's own hero is still listed.
+local function PartyRoster()
+    local partyId = GetDefaultPartyID()
+    local result = {}
+    for _, entry in ipairs(Roster()) do
+        if entry.token.partyId == partyId then
+            result[#result + 1] = entry
+        end
+    end
+    return result
+end
+
 local function ForgetRosterCache()
     g_rosterCache = nil
 end
@@ -978,6 +993,8 @@ end)
 CondemnedCampaign = {
     --the heroes the panel tracks, {charid, token, name}[] sorted by name (cached 1.5 s).
     Roster = Roster,
+    --the roster's heroes in the Players party, in the same form.
+    PartyRoster = PartyRoster,
     --a hero's collar: "collared", "removed", "detonated" or "none".
     CollarStatus = CollarStatus,
     Stage = function()
@@ -1550,9 +1567,9 @@ end
 -- Rosters
 --------------------------------------------------------------------------------
 
---One row per hero on the roster. The first rows are built in the constructor rather
---than in a create event: rows a panel gives itself in create, inside the scrolling
---area, kept stale click areas once the area was scrolled (clicks fell through).
+--One row per hero in the Players party (PartyRoster). The first rows are built in the
+--constructor rather than in a create event: rows a panel gives itself in create, inside
+--the scrolling area, kept stale click areas once the area was scrolled (clicks fell through).
 local function CreateRosterList(rowFactory)
     local function RosterKey(roster)
         local ids = {}
@@ -1578,12 +1595,12 @@ local function CreateRosterList(rowFactory)
             children[#children + 1] = row
         end
         if #children == 0 then
-            children[1] = Muted("No heroes yet: put the Condemned in the player party, or collar them in Loyalty Collars.", { width = "100%", fontSize = 12 })
+            children[1] = Muted("No heroes yet: put the Condemned in the Players party.", { width = "100%", fontSize = 12 })
         end
         return children, rows
     end
 
-    local roster = Roster()
+    local roster = PartyRoster()
     local initialChildren, initialRows = BuildChildren(roster, {})
 
     return gui.Panel {
@@ -1594,7 +1611,7 @@ local function CreateRosterList(rowFactory)
         data = { key = RosterKey(roster), rows = initialRows },
         children = initialChildren,
         think = function(element)
-            local current = Roster()
+            local current = PartyRoster()
             local key = RosterKey(current)
             if key == element.data.key then
                 return
@@ -2369,12 +2386,29 @@ local function CreateGeroldRow(entry)
     })
 end
 
+--the hero carrying the head, or nil. A saved carrier who has left the Players party
+--counts as nobody, but stays saved so they carry it again if they rejoin.
+local function GeroldCarrier()
+    local carrierId = Data().geroldCarrier
+    for _, entry in ipairs(PartyRoster()) do
+        if entry.charid == carrierId then
+            return entry
+        end
+    end
+    return nil
+end
+
 local function CarrierOptions()
     local options = { { id = "none", text = "Nobody yet" } }
-    for _, entry in ipairs(Roster()) do
+    for _, entry in ipairs(PartyRoster()) do
         options[#options + 1] = { id = entry.charid, text = entry.name }
     end
     return options
+end
+
+local function CarrierChosenId()
+    local entry = GeroldCarrier()
+    return entry ~= nil and entry.charid or "none"
 end
 
 local function CreateGeroldSection()
@@ -2387,7 +2421,7 @@ local function CreateGeroldSection()
         halign = "left",
         valign = "center",
         options = CarrierOptions(),
-        idChosen = Data().geroldCarrier or "none",
+        idChosen = CarrierChosenId(),
         change = function(element)
             ---@cast element Dropdown
             local choice = element.idChosen
@@ -2400,7 +2434,7 @@ local function CreateGeroldSection()
         refreshCampaign = function(element)
             ---@cast element Dropdown
             element.options = CarrierOptions()
-            element.idChosen = Data().geroldCarrier or "none"
+            element.idChosen = CarrierChosenId()
         end,
     }
 
@@ -2419,7 +2453,7 @@ local function CreateGeroldSection()
                 return "taken by the Returns slot"
             end
             local kind, cruel = 0, 0
-            for _, entry in ipairs(Roster()) do
+            for _, entry in ipairs(PartyRoster()) do
                 if GeroldScore(entry.charid) > 0 then kind = kind + 1 else cruel = cruel + 1 end
             end
             return string.format("%d kind  -  %d cruel or indifferent", kind, cruel)
@@ -2436,11 +2470,9 @@ local function CreateGeroldSection()
                         return
                     end
                     Log({ { kind = "counter", key = "riojan_bottles", delta = -1 } }, "RIOJAN GOLD -1: poured into Gerold's valve")
-                    local carrierId = Data().geroldCarrier
-                    for _, entry in ipairs(Roster()) do
-                        if entry.charid == carrierId then
-                            AdjustGerold(entry, 1)
-                        end
+                    local carrier = GeroldCarrier()
+                    if carrier ~= nil then
+                        AdjustGerold(carrier, 1)
                     end
                 end, {
                     hover = gui.Tooltip("He turns friendly, and Question Gerold succeeds automatically. Counts as a kindness from whoever carries him."),

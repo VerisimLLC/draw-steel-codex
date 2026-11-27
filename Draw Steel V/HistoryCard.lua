@@ -46,6 +46,12 @@ local WHY_WIDTH = 28
 --A Why line's text sits this far in from its rule on the left.
 local WHY_INDENT = 12
 
+--A roll made inside the action sits on a faint panel: its 2 px rule and padding on the left,
+--padding on the right, so its lines are this much narrower than the card's.
+local NESTED_LPAD = 10
+local NESTED_RPAD = 8
+local NESTED_INDENT = 2 + NESTED_LPAD + NESTED_RPAD
+
 --The receipt's number column, on the right of every line.
 local VALUE_WIDTH = 56
 
@@ -1718,7 +1724,8 @@ local function ReceiptNote(width, text, class)
 end
 
 --A heading inside the numbers: Power roll, a target (with its face) or Triggered.
-local function SubHead(text, width, who)
+--strong: the title of a roll made inside the action, drawn brighter so it reads on its panel.
+local function SubHead(text, width, who, strong)
     local children = {}
     if who ~= nil then
         local face = History.Face(who, 20, true)
@@ -1727,7 +1734,7 @@ local function SubHead(text, width, who)
         children[1] = face
     end
     children[#children + 1] = gui.Label{
-        classes = {"historySmallCaps"},
+        classes = {"historySmallCaps", strong and "historySmallCapsStrong" or nil},
         text = text,
         width = "auto",
         maxWidth = width - 40,
@@ -2433,12 +2440,23 @@ local function AddTableLines(rows, width, entry)
     end
 end
 
+--- True for an entry nested under an action that made a power roll of its own: a forced or
+--- granted strike, which would be a separate roll at the table. The card gives it a section.
+--- A roll players may not see still counts: History.Entry has taken its numbers out.
+--- @param kid HistoryEntry
+--- @return boolean
+local function IsNestedRoll(kid)
+    return (kid.kind == "action" or kid.kind == "trigger") and kid.family == nil and kid.actor ~= nil
+        and kid.ability ~= nil and ((kid.roll ~= nil and kid.roll.total ~= nil) or kid.secretroll == true)
+end
+
 --- The receipt's rows for an action entry; empty when it has nothing to add up.
 --- @param entry HistoryEntry
 --- @param kids HistoryEntry[]|nil
 --- @param width number
+--- @param nested? boolean True for a roll drawn in its action's section, under its own heading.
 --- @return Panel[]
-local function NumbersRows(entry, kids, width)
+local function NumbersRows(entry, kids, width, nested)
     g_linkMap = entry.map
     local rows = {}
     local targets = entry.targets or {}
@@ -2447,7 +2465,8 @@ local function NumbersRows(entry, kids, width)
     --Director gets it above the numbers, with the eye that shows them to players. Once
     --shown to everyone, only the Director keeps the line, for the eye that hides it again.
     local hidden = entry.privacy or entry.roll
-    if entry.secretroll or (hidden ~= nil and hidden.hidden and (dmhub.isDM or not hidden.revealed)) then
+    if (entry.secretroll or (hidden ~= nil and hidden.hidden and (dmhub.isDM or not hidden.revealed)))
+        and not History.RollAlwaysShown(entry) then
         rows[#rows + 1] = SecretRollRow(entry, width)
     end
 
@@ -2488,7 +2507,7 @@ local function NumbersRows(entry, kids, width)
     end
     if roll ~= nil then
         --a nested roll sits under its roller's heading already.
-        if entry.cause == nil or entry.family ~= "test" then
+        if not nested and (entry.cause == nil or entry.family ~= "test") then
             rows[#rows + 1] = SubHead(T("history.numbers.power_roll"), width)
         end
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
@@ -2589,9 +2608,53 @@ local function NumbersRows(entry, kids, width)
         AddTargetLines(rows, width, entry, group[1], #group, ownOf[group[1]])
     end
 
+    --each roll made inside this action, in the order rolled and all at one level: its own
+    --heading, receipt and targets behind a quiet rule, with what it set off inside it.
+    local sectioned = {}
+    for _, kid in ipairs(kids or {}) do
+        if IsNestedRoll(kid) then
+            sectioned[kid.id] = true
+        end
+    end
+    for _, kid in ipairs(kids or {}) do
+        if sectioned[kid.id] then
+            local setOff = {}
+            for _, other in ipairs(kids or {}) do
+                if other.cause == kid.id and not sectioned[other.id] then
+                    setOff[#setOff + 1] = other
+                end
+            end
+            local inner = width - NESTED_INDENT
+            local lines = {SubHead(History.ShownName(kid.actor) .. History.DOT .. kid.ability.name, inner, kid.actor, true)}
+            for _, line in ipairs(NumbersRows(kid, setOff, inner, true)) do
+                lines[#lines + 1] = line
+            end
+            rows[#rows + 1] = gui.Panel{
+                classes = {"historyNested"},
+                bgimage = "panels/square.png",
+                border = {x1 = 2, y1 = 0, x2 = 0, y2 = 0},
+                flow = "vertical",
+                width = width,
+                height = "auto",
+                halign = "left",
+                lpad = NESTED_LPAD,
+                rpad = NESTED_RPAD,
+                --the title's own top margin is the space above it.
+                tpad = 0,
+                bpad = 8,
+                tmargin = 12,
+                bmargin = 8,
+                borderBox = true,
+                children = lines,
+            }
+        end
+    end
+
     local triggered = {}
     for _, kid in ipairs(kids or {}) do
-        if (kid.kind == "trigger" or kid.kind == "action") and kid.actor ~= nil then
+        --a roll made inside the action has its section above, with what it set off.
+        local drawnAbove = sectioned[kid.id] or (kid.cause ~= nil and sectioned[kid.cause])
+        if (kid.kind == "trigger" or kid.kind == "action") and kid.actor ~= nil and not drawnAbove then
             local net = 0
             for _, who in ipairs(kid.targets or {}) do
                 net = net - (who.taken or 0) + (who.healed or 0)

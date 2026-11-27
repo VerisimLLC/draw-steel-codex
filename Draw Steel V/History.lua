@@ -684,6 +684,15 @@ local function MaskUnseen(node, depth)
     end
 end
 
+--- True when a roll hidden from players is shown to them anyway: a hero's roll made inside
+--- another action (a forced or granted strike). At the table that hero's player rolls it in
+--- the open, whoever's client threw the dice here.
+--- @param entry HistoryEntry
+--- @return boolean
+function History.RollAlwaysShown(entry)
+    return entry.cause ~= nil and entry.actor ~= nil and entry.actor.hero == true
+end
+
 --Cuts an entry down to what players may see: no more than they saw live. Done once as
 --it is parsed, so no view can show more by mistake. Nil when nothing of it is left to show.
 --- @param entry HistoryEntry
@@ -805,7 +814,7 @@ local function ForPlayers(entry)
             entry.causetext = privacy.cause
         end
     end
-    local hiddenRoll = entry.roll ~= nil and entry.roll.hidden and not entry.roll.revealed
+    local hiddenRoll = entry.roll ~= nil and entry.roll.hidden and not entry.roll.revealed and not History.RollAlwaysShown(entry)
     if hiddenRoll then
         entry.roll = nil
         entry.secretroll = true

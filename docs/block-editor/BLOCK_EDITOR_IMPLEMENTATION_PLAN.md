@@ -83,15 +83,16 @@ the triggered ability editor). It follows the file organisation of `Draw Steel C
 | `State.lua` | `State.lua` | `BEState` | The editing model and the undo/redo stack (section 12) |
 | `MainPanel.lua` | `MainPanel.lua` | (on `BlockEditor`) | The controller panel: columns, events, `refreshEditorState`; `Open` / `Routes` |
 | (none: generic) | `Page.lua` | `BEPage` | Builds a host's page from its declaration: header rows (as slots), sections, the section strip and related-record pills |
-| `FeatureSelector.lua` | `BlockPanel.lua` | `BEBlockPanel` | Any registered block: grip, sentence label with link words, glyph, menu, wrapper bodies |
+| `FeatureSelector.lua` | `BlockPanel.lua` | `BEBlockPanel` | Any registered block: grip, sentence (one panel per word, ledger 2026-11-27), glyph, menu, wrapper bodies |
 | (part of FeatureSelector) | `Slots.lua` | `BESlots` | Slot widgets: text, number, choice, many, formula (amount picker), test (test picker), ref, who, blocks |
 | (new) | `Stack.lua` | `BEStack` | A list of blocks: drop slots, combine bracket |
 | `Selectors.lua` (left rail) | `Shelf.lua` | `BEShelf` | The shelf from the registry: groups, search, recipes, drag sources |
 | `FeatureCache.lua` | `RecordCache.lua` | `BERecordCache` | Opens a record into blocks and writes it back through `Block.lua` |
-| `SelectionStatus.lua` | `IssueStatus.lua` | `BEIssueStatus` | The checks |
-| `CharacterPanel.lua` | `SidePanel.lua` | `BESidePanel` | The right column: checks, book-style card / saved data |
+| `CharacterPanel.lua` | `SidePanel.lua` | `BESidePanel` | The right column: the checks (the host's `checks` plus the editor's own, such as blocks that cannot be saved), book-style card / saved data |
 | `Styles.lua` | `Styles.lua` | `BEStyles` | Sizes and chrome styles from theme tokens; block styles from `Block` groups (section 13) |
 | `HeroBuilderText.lua` | `BlockEditorText.lua` | (UIText) | Every string (ASCII only), checked by `tests/uitext_check.lua` |
+| (new) | `RoundTrip.lua` | `BERoundTrip` | `/blockroundtrip`: every record a host lists (`host.records`) saves back unchanged |
+| (new) | `Proofs.lua` | (on `BlockEditor`) | `/blockproofs`: developer checks of what the engine can draw |
 
 There are **no host-specific UI files** (no class, basics, levels or subclass panels): a host's
 page is built from its declaration. A host that truly needs a bespoke panel names a function in
@@ -99,8 +100,11 @@ its declaration, defined beside the host (rules side may not use `gui`, so such 
 UI mod that loads after `Block Editor/` and registers with `BlockEditor.RegisterSlotWidget`).
 
 **Load order:** `BlockEditor.lua` -> `State.lua` -> `BlockEditorText.lua` -> `Styles.lua` ->
-`RecordCache.lua` -> `IssueStatus.lua` -> `Slots.lua` -> `BlockPanel.lua` -> `Stack.lua` ->
-`Shelf.lua` -> `Page.lua` -> `SidePanel.lua` -> `MainPanel.lua`.
+`RecordCache.lua` -> `Slots.lua` -> `BlockPanel.lua` -> `Stack.lua` -> `Shelf.lua` -> `Page.lua` ->
+`SidePanel.lua` -> `MainPanel.lua` -> `RoundTrip.lua` -> `Proofs.lua` (`Main.lua`, an empty
+placeholder, may sit anywhere). Only `BlockEditor.lua` must come first; the rest reach each other
+only when the editor opens. CI checks that none of these files names a game type or block id
+(`tools/block_editor/check_ui.py`).
 
 ## 3. How the app chooses (routing)
 

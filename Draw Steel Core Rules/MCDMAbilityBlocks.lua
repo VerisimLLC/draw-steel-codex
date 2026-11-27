@@ -52,6 +52,10 @@ local function _set(record, fieldName, value, original)
     if saved ~= nil and value ~= nil and tostring(saved) == tostring(value) then
         return
     end
+    --nothing saved and the value is the type's default: leave it unsaved.
+    if saved == nil and value == Block.FieldValue(record, fieldName) then
+        return
+    end
     if type(saved) == "number" and tonumber(value) ~= nil then
         value = tonumber(value)
     end
@@ -199,7 +203,7 @@ local FIELDS = {
             return result
         end,
         write = function(record, value, original)
-            if dmhub.DeepEqual(value or {}, original or {}) then
+            if type(original) == "table" and dmhub.DeepEqual(value or {}, original) then
                 return
             end
             local map = {}
@@ -245,7 +249,15 @@ local FIELDS = {
             if value == original then
                 return
             end
-            record.targetAllegiance = value ~= "creature" and value or nil
+            local saved = Block.FieldValue(record, "targetAllegiance")
+            if value == "creature" then
+                --any creature: keep whatever "no side" form is saved (false, nil, ...).
+                if saved == "ally" or saved == "enemy" then
+                    record.targetAllegiance = nil
+                end
+            elseif saved ~= value then
+                record.targetAllegiance = value
+            end
         end,
     },
 }
@@ -532,6 +544,61 @@ Block.RegisterBlock{
     fits = { "step", "tier" },
 }
 
+--the tables whose abilities /blockroundtrip covers: the core class content.
+local ROUND_TRIP_TABLES = { "classes", "subclasses" }
+
+--- Every top-level ability in the class tables, with where it was found. An
+--- ability inside another (a follow-up) is checked as part of its parent;
+--- Hidden ones are the engine's own helpers.
+--- @return {record: table, where: string}[]
+local function _classAbilities()
+    local result = {}
+    local seen = {}
+    local function Walk(obj, where, depth)
+        if (type(obj) ~= "table" and type(obj) ~= "userdata") or depth > 16 or seen[obj] then
+            return
+        end
+        seen[obj] = true
+        local typeName = nil
+        pcall(function() typeName = obj.typeName end)
+        if typeName == "ActivatedAbility" then
+            if rawget(obj, "categorization") ~= "Hidden" then
+                result[#result + 1] = { record = obj, where = where }
+            end
+            return
+        end
+        pcall(function()
+            for _, value in pairs(obj) do
+                if type(value) == "table" then
+                    Walk(value, where, depth + 1)
+                end
+            end
+        end)
+    end
+    for _, tableName in ipairs(ROUND_TRIP_TABLES) do
+        for _, row in unhidden_pairs(dmhub.GetTable(tableName) or {}) do
+            Walk(row, string.format("%s/%s", tableName, tostring(row.name)), 0)
+        end
+    end
+    return result
+end
+
+--- A step's name for its Advanced block: the behaviour type without the
+--- "ActivatedAbility" and "Behavior" parts ("Apply Riders").
+--- @param step table
+--- @return string
+local function _stepName(step)
+    local typeName = "Behavior"
+    pcall(function() typeName = step.typeName end)
+    local name = string.gsub(typeName, "^ActivatedAbility", "")
+    name = string.gsub(name, "Behaviou?r$", "")
+    name = string.gsub(name, "(%l)(%u)", "%1 %2")
+    if name == "" then
+        name = typeName
+    end
+    return name
+end
+
 Block.RegisterHost{
     id = "ability",
     tableName = "abilities",
@@ -544,6 +611,8 @@ Block.RegisterHost{
     fields = FIELDS,
     stepsField = "behaviors",
     advancedBlock = "ability.advanced",
+    records = _classAbilities,
+    stepName = _stepName,
     sections = {
         {
             id = "what",

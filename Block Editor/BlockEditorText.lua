@@ -41,6 +41,9 @@ text("blockeditor.undo", [[Undo]])
 --Its tooltips. {change} is what the step did, e.g. "Add Deal damage".
 text("blockeditor.undo_tooltip", [[Undo: {change}]])
 text("blockeditor.undo_nothing", [[Nothing to undo.]])
+text("blockeditor.redo", [[Redo]])
+text("blockeditor.redo_tooltip", [[Redo: {change}]])
+text("blockeditor.redo_nothing", [[Nothing to redo.]])
 
 --What an undo step is called when a block is added. {block} is the block's name.
 text("blockeditor.change.add", [[Add {block}]])

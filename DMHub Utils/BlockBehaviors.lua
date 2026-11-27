@@ -78,6 +78,10 @@ local function _writeField(behavior, codec, value)
     if codec.write ~= nil then
         codec.write(behavior, value)
     elseif codec.field ~= nil then
+        --nothing saved and the value is the type's default: leave it unsaved.
+        if rawget(behavior, codec.field) == nil and _same(value, Block.FieldValue(behavior, codec.field)) then
+            return
+        end
         behavior[codec.field] = type(value) == "table" and DeepCopy(value) or value
     end
 end
@@ -110,9 +114,12 @@ function Block.RegisterBehaviorBlock(spec)
                 behavior = typeTable.new{}
             end
         end
+        --forced (the round-trip test) writes every slot, to prove each codec
+        --writes back the form it read.
+        local forced = ctx ~= nil and ctx.forced
         for slotId, codec in pairs(fields) do
             local value = values[slotId]
-            if not _same(value, _readField(behavior, codec)) then
+            if forced or not _same(value, _readField(behavior, codec)) then
                 _writeField(behavior, codec, value)
             end
         end

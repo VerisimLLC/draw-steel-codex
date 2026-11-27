@@ -82,22 +82,31 @@
 
  FILES (load order)
 
- BlockEditor.lua      this file: design, constants, helpers, RegisterSlotWidget
+ BlockEditor.lua      this file: design, constants, helpers, RegisterSlotWidget (load first)
  State.lua            BEState: the editing model, undo/redo, uploads
  BlockEditorText.lua  every string the UI shows (UIText)
  Styles.lua           BEStyles: sizes, chrome styles, block colours and glyphs
- MainPanel.lua        the controller: BlockEditor.Open / Routes
- Proofs.lua           developer-only checks of what the engine can draw
+ RecordCache.lua      BERecordCache: a record opened into blocks and saved back
+ Slots.lua            BESlots: a block's sentence, one word panel per word
+ BlockPanel.lua       BEBlockPanel: one placed block and its bodies
+ Stack.lua            BEStack: a list of blocks, drop slots, dragging
+ Shelf.lua            BEShelf: the column of blocks to add
+ Page.lua             BEPage: the host's sections
+ SidePanel.lua        BESidePanel: the checks and the book-style card
+ MainPanel.lua        the controller: BlockEditor.Open / Routes, /blockeditor
+ RoundTrip.lua        /blockroundtrip: every listed record saves back unchanged
+ Proofs.lua           /blockproofs: developer-only checks of what the engine can draw
+ Main.lua             empty placeholder in the mod's file list
 
- Still to come (phase 1 on): RecordCache, IssueStatus, Slots, BlockPanel,
- Stack, Shelf, Page, SidePanel. They load between Styles.lua and
- MainPanel.lua, in that order.
+ Only BlockEditor.lua must load first; the others reach each other only when
+ the editor opens.
 
- WHAT IS BUILT SO FAR (phase 0)
+ WHAT IS BUILT SO FAR (phase 2)
 
- The skeleton, the registries with stub blocks (DMHub Utils/BlockStubs.lua),
- an empty editor window (/blockeditor) and the proofs (/blockproofs). No
- record is read or written yet, and BlockEditor.Routes returns false.
+ The ability host (Draw Steel Core Rules/MCDMAbilityBlocks.lua) reads every
+ class ability into blocks and saves it back; blocks are declared beside the
+ behaviour types. Saving to the server through the containing record
+ (milestone 2c) is not built yet, and BlockEditor.Routes returns false.
 ]]
 
 local mod = dmhub.GetModLoading()
@@ -126,6 +135,19 @@ BlockEditor.REFRESH_EVENT = "refreshEditorState"
 
 --How many undo steps are kept (plan section 12).
 BlockEditor.UNDO_LIMIT = 100
+
+--The developer setting the editor sits behind until a record type round-trips
+--(plan section 7); then it becomes the Simple tab beside the Advanced editor.
+BlockEditor.SETTING_ID = "blockeditor:enabled"
+setting{
+    id = BlockEditor.SETTING_ID,
+    section = "dev",
+    text = "Block Editor (in development)",
+    description = "Turns on the Block Editor's developer commands: /blockeditor, /blockroundtrip and /blockproofs. Needs developer mode.",
+    storage = "preference",
+    editor = "check",
+    default = false,
+}
 
 --Seconds after the last change to a record before it uploads.
 BlockEditor.UPLOAD_DELAY = 2
@@ -211,5 +233,5 @@ end
 --- Whether the developer-only parts (the commands, the proofs) are available.
 --- @return boolean
 function BlockEditor._isDeveloper()
-    return devmode() == true
+    return devmode() == true and dmhub.GetSettingValue(BlockEditor.SETTING_ID) == true
 end

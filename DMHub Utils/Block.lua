@@ -137,6 +137,8 @@ local mod = dmhub.GetModLoading()
 --- @field advancedBlock? string the block a step opens as when no block reads it
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
 --- @field upload? fun(record: table) sends one record to the server; the editor uploads the table row when absent
+--- @field records? fun(): {record: table, where: string}[] every record this host edits, for /blockroundtrip and for /blockeditor by name (developers)
+--- @field stepName? fun(step: table): string how a step no block reads is named on its Advanced block; its typeName split into words when absent
 --- @field order? number
 --- @field stub? boolean
 

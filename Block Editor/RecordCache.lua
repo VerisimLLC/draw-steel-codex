@@ -22,12 +22,18 @@ local mod = dmhub.GetModLoading()
         set. An Advanced block always writes back its saved behaviour.
       * So an untouched record saves back identical, by construction.
 
-    "forced" (for /blockroundtrip) treats every piece as changed, to test the
-    writers' merge path.
+    "forced" (for /blockroundtrip) treats every piece as changed: a header slot
+    is written with no opened value to compare against, and a block writes
+    every slot it claims. So it tests that each writer reproduces the saved
+    form and keeps what it does not claim.
 ]]
 
 --- @class BERecordCache
 BERecordCache = {}
+
+--Given to a header writer as the "opened" value when it must write whatever
+--it is given (the lock probe, a forced save): equal to no value.
+local NOT_OPENED = {}
 
 --- Whether two plain values are the same (nil-safe; tables compared deeply).
 --- @param a any
@@ -43,20 +49,21 @@ local function _same(a, b)
     return a == b
 end
 
---- A readable name for a behaviour no block reads: its typeName without the
---- "ActivatedAbility" and "Behavior" parts, split into words.
+--- A readable name for a step no block reads: the host's stepName, or the
+--- step's typeName split into words.
 --- @param behavior table
+--- @param host BlockHost
 --- @return string
-function BERecordCache.BehaviorName(behavior)
-    local typeName = "Behavior"
-    pcall(function() typeName = behavior.typeName end)
-    local name = string.gsub(typeName, "^ActivatedAbility", "")
-    name = string.gsub(name, "Behaviou?r$", "")
-    name = string.gsub(name, "(%l)(%u)", "%1 %2")
-    if name == "" then
-        name = typeName
+function BERecordCache.BehaviorName(behavior, host)
+    if host.stepName ~= nil then
+        local ok, name = pcall(host.stepName, behavior)
+        if ok and type(name) == "string" then
+            return name
+        end
     end
-    return name
+    local typeName = "Step"
+    pcall(function() typeName = behavior.typeName end)
+    return (string.gsub(tostring(typeName), "(%l)(%u)", "%1 %2"))
 end
 
 --- Whether a list holds a value.
@@ -125,7 +132,7 @@ local function _openStep(behavior, host, ctx)
     end
     return {
         block = host.advancedBlock or "",
-        values = { summary = BERecordCache.BehaviorName(behavior) },
+        values = { summary = BERecordCache.BehaviorName(behavior, host) },
     }
 end
 
@@ -232,7 +239,14 @@ function BERecordCache.SaveSteps(instances, source, host, ctx)
                         untouched = false
                     end
                 elseif decl ~= nil and decl.write ~= nil then
-                    behavior = decl.write(instance.values, saved ~= nil and DeepCopy(saved) or nil, ctx, instance.bodies or {})
+                    local ok, written = pcall(decl.write, instance.values, saved ~= nil and DeepCopy(saved) or nil, ctx, instance.bodies or {})
+                    if ok then
+                        behavior = written
+                    else
+                        --a writer that fails keeps the step as saved (a new one is left out), and says why.
+                        dmhub.Error(string.format("BlockEditor: block '%s' failed to write: %s", decl.id, tostring(written)))
+                        behavior = saved ~= nil and DeepCopy(saved) or nil
+                    end
                     untouched = false
                 end
                 if behavior ~= nil then
@@ -277,7 +291,7 @@ function BERecordCache.CountUnsaveable(list)
 end
 
 --- Opens a record into a model for the editor.
---- @param record table the engine record (an ActivatedAbility, ...)
+--- @param record table the engine record the host edits
 --- @param host BlockHost
 --- @return BERecordModel
 function BERecordCache.Open(record, host)
@@ -289,20 +303,17 @@ function BERecordCache.Open(record, host)
             dmhub.Error(string.format("BlockEditor: reading '%s' failed: %s", slotId, tostring(value)))
         else
             values[slotId] = value
-            --a slot is locked when writing its own value back would change the
-            --record: it is shown, but never written.
-            local probe = {}
-            for _, fieldName in ipairs(field.touches or {}) do
-                probe[fieldName] = DeepCopy(rawget(record, fieldName))
+            --a slot is locked when its writer cannot write this value so that it
+            --reads back the same (a distance the editor has no word for): it is
+            --shown, but never written. The writer is given an opened value that
+            --matches nothing, so it cannot skip the write by comparing.
+            local probe = DeepCopy(record)
+            local wrote = pcall(field.write, probe, value, NOT_OPENED)
+            local readOk, readBack = false, nil
+            if wrote then
+                readOk, readBack = pcall(field.read, probe)
             end
-            local wrote = pcall(field.write, probe, value, value)
-            local same = wrote
-            for _, fieldName in ipairs(field.touches or {}) do
-                if same and not _same(probe[fieldName], rawget(record, fieldName)) then
-                    same = false
-                end
-            end
-            if not same then
+            if not readOk or not _same(readBack, value) then
                 locked[slotId] = true
             end
         end
@@ -344,7 +355,9 @@ function BERecordCache.Save(model, record, host, forced)
         local field = host.fields[slotId]
         if not locked[slotId] then
             local value, original = model.values[slotId], openValues[slotId]
-            if forced or not _same(value, original) then
+            if forced then
+                field.write(result, value, NOT_OPENED)
+            elseif not _same(value, original) then
                 field.write(result, value, original)
             end
         end

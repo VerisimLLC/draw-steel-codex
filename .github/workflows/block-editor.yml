@@ -1,0 +1,35 @@
+name: Block Editor checks
+
+# The Block Editor's own rules (docs/block-editor/BLOCK_EDITOR_FRAMEWORK.md ledger):
+# the UI in "Block Editor/" names no game type or block id, and the plain-Lua
+# tests of the registries, the editing state, the tier grammar, the formula
+# parser and the save rules pass.
+
+on:
+  push:
+    paths: ['Block Editor/**', 'DMHub Utils/Block*.lua', 'Draw Steel Core Rules/*Block*.lua', 'tests/block_*.lua', 'tools/block_editor/**', '.github/workflows/block-editor.yml']
+  pull_request:
+    paths: ['Block Editor/**', 'DMHub Utils/Block*.lua', 'Draw Steel Core Rules/*Block*.lua', 'tests/block_*.lua', 'tools/block_editor/**', '.github/workflows/block-editor.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The UI names no game types or block ids
+        run: python3 tools/block_editor/check_ui.py
+
+      - name: Install Lua 5.4
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.4
+
+      - name: Plain-Lua tests
+        run: |
+          for test in tests/block_*_test.lua; do
+            lua5.4 "$test"
+          done

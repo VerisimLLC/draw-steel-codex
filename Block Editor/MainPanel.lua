@@ -12,8 +12,10 @@ local mod = dmhub.GetModLoading()
     Undo), a strip of section names, then three columns: the page (BEPage),
     the shelf (BEShelf) and the checks and card (BESidePanel).
 
-    Phase 1: with no record it opens the stub ability host's demo record.
-    Edits, undo and the upload timer work; the host only logs the upload.
+    With no record it opens the first host's demo record (the stub ability).
+    A record is read into blocks by BERecordCache. Edits, undo and the upload
+    timer work; until saving through the containing record is built
+    (milestone 2c), the upload is only worked out and logged.
 ]]
 
 local T = UIText.T
@@ -25,8 +27,18 @@ local _getState = BlockEditor._getState
 --not redraw blocks: after an upload, for one.
 local STATUS_EVENT = "refreshEditorStatus"
 
---The host the developer window opens when it is given no record.
-local DEMO_HOST = "stub.ability"
+--- The host the developer window opens when it is given no record: the
+--- first that declares a demo record (the stub ability host, in phase 1).
+--- @return BlockHost|nil
+local function _demoDecl()
+    for _, host in ipairs(Block.All("host")) do
+        --- @cast host BlockHost
+        if host.demo ~= nil then
+            return host
+        end
+    end
+    return nil
+end
 
 --- The host the developer window uses: it accepts every change and only logs
 --- the upload. Real hosts come from Block.RegisterHost once records can be
@@ -44,22 +56,22 @@ local function _demoHost(decl)
             --phase 2a: saving is worked out and logged, not sent (milestone 2c sends it).
             if record ~= nil and decl ~= nil then
                 local same, diff = BERecordCache.SavesUnchanged(model, record, decl)
-                print(string.format("BLOCKEDITOR:: would upload '%s': %s", model.name, same and "unchanged" or json(diff)))
+                dmhub.Debug(string.format("BLOCKEDITOR:: would upload '%s': %s", model.name, same and "unchanged" or json(diff)))
             else
-                print(string.format("BLOCKEDITOR:: would upload '%s' with %d blocks", model.name, #model.blocks))
+                dmhub.Debug(string.format("BLOCKEDITOR:: would upload '%s' with %d blocks", model.name, #model.blocks))
             end
         end,
     }
 end
 
---- A first model for a record: its id and name, and no blocks. RecordCache
---- replaces this in phase 2 by reading the record's own data into blocks.
+--- A model for a record its host cannot read into blocks (it declares no
+--- fields): its id and name, and no blocks.
 --- @param record table
 --- @return BERecordModel
 local function _emptyModel(record)
     local id, name = nil, nil
     --a game-typed record raises on a field it does not have.
-    pcall(function() id = record.id end)
+    pcall(function() id = record.guid end)
     pcall(function() name = record.name end)
     return {
         id = type(id) == "string" and id or "record",
@@ -70,7 +82,7 @@ local function _emptyModel(record)
 end
 
 --- The title bar: the title, the Simple / Advanced editor tabs, then on the
---- right the host's dropdown, Paste text, Undo and Close.
+--- right the host's dropdown, Paste text, Undo, Redo and Close.
 --- @param decl BlockHost
 --- @return Panel
 local function _titleBar(decl)
@@ -130,7 +142,7 @@ local function _titleBar(decl)
         width = "auto",
         hpad = 12,
         valign = "center",
-        rmargin = 12,
+        rmargin = 4,
         text = T("blockeditor.undo"),
         click = function(element)
             _fireControllerEvent(element, "editorUndo")
@@ -147,6 +159,30 @@ local function _titleBar(decl)
         [STATUS_EVENT] = function(element, state)
             --- @cast state BEState
             element:SetClass("disabled", not state:CanUndo())
+        end,
+    }
+    tools[#tools + 1] = gui.Button{
+        classes = {"sizeS"},
+        width = "auto",
+        hpad = 12,
+        valign = "center",
+        rmargin = 12,
+        text = T("blockeditor.redo"),
+        click = function(element)
+            _fireControllerEvent(element, "editorRedo")
+        end,
+        linger = function(element)
+            local state = _getState(element)
+            local change = state ~= nil and state:RedoDescription() or nil
+            if change ~= nil then
+                gui.Tooltip(T("blockeditor.redo_tooltip", { change = change }))(element)
+            else
+                gui.Tooltip(T("blockeditor.redo_nothing"))(element)
+            end
+        end,
+        [STATUS_EVENT] = function(element, state)
+            --- @cast state BEState
+            element:SetClass("disabled", not state:CanRedo())
         end,
     }
     tools[#tools + 1] = gui.Button{
@@ -241,8 +277,8 @@ local function _sectionStrip(decl)
 end
 
 --- Whether a registered host edits this record, so today's editors can send
---- it here and keep the rest (the Advanced editor). Phase 1: nothing is
---- routed, since no record can be read into blocks yet.
+--- it here and keep the rest (the Advanced editor). Nothing is routed until
+--- a host can save its records (milestone 2c) and the Simple tab is on.
 --- @param record table|nil
 --- @param where? string where it was opened from ("compendium", ...)
 --- @return boolean
@@ -269,7 +305,7 @@ function BlockEditor.Open(record)
             model = _emptyModel(record)
         end
     else
-        decl = Block.Get("host", DEMO_HOST) --[[@as BlockHost|nil]]
+        decl = _demoDecl()
         if decl ~= nil and decl.demo ~= nil then
             model = DeepCopy(decl.demo)
         end
@@ -424,7 +460,7 @@ Commands.RegisterMacro{
     doc = "Usage: /blockeditor [ability name]\nWith a name, opens that class or subclass ability as blocks; steps no block reads yet open as Advanced blocks. Without one, opens the stub demo (\"Out of the Way!\"). Edits, undo and the upload timer work; the upload is only logged. Developer mode only.",
     command = function(str)
         if not BlockEditor._isDeveloper() then
-            dmhub.Log("The Block Editor is in development: turn on developer mode to open it.")
+            dmhub.Log("The Block Editor is in development: turn on developer mode and the Block Editor setting (developer settings) to open it.")
             return
         end
         local name = trim(str or "")
@@ -432,11 +468,11 @@ Commands.RegisterMacro{
             BlockEditor.Open()
             return
         end
-        local ability = BERoundTrip.FindAbility(name)
-        if ability == nil then
-            dmhub.Log(string.format("No class or subclass ability is called '%s'.", name))
+        local record = BERoundTrip.Find(name)
+        if record == nil then
+            dmhub.Log(string.format("Nothing the Block Editor opens is called '%s'.", name))
             return
         end
-        BlockEditor.Open(ability)
+        BlockEditor.Open(record)
     end,
 }

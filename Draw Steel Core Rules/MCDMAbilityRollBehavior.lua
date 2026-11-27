@@ -2382,8 +2382,6 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --after the dice landed. The raw m_result misses those (E8TWPX8B).
     local multitargetResults = CalculateMultitargetsFromRollProperties(m_rollInfo, m_result)
 
-    --The tier for one target token, or for the roll as a whole when nil (the
-    --first target's, since the stats record one tier per roll).
     --A tier picked on the chat card is saved on the roll's message, where each target's tier
     --is also read; one picked in the roll dialog is saved in rollProperties. Resolution, stats
     --and History all take it from here, so they agree.
@@ -2393,6 +2391,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     end
     local overrideTier = overrideProperties:try_get("overrideTier")
 
+    --The tier for one target token, or for the roll as a whole when nil (the
+    --first target's, since the stats record one tier per roll).
     local function EffectiveTier(targetToken)
         for _,multitarget in ipairs(multitargetResults or {}) do
             if multitarget.token ~= nil and (targetToken == nil or multitarget.token.charid == targetToken.charid) then
@@ -2616,8 +2616,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 local potencyApplied = 0
                 --An earlier roll on this cast (an invoking or invoked ability's) may have recorded
                 --this target's own roll, sources, surges or potency; only this roll's should show.
-                --Keep in step with the invoke's list in AbilityInvokeAbility.lua; the roll dialog
-                --clears the free and gained surges itself, as it records them.
+                --Keep in step with the invoke's list in AbilityInvokeAbility.lua; both roll dialogs
+                --clear the free and gained surges themselves, as they record them.
                 for _, field in ipairs({"targetRolls", "targetSources", "targetDamageSources", "targetSurges", "targetPotencySources", "potencyApplied"}) do
                     local byTarget = options.symbols.cast:try_get(field)
                     if byTarget ~= nil then

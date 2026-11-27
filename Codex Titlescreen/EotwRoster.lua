@@ -1624,6 +1624,74 @@ local function FlushPendingHall()
     end
 end
 
+--- the town reset ---------------------------------------------------------
+
+--The last town reset this machine acted on, per server and account:
+--{ ["release|<userid>"] = ms } as JSON text. The City publishes when it was
+--last reset as /city/resetAt (reset-playtest in cloudflare-game-server city.ts).
+setting{
+    id = "eotw:resetSeen",
+    default = "",
+    storage = "preference",
+}
+
+--Machine-local state, kept per account, that a reset leaves pointing at
+--heroes, games and town progress that are gone: queued results, rolls and
+--Hall entries, the inn's reveal, the Forge's banners, a series to continue.
+--Not here: eotw:heroRevs (SyncWorkingCopies removes the copies of heroes the
+--city no longer lists by it; clearing it would push them back up as new).
+local RESET_ACCOUNT_SETTINGS = {
+    "eotw:innState", "eotw:pendingOutcomes", "eotw:trips", "eotw:pendingHall",
+    "eotw:pendingRespite", "eotw:pendingProjectRoll", "eotw:pendingCarouse",
+    "eotw:pendingForgeTalk", "eotw:siegeSeen", "eotw:metGiddlebrick", "eotw:continueSeries",
+}
+
+---@param id string
+---@return table
+local function ReadJsonSetting(id)
+    local text = dmhub.GetSettingValue(id)
+    if type(text) ~= "string" or text == "" then
+        return {}
+    end
+    --FromJson answers {success, result}, not the decoded value.
+    local parsed = dmhub.FromJson(text)
+    if type(parsed) == "table" and parsed.success and type(parsed.result) == "table" then
+        return parsed.result
+    end
+    return {}
+end
+
+--After the City has been reset (the end of a playtest), forget what this
+--machine kept for this account from before it, once. Runs before the roster
+--syncs, so nothing queued is sent for a hero that no longer exists.
+local function ApplyCityReset()
+    if m_conn == nil then
+        return
+    end
+    local resetAt = tonumber(m_conn:GetPath("/city/resetAt"))
+    if resetAt == nil or resetAt <= 0 then
+        return
+    end
+    local key = cond(EotwRoster.UseStaging(), "staging", "release") .. "|" .. tostring(dmhub.loginUserid)
+    local seen = ReadJsonSetting("eotw:resetSeen")
+    if (tonumber(seen[key]) or 0) >= resetAt then
+        return
+    end
+    for _, id in ipairs(RESET_ACCOUNT_SETTINGS) do
+        local all = ReadJsonSetting(id)
+        if all[dmhub.loginUserid] ~= nil then
+            all[dmhub.loginUserid] = nil
+            dmhub.SetSettingValue(id, cond(next(all) == nil, "", dmhub.ToJson(all)))
+        end
+    end
+    --a list of tag ids for the whole machine: tags earned again are announced again.
+    dmhub.SetSettingValue("eotw:announcedtags", "")
+    m_homecomings = {}
+    seen[key] = resetAt
+    dmhub.SetSettingValue("eotw:resetSeen", dmhub.ToJson(seen))
+    printf("EotW town: the town was reset at %s; cleared this machine's saved town state", tostring(resetAt))
+end
+
 --Re-list this account's roster from the city (and sync the working copies).
 function EotwRoster.Refresh()
     if m_conn == nil or not m_conn.connected then
@@ -1641,6 +1709,7 @@ function EotwRoster.Refresh()
             if mod.unloaded then
                 return
             end
+            ApplyCityReset()
             local heroes = {}
             for _,hero in ipairs(result.heroes or {}) do
                 heroes[#heroes+1] = hero

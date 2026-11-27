@@ -563,6 +563,101 @@ unit tests.
    unfreeze --env staging` to use staging as the test town (its data stays
    as it was at the freeze).
 
+## Ending the playtest: the town reset (BUILT 2026-11-27; RUN ON STAGING 2026-11-27, not yet on release)
+
+David's decisions (2026-11-27): end the playtest and start the town again at
+week 1 with Goblin Ambush. Every player starts as a new player (heroes
+deleted). Every community project is admin-hidden and unstarted, to be shown
+one at a time from Community Projects. The only progress kept: every account
+that had played gets the **Founding Hero** tag (a badge only, not a Steam
+achievement). Kept as they are: the Proving Pits encounters, votes and
+feedback, the beta survey, and moderation history (bans stay in force).
+Wiped: the Hall of Heroes, Town Hall votes and petitions, town chat and
+parties. Run it on staging first.
+
+**Who is a Founding Hero:** every account with a recorded outcome
+(`city_outcomes`) or a result a host left for them while they were away
+(`city_offered_outcomes`), at the moment of the reset, unless banned then or
+the tag was revoked. A game abandoned before it ended left no record, so its
+players are not counted. Founding Hero is now `rule = { manual = true }`
+(`Codex Titlescreen/EotwPlayerTagDefs.lua`): the reset writes it as an admin
+grant, unseen, so the town shows the Tag Earned banner, and nobody can earn it
+afterwards. (It used to be a dated `encountersPlayed` rule, but tag counters
+are read from the outcomes at evaluation time, so wiping the outcomes would
+have taken it away from everyone.)
+
+**What is open at the start:** the Hero's Guild and the Town Gate; the Blue
+Fish Inn after a hero first comes home; the Proving Pits after the account
+wins an Encounter of the Week; the Graveyard after a hero falls or its lead is
+heard; the Arcane Market only after its tier 3 lead and Find the Arcane
+Market. Expand the Guild and Find the Arcane Market stay available (personal
+projects; the admin hide covers community projects only, and David wants
+these two open). Hidden for everyone: the Hall of Heroes, Town Hall, Training
+Grounds, Great Forge and Temple; their leads cannot be heard while their
+project is hidden. With the Training Grounds hidden, a respite raises the
+Level itself.
+
+**How it is built:**
+- Server: `POST /admin/city/{id}/reset-playtest` (`cloudflare-game-server
+  src/city.ts`, `handleResetPlaytestHttp`; routed in `src/index.ts`). A dry run
+  works on a serving city and writes nothing. A real run needs the city
+  frozen, `X-Confirm-Reset: {id}` and the dry run's founding count; it
+  commits in one synchronous turn. It does not restart the object: its reply
+  waits until the writes are stored (seconds for a full town), and a restart
+  timer inside the request killed that reply (Cloudflare 1101 on the first
+  staging run, though every write had landed). The tool calls
+  `restore-finish` afterwards, which restarts it, still frozen. Accounts that
+  already hold Founding Hero keep it, so a second reset (results now gone)
+  does not take it away.
+  Every `city_*` table must be in `RESET_CLEAR_TABLES`, `RESET_KEEP_TABLES` or
+  `RESET_REWRITE_TABLES`, or the reset refuses. Rev counters are bumped, not
+  zeroed. Nominations: this week's move to week 1; older weeks' become
+  negative so they never count again (the week number restarts at 1). The
+  `tier1LeadsGrandfathered` flag stays set, so old accounts are not handed
+  the tier 1 leads again. The City publishes `/city/resetAt`.
+- Client: `EotwRoster.lua` `ApplyCityReset`, run at the top of every
+  `list-heroes` reply, before the roster syncs. Once per reset, server and
+  account, it clears this account's machine-local town state (the inn's
+  reveal, queued outcomes, trips, Hall entries, respite, project roll, carouse
+  and Forge talk, siege banner, Giddlebrick, series to continue) and the
+  machine's announced tags. Marker: `eotw:resetSeen`. It deliberately leaves
+  `eotw:heroRevs` alone: `SyncWorkingCopies` removes the copies of heroes the
+  city no longer lists BY that record, and a copy with no record is pushed up
+  as a new hero. Kept: the pending Proving Pits debrief and survey, and the
+  game clean-ups (`eotw:concludedgame` / `eotw:abandonedgame`).
+- Tool: `python tools/eotw_city.py reset-playtest --env <env> [--dry-run]`
+  prints the week change, what is cleared and kept, and the Founding Hero
+  list. A real run saves a full backup and the list to `~/eotw-city-backups`,
+  then resets. Undo = restore the backup table by table, then
+  `restore-finish`.
+- Tests: `test/city-core.test.ts` (the old Founding Hero date tests now use a
+  test-only tag; a new test covers the manual rule and the admin grant),
+  `test/city-reset-smoke.ts` (end to end against `wrangler dev`, including a
+  second reset: 35 checks, all passed 2026-11-27).
+
+**Runbook:**
+1. Staging: deploy the server, then `reset-playtest --env staging --dry-run`,
+   `freeze --env staging`, `reset-playtest --env staging`, `unfreeze`. Check
+   in the app on staging: an empty Guild, the Founding Hero banner, Goblin
+   Ambush week 1 at the Gate, no hidden buildings, no inn until a hero comes
+   home, and nothing queued resent.
+2. Ship the codex (`EotwRoster.lua`, `EotwPlayerTagDefs.lua`) in a Codex bump
+   BEFORE the release reset, so clients clear their saved state on it.
+3. Release: deploy the server to release (the route does not exist there
+   before), `reset-playtest --env release --dry-run` and check the list;
+   announce; freeze; reset; check; unfreeze. Needs `DMHUB_ADMIN_SECRET`.
+
+**Status:** server, tool and client written; tsc, 531 unit tests, the smoke
+test, `luac` and the Lua type check pass. Staging: deployed 2026-11-27 (a
+test upload of Lisa's Streamer Kit had taken migration tag v6 there, so
+`wrangler.toml` has staging-only v6 + v7 `deleted_classes = ["ViewerLinkObject"]`
+entries; her branch's migration must become v8). The staging reset ran the
+same day: 238 Founding Heroes, 342 accounts, week 1 of Goblin Ambush, all five
+community projects hidden, survey (434) and Proving Pits feedback (84) kept;
+backup at `~/eotw-city-backups/blackbottom-staging-20261127-104250.json`. The
+city is serving again. NOT yet checked in the app (needs a Codex restart for
+`EotwRoster.lua`). Nothing on release. Uncommitted.
+
 ## The Lobby: a Durable Object that is not a game
 
 A **Lobby** is a first-class server concept, separate from games: a Durable

@@ -362,6 +362,9 @@ FIELDS.limit = {
         --a new limit starts at one use, as the Advanced editor's does.
         if values.limit ~= "none" and (values.charges == nil or tostring(values.charges) == "0") then
             values.charges = "1"
+        elseif values.limit == "none" then
+            --no limit, no use count: an ability that never had a limit saves without one.
+            values.charges = "0"
         end
     end,
 }
@@ -810,7 +813,19 @@ Block.RegisterHost{
             title = "What it is",
             rows = {
                 { id = "name", sentence = { { slot = "name" }, " is a ", { slot = "category" }, " that takes a ", { slot = "action" } }, slots = SLOTS },
-                { id = "cost", sentence = { "which costs ", { slot = "cost" }, " ", { slot = "resource" } }, slots = SLOTS },
+                {
+                    id = "cost",
+                    sentence = { "which costs ", { slot = "cost" }, " ", { slot = "resource" } },
+                    slots = SLOTS,
+                    when = function(values) return values.resource ~= nil and values.resource ~= "none" end,
+                },
+                {
+                    --with no resource the amount means nothing ("costs 1 nothing"); picking one shows it.
+                    id = "free",
+                    sentence = { "which costs ", { slot = "resource" } },
+                    slots = SLOTS,
+                    when = function(values) return values.resource == nil or values.resource == "none" end,
+                },
                 { id = "keywords", sentence = { "and has the keywords ", { slot = "keywords" } }, slots = SLOTS },
                 { id = "limit", sentence = { "Usage limit: ", { slot = "limit" } }, slots = SLOTS },
                 {

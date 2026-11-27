@@ -251,3 +251,17 @@ replaced from Lua and then really uploads):
 
 **Still open:** the full "Choose one when used" block (option names, extra costs, options that
 target differently / variations, design 4n); add a requirement; drop-slot precision.
+
+## 11. Tested in DMHub on the owner's Windows computer (2026-11-27)
+
+- Section 10's tests pass: both round trips 748/748; the "someone else changed it" note, the Use
+  theirs / Keep mine bar, the Targets are row and the Usage limit with its use count all work.
+- Fixed in `MCDMAbilityBlocks.lua`: setting the limit back to "none" on an ability that never had
+  one now saves no limit (the limit's `changed` resets the use count to "0"), and an ability with
+  no resource reads "which costs nothing" (separate `free` row) instead of "costs 1 nothing".
+- Loading on this computer: a reload (F4 or the bridge's `/reload`) does not re-read Draw Steel
+  Core Rules or Block Editor files, so edits there need a DMHub restart. The app's file lists still
+  name `DMHub Utils/BlockTiers.lua` and `DMHub Game Rules/GetTableTypes().lua`; it recreates them
+  as empty files on start. Keep them out of commits, or remove them from the lists in mod tools.
+- **Owner feedback, later pass:** clicking a word should make it editable in place, not open a
+  pop-up editor (ledger row 2026-11-27, "Clicking a text or number word edits it in place").

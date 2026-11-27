@@ -1011,6 +1011,73 @@ Block.RegisterWrapper{
     end,
 }
 
+--"Can only be used when": the ability's reasoned filters. The game checks each one
+--for every target (a bare name is the target's, Caster.X is yours) and tells the
+--player the reason when one fails.
+Block.RegisterBlock{
+    id = "ability.requirement",
+    family = "logic",
+    group = "logic",
+    label = "Requirement",
+    desc = "The ability can only be used on a target that passes this test; otherwise the player is told why. A plain name is the target's (Size), Caster.Size is yours.",
+    sentence = { { text = "Only if", bold = true }, " ", { slot = "test" }, ", otherwise the player is told: ", { slot = "reason" } },
+    slots = {
+        test = { kind = "formula", style = "formula", default = "", empty = "+ test", options = {} },
+        reason = { kind = "text", default = "", empty = "+ reason" },
+    },
+    fits = { "requirement" },
+    order = 78,
+}
+
+--- The requirements list: reasonedFilters ({formula, reason}) as Requirement blocks.
+--- @type BlockList
+local REQUIREMENTS = {
+    read = function(record)
+        local result = {}
+        local saved = rawget(record, "reasonedFilters")
+        for _, filter in ipairs(type(saved) == "table" and saved or {}) do
+            result[#result + 1] = {
+                block = "ability.requirement",
+                values = { test = tostring(rawget(filter, "formula") or ""), reason = tostring(rawget(filter, "reason") or "") },
+                saved = DeepCopy(filter),
+            }
+        end
+        return result
+    end,
+    write = function(result, instances, record)
+        local list = {}
+        for _, instance in ipairs(instances) do
+            local values = instance.values or {}
+            local test = tostring(values.test or "")
+            --a new requirement with no test yet is not saved: an empty formula could fail every target.
+            if instance.saved ~= nil or string.find(test, "%S") ~= nil then
+                local entry = DeepCopy(instance.saved or {})
+                local savedTest = tostring(rawget(entry, "formula") or "")
+                --a test that means the same keeps its saved spelling.
+                if savedTest ~= test and (Block.FormulaCanonical(savedTest) or savedTest) ~= (Block.FormulaCanonical(test) or test) then
+                    entry.formula = test
+                elseif rawget(entry, "formula") == nil then
+                    entry.formula = test
+                end
+                if tostring(rawget(entry, "reason") or "") ~= tostring(values.reason or "") then
+                    entry.reason = tostring(values.reason or "")
+                elseif rawget(entry, "reason") == nil then
+                    entry.reason = ""
+                end
+                list[#list + 1] = entry
+            end
+        end
+        local saved = rawget(record, "reasonedFilters")
+        if type(saved) == "table" and dmhub.DeepEqual(saved, list) then
+            return
+        end
+        if #list == 0 and type(saved) ~= "table" then
+            return
+        end
+        result.reasonedFilters = list
+    end,
+}
+
 --Steps no block reads: shown by name, saved back untouched.
 Block.RegisterBlock{
     id = "ability.advanced",
@@ -1142,6 +1209,7 @@ Block.RegisterHost{
     end,
     fields = FIELDS,
     stepsField = "behaviors",
+    lists = { requirements = REQUIREMENTS },
     advancedBlock = "ability.advanced",
     records = _classAbilities,
     stepName = _stepName,
@@ -1192,7 +1260,7 @@ Block.RegisterHost{
                 },
             },
         },
-        { id = "req", title = "Can only be used when", optional = true, addText = "add a requirement" },
+        { id = "req", title = "Can only be used when", optional = true, stack = "requirements", fits = "requirement", stackAddText = "add a requirement" },
         { id = "used", title = "When it's used", stack = "blocks", fits = "step", stackAddText = "add step" },
     },
     shelfSections = {
@@ -1200,6 +1268,7 @@ Block.RegisterHost{
         { title = "Inside a power roll tier", fits = "tier" },
         { title = "Inside Choose one when used", fits = "option" },
         { title = "Inside an option", fits = "optiontargets" },
+        { title = "Can only be used when", fits = "requirement" },
     },
     card = function(model, record)
         local values = model.values or {}
@@ -1277,6 +1346,15 @@ Block.RegisterHost{
         local words = _countBlocks(model.blocks, Block.TIER_TEXT_BLOCK)
         if words > 0 then
             result[#result + 1] = { severity = "warning", text = string.format("%d parts of the tier text are words no block reads yet: they are kept as written.", words) }
+        end
+        local untested = 0
+        for _, requirement in ipairs(model.requirements or {}) do
+            if string.find(tostring((requirement.values or {}).test or ""), "%S") == nil then
+                untested = untested + 1
+            end
+        end
+        if untested > 0 then
+            result[#result + 1] = { severity = "warning", text = string.format("%d of the requirements have no test yet: they stop nothing, and a new one is not saved until it has one.", untested) }
         end
         local unnamed = 0
         local chooser = _findBlock(model.blocks, "ability.choose")

@@ -143,6 +143,7 @@ local mod = dmhub.GetModLoading()
 --- @field demo? table a ready-made model, opened when the editor has no record (developers)
 --- @field fields? table<string, BlockField> the record's own fields, by the header slot that shows them
 --- @field stepsField? string the record field holding its list of steps ("behaviors")
+--- @field lists? table<string, BlockList> more lists of blocks than the steps, by the model field a section's stack names ("requirements")
 --- @field advancedBlock? string the block a step opens as when no block reads it
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
 --- @field upload? fun(record: table): boolean|nil uploads a record the editor has just written into (an ability: the class or subclass that holds it); false or an error keeps the change waiting to retry. Without it the window cannot save
@@ -151,6 +152,12 @@ local mod = dmhub.GetModLoading()
 --- @field stepName? fun(step: table): string how a step no block reads is named on its Advanced block; its typeName split into words when absent
 --- @field order? number
 --- @field stub? boolean
+
+--- A list of blocks a host keeps in one record field, besides its steps (an
+--- ability's requirements). The editor writes it only when the author changed it.
+--- @class BlockList
+--- @field read fun(record: table): BlockInstance[] the list as blocks; set instance.saved to keep what each was read from
+--- @field write fun(result: table, instances: BlockInstance[], record: table) writes the list into result (the copy being saved); record is the one opened
 
 --- A way to gain a heroic resource (plan section 11).
 --- @class BlockGainEvent

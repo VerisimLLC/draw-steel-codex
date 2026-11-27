@@ -32,6 +32,8 @@ local mod = dmhub.GetModLoading()
 --- @field savesUnchanged? boolean whether an untouched save matched the record when it opened (shown in the checks)
 --- @field locked? table<string, boolean> header slots shown but never written: their writer could not reproduce the record
 --- @field hidden? boolean soft-deleted; undo clears it
+--- @field lists? string[] the model fields holding the host's other lists of blocks (BlockHost.lists)
+--- @field listCounts? table<string, integer> how many blocks each of those lists held when opened
 
 --- Where a list of blocks lives in a model: the record's own list (owner nil),
 --- or one body of a placed block.
@@ -346,6 +348,9 @@ function BEState.AssignUids(model)
         end
     end
     Walk(model.blocks)
+    for _, field in ipairs(model.lists or {}) do
+        Walk(model[field])
+    end
 end
 
 --- A placed block by uid, with the list it is in and its position there.
@@ -367,7 +372,14 @@ function BEState.FindInstance(model, uid)
         end
         return nil, nil, nil
     end
-    return Search(model.blocks)
+    local found, foundList, foundIndex = Search(model.blocks)
+    for _, field in ipairs(model.lists or {}) do
+        if found ~= nil then
+            break
+        end
+        found, foundList, foundIndex = Search(model[field])
+    end
+    return found, foundList, foundIndex
 end
 
 --- The list a ref names, created empty if the block has no such body yet.

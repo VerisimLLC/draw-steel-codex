@@ -472,7 +472,8 @@ function BERecordCache.Open(record, host)
     local id, name = nil, nil
     pcall(function() id = record.guid end)
     pcall(function() name = record.name end)
-    return {
+    --- @type BERecordModel
+    local model = {
         id = type(id) == "string" and id or "record",
         name = type(name) == "string" and name or "",
         values = values,
@@ -480,6 +481,36 @@ function BERecordCache.Open(record, host)
         locked = locked,
         blocks = steps,
     }
+    for field, list in pairs(host.lists or {}) do
+        local ok, instances = pcall(list.read, record)
+        if not ok or type(instances) ~= "table" then
+            dmhub.Error(string.format("BlockEditor: reading the list '%s' failed: %s", field, tostring(instances)))
+            instances = {}
+        end
+        for index, instance in ipairs(instances) do
+            instance.src = index
+            _remember(instance)
+        end
+        model[field] = instances
+        model.lists = model.lists or {}
+        model.lists[#model.lists + 1] = field
+        model.listCounts = model.listCounts or {}
+        model.listCounts[field] = #instances
+    end
+    return model
+end
+
+--- Whether the author changed a list since it was opened: a block added,
+--- taken out, moved or edited.
+--- @param instances BlockInstance[]|nil
+--- @return boolean
+local function _listChanged(instances)
+    for index, instance in ipairs(instances or {}) do
+        if instance.src ~= index or not Block.InstanceUnchanged(instance) then
+            return true
+        end
+    end
+    return false
 end
 
 --- Saves a model back into a copy of the record it was opened from.
@@ -525,6 +556,18 @@ function BERecordCache.Save(model, record, host, forced)
         --only a list that changed is replaced, so an untouched one keeps its own form.
         if not untouched then
             result[host.stepsField] = out
+        end
+    end
+
+    for field, list in pairs(host.lists or {}) do
+        local instances = model[field] or {}
+        --the last block taken out shifts nothing, so the count tells.
+        local resized = #instances ~= ((model.listCounts or {})[field] or 0)
+        if forced or resized or _listChanged(instances) then
+            local ok, err = pcall(list.write, result, instances, record)
+            if not ok then
+                dmhub.Error(string.format("BlockEditor: writing the list '%s' failed: %s", field, tostring(err)))
+            end
         end
     end
     return result

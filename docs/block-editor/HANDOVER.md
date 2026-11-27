@@ -291,3 +291,19 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   Advanced step's saved modes; a non-cost mode condition is replaced when the extra cost changes;
   empty option lists draw as thin dark bars; "after picking the target" is not hidden once an
   option targets differently (it saves as before, since the game needs plain modes for it).
+
+## 13. Add a requirement (2026-11-27, run in DMHub)
+
+- **Block:** Requirement (Logic), "Only if [test], otherwise the player is told: [reason]", in the
+  "Can only be used when" section (a stack of `requirements`); shelf section of the same name. The
+  "add a requirement" row adds one at once (an add row with one fitting block skips its menu).
+- **Saves as** `reasonedFilters`. The game checks each per target (`TargetPassesFilter`): bare
+  names are the target's, `Caster.X` the user's. Only 5 requirements in 4 class abilities today
+  (Impaled!, Healing Grace, Faith's Sword - Give Resource to Ally, Omnomnom). A test that means the
+  same keeps its saved spelling; a new one with no test is not saved (a check says so).
+- **Framework:** `BlockHost.lists` (read/write per record field), `model.lists` and
+  `model.listCounts`; `BEState.AssignUids` and `FindInstance` walk those lists too.
+- **Measured in DMHub:** both round trips 748/748; opening, editing a reason (only that field
+  changes), removing, adding, and the empty-test check all checked with saving stubbed.
+- **Not built:** the target filter row ("Only affects creatures who", `targetFilter`, 78 class
+  abilities); the section count says "steps" for requirements.

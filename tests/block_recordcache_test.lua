@@ -443,6 +443,60 @@ table.remove(model.blocks, 1)
 saved = BERecordCache.Save(model, moded, host)
 Check(rawget(saved, "modes") == nil and #saved.behaviors == 1, "taking the block out drops the options and their steps")
 
+--a host's other list (an ability's requirements): read into its own model
+--field, written only when the author changed it.
+Block.RegisterBlock{
+    id = "t.req", family = "logic", group = "logic", label = "Requirement",
+    sentence = { "Only if ", { slot = "test" } }, slots = { test = { kind = "formula", default = "" } }, fits = { "requirement" },
+}
+local listHost = {
+    id = "t.listhost", claims = function() return true end,
+    fields = { name = NameField() },
+    stepsField = "behaviors",
+    advancedBlock = "t.advanced",
+    lists = {
+        requirements = {
+            read = function(rec)
+                local result = {}
+                for _, filter in ipairs(rawget(rec, "filters") or {}) do
+                    result[#result + 1] = { block = "t.req", values = { test = filter.formula }, saved = Copy(filter) }
+                end
+                return result
+            end,
+            write = function(result, instances)
+                local list = {}
+                for i, instance in ipairs(instances) do
+                    list[i] = Copy(instance.saved or {})
+                    list[i].formula = instance.values.test
+                end
+                result.filters = list
+            end,
+        },
+    },
+}
+--the model's list field, which BERecordModel does not declare (it is the host's).
+local function Reqs(m)
+    return rawget(m, "requirements")
+end
+local filtered = { name = "Filtered", filters = { { formula = "Size <= 1", extra = true }, { formula = "Winded" } }, behaviors = { Heal.new{ roll = "1" } } }
+model = BERecordCache.Open(filtered, listHost)
+Check(#Reqs(model) == 2 and Reqs(model)[1].values.test == "Size <= 1" and model.lists[1] == "requirements",
+    "a host's other list opens into its own model field")
+Check(BERecordCache.SavesUnchanged(model, filtered, listHost), "an untouched list saves back identical")
+Check(BERecordCache.SavesUnchanged(BERecordCache.Open(filtered, listHost), filtered, listHost, true), "a forced save of a list is identical")
+Reqs(model)[2].values.test = "Prone"
+saved = BERecordCache.Save(model, filtered, listHost)
+Check(saved.filters[2].formula == "Prone" and saved.filters[1].extra == true and Equal(saved.behaviors, filtered.behaviors),
+    "editing a list block writes the list and keeps what it does not show")
+model = BERecordCache.Open(filtered, listHost)
+table.remove(Reqs(model))
+saved = BERecordCache.Save(model, filtered, listHost)
+Check(#saved.filters == 1 and saved.filters[1].formula == "Size <= 1", "taking out the last block of a list is saved")
+model = BERecordCache.Open({ name = "None", behaviors = {} }, listHost)
+Reqs(model)[#Reqs(model) + 1] = { block = "t.req", values = { test = "Winded" } }
+saved = BERecordCache.Save(model, { name = "None", behaviors = {} }, listHost)
+Check(saved.filters ~= nil and saved.filters[1].formula == "Winded", "a block added to an empty list is saved")
+
 local fresh = Block.Instantiate("t.choose") --[[@as BlockInstance]]
 Check(#fresh.bodies.options == 2, "a new split block starts with the options its initial gives")
 model = BERecordCache.Open(record, host)

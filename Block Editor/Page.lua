@@ -161,6 +161,11 @@ local function _addStepRow(text, fits)
                     end
                 end
             end
+            --only one kind of block fits ("add a requirement"): add it, no menu.
+            if #entries == 1 then
+                entries[1].click()
+                return
+            end
             element.popupsInheritStyles = true
             element.popupPositioning = "mouse"
             element.popup = gui.ContextMenu{

@@ -46,6 +46,12 @@ local WHY_WIDTH = 28
 --A Why line's text sits this far in from its rule on the left.
 local WHY_INDENT = 12
 
+--A roll made inside the action sits on a faint panel: its 2 px rule and padding on the left,
+--padding on the right, so its lines are this much narrower than the card's.
+local NESTED_LPAD = 10
+local NESTED_RPAD = 8
+local NESTED_INDENT = 2 + NESTED_LPAD + NESTED_RPAD
+
 --The receipt's number column, on the right of every line.
 local VALUE_WIDTH = 56
 
@@ -463,6 +469,38 @@ local function OnlyDamage(who)
         and who.immune == nil and not who.resisted and not who.landedon
 end
 
+--- True for an entry nested under an action that made its own power roll there, such as a
+--- forced or granted strike: a separate roll at the table, so the card gives it a section.
+--- A roll hidden from players still counts; for them its numbers are already gone.
+--- @param kid HistoryEntry
+--- @return boolean
+local function IsNestedRoll(kid)
+    --an automatic trigger's entry never saves its roll, so only actions qualify.
+    return kid.kind == "action" and kid.family == nil and kid.actor ~= nil
+        and kid.ability ~= nil and ((kid.roll ~= nil and kid.roll.total ~= nil) or kid.secretroll == true)
+end
+
+--- The rolls made inside an action, by entry id, and for each one what it set off (the
+--- entries caused by it that are not rolls of their own), so its section can draw them.
+--- @param kids HistoryEntry[]|nil Everything nested under the action.
+--- @return table<string, boolean> sectioned
+--- @return table<string, HistoryEntry[]> setOff
+local function NestedRolls(kids)
+    local sectioned, setOff = {}, {}
+    for _, kid in ipairs(kids or {}) do
+        if IsNestedRoll(kid) then
+            sectioned[kid.id] = true
+            setOff[kid.id] = {}
+        end
+    end
+    for _, kid in ipairs(kids or {}) do
+        if kid.cause ~= nil and setOff[kid.cause] ~= nil and not sectioned[kid.id] then
+            table.insert(setOff[kid.cause], kid)
+        end
+    end
+    return sectioned, setOff
+end
+
 --What a nested trigger did, or a resource it changed.
 local function AddKid(rows, kid)
     if kid.family == "resource" then
@@ -504,6 +542,13 @@ local function AddKid(rows, kid)
                     who = {who},
                     text = T("history.story.trigger_did", {ability = owner, name = name, words = words}),
                     amount = LandedAmount(who),
+                }
+            elseif IsNestedRoll(kid) and not hitsOwner then
+                --a strike made inside the action that did nothing (immunity took it all) still
+                --happened; its numbers below say why.
+                rows[#rows + 1] = {
+                    who = {who},
+                    text = T("history.story.nested_no_damage", {ability = owner, name = name}),
                 }
             end
         end
@@ -928,6 +973,20 @@ local function PlayersMaySeeAbility(actor, name)
         or MonsterKnowledge.IsRevealed(key, MonsterKnowledge.EntryKey("feature", name))
 end
 
+--- An ability's name as the card's title and Why headings show it: bracketed and hovering to
+--- its card, as names do in the Why. Plain when that card can't be found or the local user
+--- may not see it (a creature whose name players may not see).
+--- @param actor HistoryCreature Who used it.
+--- @param name string
+--- @return string
+local function AbilityNameLink(actor, name)
+    if PlayersMaySeeAbility(actor, name) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
+        return HoverLink("[" .. name .. "]", string.format("a|%s|%s|%s", actor.id, name, g_cardSide or ""),
+            {kind = "ability", owner = actor.id, name = name, side = g_cardSide})
+    end
+    return name
+end
+
 local function Header(entry, width, inTray, close)
     local children = {}
     local titleWidth = width - 12 - 8 - 22
@@ -975,15 +1034,7 @@ local function Header(entry, width, inTray, close)
     elseif entry.actor ~= nil then
         children[#children + 1] = History.Face(entry.actor, 30, true)
         titleWidth = titleWidth - 39
-        --the ability's name is bracketed and hovers to its card, as names do in the Why; only
-        --when the card can be found, and not for a creature whose name players may not see.
-        local name = entry.ability.name
-        local actor = entry.actor
-        if PlayersMaySeeAbility(actor, name) and AbilityCard(actor.id, name, g_cardSide) ~= nil then
-            name = HoverLink("[" .. name .. "]", string.format("a|%s|%s|%s", actor.id, name, g_cardSide or ""),
-                {kind = "ability", owner = actor.id, name = name, side = g_cardSide})
-        end
-        title = History.ShownName(actor) .. History.DOT .. name
+        title = History.ShownName(entry.actor) .. History.DOT .. AbilityNameLink(entry.actor, entry.ability.name)
     end
     local meta = gui.Label{
         classes = {"historyCardMeta"},
@@ -1718,7 +1769,8 @@ local function ReceiptNote(width, text, class)
 end
 
 --A heading inside the numbers: Power roll, a target (with its face) or Triggered.
-local function SubHead(text, width, who)
+--strong: the title of a roll made inside the action, drawn brighter so it reads on its panel.
+local function SubHead(text, width, who, strong)
     local children = {}
     if who ~= nil then
         local face = History.Face(who, 20, true)
@@ -1726,8 +1778,8 @@ local function SubHead(text, width, who)
         face.selfStyle.halign = "left"
         children[1] = face
     end
-    children[#children + 1] = gui.Label{
-        classes = {"historySmallCaps"},
+    local label = {
+        classes = {"historySmallCaps", strong and "historySmallCapsStrong" or nil},
         text = text,
         width = "auto",
         maxWidth = width - 40,
@@ -1735,6 +1787,8 @@ local function SubHead(text, width, who)
         halign = "left",
         valign = "center",
     }
+    --a title can name its ability in brackets that hover to its card (the Why's headings).
+    children[#children + 1] = gui.Label(strong and Linked(label) or label)
     return gui.Panel{
         flow = "horizontal",
         width = width,
@@ -2437,8 +2491,9 @@ end
 --- @param entry HistoryEntry
 --- @param kids HistoryEntry[]|nil
 --- @param width number
+--- @param nested? boolean True for a roll drawn in its action's section, under its own heading.
 --- @return Panel[]
-local function NumbersRows(entry, kids, width)
+local function NumbersRows(entry, kids, width, nested)
     g_linkMap = entry.map
     local rows = {}
     local targets = entry.targets or {}
@@ -2447,7 +2502,8 @@ local function NumbersRows(entry, kids, width)
     --Director gets it above the numbers, with the eye that shows them to players. Once
     --shown to everyone, only the Director keeps the line, for the eye that hides it again.
     local hidden = entry.privacy or entry.roll
-    if entry.secretroll or (hidden ~= nil and hidden.hidden and (dmhub.isDM or not hidden.revealed)) then
+    if (entry.secretroll or (hidden ~= nil and hidden.hidden and (dmhub.isDM or not hidden.revealed)))
+        and not History.RollAlwaysShown(entry) then
         rows[#rows + 1] = SecretRollRow(entry, width)
     end
 
@@ -2471,10 +2527,13 @@ local function NumbersRows(entry, kids, width)
             rollSources = sharedOf[plain[1]]
         end
     end
+    --the rolls made inside this action get sections below, which draw what they set off: the
+    --opposed and table rolls here leave those out, so nothing is drawn twice.
+    local sectioned, setOff = NestedRolls(kids)
     --each side of an opposed power roll, under its roller's name: the same lines a test
     --line's own card shows. A roll players may not see keeps only its heading.
     for _, kid in ipairs(kids or {}) do
-        if kid.family == "test" and kid.cause ~= nil then
+        if kid.family == "test" and kid.cause ~= nil and not sectioned[kid.cause] then
             local name = kid.who ~= nil and History.ShownName(kid.who) or T("history.director")
             rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or T("history.numbers.roll")), width, kid.who)
             if kid.roll ~= nil and not kid.secretroll then
@@ -2488,7 +2547,7 @@ local function NumbersRows(entry, kids, width)
     end
     if roll ~= nil then
         --a nested roll sits under its roller's heading already.
-        if entry.cause == nil or entry.family ~= "test" then
+        if not nested and (entry.cause == nil or entry.family ~= "test") then
             rows[#rows + 1] = SubHead(T("history.numbers.power_roll"), width)
         end
         if roll.natural ~= nil and roll.low ~= nil and roll.high ~= nil then
@@ -2541,7 +2600,7 @@ local function NumbersRows(entry, kids, width)
 
     --a table the ability rolled on, under its roller's name, as the table line's own card has it.
     for _, kid in ipairs(kids or {}) do
-        if kid.family == "table" then
+        if kid.family == "table" and not (kid.cause ~= nil and sectioned[kid.cause]) then
             local name = kid.who ~= nil and History.ShownName(kid.who) or kid.roller or T("history.director")
             rows[#rows + 1] = SubHead(name .. History.DOT .. (kid.name or T("history.table")), width, kid.who)
             AddTableLines(rows, width, kid)
@@ -2589,9 +2648,52 @@ local function NumbersRows(entry, kids, width)
         AddTargetLines(rows, width, entry, group[1], #group, ownOf[group[1]])
     end
 
+    --each roll made inside this action, in the order rolled and all at one level: its own
+    --heading, receipt and targets on a faint panel, with what it set off inside it. One that
+    --fails to build is left out and logged, so the rest of the card still opens.
+    for _, kid in ipairs(kids or {}) do
+        if sectioned[kid.id] then
+            local linkMap = g_linkMap
+            local ok, section = pcall(function()
+                local inner = width - NESTED_INDENT
+                local lines = {SubHead(History.ShownName(kid.actor) .. History.DOT .. kid.ability.name, inner, kid.actor, true)}
+                for _, line in ipairs(NumbersRows(kid, setOff[kid.id], inner, true)) do
+                    lines[#lines + 1] = line
+                end
+                return gui.Panel{
+                    classes = {"historyNested"},
+                    bgimage = "panels/square.png",
+                    border = {x1 = 2, y1 = 0, x2 = 0, y2 = 0},
+                    flow = "vertical",
+                    width = width,
+                    height = "auto",
+                    halign = "left",
+                    lpad = NESTED_LPAD,
+                    rpad = NESTED_RPAD,
+                    --the title's own top margin is the space above it.
+                    tpad = 0,
+                    bpad = 8,
+                    tmargin = 12,
+                    bmargin = 8,
+                    borderBox = true,
+                    children = lines,
+                }
+            end)
+            --the section's own entry set the links' map; the rest of this card is the action's.
+            g_linkMap = linkMap
+            if ok then
+                rows[#rows + 1] = section
+            else
+                print("History:: nested section failed:", section)
+            end
+        end
+    end
+
     local triggered = {}
     for _, kid in ipairs(kids or {}) do
-        if (kid.kind == "trigger" or kid.kind == "action") and kid.actor ~= nil then
+        --a roll made inside the action has its section above, with what it set off.
+        local drawnAbove = sectioned[kid.id] or (kid.cause ~= nil and sectioned[kid.cause])
+        if (kid.kind == "trigger" or kid.kind == "action") and kid.actor ~= nil and not drawnAbove then
             local net = 0
             for _, who in ipairs(kid.targets or {}) do
                 net = net - (who.taken or 0) + (who.healed or 0)
@@ -2636,6 +2738,7 @@ end
 --- @field who HistoryCreature|nil A face before the lead: the owner of a modifier.
 --- @field plain boolean|nil The line saying nothing changed the result: muted, with no lead.
 --- @field movers HistoryCreature[]|nil Whose recorded move the lead's side view button shows.
+--- @field heading string|nil In place of a line: the heading of a roll made inside the action, with the face of who.
 
 --Conditions whose name doesn't follow "cannot be".
 local CONDITION_PHRASES = {prone = T("history.why.condition_phrase.prone")}
@@ -3419,16 +3522,33 @@ end
 --- written once, naming them all. When nothing changed the result, one plain line says so.
 --- No gui, so other views can use the same words.
 
+--- Each roll made inside the action (a forced or granted strike) then gets a heading naming it,
+--- with its own lines under it in the same words; one with nothing to explain gets none.
 --- @param entry HistoryEntry
 --- @param kids? HistoryEntry[] What is nested under it.
+--- @param nested? boolean True for such a roll's own lines, under its heading.
 --- @return HistoryWhyRow[]
-function History.Why(entry, kids)
+function History.Why(entry, kids, nested)
     local rows = {}
     g_linkMap = entry.map
-    if entry.kind ~= "action" then
+    if entry.kind ~= "action" and not nested then
         return rows
     end
     local targets = entry.targets or {}
+
+    --a roll made inside the action, and what it set off, are explained under its own heading
+    --below, so the action's own lines leave them out.
+    local allKids = kids or {}
+    local sectioned, setOff = {}, {}
+    if not nested then
+        sectioned, setOff = NestedRolls(allKids)
+    end
+    kids = {}
+    for _, kid in ipairs(allKids) do
+        if not sectioned[kid.id] and not (kid.cause ~= nil and sectioned[kid.cause]) then
+            kids[#kids + 1] = kid
+        end
+    end
 
     --each line is built once all its targets are known, so make can name them together
     --("Goblin 1-4").
@@ -3707,7 +3827,8 @@ function History.Why(entry, kids)
             rows[#rows + 1] = {
                 lead = owner ~= nil and T("history.possessive", {owner = History.ShownName(owner), name = name}) or lead,
                 who = owner,
-                text = T("history.why.triggered_by", {effect = effect}),
+                --under a strike's own heading, "this action" would point at the wrong thing.
+                text = T(nested and "history.why.triggered_by_strike" or "history.why.triggered_by", {effect = effect}),
             }
         end
         for _, message in ipairs(kid.messages or {}) do
@@ -3723,28 +3844,49 @@ function History.Why(entry, kids)
             rows[#rows + 1] = {text = message}
         end
     end
-    if #rows > 0 then
-        return rows
-    end
 
     --"Nothing changed" only when the roll and the damage are exactly what the tier says.
-    --A kit is the hero's normal damage, so it doesn't count as a change.
-
-    --a player doesn't know what changed a roll hidden from them.
-    if entry.secretroll then
-        return rows
-    end
-    local acted = roll ~= nil
-    local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
-    for _, who in ipairs(targets) do
-        acted = acted or (who.taken or 0) > 0
-        changed = changed or who.roll ~= nil
-        for _, part in ipairs(who.parts or {}) do
-            changed = changed or part.kind ~= "kit"
+    --A kit is the hero's normal damage, so it doesn't count as a change. A player doesn't
+    --know what changed a roll hidden from them, and a roll inside the action with nothing
+    --to explain gets no heading at all.
+    if #rows == 0 and not entry.secretroll and not nested then
+        local acted = roll ~= nil
+        local changed = roll ~= nil and ((roll.edges or 0) > 0 or (roll.banes or 0) > 0 or (roll.sources ~= nil and #roll.sources > 0))
+        for _, who in ipairs(targets) do
+            acted = acted or (who.taken or 0) > 0
+            changed = changed or who.roll ~= nil
+            for _, part in ipairs(who.parts or {}) do
+                changed = changed or part.kind ~= "kit"
+            end
+        end
+        if acted and not changed then
+            rows[1] = {plain = true, text = T("history.why.nothing_changed")}
         end
     end
-    if acted and not changed then
-        rows[1] = {plain = true, text = T("history.why.nothing_changed")}
+
+    --each roll made inside the action, in the order rolled: its heading, then its own lines.
+    --One whose lines fail to build is left out and logged, so the rest of the card still opens.
+    for _, kid in ipairs(allKids) do
+        if sectioned[kid.id] then
+            local linkMap = g_linkMap
+            local ok, section = pcall(function()
+                local lines = History.Why(kid, setOff[kid.id], true)
+                if #lines == 0 then
+                    return lines
+                end
+                table.insert(lines, 1, {heading = History.ShownName(kid.actor) .. History.DOT .. AbilityNameLink(kid.actor, kid.ability.name), who = kid.actor})
+                return lines
+            end)
+            --the roll's own entry set the links' map; the rest of this card is the action's.
+            g_linkMap = linkMap
+            if ok then
+                for _, line in ipairs(section) do
+                    rows[#rows + 1] = line
+                end
+            else
+                print("History:: nested Why failed:", section)
+            end
+        end
     end
     return rows
 end
@@ -3753,6 +3895,9 @@ end
 --thin rule down the left.
 --- @param row HistoryWhyRow
 local function WhyRow(row, width)
+    if row.heading ~= nil then
+        return SubHead(row.heading, width, row.who, true)
+    end
     local inner = width - WHY_INDENT
     local children = {}
     if row.lead ~= nil then

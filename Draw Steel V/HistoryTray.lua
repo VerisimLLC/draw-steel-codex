@@ -561,6 +561,19 @@ local function Styles()
             borderColor = "@border",
         },
         {
+            --a roll made inside the action (a forced or granted strike): a faintly lighter
+            --panel with a rule down its left, so its lines are not read as the main roll's.
+            --Opacity here dims only this panel's own fill and rule, not the lines on it.
+            selectors = {"historyNested"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgMuted",
+            opacity = 0.35,
+        },
+        {
+            selectors = {"label", "historySmallCaps", "historySmallCapsStrong"},
+            color = "@fg",
+        },
+        {
             selectors = {"label", "historyWhyLead"},
             fontSize = 14,
             bold = true,

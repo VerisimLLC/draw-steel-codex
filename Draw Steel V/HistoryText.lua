@@ -440,6 +440,8 @@ text("history.story.trigger_hit_typed", [[{ability} then hit {name} for {amount}
 text("history.story.trigger_hit", [[{ability} then hit {name} for {amount} damage.]])
 --{words} is what happened to {name}, as above.
 text("history.story.trigger_did", [[{ability}: {name}{words}]])
+--A strike made inside the action that did nothing to its target (immunity took it all).
+text("history.story.nested_no_damage", [[{ability} hit {name} for no damage.]])
 --What a Hero said in a negotiation.
 text("history.story.argument_said", [["{text}"]])
 --At the end of an encounter: what ended on each creature. {names} lists them.
@@ -689,6 +691,8 @@ text("history.why.potency.not_resisted", [[{potency}: {names} could not resist.]
 text("history.why.trigger_word_lead", [[Trigger]])
 text("history.why.trigger_word", [[trigger]])
 text("history.why.triggered_by", [[Triggered by this action: {effect}]])
+--the same, under the heading of a roll made inside the action (a forced or granted strike).
+text("history.why.triggered_by_strike", [[Triggered by this strike: {effect}]])
 --When nothing changed the result.
 text("history.why.nothing_changed", [[Nothing changed the roll or the damage.]])
 

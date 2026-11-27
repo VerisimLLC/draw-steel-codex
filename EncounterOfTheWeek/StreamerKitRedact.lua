@@ -59,6 +59,9 @@
 --    events = { { seq, t, kind, whoId, who, targetId, target, amount, crit } },
 --    monsters[i].group, groupTitle: the initiative group it acts with
 --      (InitiativeQueue.GetInitiativeId) and that group's title.
+--    heroes[i].conditions[j].byId, monsters[i].conditions[j].byId: the
+--      creature that applied it; published as conditions[j].by (its public
+--      name) only when that creature is itself in the snapshot.
 --    heroes[i].turnStatus, monsters[i].turnStatus: "now"|"acted"|"waiting",
 --      this round's turn as the initiative bar shows it (combat only).
 --    actions = nil | { { t, round, ability, villain,
@@ -437,7 +440,8 @@ local function Conditions(list, dropSecret)
             local id = Str(c.id)
             if id ~= nil and not seen[id] and #result < MAX_CONDITIONS then
                 seen[id] = true
-                result[#result + 1] = { id = id, name = Str(c.name) or id }
+                --byId rides along until Redact can name it (ResolveSources).
+                result[#result + 1] = { id = id, name = Str(c.name) or id, _byId = Str(c.byId) }
             end
         end
     end
@@ -640,6 +644,25 @@ function StreamerKitRedact.Redact(raw)
                 visibleNames[hero.id] = entry.name
             end
         end
+    end
+
+    --who applied each condition: named only when it is a creature this
+    --snapshot already shows (as the combat log names actors); unknown,
+    --hidden or off-feed sources leave the condition unattributed.
+    local function ResolveSources(list)
+        for _, c in ipairs(list or {}) do
+            local id = c._byId
+            c._byId = nil
+            if id ~= nil and not hiddenIds[id] and visibleNames[id] ~= nil and visibleNames[id] ~= "???" then
+                c.by = visibleNames[id]
+            end
+        end
+    end
+    for _, entry in ipairs(heroes) do
+        ResolveSources(entry.conditions)
+    end
+    for _, entry in ipairs(monsters) do
+        ResolveSources(entry.conditions)
     end
 
     local out = {

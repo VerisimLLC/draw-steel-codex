@@ -552,4 +552,29 @@ end)()
     AssertNoLeaks(out, "turn status")
 end)()
 
+;(function()
+    -- who applied a condition: named only when that creature is in the snapshot.
+    local raw = Fixture()
+    local heroId = raw.heroes[1].id
+    raw.monsters[1].conditions = {
+        { id = "judged", name = "Judged", byId = heroId },
+        { id = "slowed", name = "Slowed", byId = "nobody-we-show" },
+        { id = "dazed", name = "Dazed" },
+    }
+    local hiddenId = nil
+    for _, m in ipairs(raw.monsters) do if m.hidden then hiddenId = m.id end end
+    raw.heroes[2].conditions = { { id = "frightened", name = "Frightened", byId = hiddenId or "hidden-x" } }
+    local out = StreamerKitRedact.Redact(raw)
+    local foe = nil
+    for _, f in ipairs(out.foes.list) do if f.id == raw.monsters[1].id then foe = f end end
+    check(foe ~= nil, "the fixture's first monster is shown")
+    local by = {}
+    for _, c in ipairs(foe.conditions) do by[c.id] = c.by or false; check(c._byId == nil and c.byId == nil, "no raw source id leaves") end
+    check(by.judged == out.heroes[1].name, "a visible hero is named: " .. tostring(by.judged))
+    check(by.slowed == false, "a source not in the snapshot is left off")
+    check(by.dazed == false, "no source, no name")
+    check(out.heroes[2].conditions[1].by == nil, "a hidden creature is never named")
+    AssertNoLeaks(out, "condition sources")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

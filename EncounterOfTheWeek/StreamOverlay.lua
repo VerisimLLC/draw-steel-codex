@@ -156,6 +156,69 @@ local function MonsterStaminaDisplay(token)
     return showAs
 end
 
+--- The creature id behind a casterInfo, as the feed keys creatures.
+--- @param casterInfo any
+--- @return nil|string
+local function CasterId(casterInfo)
+    if type(casterInfo) ~= "table" or type(casterInfo.tokenid) ~= "string" then
+        return nil
+    end
+    local id = casterInfo.tokenid
+    pcall(function()
+        local tok = dmhub.GetTokenById(casterInfo.tokenid)
+        if tok ~= nil and tok.charid ~= nil then
+            id = tok.charid
+        end
+    end)
+    return id
+end
+
+--- Who put each of a creature's conditions on it, by lower-cased condition
+--- name: from Draw Steel's inflicted conditions and from ongoing effects,
+--- both of which record the caster. A condition with no recorded caster, or
+--- one the creature put on itself, is left out.
+--- @param token CharacterToken
+--- @return table<string, string> conditionName -> caster creature id
+local function ConditionSources(token)
+    local result = {}
+    pcall(function()
+        local props = token.properties
+        local conditions = dmhub.GetTable(CharacterCondition.tableName) or {}
+        for condid, entry in pairs(props:try_get("inflictedConditions", {})) do
+            local info = conditions[condid]
+            local id = type(entry) == "table" and CasterId(entry.casterInfo) or nil
+            if info ~= nil and type(info.name) == "string" and id ~= nil and id ~= token.charid then
+                result[string.lower(info.name)] = id
+            end
+        end
+        local effects = dmhub.GetTable("characterOngoingEffects") or {}
+        for _, effect in ipairs(props:ActiveOngoingEffects()) do
+            local info = effects[effect.ongoingEffectid]
+            if info ~= nil then
+                local condInfo = conditions[info.condition]
+                local name = (condInfo ~= nil and condInfo.name) or info.name
+                local id = CasterId(effect:try_get("casterInfo"))
+                if type(name) == "string" and id ~= nil and id ~= token.charid and result[string.lower(name)] == nil then
+                    result[string.lower(name)] = id
+                end
+            end
+        end
+    end)
+    return result
+end
+
+--- Marks each condition with byId, the creature that put it on, where known.
+--- @param list table
+--- @param token CharacterToken
+--- @return table list
+local function WithSources(list, token)
+    local sources = ConditionSources(token)
+    for _, c in ipairs(list) do
+        c.byId = sources[string.lower(c.name or "")]
+    end
+    return list
+end
+
 --- Conditions on a hero, as { {id, name} }. Uses exactly what the token HUD
 --- shows; a hero is always friendly to the players, so nothing here is secret.
 --- @param token CharacterToken
@@ -852,7 +915,7 @@ local function RawHero(token, activeTokenIds)
             intuition = Characteristic(props, "inu"),
             presence = Characteristic(props, "prs"),
         },
-        conditions = HeroConditions(token),
+        conditions = WithSources(HeroConditions(token), token),
         active = activeTokenIds[token.charid] == true,
     }
     if hero.name == nil or hero.name == "" then
@@ -1369,7 +1432,7 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                         monster.groupTitle = remembered.title
                     end
                 end
-                monster.conditions = MonsterConditions(props)
+                monster.conditions = WithSources(MonsterConditions(props), token)
                 monster.turnStatus = TurnStatusOf(q, token, activeTokenIds)
                 monster.abilities, monster.villainActions = RawMonsterAbilities(token, used)
                 raw.monsters[#raw.monsters + 1] = monster

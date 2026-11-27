@@ -94,29 +94,80 @@ local g_codexCalloutStyles = {
         bgimage = true,
         bgcolor = "@bgAlt",
         cornerRadius = 7,
-        hpad = 14,
+        hpad = 10,
         vpad = 4,
         borderBox = true,
     },
+    --The logo sits the same distance (10) from the frame as from the text.
     {
         selectors = {"codexCalloutLogo"},
-        width = 16,
-        height = 16,
+        width = 29,
+        height = 29,
         valign = "center",
         bgcolor = "white",
     },
     {
         selectors = {"codexCalloutText"},
-        width = "100%-22",
+        width = "100%-39",
         height = "auto",
-        lmargin = 6,
+        lmargin = 10,
         valign = "center",
         fontSize = 14,
         color = "@fg",
     },
+    --The text is laid out as a row of pieces (words, icon, words) instead of one label.
+    {
+        selectors = {"codexCalloutRow"},
+        width = "100%-39",
+        height = "auto",
+        lmargin = 10,
+        valign = "center",
+        flow = "horizontal",
+        wrap = true,
+    },
+    {
+        selectors = {"codexCalloutPiece"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        rmargin = 4, --the space between words
+        fontSize = 14,
+        color = "@fg",
+    },
+    {
+        selectors = {"codexCalloutInlineIcon"},
+        width = 14,
+        height = 14,
+        valign = "center",
+        rmargin = 4,
+        bgcolor = "white",
+    },
 }
 
-function GameHud.CreateCodexCalloutsPanel()
+--Put this where a callout's text should show the padlock icon: the text
+--"Click the [lock] to dismount" is drawn as "Click the", the icon, "to dismount".
+GameHud.CodexCalloutLockMarker = "[lock]"
+local g_lockIcon = "icons/icon_tool/icon_tool_30.png"
+
+--Split callout text around the lock marker. Returns nil when the text has none.
+local function SplitCalloutAtLock(text)
+    local marker = GameHud.CodexCalloutLockMarker
+    local startIndex, endIndex = string.find(text, marker, 1, true)
+    if startIndex == nil then
+        return nil
+    end
+    return string.trim(string.sub(text, 1, startIndex-1)), string.trim(string.sub(text, endIndex+1))
+end
+
+--Callouts are as wide as the tooltip text above them, so a long sentence uses the room the
+--tooltip already has and a short tooltip is not stretched. Never narrower than the default
+--look (CALLOUT_MIN_WIDTH) nor wider than CALLOUT_MAX_WIDTH; text that doesn't fit wraps.
+local CALLOUT_MIN_WIDTH = 300
+local CALLOUT_MAX_WIDTH = 420
+
+--getReferenceWidth: optional function returning the rendered width of the tooltip text the
+--callouts sit under (in screen pixels, as Panel.renderedWidth reports).
+function GameHud.CreateCodexCalloutsPanel(getReferenceWidth)
     return gui.Panel{
         width = "auto",
         height = "auto",
@@ -124,7 +175,27 @@ function GameHud.CreateCodexCalloutsPanel()
         halign = "center",
         --@tokens only resolve when routed through ThemeEngine.
         styles = ThemeEngine.MergeTokens(g_codexCalloutStyles),
-        data = { key = nil },
+        data = { key = nil, callouts = {}, appliedWidth = CALLOUT_MIN_WIDTH },
+
+        thinkTime = 0.1,
+        think = function(element)
+            local first = element.data.callouts[1]
+            local reference = getReferenceWidth ~= nil and getReferenceWidth() or nil
+            if first == nil or reference == nil or reference <= 0 or first.renderedWidth <= 0 then
+                return
+            end
+
+            --pixels per style unit, learned from how wide the callout we sized rendered.
+            local scale = first.renderedWidth / element.data.appliedWidth
+            local target = math.max(CALLOUT_MIN_WIDTH, math.min(CALLOUT_MAX_WIDTH, reference / scale))
+            if math.abs(target - element.data.appliedWidth) >= 2 then
+                element.data.appliedWidth = target
+                for _,callout in ipairs(element.data.callouts) do
+                    callout.selfStyle.width = target
+                end
+            end
+        end,
+
         args = function(element, args)
             --args fires as the cursor moves; only rebuild when the notes change.
             local key = table.concat(args.codexCallouts or {}, "\n")
@@ -135,21 +206,45 @@ function GameHud.CreateCodexCalloutsPanel()
 
             local children = {}
             for _,text in ipairs(args.codexCallouts or {}) do
+                local before, after = SplitCalloutAtLock(text)
+
+                local textPanel
+                if before ~= nil and after ~= nil then
+                    --One label per word, so the row fills each line before it wraps (a single
+                    --label would wrap as one block and leave the line half empty).
+                    local pieces = {}
+                    for word in string.gmatch(before, "%S+") do
+                        pieces[#pieces+1] = gui.Label{ classes = {"codexCalloutPiece"}, text = word }
+                    end
+                    pieces[#pieces+1] = gui.Panel{ classes = {"codexCalloutInlineIcon"}, bgimage = g_lockIcon }
+                    for word in string.gmatch(after, "%S+") do
+                        pieces[#pieces+1] = gui.Label{ classes = {"codexCalloutPiece"}, text = word }
+                    end
+                    textPanel = gui.Panel{
+                        classes = {"codexCalloutRow"},
+                        children = pieces,
+                    }
+                else
+                    textPanel = gui.Label{
+                        classes = {"codexCalloutText"},
+                        text = text,
+                    }
+                end
+
                 children[#children+1] = gui.Panel{
                     classes = {"codexCallout"},
+                    width = element.data.appliedWidth,
                     gui.Panel{
                         classes = {"codexCalloutBody"},
                         gui.Panel{
                             classes = {"codexCalloutLogo"},
                             bgimage = "ui-icons/codex-logo.png",
                         },
-                        gui.Label{
-                            classes = {"codexCalloutText"},
-                            text = text,
-                        },
+                        textPanel,
                     },
                 }
             end
+            element.data.callouts = children
             element.children = children
         end,
     }
@@ -1992,7 +2087,12 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 								floorDeltaArrow,
 								m_tilelabel,
 							},
-							GameHud.CreateCodexCalloutsPanel(),
+							GameHud.CreateCodexCalloutsPanel(function()
+								if m_tilelabel ~= nil and m_tilelabel.valid then
+									return m_tilelabel.renderedWidth
+								end
+								return nil
+							end),
 							CreateMovementDiagramPanel(),
 						},
 						{

@@ -1,5 +1,95 @@
 local mod = dmhub.GetModLoading()
 
+--The riders of `mount` that sit in a locked saddle and that the user controls. Grabbing a
+--locked rider drags its mount instead, and the engine reports neither the selection nor the
+--hover as the rider, so we can't tell which one the player reached for: any drag of a mount
+--with locked riders gets the reminder.
+function GameHud.LockedRidersOf(mount)
+    local result = {}
+    if mount == nil or not mount.valid then
+        return result
+    end
+
+    for _,rider in ipairs(mount.riders or {}) do
+        if rider.valid and (not rider.saddleUnlocked) and rider.canControl then
+            result[#result+1] = rider
+        end
+    end
+    return result
+end
+
+--Shows a keybinding string ("alt+up") as "Alt + <up arrow>": the final "up"/"down" key
+--becomes an arrow glyph. Returns nil when nothing is bound. \u escapes keep this file ASCII.
+local g_arrowGlyphs = { up = "\u{2191}", down = "\u{2193}" }
+local function PrettyKeystroke(keystroke)
+	if keystroke == nil or keystroke == "" then
+		return nil
+	end
+	local parts = {}
+	for part in string.gmatch(keystroke, "[^+]+") do
+		parts[#parts+1] = g_arrowGlyphs[part] or (string.upper(string.sub(part, 1, 1)) .. string.sub(part, 2))
+	end
+	return table.concat(parts, " + ")
+end
+
+--- Which capability lets this creature move vertically right now: "fly", "climb", "swim",
+--- "burrow" or "cling" (let go of a ceiling), or nil if none does. When several apply, the
+--- creature's current movement mode wins, since that is what the keys will use; otherwise
+--- fly, then climb, then burrow.
+--- @param token CharacterToken
+--- @return string|nil
+function GameHud.VerticalMovementSource(token)
+	local creature = token.properties
+	if creature == nil then
+		return nil
+	end
+
+	local moveType = creature:CurrentMoveType()
+	if creature:IsClingingToCeiling() then
+		return "cling"
+	elseif moveType == "swim" then
+		return "swim"
+	elseif moveType == "fly" and creature:CanFlyVertically() then
+		return "fly"
+	elseif moveType == "climb" and token.canCurrentlyClimb then
+		return "climb"
+	elseif moveType == "burrow" and creature:CanBurrow() then
+		return "burrow"
+	elseif creature:CanFlyVertically() then
+		return "fly"
+	elseif token.canCurrentlyClimb then
+		return "climb"
+	elseif creature:CanBurrow() then
+		return "burrow"
+	end
+	return nil
+end
+
+--- The Codex Callout telling a creature which keys move it up or down, led by what gives it
+--- that ability ("Climb: ..."), or nil when it cannot move vertically right now. Sources: a
+--- fly speed that allows vertical flight, climbing (only at a climbable surface), swimming in
+--- water, a burrow speed, and clinging to a ceiling.
+--- @param token CharacterToken the token being dragged
+--- @param path table the engine's movement path
+--- @return string|nil
+function GameHud.VerticalMovementCallout(token, path)
+	if token.properties == nil or path.forced or path.teleport then
+		return nil
+	end
+
+	local source = GameHud.VerticalMovementSource(token)
+	local up = PrettyKeystroke(dmhub.GetCommandBinding("flyup"))
+	local down = PrettyKeystroke(dmhub.GetCommandBinding("flydown"))
+	if source == nil or up == nil or down == nil then
+		return nil
+	end
+	return UIText.T("movement.callout.hold_to_move_vertically", {
+		source = UIText.T("movement.callout.vertical_source." .. source),
+		up = up,
+		down = down,
+	})
+end
+
 --functions called by dmhud to indicate that a token is moving or has finished moving.
 function GameHud.TokenMoving(self, token, path)
 
@@ -408,6 +498,28 @@ function GameHud.TokenMoving(self, token, path)
     --hold Ctrl to teleport instead of moving -- shown while walking and while teleporting.
     if creature ~= nil and creature:CanTeleport() and not path.forced then
         codexCallouts[#codexCallouts+1] = UIText.T("movement.callout.hold_ctrl_to_teleport")
+    end
+
+    --Anyone who can currently move vertically is told which keys do it (Fly Token Up/Down).
+    local verticalCallout = GameHud.VerticalMovementCallout(token, path)
+    if verticalCallout ~= nil then
+        codexCallouts[#codexCallouts+1] = verticalCallout
+    end
+
+    --A creature locked into its saddle can't be dragged off: grabbing it drags its mount
+    --instead, so the token passed in here is the mount. The padlock on the rider's token is
+    --what dismounts it, so whenever a mount carrying locked riders is dragged, say where the
+    --lock is.
+    local lockedRiders = GameHud.LockedRidersOf(token)
+    if #lockedRiders > 0 then
+        local riderName = lockedRiders[1].name
+        if riderName == nil or riderName == "" then
+            riderName = tr("this creature")
+        end
+        codexCallouts[#codexCallouts+1] = UIText.Plural("movement.callout.click_lock_to_dismount", #lockedRiders, {
+            lock = GameHud.CodexCalloutLockMarker,
+            name = riderName,
+        })
     end
 
     --A feature may carry the same note as its own Codex Callout (Cinder Step); show it once.

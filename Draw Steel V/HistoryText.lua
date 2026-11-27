@@ -440,6 +440,8 @@ text("history.story.trigger_hit_typed", [[{ability} then hit {name} for {amount}
 text("history.story.trigger_hit", [[{ability} then hit {name} for {amount} damage.]])
 --{words} is what happened to {name}, as above.
 text("history.story.trigger_did", [[{ability}: {name}{words}]])
+--A strike made inside the action that did nothing to its target (immunity took it all).
+text("history.story.nested_no_damage", [[{ability} hit {name} for no damage.]])
 --What a Hero said in a negotiation.
 text("history.story.argument_said", [["{text}"]])
 --At the end of an encounter: what ended on each creature. {names} lists them.

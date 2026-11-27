@@ -469,6 +469,16 @@ local function OnlyDamage(who)
         and who.immune == nil and not who.resisted and not who.landedon
 end
 
+--- True for an entry nested under an action that made a power roll of its own: a forced or
+--- granted strike, which would be a separate roll at the table. The card gives it a section.
+--- A roll players may not see still counts: History.Entry has taken its numbers out.
+--- @param kid HistoryEntry
+--- @return boolean
+local function IsNestedRoll(kid)
+    return (kid.kind == "action" or kid.kind == "trigger") and kid.family == nil and kid.actor ~= nil
+        and kid.ability ~= nil and ((kid.roll ~= nil and kid.roll.total ~= nil) or kid.secretroll == true)
+end
+
 --What a nested trigger did, or a resource it changed.
 local function AddKid(rows, kid)
     if kid.family == "resource" then
@@ -510,6 +520,13 @@ local function AddKid(rows, kid)
                     who = {who},
                     text = T("history.story.trigger_did", {ability = owner, name = name, words = words}),
                     amount = LandedAmount(who),
+                }
+            elseif IsNestedRoll(kid) and not hitsOwner then
+                --a strike made inside the action that did nothing (immunity took it all) still
+                --happened; its numbers below say why.
+                rows[#rows + 1] = {
+                    who = {who},
+                    text = T("history.story.nested_no_damage", {ability = owner, name = name}),
                 }
             end
         end
@@ -2446,16 +2463,6 @@ local function AddTableLines(rows, width, entry)
     if entry.overridden ~= nil then
         rows[#rows + 1] = ReceiptNote(width, entry.overridden, "historyReceiptMore")
     end
-end
-
---- True for an entry nested under an action that made a power roll of its own: a forced or
---- granted strike, which would be a separate roll at the table. The card gives it a section.
---- A roll players may not see still counts: History.Entry has taken its numbers out.
---- @param kid HistoryEntry
---- @return boolean
-local function IsNestedRoll(kid)
-    return (kid.kind == "action" or kid.kind == "trigger") and kid.family == nil and kid.actor ~= nil
-        and kid.ability ~= nil and ((kid.roll ~= nil and kid.roll.total ~= nil) or kid.secretroll == true)
 end
 
 --- The receipt's rows for an action entry; empty when it has nothing to add up.

@@ -343,7 +343,12 @@ local function CastBegan(ability, casterToken, targets, options)
     --ability's row, whatever card it shows: its targets, rolls and results go there.
     local partOf = ability:try_get("_tmp_partOfAbility")
     local outer = symbols ~= nil and symbols.cast ~= nil and g_byCast[symbols.cast] or nil
-    if partOf ~= nil and outer ~= nil and not outer.finished then
+    --a step that makes a second roll after its ability's own (Wild Ax's "use this ability
+    --again") is a separate roll at the table: it keeps a row of its own under the action,
+    --so its numbers and damage are not folded into the first roll's.
+    local repeatRoll = partOf ~= nil and outer ~= nil and not outer.finished and RollsPower(ability)
+        and symbols.cast:try_get("total") ~= nil
+    if partOf ~= nil and outer ~= nil and not outer.finished and not repeatRoll then
         --a step that rolls makes the roll the outer row's own (Natural Weapon's strike).
         outer.stepRolls = outer.stepRolls or RollsPower(ability)
         --everyone the step hits is on the row, as for any ability, even if nothing happened to them.
@@ -360,8 +365,8 @@ local function CastBegan(ability, casterToken, targets, options)
     local automatic = ability.typeName == "TriggeredAbility" and not ability:ShowChatMessageOnCast()
     --one of the creature's own abilities used as part of an action keeps a row of its own,
     --nested under that action, even when it shows no card (the Monster AI's choices).
-    local usedAs = ability:try_get("_tmp_usedAsAbility") == true and outer ~= nil and not outer.finished
-    if sharesCard or (not automatic and not usedAs and not ability:ShowChatMessageOnCast()) then
+    local usedAs = (ability:try_get("_tmp_usedAsAbility") == true and outer ~= nil and not outer.finished) or repeatRoll
+    if (sharesCard and not repeatRoll) or (not automatic and not usedAs and not ability:ShowChatMessageOnCast()) then
         JoinParentRow(options, ability)
         return
     end

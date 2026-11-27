@@ -323,43 +323,25 @@ local g_storeBannerEotwHoverRect = {
 --the shop's Dice items). Each is rendered as its own idle-spinning preview die
 --via a "#DicePreview:<assetid>:<seq>" bgimage (the same pooled mechanism the
 --shop tiles use), so no shared preview scene is involved and the two sets spin
---independently. Noxa is the larger, forward-center die; Sea of Stars is the
---smaller one tucked in behind it, so the pair reads as an overlapping arc.
+--independently. Noxa is the larger, forward-center die; Circle of Spring is
+--the smaller one tucked in behind it, so the pair reads as an overlapping arc.
 local g_storeBannerDiceNoxa = "62e2ade2-95a6-493b-81bb-3f9f08cc8312"
-local g_storeBannerDiceSeaOfStars = "8a2a0ab2-d9e2-4ee4-a215-a480033ef6a6"
+local g_storeBannerDiceCircleOfSpring = "95153059-bf2d-4dce-8a68-c3e3c007f863"
 
---Per-set banner art: when the rollable d10 on the banner's right seeds a
---dice set (see MakeStoreBannerRollDie), the banner's background art
---cross-fades to that set's banner. Keyed by the dice set assetid -- the
---same id the roll die seeds by -- so a set with no entry here simply falls
---back to the default art. The images live in Assets/UIImages/panels/shop/
---(same 1044x202 layout as the default art) and ship via
---import-ui-images.ps1 + a build, like any other UI image.
-local g_storeBannerDefaultArt = "panels/shop/title-storebanner.png"
+--Per-set banner art, and also the list of sets the banner features: the
+--rollable d10 on the banner's right only seeds sets listed here (see
+--StoreBannerRollableDiceItems), and the banner's background cross-fades to
+--the seeded set's art. Keyed by the dice set assetid. The images live in
+--Assets/UIImages/panels/shop/ (1044x202) and ship via import-ui-images.ps1
+--+ a build, like any other UI image. The default art shows until the d10
+--seeds its first set.
+local g_storeBannerDefaultArt = "panels/shop/noxa-banner.png"
 local g_storeBannerArtByAsset = {
-    ["28c8efb2-81d9-416a-996a-436f8b09e840"] = "panels/shop/soulkiller-banner.png",   --Soulkiller Dice
-    ["8a2a0ab2-d9e2-4ee4-a215-a480033ef6a6"] = "panels/shop/sea-of-stars-banner.png", --Sea of Stars
-    ["c9606a08-22a6-49f0-ab2e-3d137ed7c874"] = "panels/shop/llianar-banner.png",      --Llianar
-    ["67dcc6a6-e39c-4e36-8f12-67be4b6b51c2"] = "panels/shop/terran-steel-banner.png", --Terran Steel
-    ["a1dd7e1a-585e-4203-9fb1-bb3477da32ce"] = "panels/shop/zodiakol-banner.png",     --Zodiakol
-}
-
---Linear gradient across the banner art: dark at the far left (backing the
---mini dice showcase, as before) and fading to a substantial block of black
---on the right, where the rollable d10 and its "Drag to Roll" caption sit.
---Shared by the banner panel's own bgimage and its cross-fade art layer so
---the incoming art composites identically over the outgoing art.
-local g_storeBannerGradient = {
-    type = "linear",
-    point_a = { x = 0, y = 0.5 },
-    point_b = { x = 1, y = 0.5 },
-    stops = {
-        { position = 0.0,  color = "#000000ff" },
-        { position = 0.28, color = "#ffffffff" },
-        { position = 0.68, color = "#ffffffff" },
-        { position = 0.88, color = "#000000ff" },
-        { position = 1.0,  color = "#000000ff" },
-    },
+    ["e1417db4-9b74-4ad4-802d-728007f7becd"] = "panels/shop/wode-banner.png",             --Heart of the Wode
+    ["62e2ade2-95a6-493b-81bb-3f9f08cc8312"] = "panels/shop/noxa-banner.png",             --Noxa
+    ["53110e52-aa49-466d-bdda-d80663636899"] = "panels/shop/radenwight-banner.png",       --Radenwight
+    ["95153059-bf2d-4dce-8a68-c3e3c007f863"] = "panels/shop/circle-of-spring-banner.png", --Circle of Spring
+    ["3989799f-b4b4-409c-b2db-9c19b1d5d043"] = "panels/shop/lightbending-banner.png",     --Lightbending
 }
 
 --Builds one spinning, drag-to-spin preview die for the store banner showcase.
@@ -411,9 +393,10 @@ local function MakeStoreBannerDie(opts)
     }
 end
 
---All Dice shop items currently live on the store: the pool the banner's
---rollable d10 rotates through. Recomputed on every (re)seed so it tracks
---store changes, and returns {} until the shop items have downloaded (the
+--The Dice shop items with banner art in g_storeBannerArtByAsset: the pool the
+--banner's rollable d10 rotates through. They need not be on sale yet, so the
+--featured sets can be shown ahead of their launch. Recomputed on every
+--(re)seed, and returns {} until the shop items have downloaded (the
 --cage's think below just retries until the pool is non-empty). Sorted by
 --name (id tiebreak) so the rotation order is deterministic regardless of
 --the engine's shop-item iteration order.
@@ -421,7 +404,7 @@ local function StoreBannerRollableDiceItems()
     local result = {}
     pcall(function()
         for _, item in pairs(assets.shopItems) do
-            if item.itemType == "Dice" and item.onsale and item.assetid ~= nil and item.assetid ~= "" then
+            if item.itemType == "Dice" and item.assetid ~= nil and g_storeBannerArtByAsset[tostring(item.assetid)] ~= nil then
                 result[#result + 1] = item
             end
         end
@@ -9206,10 +9189,6 @@ function CreateTitlescreen(dialog, options)
                 bgimage = g_storeBannerDefaultArt,
                 bgcolor = "white",
 
-                --Linear gradient across the art (shared with the cross-fade
-                --layer below; see g_storeBannerGradient for the shape).
-                --gradient = g_storeBannerGradient,
-
                 --The banner art currently committed to our own bgimage (or
                 --being faded to). Used to skip no-op fades when the newly
                 --seeded set maps to the art already showing (e.g. two
@@ -9316,7 +9295,10 @@ function CreateTitlescreen(dialog, options)
                 --identical pixels, so releasing this layer afterwards causes
                 --no visible change regardless of how the opacity eases back.
                 gui.Panel{
-                    classes = { "storeBannerFadeLayer" },
+                    --eotwRow from the start, matching the banner: without it
+                    --the layer stretches the art instead of cropping it, and
+                    --the image jumps when the fade commits.
+                    classes = { "storeBannerFadeLayer", cond(EotwCardEnabled(), "eotwRow", nil) },
                     floating = true,
                     interactable = false,
                     width = "100%",
@@ -9325,7 +9307,9 @@ function CreateTitlescreen(dialog, options)
                     valign = "center",
                     bgimage = g_storeBannerDefaultArt,
                     bgcolor = "white",
-                    gradient = g_storeBannerGradient,
+                    --No gradient: the layer must draw exactly like the
+                    --banner's own bgimage, or the fade is not a true
+                    --cross-fade and the commit visibly jumps.
 
                     --fadeSeq stamps each art change; the scheduled fade
                     --begin/commit events carry the stamp and bail when a
@@ -9405,7 +9389,7 @@ function CreateTitlescreen(dialog, options)
                     flow = "vertical",
                     --Mini dice showcase: two independent spinning preview dice
                     --arranged as an arc -- Noxa forward and centered (the larger
-                    --die), Sea of Stars smaller, up-and-right, and drawn behind
+                    --die), Circle of Spring smaller, up-and-right, and drawn behind
                     --it. Both idle-spin and can be grabbed to spin (see
                     --MakeStoreBannerDie). The container is transparent; the
                     --floating dice are allowed to sit within it.
@@ -9420,7 +9404,7 @@ function CreateTitlescreen(dialog, options)
                         --lower, so the two overlap and the front die reads as
                         --sitting in front of it.
                         MakeStoreBannerDie{
-                            assetid = g_storeBannerDiceSeaOfStars,
+                            assetid = g_storeBannerDiceCircleOfSpring,
                             size = 123,
                             halign = "center",
                             valign = "center",

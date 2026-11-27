@@ -304,4 +304,149 @@ Check(saved.behaviors[1].note == "edited" and saved.behaviors[1].roll == "2d10 +
 model.blocks[1].values.stat = "might"
 saved = BERecordCache.Save(model, spaced, spaceHost)
 Check(saved.behaviors[1].roll == "2d10 + might", "a changed value is still written")
+
+--a split block (Choose one when used): options hold steps that save flat,
+--tagged through a wrapper, and the options save as a record field.
+Block.RegisterBlock{
+    id = "t.mode", family = "logic", group = "logic", label = "In a mode",
+    sentence = { "In mode ", { slot = "mode" } }, slots = { mode = { kind = "fixed", default = "" } },
+    bodies = { { id = "steps", fits = "step" } }, fits = { "step" }, shelf = false,
+}
+Block.RegisterWrapper{
+    id = "t.mode", order = 5, block = "t.mode",
+    key = function(behavior, ctx)
+        local mode = rawget(behavior, "mode")
+        return rawget(ctx.record, "modes") ~= nil and mode ~= nil and tostring(mode) or nil
+    end,
+    values = function(key) return { mode = key } end,
+    keyOf = function(values) return values.mode end,
+    apply = function(behavior, key) behavior.mode = tonumber(key) end,
+}
+Block.RegisterBlock{
+    id = "t.option", family = "logic", group = "logic", label = "Option",
+    sentence = { "Option ", { slot = "name" } }, slots = { name = { kind = "text", default = "" } },
+    bodies = { { id = "steps", fits = "step" } }, fits = { "option" },
+}
+Block.RegisterBlock{
+    id = "t.choose", family = "logic", group = "logic", label = "Choose one",
+    sentence = { "Choose one" }, bodies = { { id = "options", fits = "option" } }, fits = { "step" },
+    initial = function(instance)
+        instance.bodies.options = { Block.Instantiate("t.option"), Block.Instantiate("t.option") }
+    end,
+    split = {
+        body = "options", steps = "steps", wrapper = "t.mode",
+        gather = function(list, behaviors, ctx)
+            local modes = rawget(ctx.record, "modes")
+            if modes == nil then
+                return list
+            end
+            local options = {}
+            for i, name in ipairs(modes) do
+                options[i] = { block = "t.option", values = { name = name }, bodies = { steps = {} } }
+            end
+            local chooser = { block = "t.choose", values = {}, bodies = { options = options } }
+            local result = {}
+            for _, instance in ipairs(list) do
+                local number = instance.block == "t.mode" and tonumber(instance.values.mode) or nil
+                if number ~= nil and options[number] ~= nil then
+                    for _, step in ipairs(instance.bodies.steps) do
+                        table.insert(options[number].bodies.steps, step)
+                    end
+                    if chooser.placed == nil then
+                        chooser.placed = true
+                        result[#result + 1] = chooser
+                    end
+                else
+                    result[#result + 1] = instance
+                end
+            end
+            chooser.placed = nil
+            return result
+        end,
+        key = function(_, index) return tostring(index) end,
+        saveRecord = function(instance, ctx)
+            if instance == nil then
+                if rawget(ctx.record, "modes") ~= nil then
+                    ctx.result.modes = nil
+                end
+                return
+            end
+            local names = {}
+            for i, option in ipairs(instance.bodies.options) do
+                names[i] = option.values.name
+            end
+            if not Equal(names, rawget(ctx.record, "modes")) then
+                ctx.result.modes = names
+            end
+        end,
+    },
+}
+local function Moded()
+    --option steps interleaved, with a step for every mode at the end.
+    return {
+        name = "Moded",
+        modes = { "Fire", "Ice" },
+        behaviors = {
+            Damage.new{ roll = "1", mode = 1 },
+            Damage.new{ roll = "2", mode = 2 },
+            Heal.new{ roll = "3", mode = 1 },
+            Heal.new{ roll = "4" },
+        },
+    }
+end
+local moded = Moded()
+model = BERecordCache.Open(moded, host)
+local chooser = model.blocks[1]
+Check(chooser.block == "t.choose" and #chooser.bodies.options == 2 and #chooser.bodies.options[1].bodies.steps == 2
+    and #chooser.bodies.options[2].bodies.steps == 1 and model.blocks[2].block == "t.heal", "a split block gathers each option's steps")
+Check(BERecordCache.SavesUnchanged(model, moded, host), "an untouched split block saves back identical, interleaved order and all")
+Check(BERecordCache.SavesUnchanged(BERecordCache.Open(moded, host), moded, host, true), "a forced save of a split block is identical")
+
+model = BERecordCache.Open(moded, host)
+model.blocks[1].bodies.options[2].values.name = "Frost"
+saved = BERecordCache.Save(model, moded, host)
+Check(Equal(saved.modes, { "Fire", "Frost" }) and Equal(saved.behaviors, moded.behaviors), "renaming an option writes the record field only")
+
+model = BERecordCache.Open(moded, host)
+local fireSteps = model.blocks[1].bodies.options[1].bodies.steps
+fireSteps[1], fireSteps[2] = fireSteps[2], fireSteps[1]
+saved = BERecordCache.Save(model, moded, host)
+Check(saved.behaviors[1].roll == "3" and saved.behaviors[2].roll == "1", "steps reordered inside an option keep the author's order")
+
+model = BERecordCache.Open(moded, host)
+local step = table.remove(model.blocks[1].bodies.options[1].bodies.steps, 1)
+table.insert(model.blocks[1].bodies.options[2].bodies.steps, step)
+saved = BERecordCache.Save(model, moded, host)
+local movedStep = nil
+for _, behavior in ipairs(saved.behaviors) do
+    if behavior.roll == "1" then
+        movedStep = behavior
+    end
+end
+Check(movedStep ~= nil and movedStep.mode == 2, "a step moved to another option is tagged with that option")
+
+model = BERecordCache.Open(moded, host)
+local newStep = { block = "t.damage", values = { amount = "9", damageType = "" } }
+table.insert(model.blocks[1].bodies.options[2].bodies.steps, newStep)
+saved = BERecordCache.Save(model, moded, host)
+Check(#saved.behaviors == 5 and saved.behaviors[4].roll == "9" and saved.behaviors[4].mode == 2 and saved.behaviors[5].roll == "4",
+    "a new step in an option is tagged and saved where the block is")
+
+model = BERecordCache.Open(moded, host)
+table.insert(model.blocks[1].bodies.options[1].bodies.steps, 1, { block = "t.heal", values = { amount = "8" } })
+saved = BERecordCache.Save(model, moded, host)
+Check(saved.behaviors[1].roll == "8" and saved.behaviors[1].mode == 1 and saved.behaviors[2].roll == "1",
+    "a new step before saved ones in an option keeps the author's order")
+
+model = BERecordCache.Open(moded, host)
+table.remove(model.blocks, 1)
+saved = BERecordCache.Save(model, moded, host)
+Check(rawget(saved, "modes") == nil and #saved.behaviors == 1, "taking the block out drops the options and their steps")
+
+local fresh = Block.Instantiate("t.choose") --[[@as BlockInstance]]
+Check(#fresh.bodies.options == 2, "a new split block starts with the options its initial gives")
+model = BERecordCache.Open(record, host)
+table.insert(model.blocks, fresh)
+fresh.bodies.options[1].bodies.steps[1] = { block = "t.choose", values = {}, bodies = { options = {} } }
+Check(BERecordCache.CountUnsaveable(model.blocks) == 1, "a split block inside another's options is counted as unsaveable")
 print("block_recordcache_test: " .. g_checks .. " checks passed")

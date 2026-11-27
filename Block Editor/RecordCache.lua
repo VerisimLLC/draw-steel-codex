@@ -20,6 +20,9 @@ local mod = dmhub.GetModLoading()
         copy of the saved behaviour, so fields the block does not claim stay.
         A step moved into or out of a wrapper has only that wrapper's field
         set. An Advanced block always writes back its saved behaviour.
+      * Split blocks (BlockDecl.split: Choose one when used) gather their
+        options' steps after a list is opened, and save them flat into the
+        list again, tagged through a wrapper; the options save as record fields.
       * So an untouched record saves back identical, by construction.
 
     "forced" (for /blockroundtrip) treats every piece as changed: a header slot
@@ -97,6 +100,27 @@ local function _wrapperFor(blockId)
     return nil
 end
 
+--- The split part of a placed block, when it is one (options holding steps).
+--- @param blockId string
+--- @return BlockSplit|nil
+local function _splitFor(blockId)
+    local decl = Block.GetBlock(blockId)
+    return decl ~= nil and decl.split or nil
+end
+
+--- The registered split blocks.
+--- @return BlockDecl[]
+local function _splitDecls()
+    local result = {}
+    for _, decl in ipairs(Block.All("block")) do
+        --- @cast decl BlockDecl
+        if decl.split ~= nil then
+            result[#result + 1] = decl
+        end
+    end
+    return result
+end
+
 --- Records what a freshly read block (and everything inside it) looks like,
 --- so saving can tell whether the author changed it.
 --- @param instance BlockInstance
@@ -140,19 +164,22 @@ end
 --- @param host BlockHost
 --- @param record table the record (or nested ability) the steps belong to
 --- @param forced? boolean
+--- @param result? table the copy being written, when saving
 --- @return BlockContext
-local function _context(host, record, forced)
+local function _context(host, record, forced, result)
     --- @type BlockContext
     local ctx
     ctx = {
         host = host,
         record = record,
         forced = forced,
+        result = result,
         OpenSteps = function(behaviors, nested)
             return BERecordCache.OpenSteps(behaviors, host, _context(host, nested, forced))
         end,
+        --a nested ability's writer passes its own copy, so record fields go into it.
         SaveSteps = function(instances, saved, nested)
-            return BERecordCache.SaveSteps(instances, saved, host, _context(host, nested, forced))
+            return BERecordCache.SaveSteps(instances, saved, host, _context(host, nested, forced, nested))
         end,
     }
     return ctx
@@ -205,6 +232,19 @@ function BERecordCache.OpenSteps(behaviors, host, ctx)
         local target = #chain > 0 and chain[#chain].list or top
         target[#target + 1] = instance
     end
+    for _, decl in ipairs(_splitDecls()) do
+        local ok, gathered = pcall(decl.split.gather, top, behaviors, ctx)
+        if not ok then
+            dmhub.Error(string.format("BlockEditor: block '%s' failed to gather its steps: %s", decl.id, tostring(gathered)))
+        elseif type(gathered) == "table" then
+            top = gathered
+        end
+    end
+    for _, instance in ipairs(top) do
+        if instance.openSignature == nil and _splitFor(instance.block) ~= nil then
+            _remember(instance)
+        end
+    end
     return top
 end
 
@@ -218,56 +258,174 @@ function BERecordCache.SaveSteps(instances, source, host, ctx)
     source = source or {}
     local out = {}
     local untouched = true
-    local function Walk(list, context)
+    --- @type table<string, boolean> the split blocks this list holds, by block id
+    local seen = {}
+    local prepared = {}
+    for _, instance in ipairs(instances or {}) do
+        local split = _splitFor(instance.block)
+        if split ~= nil and split.prepare ~= nil and not prepared[instance.block] then
+            prepared[instance.block] = true
+            local ok, err = pcall(split.prepare, instance, ctx)
+            if not ok then
+                dmhub.Error(string.format("BlockEditor: block '%s' failed to prepare: %s", instance.block, tostring(err)))
+            end
+        end
+    end
+
+    --- Writes one placed step: the behaviour, and whether it is the saved one as it was.
+    --- @param instance BlockInstance
+    --- @param context table<string, string>
+    --- @return table|nil, boolean
+    local function WriteStep(instance, context)
+        local decl = Block.GetBlock(instance.block)
+        local saved = instance.src ~= nil and source[instance.src] or nil
+        local unchanged = saved ~= nil and not ctx.forced and Block.InstanceUnchanged(instance)
+        local behavior = nil
+        local same = false
+        if saved ~= nil and (unchanged or decl == nil or decl.write == nil) then
+            behavior = DeepCopy(saved)
+            same = true
+        elseif decl ~= nil and decl.write ~= nil then
+            local ok, written = pcall(decl.write, instance.values, saved ~= nil and DeepCopy(saved) or nil, ctx, instance.bodies or {})
+            if ok then
+                behavior = written
+            else
+                --a writer that fails keeps the step as saved (a new one is left out), and says why.
+                dmhub.Error(string.format("BlockEditor: block '%s' failed to write: %s", decl.id, tostring(written)))
+                behavior = saved ~= nil and DeepCopy(saved) or nil
+            end
+        end
+        if behavior ~= nil then
+            --only a wrapper the step was moved into or out of sets its field.
+            local opened = instance.openContext or {}
+            for _, candidate in ipairs(_wrappers()) do
+                if context[candidate.id] ~= opened[candidate.id] then
+                    candidate.apply(behavior, context[candidate.id], ctx)
+                    same = false
+                end
+            end
+        end
+        return behavior, same
+    end
+
+    --- Collects {behavior, src, same} for a list, flattening wrappers and split blocks.
+    --- @param list BlockInstance[]|nil
+    --- @param context table<string, string>
+    --- @param into table[]
+    --- @param inSplit boolean
+    local function Walk(list, context, into, inSplit)
         for _, instance in ipairs(list or {}) do
             local wrapper = _wrapperFor(instance.block)
+            local split = _splitFor(instance.block)
             if wrapper ~= nil then
                 local inner = {}
                 for wrapperId, key in pairs(context) do
                     inner[wrapperId] = key
                 end
                 inner[wrapper.id] = wrapper.keyOf(instance.values or {}, ctx)
-                Walk((instance.bodies or {})[wrapper.body or "steps"], inner)
-            else
-                local decl = Block.GetBlock(instance.block)
-                local saved = instance.src ~= nil and source[instance.src] or nil
-                local unchanged = saved ~= nil and not ctx.forced and Block.InstanceUnchanged(instance)
-                local behavior = nil
-                if saved ~= nil and (unchanged or decl == nil or decl.write == nil) then
-                    behavior = DeepCopy(saved)
-                    if instance.src ~= #out + 1 then
-                        untouched = false
-                    end
-                elseif decl ~= nil and decl.write ~= nil then
-                    local ok, written = pcall(decl.write, instance.values, saved ~= nil and DeepCopy(saved) or nil, ctx, instance.bodies or {})
-                    if ok then
-                        behavior = written
-                    else
-                        --a writer that fails keeps the step as saved (a new one is left out), and says why.
-                        dmhub.Error(string.format("BlockEditor: block '%s' failed to write: %s", decl.id, tostring(written)))
-                        behavior = saved ~= nil and DeepCopy(saved) or nil
-                    end
-                    untouched = false
-                end
-                if behavior ~= nil then
-                    --only a wrapper the step was moved into or out of sets its field.
-                    local opened = instance.openContext or {}
-                    for _, candidate in ipairs(_wrappers()) do
-                        if context[candidate.id] ~= opened[candidate.id] then
-                            candidate.apply(behavior, context[candidate.id], ctx)
-                            untouched = false
+                Walk((instance.bodies or {})[wrapper.body or "steps"], inner, into, inSplit)
+            elseif split ~= nil then
+                if inSplit or seen[instance.block] then
+                    --one per list, never inside its own options (the side panel warns).
+                    dmhub.Error(string.format("BlockEditor: a second '%s' block in one list was not saved", instance.block))
+                else
+                    seen[instance.block] = true
+                    local parts = {}
+                    local ordered = true
+                    for index, option in ipairs((instance.bodies or {})[split.body] or {}) do
+                        local first = #parts + 1
+                        local ok, key = pcall(split.key, option, index, ctx)
+                        if not ok then
+                            dmhub.Error(string.format("BlockEditor: block '%s' failed to key an option: %s", instance.block, tostring(key)))
+                        elseif key ~= false then
+                            local inner = {}
+                            for wrapperId, value in pairs(context) do
+                                inner[wrapperId] = value
+                            end
+                            inner[split.wrapper] = key
+                            Walk((option.bodies or {})[split.steps], inner, parts, true)
+                        end
+                        for i = first, #parts do
+                            local before = i > first and parts[i - 1].src or nil
+                            if parts[i].src == nil or (before ~= nil and before > parts[i].src) then
+                                ordered = false
+                            end
                         end
                     end
-                    out[#out + 1] = behavior
+                    --only one option runs, so steps saved before, still in their saved
+                    --order within each option, go back in the saved order overall.
+                    if ordered then
+                        table.sort(parts, function(a, b) return a.src < b.src end)
+                    end
+                    for _, part in ipairs(parts) do
+                        into[#into + 1] = part
+                    end
+                    local ok, err = pcall(split.saveRecord, instance, ctx)
+                    if not ok then
+                        dmhub.Error(string.format("BlockEditor: block '%s' failed to save its options: %s", instance.block, tostring(err)))
+                    end
+                end
+            else
+                local behavior, same = WriteStep(instance, context)
+                if behavior ~= nil then
+                    into[#into + 1] = { behavior = behavior, src = instance.src, same = same }
                 end
             end
         end
     end
-    Walk(instances, {})
+    local parts = {}
+    Walk(instances, {}, parts, false)
+    for _, part in ipairs(parts) do
+        out[#out + 1] = part.behavior
+        if not part.same or part.src ~= #out then
+            untouched = false
+        end
+    end
     if #out ~= #source then
         untouched = false
     end
+    --a list whose split block was taken out: the record loses those fields.
+    for _, decl in ipairs(_splitDecls()) do
+        if not seen[decl.id] then
+            local ok, err = pcall(decl.split.saveRecord, nil, ctx)
+            if not ok then
+                dmhub.Error(string.format("BlockEditor: block '%s' failed to clear its options: %s", decl.id, tostring(err)))
+            end
+        end
+    end
     return out, untouched
+end
+
+--- @param list BlockInstance[]|nil
+--- @param inSplit boolean inside a split block's options
+--- @return integer
+local function _countUnsaveable(list, inSplit)
+    local count = 0
+    local splits = {}
+    for _, instance in ipairs(list or {}) do
+        local decl = Block.GetBlock(instance.block)
+        local split = decl ~= nil and decl.split or nil
+        if split ~= nil then
+            --a second one in a list, or one inside another's options, is not saved.
+            if inSplit or splits[instance.block] then
+                count = count + 1
+            end
+            splits[instance.block] = true
+            --an option's other bodies (its targets) are saved by the split block itself.
+            for _, option in ipairs((instance.bodies or {})[split.body] or {}) do
+                count = count + _countUnsaveable((option.bodies or {})[split.steps], true)
+            end
+        else
+            local writable = decl ~= nil and (decl.write ~= nil or decl.tier ~= nil or _wrapperFor(instance.block) ~= nil)
+            if not writable and instance.src == nil and instance.saved == nil then
+                count = count + 1
+            end
+            for _, body in pairs(instance.bodies or {}) do
+                count = count + _countUnsaveable(body, inSplit)
+            end
+        end
+    end
+    return count
 end
 
 --- How many placed blocks would be lost on save: blocks the author added that
@@ -276,18 +434,7 @@ end
 --- @param list BlockInstance[]|nil
 --- @return integer
 function BERecordCache.CountUnsaveable(list)
-    local count = 0
-    for _, instance in ipairs(list or {}) do
-        local decl = Block.GetBlock(instance.block)
-        local writable = decl ~= nil and (decl.write ~= nil or decl.tier ~= nil or _wrapperFor(instance.block) ~= nil)
-        if not writable and instance.src == nil and instance.saved == nil then
-            count = count + 1
-        end
-        for _, body in pairs(instance.bodies or {}) do
-            count = count + BERecordCache.CountUnsaveable(body)
-        end
-    end
-    return count
+    return _countUnsaveable(list, false)
 end
 
 --- Opens a record into a model for the editor.
@@ -374,7 +521,7 @@ function BERecordCache.Save(model, record, host, forced)
 
     if host.stepsField ~= nil then
         local source = rawget(record, host.stepsField) or {}
-        local out, untouched = BERecordCache.SaveSteps(model.blocks, source, host, _context(host, record, forced))
+        local out, untouched = BERecordCache.SaveSteps(model.blocks, source, host, _context(host, record, forced, result))
         --only a list that changed is replaced, so an untouched one keeps its own form.
         if not untouched then
             result[host.stepsField] = out

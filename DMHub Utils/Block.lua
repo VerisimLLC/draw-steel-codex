@@ -73,6 +73,9 @@ local mod = dmhub.GetModLoading()
 --- @field tier? BlockTierInfo set on a block that shows one part of a power roll tier
 --- @field stub? boolean a placeholder with no record reading or writing yet
 --- @field unread? boolean holds saved words or data no block reads yet, kept as written (counted by /blockroundtrip as not read)
+--- @field split? BlockSplit a block whose options hold steps and save as record fields
+--- @field initial? fun(instance: BlockInstance) fills a new block's bodies (a choice starts with two options)
+--- @field changed? fun(instance: BlockInstance, slotId: string, previous: any) called when the author changes a slot, to adjust other slots or bodies in the same undo step
 
 --- A list of blocks inside a block. A power roll has one per tier; a wrapper has one.
 --- @class BlockBody
@@ -195,8 +198,22 @@ local mod = dmhub.GetModLoading()
 --- @field host BlockHost
 --- @field record table the record whose steps these are (a nested ability for its own steps)
 --- @field forced? boolean every piece is being saved as if edited (the round-trip test)
+--- @field result? table while saving: the copy of the record being written, for a split block's record fields
+--- @field remap? table<string, any> while saving: what a split block's prepare left for the wrappers (renumbered options)
 --- @field OpenSteps fun(behaviors: table[]|nil, record: table): BlockInstance[] reads a nested list of steps (an ability inside a step) as blocks
 --- @field SaveSteps fun(instances: BlockInstance[], saved: table[]|nil, record: table): table[], boolean writes them back; true when the list is untouched (keep the saved one)
+
+--- A block whose options each hold steps ("Choose one when used"): the steps
+--- save flat into the list around it, each tagged with its option through a
+--- wrapper's field, and the options themselves save as fields of the record.
+--- @class BlockSplit
+--- @field body string the body holding the option blocks
+--- @field steps string the body of an option block holding its steps
+--- @field wrapper string the wrapper whose key tags an option's steps
+--- @field gather fun(list: BlockInstance[], behaviors: table[]|nil, ctx: BlockContext): BlockInstance[] after a list is opened: builds the block from the record and moves the steps it holds into it
+--- @field key fun(option: BlockInstance, index: integer, ctx: BlockContext): string|false the wrapper key for an option's steps; false when the option saves its steps itself (in saveRecord)
+--- @field prepare? fun(instance: BlockInstance, ctx: BlockContext) before the list is saved (sets ctx.remap)
+--- @field saveRecord fun(instance: BlockInstance|nil, ctx: BlockContext) writes the record's fields into ctx.result; nil when the list has no such block
 
 --- A grouping the editor shows as a block holding steps (Only if, Strained,
 --- a mode), read from a field every behaviour has. Neighbouring steps with the
@@ -580,6 +597,12 @@ function Block.Instantiate(blockId)
         instance.bodies = {}
         for _, body in ipairs(decl.bodies) do
             instance.bodies[body.id] = {}
+        end
+    end
+    if decl.initial ~= nil then
+        local ok, err = pcall(decl.initial, instance)
+        if not ok then
+            Report(string.format("block '%s' failed to fill a new block: %s", blockId, tostring(err)))
         end
     end
     return instance

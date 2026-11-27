@@ -94,8 +94,17 @@ local function _sentence(decl, instance, width)
         width = width,
         italic = decl.italic,
         onChange = function(slotId, value, description, source)
-            BEBlockPanel.ChangeBlock(source, uid, description, function(target)
+            BEBlockPanel.ChangeBlock(source, uid, description, function(target, model)
+                local previous = target.values[slotId]
                 target.values[slotId] = value
+                if decl.changed ~= nil then
+                    local ok, err = pcall(decl.changed, target, slotId, previous)
+                    if not ok then
+                        dmhub.Error(string.format("BlockEditor: block '%s' failed to adjust after a change: %s", decl.id, tostring(err)))
+                    end
+                    --blocks it added to its bodies need editor ids.
+                    BEState.AssignUids(model)
+                end
             end)
         end,
     }

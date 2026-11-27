@@ -265,3 +265,29 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   as empty files on start. Keep them out of commits, or remove them from the lists in mod tools.
 - **Owner feedback, later pass:** clicking a word should make it editable in place, not open a
   pop-up editor (ledger row 2026-11-27, "Clicking a text or number word edits it in place").
+
+## 12. Choose one when used, plain modes and variations (2026-11-27, run in DMHub)
+
+- **Blocks** (`Draw Steel Core Rules/MCDMAbilityBlocks.lua`): **Choose one when used** (shelf: Common;
+  "before picking targets / after picking the target"; starts with two options), **Option** (name,
+  extra cost 0-5, card text, its steps; shelf section "Inside Choose one when used"), and **Targets
+  differently** (distance, range, count, target; shelf section "Inside an option"). Picking an extra
+  cost adds, updates or removes a "Spend N Heroic Resource" step in the option (the option's
+  `changed`), and sets the mode's condition "Heroic Resources Available to Spend >= N".
+- **Framework** (generic, no Draw Steel names): `BlockDecl.split` (gather on open, key per option,
+  prepare, saveRecord), `BlockDecl.initial` (a new block's bodies), `BlockDecl.changed` (called by
+  `BlockPanel` after a slot edit), `ctx.result` (the copy being written) and `ctx.remap`.
+  `BERecordCache.SaveSteps` flattens split blocks; `CountUnsaveable` flags a second one in a list or
+  one inside another's options.
+- **Measured in DMHub:** both round trips 748/748; 75 abilities open a Choose one block (223
+  options, 16 Targets differently). Steps left outside as "Only when used as": only those in "no
+  mode" (-1) or several modes (Hurl Element, Inertial Step, Elements Unleashed, Burning Lash, There
+  Is No Space Between). Tested with saving stubbed: adding options, a cost, a variation; removing
+  the block (modes off, option list kept, as the Advanced editor does); deleting an option renumbers
+  the steps left outside; editing a variation's range changes only that field.
+- Plain-Lua tests run on Windows with the VS Code Lua extension's runtime:
+  `lua-language-server.exe tests/block_recordcache_test.lua` (Lua 5.5; CI uses 5.4).
+- **Known gaps:** Advanced blocks are never wrapped, so a renumbered option does not renumber an
+  Advanced step's saved modes; a non-cost mode condition is replaced when the extra cost changes;
+  empty option lists draw as thin dark bars; "after picking the target" is not hidden once an
+  option targets differently (it saves as before, since the game needs plain modes for it).

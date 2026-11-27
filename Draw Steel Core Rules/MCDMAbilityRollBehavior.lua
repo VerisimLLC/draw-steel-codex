@@ -1020,8 +1020,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 m_endTime = nil
                 m_finished = false
                 m_tierFinished = nil
-                --m_pendingRollProperties is kept on purpose: a change made while a
-                --re-roll's dice tumble belongs on the new roll.
+                --Not cleared: a change still waiting from the last throw is uploaded with this one.
                 --a re-roll hides a secret Critical again until it lands.
                 m_critRevealed = false
 
@@ -2385,13 +2384,22 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     --The tier for one target token, or for the roll as a whole when nil (the
     --first target's, since the stats record one tier per roll).
+    --A tier picked on the chat card is saved on the roll's message, where each target's tier
+    --is also read; one picked in the roll dialog is saved in rollProperties. Resolution, stats
+    --and History all take it from here, so they agree.
+    local overrideProperties = rollProperties
+    if m_rollInfo ~= nil and m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("overrideTier") ~= nil then
+        overrideProperties = m_rollInfo.properties
+    end
+    local overrideTier = overrideProperties:try_get("overrideTier")
+
     local function EffectiveTier(targetToken)
         for _,multitarget in ipairs(multitargetResults or {}) do
             if multitarget.token ~= nil and (targetToken == nil or multitarget.token.charid == targetToken.charid) then
                 return multitarget.tier
             end
         end
-        return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+        return overrideTier or DiceResultToTier(m_result)
     end
 
     --The roll properties (with the tier texts) to resolve one target with. A target
@@ -2414,13 +2422,6 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = EffectiveTier(nil)
-    --A tier picked on the chat card is saved on the roll's message, which is also where
-    --each target's tier above reads it; one picked in the roll dialog is saved here too.
-    local overrideProperties = rollProperties
-    if m_rollInfo ~= nil and m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("overrideTier") ~= nil then
-        overrideProperties = m_rollInfo.properties
-    end
-    local overrideTier = overrideProperties:try_get("overrideTier")
     --an overridden tier: who chose it and what the dice gave, for a record of play (History).
     --Cleared when not overridden: an earlier roll on this cast (an invoking or invoked
     --ability's) may have left its own.
@@ -2587,7 +2588,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         for numTarget,target in ipairs(targets or {}) do
 
             local targetToken = target.token
-            local tier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+            local tier = overrideTier or DiceResultToTier(m_result)
             local modifiersUsed = rollProperties:try_get("modifiersUsed", {})
 
             if targetToken ~= nil then
@@ -2615,6 +2616,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 local potencyApplied = 0
                 --An earlier roll on this cast (an invoking or invoked ability's) may have recorded
                 --this target's own roll, sources, surges or potency; only this roll's should show.
+                --Keep in step with the invoke's list in AbilityInvokeAbility.lua; the roll dialog
+                --clears the free and gained surges itself, as it records them.
                 for _, field in ipairs({"targetRolls", "targetSources", "targetDamageSources", "targetSurges", "targetPotencySources", "potencyApplied"}) do
                     local byTarget = options.symbols.cast:try_get(field)
                     if byTarget ~= nil then

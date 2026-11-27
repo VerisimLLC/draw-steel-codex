@@ -882,7 +882,8 @@ end
 
 --The cast's record of the parent's power roll that an invoked roll writes over: who
 --rolled, the dice, total, edges and banes, the tiers, and each target's own roll,
---sources, potency and surges (the last are tables keyed by target).
+--sources, potency and surges (the last are tables keyed by target). Keep the per-target
+--list in step with the one the power roll clears in MCDMAbilityRollBehavior.lua's Cast.
 local g_rollFields = {
     "tier", "rollTier", "total", "naturalRoll", "lowRoll", "highRoll", "boonsApplied", "banesApplied",
     "hiddenRoll", "diceTier", "overrideBy", "casterid",
@@ -892,13 +893,10 @@ local g_rollTargetFields = {
     "targetSurges", "targetFreeSurges", "targetGainedSurges", "targetPotencySources",
 }
 
---- Runs the invoke, then gives the invoking cast back the power roll it had.
---- An invoked ability shares its parent's cast, so a power roll inside it (an ally's
---- granted signature strike) used to overwrite the parent's roll, and the parent's
---- later behaviors then ran for the ally's: Hammer and Anvil granted extra strikes
---- (X8QSSTAJ), a potency check after a forced free strike measured the striker, and
---- History showed the ally's numbers. Only a roll the parent already made is put back;
---- when the invoked ability makes the parent's roll (no tier yet), its roll stands.
+--- Runs the invoke, then puts back the invoking cast's power roll. An invoked ability
+--- shares its parent's cast, so its own roll (an ally's granted strike) would otherwise
+--- replace the parent's for the parent's later behaviors and for History. When the parent
+--- has not rolled yet (cast.tier is 0), the invoked roll is the parent's and stands.
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
     local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
     --A cast relayed from another client can arrive as a plain table with no methods.

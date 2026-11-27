@@ -427,6 +427,9 @@ local g_baselineTaken = false
 local g_events = {}
 local g_eventSeq = 0
 
+--Events carry the token ids of who and target as whoId / targetId (only for
+--tokens players can see) so the Streamer Kit's redaction can name them from
+--its own snapshot. The overlay page ignores them.
 local function PushEvent(event)
     g_eventSeq = g_eventSeq + 1
     event.seq = g_eventSeq
@@ -486,8 +489,10 @@ local function CollectEvents(token, state)
                     kind = "damage",
                     who = who,
                     whoSide = whoSide,
+                    whoId = cond(who ~= nil, entry.attackerid, nil),
                     target = targetName,
                     targetSide = targetSide,
+                    targetId = tokenid,
                     amount = damage - reported.damage,
                     damageType = entry.damage_type,
                 }
@@ -497,6 +502,7 @@ local function CollectEvents(token, state)
                     kind = "heal",
                     target = targetName,
                     targetSide = targetSide,
+                    targetId = tokenid,
                     amount = heal - reported.heal,
                 }
             end
@@ -511,11 +517,11 @@ local function CollectEvents(token, state)
         return
     end
     if state == "winded" and previous ~= "dying" and previous ~= "dead" then
-        PushEvent{ kind = "winded", target = targetName, targetSide = targetSide }
+        PushEvent{ kind = "winded", target = targetName, targetSide = targetSide, targetId = tokenid }
     elseif state == "dying" then
-        PushEvent{ kind = "dying", target = targetName, targetSide = targetSide }
+        PushEvent{ kind = "dying", target = targetName, targetSide = targetSide, targetId = tokenid }
     elseif state == "dead" then
-        PushEvent{ kind = cond(targetSide == "hero", "dead", "defeated"), target = targetName, targetSide = targetSide }
+        PushEvent{ kind = cond(targetSide == "hero", "dead", "defeated"), target = targetName, targetSide = targetSide, targetId = tokenid }
     end
 end
 
@@ -536,7 +542,7 @@ end
 local g_lastCombat = nil
 
 --- Build the summary from the board as players see it.
---- @return table
+--- @return table summary, nil|InitiativeQueue q, table<string, boolean> activeTokenIds
 local function BuildSummary()
     local q = dmhub.initiativeQueue
     if q ~= nil and q.hidden then
@@ -599,7 +605,428 @@ local function BuildSummary()
     for i, event in ipairs(g_events) do
         summary.events[i] = event
     end
-    return summary
+    return summary, q, activeTokenIds
+end
+
+-- ---------------------------------------------------------------------------
+-- The Streamer Kit viewer feed
+-- ---------------------------------------------------------------------------
+--
+--The viewer page (Streamer Kit, Phase 1) gets more than the band: hero cards
+--with characteristics and surges, and foe cards with the abilities and
+--villain actions a monster has used. This section gathers a RAW snapshot of
+--that and passes it through StreamerKitRedact.Redact, the one gate that
+--decides what viewers may see (EncounterOfTheWeek/StreamerKitRedact.lua; its
+--header documents the raw shape). Only the redacted result is written, to its
+--own document, so the raw snapshot never leaves this client.
+
+local VIEWER_DOC = "streamerKitViewer"
+--Ability text makes this document bigger than the band's; it is still
+--downloaded by every client in the game, so keep a firm cap.
+local VIEWER_MAX_BYTES = 48000
+
+--Abilities each monster has used this combat: tokenid -> { [name] = true }.
+--Built from each creature's synced "used this round" record
+--(creature:AbilitiesUsedThisRound), which resets every round, so the union is
+--kept here. A publisher that takes over mid-combat starts from what it sees
+--then: it can under-report, never over-report.
+local g_usedAbilities = {}
+local g_usedAbilitiesCombat = nil
+
+--- A characteristic's value, or nil.
+--- @param props Creature
+--- @param attrid string
+--- @return nil|number
+local function Characteristic(props, attrid)
+    local value = nil
+    pcall(function() value = props:GetAttribute(attrid):Value() end)
+    return value
+end
+
+--- @param token CharacterToken
+--- @param activeTokenIds table<string, boolean>
+--- @return table raw hero (see StreamerKitRedact)
+local function RawHero(token, activeTokenIds)
+    local props = token.properties
+    local hero = {
+        id = token.charid,
+        name = token.name,
+        namePrivate = token.namePrivate == true,
+        stamina = {
+            cur = props:CurrentHitpoints(),
+            max = props:MaxHitpoints(),
+            temp = props:TemporaryHitpoints(),
+        },
+        dead = props:IsDead(),
+        dying = HeroState(props) == "dying",
+        characteristics = {
+            might = Characteristic(props, "mgt"),
+            agility = Characteristic(props, "agl"),
+            reason = Characteristic(props, "rea"),
+            intuition = Characteristic(props, "inu"),
+            presence = Characteristic(props, "prs"),
+        },
+        conditions = HeroConditions(token),
+        active = activeTokenIds[token.charid] == true,
+    }
+    if hero.name == nil or hero.name == "" then
+        hero.name = PublicName(token)
+    end
+    pcall(function()
+        hero.resource = { name = props:GetHeroicResourceName(), value = props:GetHeroicOrMaliceResources() }
+    end)
+    pcall(function()
+        hero.recoveries = {
+            cur = props:RecoveriesAvailableToSpend(),
+            max = props:GetResources()[CharacterResource.recoveryResourceId] or 0,
+        }
+    end)
+    pcall(function() hero.surges = props:GetAvailableSurges() end)
+    pcall(function() hero.victories = props:GetVictories() end)
+    pcall(function() hero.level = props:CharacterLevel() end)
+    return hero
+end
+
+--- A monster's conditions in the raw shape, each flagged hiddenFromEnemies from
+--- its ongoing-effect record. Read from the effects, not from
+--- TokenUI.CalculateStatusIcons: the HUD shows secret effects to a Director and
+--- to whoever controls the token (the host running the Monster AI), and its
+--- icons do not say which ones were secret. The redaction drops flagged ones.
+--- @param props Creature
+--- @return table
+local function MonsterConditions(props)
+    local result = {}
+    pcall(function()
+        local effects = dmhub.GetTable("characterOngoingEffects") or {}
+        local conditions = dmhub.GetTable(CharacterCondition.tableName) or {}
+        for _, effect in ipairs(props:ActiveOngoingEffects()) do
+            local info = effects[effect.ongoingEffectid]
+            if info ~= nil and info.statusEffect and not info.hiddenOnToken then
+                local condInfo = conditions[info.condition]
+                local name = (condInfo ~= nil and condInfo.name) or info.name
+                if type(name) == "string" and name ~= "" then
+                    result[#result + 1] = {
+                        id = string.lower(name),
+                        name = name,
+                        hiddenFromEnemies = info.hiddenFromEnemies == true,
+                    }
+                end
+            end
+        end
+    end)
+    return result
+end
+
+--- Does this creature's own ability list carry a villain action? A cheap gate
+--- before GetActivatedAbilities (about 2 ms a creature), as the initiative
+--- bar's villain-action strip does.
+--- @param props Creature
+--- @return boolean
+local function MayOwnVillainActions(props)
+    local found = false
+    pcall(function()
+        for _, ability in ipairs(props:try_get("innateActivatedAbilities") or {}) do
+            local key = ability:try_get("villainAction")
+            if key ~= nil and key ~= "" then
+                found = true
+                return
+            end
+        end
+    end)
+    return found
+end
+
+--- A monster's abilities and villain actions in the raw shape. Used flags come
+--- from g_usedAbilities and the shared villain-action state.
+--- @param token CharacterToken
+--- @param used table<string, boolean>
+--- @return table abilities, table villainActions
+local function RawMonsterAbilities(token, used)
+    local abilities, villainActions = {}, {}
+    local props = token.properties
+    local wantVillain = MayOwnVillainActions(props)
+    if next(used) == nil and not wantVillain then
+        return abilities, villainActions
+    end
+
+    local list = nil
+    pcall(function() list = props:GetActivatedAbilities() end)
+    if type(list) ~= "table" then
+        return abilities, villainActions
+    end
+
+    local seen = {}
+    for _, ability in ipairs(list) do
+        local name = nil
+        local key = nil
+        pcall(function()
+            name = ability.name
+            key = ability:try_get("villainAction")
+        end)
+        local description = nil
+        pcall(function() description = ability.description end)
+        if key ~= nil and key ~= "" then
+            local wasUsed = false
+            pcall(function() wasUsed = VillainActionState.HasUsed(token.charid, key) end)
+            villainActions[#villainActions + 1] = { key = key, name = name, text = description, used = wasUsed }
+        elseif type(name) == "string" and used[name] and not seen[name] then
+            seen[name] = true
+            abilities[#abilities + 1] = { name = name, text = description, used = true }
+        end
+    end
+    --slot order: "Villain Action 1", "Villain Action 2", ...
+    table.sort(villainActions, function(a, b) return tostring(a.key) < tostring(b.key) end)
+    return abilities, villainActions
+end
+
+--how the last combat ended ("victory" or nil) and which combat that was.
+local g_outcome = nil
+local g_outcomeCombat = nil
+
+--- The raw (Director-level) snapshot for the viewer feed. Malice is never
+--- collected: viewers do not see it (decided 2026-11-27), and what is not
+--- gathered cannot leak.
+--- @param summary table the band summary built this tick
+--- @param q nil|InitiativeQueue
+--- @param activeTokenIds table<string, boolean>
+--- @return table
+local function BuildViewerRaw(summary, q, activeTokenIds)
+    local combatid = q ~= nil and q.guid or nil
+    if combatid ~= g_usedAbilitiesCombat then
+        g_usedAbilities = {}
+        g_usedAbilitiesCombat = combatid
+    end
+
+    local raw = {
+        mode = summary.mode,
+        round = summary.round,
+        encounter = { title = summary.encounter and summary.encounter.title },
+        heroes = {},
+        monsters = {},
+        events = summary.events,
+    }
+
+    if q ~= nil and summary.turn ~= nil then
+        raw.turn = { kind = summary.turn.kind, tokenIds = {} }
+        for tokenid, _ in pairs(activeTokenIds) do
+            raw.turn.tokenIds[#raw.turn.tokenIds + 1] = tokenid
+        end
+    end
+
+    --the objective as players see it: EotW always shows it until it is won.
+    local won = false
+    if q ~= nil then
+        pcall(function()
+            local live = q:try_get("liveEncounter")
+            if type(live) == "table" and live:CheckVictory() then
+                won = true
+            elseif type(live) == "table" then
+                local text = live:GetObjectiveText()
+                if type(text) == "string" then
+                    text = string.gsub(text, "^Objective: ", "")
+                end
+                local objective = { label = text }
+                local condition = live:try_get("victoryCondition", "all_defeated")
+                if live:ScriptVictoryText() == nil and (condition == "all_defeated" or condition == "nonminions_defeated") then
+                    objective.progress, objective.goal = live:GetDefeatProgress()
+                end
+                raw.encounter.objective = objective
+            end
+        end)
+    end
+
+    --the outcome sticks after the combat closes, so the viewer page can still
+    --make the recap card; a new combat clears it.
+    if combatid ~= nil and combatid ~= g_outcomeCombat then
+        g_outcome = nil
+        g_outcomeCombat = combatid
+    end
+    if won and g_outcome == nil then
+        g_outcome = "victory"
+        if g_baselineTaken then
+            PushEvent{ kind = "victory" }
+        end
+    end
+    raw.outcome = g_outcome
+
+    for _, token in ipairs(HeroTokens()) do
+        if token.valid and token.properties ~= nil then
+            local ok, hero = pcall(RawHero, token, activeTokenIds)
+            if ok then
+                raw.heroes[#raw.heroes + 1] = hero
+            end
+        end
+    end
+
+    local eotw = rawget(_G, "EncounterOfTheWeekGame")
+    for _, token in ipairs(dmhub.GetTokens{unaffiliated = true}) do
+        if token.valid and token.properties ~= nil and not token.isObject then
+            local shown = IsShownToPlayers(token)
+            local bystander = false
+            if shown and eotw ~= nil then
+                pcall(function() bystander = eotw.IsBystander(token) end)
+            end
+            if not shown then
+                --kept only as an id, so events and turn names that mention
+                --it are dropped by the redaction.
+                raw.monsters[#raw.monsters + 1] = { id = token.charid, hidden = true }
+            elseif not bystander then
+                local props = token.properties
+                local used = g_usedAbilities[token.charid] or {}
+                if combatid ~= nil then
+                    pcall(function()
+                        for name, _ in pairs(props:AbilitiesUsedThisRound()) do
+                            used[name] = true
+                        end
+                    end)
+                    g_usedAbilities[token.charid] = used
+                end
+                local monster = {
+                    id = token.charid,
+                    name = PublicName(token),
+                    namePrivate = token.namePrivate == true,
+                    stamina = { cur = props:CurrentHitpoints(), max = props:MaxHitpoints() },
+                    dead = props:IsDead(),
+                    conditions = {},
+                }
+                pcall(function() monster.squad = props:MinionSquad() end)
+                monster.minion = monster.squad ~= nil
+                pcall(function() monster.monsterType = props:GetMonsterType() end)
+                monster.conditions = MonsterConditions(props)
+                monster.abilities, monster.villainActions = RawMonsterAbilities(token, used)
+                raw.monsters[#raw.monsters + 1] = monster
+            end
+        end
+    end
+
+    return raw
+end
+
+--- Shrink the viewer snapshot past its cap: drop ability text, then older
+--- events, then foes' ability lists.
+--- @param viewer table
+--- @return string json
+local function FitViewerToSize(viewer)
+    local text = dmhub.ToJson(viewer)
+    if #text > VIEWER_MAX_BYTES then
+        for _, foe in ipairs(viewer.foes.list) do
+            for _, ability in ipairs(foe.abilities) do
+                ability.text = nil
+            end
+            for _, action in ipairs(foe.villainActions) do
+                action.text = nil
+            end
+        end
+        text = dmhub.ToJson(viewer)
+    end
+    while #text > VIEWER_MAX_BYTES and #viewer.events > 1 do
+        table.remove(viewer.events, 1)
+        text = dmhub.ToJson(viewer)
+    end
+    if #text > VIEWER_MAX_BYTES then
+        for _, foe in ipairs(viewer.foes.list) do
+            foe.abilities = {}
+        end
+        text = dmhub.ToJson(viewer)
+    end
+    return text
+end
+
+--- The viewer snapshot as last published, for checking from the console.
+--- @return table
+function StreamOverlay.CurrentViewerSnapshot()
+    return mod:GetDocumentSnapshot(VIEWER_DOC).data
+end
+
+-- ---------------------------------------------------------------------------
+-- Going live (the Codex menu's Go Live dialog, EncounterOfTheWeekHud.lua)
+-- ---------------------------------------------------------------------------
+--
+--Going live turns the stream outputs on and gives the game a short viewer
+--code; the game server serves the viewer feed for that code (src/viewer.ts
+--in cloudflare-game-server) once the settings document holds
+--  enabled = true, viewerCode = "KX7P2Q", viewerDelay = <seconds>
+--Ending the stream clears the code, which tells the server to close the
+--viewers' session and free the code; going live again makes a new one.
+
+--- The streamer's settings as the dialog shows them.
+--- @return {live: boolean, code: nil|string, delay: integer}
+function StreamOverlay.LiveSettings()
+    local data = {}
+    pcall(function() data = mod:GetDocumentSnapshot(SETTINGS_DOC).data end)
+    local code = data.viewerCode
+    local hasCode = rawget(_G, "StreamerKitRedact") ~= nil and StreamerKitRedact.IsViewerCode(code)
+    return {
+        live = data.enabled == true and hasCode,
+        code = cond(hasCode, code, nil),
+        delay = tonumber(data.viewerDelay) or 0,
+    }
+end
+
+--- Go live with a new viewer code and the given delay (seconds). Any host may
+--- call it; the elected host's client is the one that publishes.
+--- @param delaySeconds number
+--- @return nil|string code nil if no code could be made (the settings are left alone)
+function StreamOverlay.GoLive(delaySeconds)
+    local code = StreamerKitRedact.ViewerCodeFromHex(dmhub.GenerateGuid() .. dmhub.GenerateGuid())
+    if code == nil then
+        return nil
+    end
+    local doc = mod:GetDocumentSnapshot(SETTINGS_DOC)
+    doc:BeginChange()
+    doc.data.enabled = true
+    doc.data.viewerCode = code
+    doc.data.viewerDelay = StreamerKitRedact.ClampDelay(delaySeconds)
+    doc:CompleteChange("Go live", {undoable = false})
+    return code
+end
+
+--- Change the delay while live. Snapshots already waiting keep their time;
+--- the server never lets viewers see an older snapshot after a newer one.
+--- @param delaySeconds number
+function StreamOverlay.SetViewerDelay(delaySeconds)
+    local doc = mod:GetDocumentSnapshot(SETTINGS_DOC)
+    doc:BeginChange()
+    doc.data.viewerDelay = StreamerKitRedact.ClampDelay(delaySeconds)
+    doc:CompleteChange("Stream delay", {undoable = false})
+end
+
+--- End the stream: outputs off, the code dropped (the server ends the
+--- viewers' session), and the viewer document emptied.
+function StreamOverlay.EndLive()
+    local doc = mod:GetDocumentSnapshot(SETTINGS_DOC)
+    doc:BeginChange()
+    doc.data.enabled = false
+    doc.data.viewerCode = nil
+    doc:CompleteChange("End stream", {undoable = false})
+
+    local viewer = mod:GetDocumentSnapshot(VIEWER_DOC)
+    viewer:BeginChange()
+    for k, _ in pairs(viewer.data) do
+        viewer.data[k] = nil
+    end
+    viewer:CompleteChange("Streamer Kit viewer cleared", {undoable = false})
+end
+
+--- The game server this game's viewers connect to: the one EotW games are
+--- created on (same rule as EotwRoster.UseStaging; admins may pick staging).
+--- @return string
+function StreamOverlay.ViewerHost()
+    local staging = dmhub.isAdminAccount == true and dmhub.GetSettingValue("eotw:server") == "staging"
+    return cond(staging, "https://game-server-staging.codexback.com", "https://game-server.codexback.com")
+end
+
+--- The link viewers open for a code.
+--- @param code string
+--- @return string
+function StreamOverlay.ViewerUrl(code)
+    return string.format("%s/v/%s", StreamOverlay.ViewerHost(), code)
+end
+
+--- The settings document's path, for a panel's monitorGame.
+--- @return string
+function StreamOverlay.SettingsPath()
+    return mod:GetDocumentPath(SETTINGS_DOC)
 end
 
 --- Shrink a summary that has grown past the size cap: drop older events, then
@@ -636,6 +1063,29 @@ local function Write(summary)
     doc:CompleteChange("Stream overlay", {undoable = false})
 end
 
+local g_lastViewerWritten = nil
+
+--- Replace the viewer document with the redacted snapshot. Only the output of
+--- StreamerKitRedact.Redact is ever written here. Like the band's document it
+--- is not registered for checkpoint backups.
+--- @param viewer table
+local function WriteViewer(viewer)
+    local doc = mod:GetDocumentSnapshot(VIEWER_DOC)
+    --a rising number, carried across publishers, so the page and the
+    --server can order snapshots.
+    local seq = (tonumber(doc.data.seq) or 0) + 1
+    doc:BeginChange()
+    for k, _ in pairs(doc.data) do
+        doc.data[k] = nil
+    end
+    for k, v in pairs(viewer) do
+        doc.data[k] = v
+    end
+    doc.data.seq = seq
+    doc.data.updated = dmhub.serverTimeMilliseconds
+    doc:CompleteChange("Streamer Kit viewer", {undoable = false})
+end
+
 local function Tick()
     if not StreamOverlay.IsEnabled() or not InEotwGame() or not IsPublisher() then
         --start fresh if we become the publisher later.
@@ -666,13 +1116,39 @@ local function Tick()
     end
     g_lastSeq = seq
 
-    local summary = BuildSummary()
+    local summary, q, activeTokenIds = BuildSummary()
+
+    --the viewer feed is built from the same pass, before FitToSize trims the
+    --band's events. Its failure must never stop the band.
+    --the viewer feed runs only while a host has gone live with a viewer code
+    --(Go Live is dev-only for now); the overlay alone never sends it.
+    local viewer, viewerText = nil, nil
+    local viewerOk, viewerErr = pcall(function()
+        if not StreamOverlay.LiveSettings().live then
+            return
+        end
+        local raw = BuildViewerRaw(summary, q, activeTokenIds)
+        viewer = StreamerKitRedact.Redact(raw)
+        viewerText = FitViewerToSize(viewer)
+    end)
+    if not viewerOk then
+        print("StreamOverlay:: viewer snapshot failed:", viewerErr)
+    end
+
     local text = FitToSize(summary)
-    if text == g_lastWritten and not heartbeatDue then
+    local bandChanged = text ~= g_lastWritten
+    local viewerChanged = viewerText ~= nil and viewerText ~= g_lastViewerWritten
+    if not bandChanged and not viewerChanged and not heartbeatDue then
         return
     end
-    Write(summary)
-    g_lastWritten = text
+    if bandChanged or heartbeatDue then
+        Write(summary)
+        g_lastWritten = text
+    end
+    if viewer ~= nil and viewerText ~= nil and (viewerChanged or heartbeatDue) then
+        WriteViewer(viewer)
+        g_lastViewerWritten = viewerText
+    end
     g_lastWriteTime = now
 end
 

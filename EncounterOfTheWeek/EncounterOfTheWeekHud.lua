@@ -1682,3 +1682,246 @@ Commands.Register{
         }
     end,
 }
+
+--- Go Live (Streamer Kit) -------------------------------------------------
+--
+--A host who streams the game turns on the viewer page here: Go Live makes a
+--short viewer code, End Stream ends the viewers' session. The delay should
+--match the stream's own delay so the page never runs ahead of the video.
+--The work is in StreamOverlay.lua (settings) and StreamerKitRedact.lua (what
+--viewers may see). Only hosts see the row: a player host has no Game tab, so
+--the Codex menu is where a directorless EotW game's host controls live.
+
+--The delay last used on this machine, offered the next time.
+setting{
+    id = "eotw:streamdelay",
+    default = 0,
+    storage = "preference",
+}
+
+--- @type nil|Panel
+local m_goLiveDialog = nil
+
+local function CloseGoLive()
+    local hud = rawget(_G, "gamehud")
+    if hud ~= nil and m_goLiveDialog ~= nil and m_goLiveDialog.valid then
+        hud:CloseModal()
+    end
+    m_goLiveDialog = nil
+end
+
+--- The Streamer Kit is behind the "dev" setting until it ships: without it
+--- the Go Live row is hidden and the dialog does not open.
+--- @return boolean
+local function StreamerKitLoaded()
+    return dmhub.GetSettingValue("dev") == true
+        and rawget(_G, "StreamOverlay") ~= nil and StreamOverlay.LiveSettings ~= nil
+        and rawget(_G, "StreamerKitRedact") ~= nil
+end
+
+local function CreateGoLiveDialog()
+    local DIALOG_WIDTH = 560
+    local delayText = tostring(StreamerKitRedact.ClampDelay(dmhub.GetSettingValue("eotw:streamdelay")))
+    local settings = StreamOverlay.LiveSettings()
+    if settings.live then
+        delayText = tostring(settings.delay)
+    end
+
+    local statusLabel, codeLabel, linkLabel, livePanel, toggleButton, copyButton
+
+    local function Refresh()
+        settings = StreamOverlay.LiveSettings()
+        statusLabel.text = cond(settings.live, T("hud.golive.status_live"), T("hud.golive.status_off"))
+        livePanel:SetClass("collapsed", not settings.live)
+        if settings.live and settings.code ~= nil then
+            codeLabel.text = settings.code
+            linkLabel.text = StreamOverlay.ViewerUrl(settings.code)
+        end
+        toggleButton.text = cond(settings.live, T("hud.golive.end"), T("hud.golive.start"))
+    end
+
+    local delayInput = gui.Input{
+        classes = { "sizeS", "bordered" },
+        width = 80,
+        height = 28,
+        valign = "center",
+        lmargin = 10,
+        characterLimit = 3,
+        text = delayText,
+        change = function(element)
+            local seconds = StreamerKitRedact.ClampDelay(element.text)
+            dmhub.SetSettingValue("eotw:streamdelay", seconds)
+            if StreamOverlay.LiveSettings().live then
+                StreamOverlay.SetViewerDelay(seconds)
+            end
+        end,
+    }
+
+    statusLabel = gui.Label{
+        width = "100%",
+        height = "auto",
+        fontSize = 18,
+        bold = true,
+        tmargin = 14,
+        text = "",
+    }
+
+    codeLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        fontSize = 34,
+        bold = true,
+        halign = "center",
+        text = "",
+    }
+
+    linkLabel = gui.Label{
+        width = "100%",
+        height = "auto",
+        fontSize = 14,
+        halign = "center",
+        textAlignment = "center",
+        tmargin = 4,
+        text = "",
+    }
+
+    copyButton = gui.Button{
+        classes = { "sizeM" },
+        text = T("hud.golive.copy"),
+        halign = "center",
+        tmargin = 10,
+        click = function(element)
+            local current = StreamOverlay.LiveSettings()
+            if current.code ~= nil then
+                dmhub.CopyToClipboard(StreamOverlay.ViewerUrl(current.code))
+                element.text = T("hud.golive.copied")
+            end
+        end,
+    }
+
+    livePanel = gui.Panel{
+        classes = { "collapsed" },
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 10,
+        gui.Label{ width = "auto", height = "auto", fontSize = 14, halign = "center", text = T("hud.golive.code_label") },
+        codeLabel,
+        linkLabel,
+        gui.Label{ width = "100%", height = "auto", fontSize = 13, textWrap = true, textAlignment = "center", tmargin = 4, text = T("hud.golive.link_hint") },
+        copyButton,
+    }
+
+    toggleButton = gui.Button{
+        classes = { "sizeL" },
+        text = "",
+        halign = "center",
+        hmargin = 8,
+        click = function()
+            if StreamOverlay.LiveSettings().live then
+                StreamOverlay.EndLive()
+            else
+                StreamOverlay.GoLive(StreamerKitRedact.ClampDelay(delayInput.text))
+                copyButton.text = T("hud.golive.copy")
+            end
+            Refresh()
+        end,
+    }
+
+    local dialog = gui.Panel{
+        classes = { "framedPanel" },
+        styles = ThemeEngine.GetStyles(),
+        width = DIALOG_WIDTH,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        borderBox = true,
+        pad = 24,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        captureEscape = true,
+        escape = function()
+            CloseGoLive()
+        end,
+        --another host may go live or end the stream from their own dialog.
+        monitorGame = StreamOverlay.SettingsPath(),
+        refreshGame = function()
+            Refresh()
+        end,
+
+        gui.Label{ width = "100%", height = "auto", fontSize = 24, bold = true, text = T("hud.golive.title") },
+        gui.Label{ width = "100%", height = "auto", fontSize = 14, textWrap = true, tmargin = 8, text = T("hud.golive.intro") },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 16,
+            gui.Label{ width = "auto", height = "auto", fontSize = 15, valign = "center", text = T("hud.golive.delay_label") },
+            delayInput,
+        },
+        gui.Label{ width = "100%", height = "auto", fontSize = 12, textWrap = true, tmargin = 4, text = T("hud.golive.delay_hint") },
+        statusLabel,
+        livePanel,
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            tmargin = 20,
+            toggleButton,
+            gui.Button{
+                classes = { "sizeL" },
+                text = T("hud.golive.close"),
+                hmargin = 8,
+                click = function()
+                    CloseGoLive()
+                end,
+            },
+        },
+    }
+
+    Refresh()
+    return dialog
+end
+
+--- Opens the Go Live dialog (or leaves it up if it is).
+function EncounterOfTheWeekHud.ShowGoLive()
+    local hud = rawget(_G, "gamehud")
+    if hud == nil or not StreamerKitLoaded() then
+        return
+    end
+    if m_goLiveDialog ~= nil and m_goLiveDialog.valid then
+        return
+    end
+    m_goLiveDialog = CreateGoLiveDialog()
+    hud:ShowModal(m_goLiveDialog)
+end
+
+Commands.Register{
+    name = "Go Live",
+    gettext = function()
+        local settings = nil
+        pcall(function() settings = StreamOverlay.LiveSettings() end)
+        if settings ~= nil and settings.live and settings.code ~= nil then
+            return T("hud.golive.menu_live", { code = settings.code })
+        end
+        return T("hud.golive.menu")
+    end,
+    identifier = "eotwgolive",
+    icon = "phosphor/broadcast.png",
+    menu = "codex",
+    group = "zzeotwabout",
+    ord = 2,
+    filtered = function()
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        if eotw == nil or not StreamerKitLoaded() then
+            return true
+        end
+        local inGame = false
+        pcall(function() inGame = eotw.IsEotwGame() or eotw.IsTestRunning() end)
+        return not inGame or not IsDMOrPlayerHost()
+    end,
+    execute = function()
+        EncounterOfTheWeekHud.ShowGoLive()
+    end,
+}

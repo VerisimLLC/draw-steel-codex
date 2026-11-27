@@ -208,3 +208,46 @@ like "2d10 + Might + 1" shows the raw roll.
   saves for real; usage limits, Choose one when used, the "Targets are:" row; add a requirement;
   drop-slot precision.
 
+
+## 10. Milestone 2c, second part (2026-11-27, written on the Mac, NOT yet run in DMHub)
+
+DMHub was closed before any of this could be tested. First job on the next computer: reload the
+Codex, check the console is clean, then run the tests below.
+
+**Other people's changes (plan 12.6)** (`Block Editor/MainPanel.lua`, `State.lua`):
+- The host keeps a copy of each record as the editor last saw or wrote it (`known`). The window
+  (not the embedded Simple tab, whose dialog owns the record) sets `monitorAssets = true`; on
+  `refreshAssets` it asks the host declaration's new `locate(record)` for the current version
+  (the ability host: `ActivatedAbility:FindCompendiumSource` then the path) and compares.
+- Same as `known`: our own echo, ignored. Different and nothing of ours pending: the record is
+  re-opened from the new version (`BEState:ReplaceRecord` drops its pending change and its undo and
+  redo parts) and a note shows for `BlockEditor.NOTICE_SECONDS`. Different with our change pending:
+  the upload is held (`dirty = math.huge`) and a bar offers **Use theirs** / **Keep mine** (Keep
+  mine saves over theirs: last save wins). Closing without choosing saves ours.
+
+**Header rows** (`Draw Steel Core Rules/MCDMAbilityBlocks.lua`):
+- **Usage limit** (What it is): the menu is `CharacterResource.usageLimitOptions` (Draw Steel's
+  periods); saved into `usageLimitOptions`, the field the game enforces. Once limited, a
+  "Uses before it refreshes" row (`charges`) appears. A new limit starts at 1 and gets a counter id
+  (the ability's guid) unless it already has one. "victory:N" reads as the victory period.
+  Known gap: a class feature's modifier keeps its own copy of the limit and the class editor copies
+  it over the ability's when the feature is edited.
+- **Targets are** (Who it targets): together / one at a time, saved as `sequentialTargeting`
+  (unset for together); shown when the target count is not 1 or it is already one at a time.
+- Rows can now hide: `BlockHeaderRow.when(values)` (`Block Editor/Page.lua`).
+
+**Tests to run in DMHub** (stub the editor host's `upload`, never `dmhub.*`, which cannot be
+replaced from Lua and then really uploads):
+1. `/blockroundtrip` and `/blockroundtrip forced`: expect 748/748 both (new header writers must
+   not change untouched records).
+2. Open `/blockeditor Out of the Way!`, set `controller.data.host.upload` to a stub, change the
+   live ability's name in memory, fire `refreshAssets` on the controller: expect the model renamed
+   and the note shown. Then make an edit, change the live name again, fire again: expect the
+   choice bar; try both buttons. Put the live name back afterwards.
+3. On an ability with several targets, check the Targets are row shows; set a usage limit and see
+   the count row appear; save (stubbed) and read `usageLimitOptions` / `sequentialTargeting`.
+4. Plain-Lua tests in CI: `tests/block_editor_test.lua` (new ReplaceRecord case) and
+   `tests/block_recordcache_test.lua` (writers keep saved forms); the type check.
+
+**Still open:** the full "Choose one when used" block (option names, extra costs, options that
+target differently / variations, design 4n); add a requirement; drop-slot precision.

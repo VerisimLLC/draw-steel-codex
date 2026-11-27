@@ -75,6 +75,9 @@ end
 local function _recordHost(decl, options)
     --- @type table<string, table> the live record of each model, by model id
     local live = {}
+    --- @type table<string, table> a copy of each record as this editor last saw or wrote it, to tell
+    --- someone else's change from the echo of our own upload
+    local known = {}
     return {
         id = decl.id,
         decl = decl,
@@ -84,6 +87,30 @@ local function _recordHost(decl, options)
         end,
         track = function(model, record)
             live[model.id] = record
+            known[model.id] = DeepCopy(record)
+        end,
+        --- The record's current version when someone else has changed it
+        --- since this editor last saw or wrote it; nil when it is unchanged
+        --- or the host cannot look it up.
+        --- @param id string
+        --- @return table|nil
+        changedElsewhere = function(id)
+            local record = live[id]
+            if record == nil or known[id] == nil or decl.locate == nil then
+                return nil
+            end
+            local ok, current = pcall(decl.locate, record)
+            if not ok or current == nil or dmhub.DeepEqual(current, known[id]) then
+                return nil
+            end
+            return current
+        end,
+        --- Takes a newer version as the record this editor saves into.
+        --- @param id string
+        --- @param current table
+        adopt = function(id, current)
+            live[id] = current
+            known[id] = DeepCopy(current)
         end,
         upload = function(source, model)
             local record = live[model.id]
@@ -92,6 +119,7 @@ local function _recordHost(decl, options)
                 return true
             end
             _writeInto(record, BERecordCache.Save(model, source, decl))
+            known[model.id] = DeepCopy(record)
             if options.embedded then
                 --the editor around this one uploads the record when it closes.
                 if options.changed ~= nil then
@@ -290,6 +318,74 @@ local function _titleBar(decl, embedded)
     }
 end
 
+--- The line under the title bar that says when someone else changed the
+--- record: a note that fades after a few seconds, or, when this editor has
+--- changes of its own still to save, a choice between theirs and ours.
+--- @return Panel
+local function _noticeBar()
+    --- @type Panel
+    local bar
+    bar = gui.Panel{
+        classes = {"beNotice", "collapsed"},
+        data = { recordId = nil, serial = 0 },
+        gui.Label{
+            classes = {"beNoticeText"},
+            text = "",
+            interactable = false,
+        },
+        gui.Button{
+            classes = {"sizeS", "beNoticeChoice"},
+            width = "auto",
+            hpad = 12,
+            text = T("blockeditor.notice.reload_theirs"),
+            click = function(element)
+                _fireControllerEvent(element, "editorReloadTheirs", bar.data.recordId)
+            end,
+        },
+        gui.Button{
+            classes = {"sizeS", "beNoticeChoice"},
+            width = "auto",
+            hpad = 12,
+            text = T("blockeditor.notice.keep_mine"),
+            click = function(element)
+                _fireControllerEvent(element, "editorKeepMine", bar.data.recordId)
+            end,
+        },
+        --- @param kind string|nil "updated", "conflict", or nil to hide
+        --- @param recordId string|nil
+        --- @param name string|nil the record's name
+        editorNotice = function(element, kind, recordId, name)
+            element.data.serial = element.data.serial + 1
+            element.data.recordId = recordId
+            element:SetClass("collapsed", kind == nil)
+            if kind == nil then
+                return
+            end
+            if kind == "conflict" then
+                element.children[1].text = T("blockeditor.notice.conflict", { name = name or "" })
+            else
+                element.children[1].text = T("blockeditor.notice.updated", { name = name or "" })
+            end
+            for _, child in ipairs(element.children) do
+                if child:HasClass("beNoticeChoice") then
+                    child:SetClass("collapsed", kind ~= "conflict")
+                end
+            end
+            if kind == "updated" then
+                --the note goes by itself, unless a newer one replaced it.
+                local serial = element.data.serial
+                dmhub.Schedule(BlockEditor.NOTICE_SECONDS, function()
+                    if mod.unloaded or not element.valid or element.data.serial ~= serial then
+                        return
+                    end
+                    element:FireEvent("editorNotice", nil)
+                end)
+            end
+        end,
+    }
+    return bar
+end
+
 --- The strip of section names. A click marks the section and scrolls the page to it.
 --- @param decl BlockHost
 --- @return Panel
@@ -346,6 +442,42 @@ function BlockEditor.Routes(record, where)
     return false
 end
 
+--A dirty time far in the future: the record is held, not uploaded, while
+--the author chooses between their version and someone else's.
+local UNTIL_CHOSEN = math.huge
+
+--- The records someone else changed since this editor last saw or wrote them.
+--- @param host BlockEditorHost
+--- @param state BEState
+--- @return table<string, table> current version by record id
+local function _changesElsewhere(host, state)
+    local result = {}
+    if host.changedElsewhere == nil then
+        return result
+    end
+    for id, _ in pairs(state.models) do
+        local current = host.changedElsewhere(id)
+        if current ~= nil then
+            result[id] = current
+        end
+    end
+    return result
+end
+
+--- Reads a newer version of a record into the editor in place of the old one.
+--- @param state BEState
+--- @param host BlockEditorHost
+--- @param decl BlockHost
+--- @param id string
+--- @param current table
+local function _reloadRecord(state, host, decl, id, current)
+    local source = DeepCopy(current)
+    local model = BERecordCache.Open(source, decl)
+    model.savesUnchanged = BERecordCache.SavesUnchanged(model, source, decl)
+    state:ReplaceRecord(model, source)
+    host.adopt(id, current)
+end
+
 --- Whether the Block Editor can open this record as blocks: a registered
 --- host reads it, and the editor is turned on (developers, for now).
 --- @param record table|nil
@@ -397,6 +529,8 @@ function BlockEditor.CreatePanel(record, options)
     --- @cast model BERecordModel
 
     local host = _recordHost(decl, options)
+    --- @type table<string, table> per record, the other version the author has not yet chosen about
+    local conflicts = {}
     local state = BEState.CreateNew(host)
     state:AddRecord(model, source)
     if record ~= nil and source ~= nil then
@@ -527,7 +661,59 @@ function BlockEditor.CreatePanel(record, options)
             gui.CloseModal()
         end,
 
+        --Other people's changes (plan 12.6). The window watches the game's
+        --tables; inside another editor, that editor owns the record.
+        monitorAssets = (not embedded) and decl.locate ~= nil or nil,
+        refreshAssets = function(element)
+            if mod.unloaded then
+                return
+            end
+            for id, current in pairs(_changesElsewhere(host, state)) do
+                local model = state:Model(id)
+                local name = model ~= nil and model.name or ""
+                if state.dirty[id] == nil then
+                    --nothing of ours is waiting: show theirs.
+                    _reloadRecord(state, host, decl, id, current)
+                    element:FireEvent("editorRefresh")
+                    element:FireEventTree("editorNotice", "updated", id, name)
+                elseif not dmhub.DeepEqual(conflicts[id], current) then
+                    --ours is waiting to save: hold it until the author chooses.
+                    conflicts[id] = DeepCopy(current)
+                    state.dirty[id] = UNTIL_CHOSEN
+                    element:FireEventTree("editorNotice", "conflict", id, name)
+                end
+            end
+        end,
+
+        --- Drops this editor's changes to a record and shows the other version.
+        --- @param id string
+        editorReloadTheirs = function(element, id)
+            local current = id ~= nil and host.changedElsewhere(id) or nil
+            conflicts[id] = nil
+            if current ~= nil then
+                _reloadRecord(state, host, decl, id, current)
+            else
+                state.dirty[id] = nil
+            end
+            element:FireEvent("editorRefresh")
+            element:FireEventTree("editorNotice", nil)
+        end,
+
+        --- Keeps this editor's version: it saves over the other one (last save wins).
+        --- @param id string
+        editorKeepMine = function(element, id)
+            local current = id ~= nil and host.changedElsewhere(id) or nil
+            conflicts[id] = nil
+            if current ~= nil then
+                host.adopt(id, current)
+            end
+            state.dirty[id] = dmhub.Time() - BlockEditor.UPLOAD_DELAY
+            element:FireEvent("editorRefresh")
+            element:FireEventTree("editorNotice", nil)
+        end,
+
         _titleBar(decl, embedded),
+        _noticeBar(),
         _sectionStrip(decl),
         gui.Panel{
             classes = {"beColumns", "beDropArea"},

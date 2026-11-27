@@ -87,6 +87,29 @@ function BEState:AddRecord(model, source)
     end
 end
 
+--- Swaps a record's model for one read from a newer version of the record
+--- (someone else changed it). Its pending change and its undo and redo steps
+--- go: they describe the old version. Steps that also touched other records
+--- keep those records' parts.
+--- @param model BERecordModel
+--- @param source table the newer record it was read from
+function BEState:ReplaceRecord(model, source)
+    BEState.AssignUids(model)
+    local id = model.id
+    self.models[id] = model
+    self.sources[id] = source
+    self.dirty[id] = nil
+    for _, stack in ipairs({ self.undoStack, self.redoStack }) do
+        for i = #stack, 1, -1 do
+            local entry = stack[i]
+            entry.before[id] = nil
+            if next(entry.before) == nil then
+                table.remove(stack, i)
+            end
+        end
+    end
+end
+
 --- The model of a record, or of the record being shown.
 --- @param recordId? string
 --- @return BERecordModel|nil

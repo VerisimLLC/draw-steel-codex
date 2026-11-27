@@ -9,6 +9,26 @@ function ActivatedAbilityCast:SetPotencyApplied(targetToken, potency)
 	self.potencyApplied[targetToken.charid] = potency
 end
 
+--Per-target records of a power roll, each a table keyed by charid. Several rolls can share
+--one cast (an invoked strike, a repeated strike), so each roll clears its target's entries
+--first, and an invoke saves and restores them. A new per-target field belongs in one of these.
+--Written by the power roll behavior's Cast:
+ActivatedAbilityCast.targetRollRecordFields = {"targetRolls", "targetSources", "targetDamageSources", "targetSurges", "targetPotencySources", "potencyApplied"}
+--Written by the roll dialogs on accept, before the Cast runs:
+ActivatedAbilityCast.targetDialogSurgeFields = {"targetFreeSurges", "targetGainedSurges"}
+
+--- Forgets what an earlier roll on this cast recorded for one target.
+--- @param charid string the target token's charid
+--- @param fields string[] which records, e.g. ActivatedAbilityCast.targetRollRecordFields
+function ActivatedAbilityCast:ClearTargetRollRecords(charid, fields)
+	for _, field in ipairs(fields) do
+		local byTarget = self:try_get(field)
+		if byTarget ~= nil then
+			byTarget[charid] = nil
+		end
+	end
+end
+
 --Kill tracking behind Cast.Kills / Cast.Killed. killCount is the total for the
 --cast; killTable maps a victim token's charid to its kill count (one minion hit
 --can empty several single-minion bands of the squad pool, so it can exceed 1).

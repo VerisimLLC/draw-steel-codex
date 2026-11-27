@@ -880,12 +880,31 @@ local function InvokeIsWholeAbility(behavior, ability)
     return true
 end
 
---- Runs the invoke, then gives the invoking cast back the power roll tier it had.
---- An invoked ability shares its parent's cast, so a power roll inside it (an ally's
---- granted signature strike) used to overwrite the parent's tier, and the parent's
---- later tier-gated behaviors then ran for the ally's tier: Hammer and Anvil granted
---- extra strikes (X8QSSTAJ). Only a tier the parent already rolled is put back; when
---- the invoked ability makes the parent's roll (no tier yet), its tier stands.
+--The cast's record of the parent's power roll that an invoked roll writes over: who
+--rolled, the dice, total, edges and banes, and the tiers. The per-target records are
+--listed on ActivatedAbilityCast (see TargetRollFields below).
+local g_rollFields = {
+    "tier", "rollTier", "total", "naturalRoll", "lowRoll", "highRoll", "boonsApplied", "banesApplied",
+    "hiddenRoll", "diceTier", "overrideBy", "casterid",
+}
+
+--Every per-target roll record, each a table keyed by charid. Built when called: the
+--lists are defined by Draw Steel Core Rules, which loads after this file.
+--- @return string[]
+local function TargetRollFields()
+    local fields = {"tokenToTier"}
+    for _, list in ipairs({ActivatedAbilityCast.targetRollRecordFields, ActivatedAbilityCast.targetDialogSurgeFields}) do
+        for _, field in ipairs(list or {}) do
+            fields[#fields + 1] = field
+        end
+    end
+    return fields
+end
+
+--- Runs the invoke, then puts back the invoking cast's power roll. An invoked ability
+--- shares its parent's cast, so its own roll (an ally's granted strike) would otherwise
+--- replace the parent's for the parent's later behaviors and for History. When the parent
+--- has not rolled yet (cast.tier is 0), the invoked roll is the parent's and stands.
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
     local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
     --A cast relayed from another client can arrive as a plain table with no methods.
@@ -894,16 +913,25 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         return
     end
 
-    local savedTier = cast.tier
-    local savedTokenToTier = cast:try_get("tokenToTier")
-    if savedTokenToTier ~= nil then
-        savedTokenToTier = table.shallow_copy(savedTokenToTier)
+    local saved = {}
+    for _, field in ipairs(g_rollFields) do
+        saved[field] = cast:try_get(field)
+    end
+    local targetFields = TargetRollFields()
+    for _, field in ipairs(targetFields) do
+        local byTarget = cast:try_get(field)
+        --a copy: the invoked roll adds its own targets to these tables.
+        saved[field] = byTarget ~= nil and table.shallow_copy(byTarget) or nil
     end
 
     self:CastInvoke(ability, casterToken, targets, options)
 
-    cast.tier = savedTier
-    cast.tokenToTier = savedTokenToTier
+    for _, field in ipairs(g_rollFields) do
+        cast[field] = saved[field]
+    end
+    for _, field in ipairs(targetFields) do
+        cast[field] = saved[field]
+    end
 end
 
 --The invoke itself; see Cast above for the tier it keeps.

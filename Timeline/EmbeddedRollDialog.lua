@@ -2117,6 +2117,39 @@ function GameHud.CreateEmbeddedRollDialog()
         end
     end
 
+    --The row fields that decide each target's tier and its surges. A whole-row compare
+    --would also catch hover texts and upload on every roll.
+    local resolvedRowFields = {"tokenid", "boons", "banes", "tiersDelta", "autosuccess", "autofailure", "nottierone", "nottierthree", "surges"}
+
+    --True when the roll message's target rows (rolledRows) resolve differently from this
+    --dialog's (liveRows): an edge, bane, tier change or modifier added after the throw.
+    --- @param rolledRows table[]
+    --- @param liveRows table[]
+    --- @return boolean
+    local function TargetRowsDiffer(rolledRows, liveRows)
+        if #rolledRows ~= #liveRows then
+            return true
+        end
+        for i, liveRow in ipairs(liveRows) do
+            local rolledRow = rolledRows[i]
+            for _, field in ipairs(resolvedRowFields) do
+                if rolledRow[field] ~= liveRow[field] then
+                    return true
+                end
+            end
+            local rolledMods, liveMods = rolledRow.modifiersUsed or {}, liveRow.modifiersUsed or {}
+            if #rolledMods ~= #liveMods then
+                return true
+            end
+            for j, liveMod in ipairs(liveMods) do
+                if rolledMods[j].guid ~= liveMod.guid then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
     --Whether History is recording, so the dialog measures sources for it at all (not in Crows,
     --nor with Record History off).
     local function RecordingForHistory()
@@ -8344,6 +8377,13 @@ function GameHud.CreateEmbeddedRollDialog()
                                 thisTargetSurgesUsed = -thisTargetNonWastedSurgesGained
                             end
 
+                            --Only counts above 0 are recorded below, so first clear what an earlier
+                            --roll on this cast (an invoked or repeated strike) recorded for this target.
+                            --The other per-target roll records are cleared in the power roll's Cast.
+                            if m_symbols ~= nil and m_symbols.cast ~= nil then
+                                m_symbols.cast:ClearTargetRollRecords(target.token.charid, ActivatedAbilityCast.targetDialogSurgeFields)
+                            end
+
                             --Record free surges a modifier granted just for this strike, so the
                             --action log shows them (they never touch the surge pool otherwise).
                             local freeGranted = thisTargetSurgesGained - thisTargetNonWastedSurgesGained
@@ -8620,6 +8660,18 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                         CopyHoverTexts(rollProperties ~= nil and rollProperties:try_get("multitargets") or nil)
                         local rolled = rollInfo ~= nil and rollInfo.properties or nil
+                        --The ability resolves from the roll's chat message, which can miss an
+                        --edge or bane pressed while the dice were still rolling (or while this
+                        --dialog was hidden). Copy this dialog's target rows over when they differ.
+                        local liveRows = rollProperties ~= nil and rollProperties:try_get("multitargets") or nil
+                        if rolled ~= nil and rolled ~= rollProperties and liveRows ~= nil
+                            and TargetRowsDiffer(rolled:try_get("multitargets") or {}, liveRows) then
+                            rolled.multitargets = DeepCopy(liveRows)
+                            local ok, err = pcall(function() rollInfo:UploadProperties(rolled) end)
+                            if not ok then
+                                print("ROLL:: could not upload edges and banes to the roll:", err)
+                            end
+                        end
                         if rolled ~= nil and rolled ~= rollProperties then
                             CopyHoverTexts(rolled:try_get("multitargets"))
                         end

@@ -813,8 +813,32 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         local m_rollInfo
         local m_rollInfoKey
         local m_finished = false
+        --A change to edges or banes made while the dice are still rolling (e.g. a
+        --hero's triggered bane pressed straight after the throw). Written to the
+        --roll's chat message when the dice land.
+        local m_pendingRollProperties = nil
         local m_tierFinished = nil
         local m_multitargetResults = nil
+
+        --Writes roll properties to this roll's chat message, so the table and every
+        --client's chat card show the result with those edges and banes.
+        local function UploadToRollMessage(props)
+            for _,msg in ipairs(chat.messages) do
+                if msg.key == m_rollInfoKey then
+                    msg:UploadProperties(props)
+                    return
+                end
+            end
+            --Not in the chat list (a re-roll can be missing from it): upload through
+            --the roll itself.
+            if m_rollInfo ~= nil then
+                local ok, err = pcall(function() m_rollInfo:UploadProperties(props) end)
+                if not ok then
+                    print("ROLL:: could not upload edges and banes to the roll:", err)
+                end
+            end
+        end
+
         --The roll dialog's selected target (charid), and whether the roll has
         --more than one target. With several targets an "or" click is recorded
         --for the selected target only; see the tier label's press handler.
@@ -936,6 +960,11 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_endTime = nil
                     m_finished = true
 
+                    if m_pendingRollProperties ~= nil then
+                        UploadToRollMessage(m_pendingRollProperties)
+                        m_pendingRollProperties = nil
+                    end
+
                     local tier = DiceResultToTier(m_rollInfo)
 
                     local multitargets = CalculateMultitargetsFromRollProperties(m_rollInfo, nil)
@@ -974,20 +1003,14 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
 
             recalculatedMultiTargets = function(element, multiTargets, rollProperties)
                 if not m_finished then
+                    --before the throw there is no message yet: the throw itself sends these.
+                    if m_rollInfoKey ~= nil then
+                        m_pendingRollProperties = rollProperties
+                    end
                     return
                 end
 
-                local message
-                for _,msg in ipairs(chat.messages) do
-                    if msg.key == m_rollInfoKey then
-                        message = msg
-                        break
-                    end
-                end
-
-                if message ~= nil then
-                    message:UploadProperties(rollProperties)
-                end
+                UploadToRollMessage(rollProperties)
             end,
 
             beginRoll = function(element, rollInfo, rollid)
@@ -997,6 +1020,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 m_endTime = nil
                 m_finished = false
                 m_tierFinished = nil
+                --m_pendingRollProperties is kept on purpose: an edge pressed during the last
+                --throw still uploads when this one lands.
                 --a re-roll hides a secret Critical again until it lands.
                 m_critRevealed = false
 
@@ -2358,6 +2383,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --after the dice landed. The raw m_result misses those (E8TWPX8B).
     local multitargetResults = CalculateMultitargetsFromRollProperties(m_rollInfo, m_result)
 
+    --A tier picked on the chat card is saved on the roll's message, where each target's tier
+    --is also read; one picked in the roll dialog is saved in rollProperties. Resolution, stats
+    --and History all take it from here, so they agree.
+    local overrideProperties = rollProperties
+    if m_rollInfo ~= nil and m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("overrideTier") ~= nil then
+        overrideProperties = m_rollInfo.properties
+    end
+    local overrideTier = overrideProperties:try_get("overrideTier")
+
     --The tier for one target token, or for the roll as a whole when nil (the
     --first target's, since the stats record one tier per roll).
     local function EffectiveTier(targetToken)
@@ -2366,7 +2400,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 return multitarget.tier
             end
         end
-        return rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+        return overrideTier or DiceResultToTier(m_result)
     end
 
     --The roll properties (with the tier texts) to resolve one target with. A target
@@ -2390,9 +2424,20 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --dice tier).
     local rolledTier = EffectiveTier(nil)
     --an overridden tier: who chose it and what the dice gave, for a record of play (History).
-    if rollProperties:try_get("overrideTier") ~= nil then
-        options.symbols.cast.overrideBy = rollProperties:try_get("overrideBy")
+    --Cleared when not overridden: an earlier roll on this cast (an invoking or invoked
+    --ability's) may have left its own.
+    options.symbols.cast.overrideBy = nil
+    options.symbols.cast.diceTier = nil
+    if overrideTier ~= nil then
+        options.symbols.cast.overrideBy = overrideProperties:try_get("overrideBy")
         options.symbols.cast.diceTier = DiceResultToTier(m_result)
+    end
+    --The roll's own tier, before any one target's edges, banes or tier changes. History
+    --shows it beside the roll's total; cast.tier ends up as the last target's tier.
+    --A silenced caster's roll has no tier, as on the target lines.
+    options.symbols.cast.rollTier = overrideTier or DiceResultToTier(m_result)
+    if rollProperties:try_get("tierSuppressed") then
+        options.symbols.cast.rollTier = -1
     end
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))
@@ -2544,10 +2589,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         for numTarget,target in ipairs(targets or {}) do
 
             local targetToken = target.token
-            local tier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+            local tier = overrideTier or DiceResultToTier(m_result)
             local modifiersUsed = rollProperties:try_get("modifiersUsed", {})
 
             if targetToken ~= nil then
+                --Record the tier this target resolves at, after edges, banes and tier
+                --changes; behaviors limited to some tiers (an Invoke on Tier 3) read it.
+                tier = EffectiveTier(targetToken)
                 if rollProperties:try_get("tierSuppressed") then
                     --this means that the caster is 'silenced' and results based on tier won't apply.
                     options.symbols.cast:SetTierResult(targetToken, -1)
@@ -2561,13 +2609,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             options.symbols.cast.total = m_result.total
 
             if targetToken ~= nil then
-                tier = EffectiveTier(targetToken)
                 targetRollProperties = TierPropertiesFor(targetToken)
 
                 local command = ResolveTierOrChoices(rollProperties, targetRollProperties, tier, targetRollProperties.tiers[tier], targetToken, casterToken, ability)
 
                 local surges = 0
                 local potencyApplied = 0
+                --An earlier roll on this cast (an invoking or invoked ability's) may have recorded
+                --this target's own roll, sources, surges or potency; only this roll's should show.
+                options.symbols.cast:ClearTargetRollRecords(targetToken.charid, ActivatedAbilityCast.targetRollRecordFields)
                 --this target's row of the roll dialog. Found by token: when targets are chosen as
                 --each tier resolves (promptWhenResolving) every pass has one target at position 1.
                 local multitarget = nil

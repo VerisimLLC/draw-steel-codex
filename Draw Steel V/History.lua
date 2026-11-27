@@ -694,8 +694,9 @@ function History.RollAlwaysShown(entry)
     return entry.cause ~= nil and entry.actor ~= nil and entry.actor.hero == true and entry.player == nil
 end
 
---Cuts an entry down to what players may see: no more than they saw live. Done once as
---it is parsed, so no view can show more by mistake. Nil when nothing of it is left to show.
+--Cuts an entry down to what players may see: no more than they saw live, except a hero's
+--roll inside another action that the Director rolled hidden (History.RollAlwaysShown). Done
+--once as it is parsed, so no view can show more by mistake. Nil when nothing is left to show.
 --- @param entry HistoryEntry
 --- @return HistoryEntry|nil
 local function ForPlayers(entry)

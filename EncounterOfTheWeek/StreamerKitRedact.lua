@@ -45,7 +45,8 @@
 --      stamina = { cur, max, temp }, dead, dying,
 --      characteristics = { might, agility, reason, intuition, presence },
 --      resource = { name, value }, recoveries = { cur, max }, surges,
---      victories, conditions = { { id, name } }, active } },
+--      victories, conditions = { { id, name } }, active,
+--      portrait = { image, rect = { x1, y1, x2, y2 } }, player } },
 --    monsters = { {
 --      id, name, namePrivate, monsterType, squad, minion, hidden,
 --      stamina = { cur, max }, dead, ev, notes, role, organization, level,
@@ -68,6 +69,8 @@
 --                  state ("open"|"taken"|"vanquished"), temporary, remaining } },
 --      turn = { hero, entry, option, status, tier },
 --      log = { { round, hero, entry, option, tier, passed, consequence } } },
+--    pastMontage = the same block for the last montage to finish (phase
+--      "done", no turn), sent while no montage is running.
 --  }
 --  The montage block holds only what every player's screen shows: the
 --  collector leaves out locked, removed and expired entries, later rounds'
@@ -103,7 +106,7 @@ local MAX_ACTIONS = 12
 local MAX_TARGETS = 10
 local TARGET_STATES = { winded = true, dying = true, killed = true }
 local ENTRY_STATES = { open = true, taken = true, vanquished = true }
-local MONTAGE_PHASES = { rounds = true, consequences = true }
+local MONTAGE_PHASES = { rounds = true, consequences = true, done = true }
 local TURN_STATUSES = {
     scene = true, choosing = true, rolling = true, perk = true, pardon = true,
     dice = true, chest = true, chestlanded = true, delvechoice = true,
@@ -141,6 +144,57 @@ local function Str(s)
         s = string.sub(s, 1, MAX_STRING)
     end
     return s
+end
+
+--- A portrait image id the viewer server may fetch: a bare content id
+--- (base64 md5, served from the legacy image bucket) or a URL-form id on the
+--- Codex image host. Anything else -- an asset id, a local path, another
+--- host -- is dropped, so the server is never pointed somewhere else.
+--- @param s any
+--- @return nil|string
+function StreamerKitRedact.PortraitImage(s)
+    if type(s) ~= "string" or #s < 16 or #s > 120 then
+        return nil
+    end
+    if string.match(s, "^[%w%+/=]+$") ~= nil and #s <= 64 then
+        return s
+    end
+    local key = string.match(s, "^https://codexback%.com/([%w_%-~]+)$")
+    if key ~= nil and #key >= 16 then
+        return s
+    end
+    return nil
+end
+
+--- A crop fraction, clamped to the image.
+--- @param n any
+--- @param default number
+--- @return number
+local function Fraction(n, default)
+    n = tonumber(n)
+    if n == nil or n ~= n then
+        return default
+    end
+    n = math.max(0, math.min(1, n))
+    return math.floor(n * 10000 + 0.5) / 10000
+end
+
+--- @param portrait any
+--- @return nil|{image: string, rect: {x1: number, y1: number, x2: number, y2: number}}
+local function Portrait(portrait)
+    if type(portrait) ~= "table" then
+        return nil
+    end
+    local image = StreamerKitRedact.PortraitImage(portrait.image)
+    if image == nil then
+        return nil
+    end
+    local r = type(portrait.rect) == "table" and portrait.rect or {}
+    local rect = { x1 = Fraction(r.x1, 0), y1 = Fraction(r.y1, 0), x2 = Fraction(r.x2, 1), y2 = Fraction(r.y2, 1) }
+    if rect.x2 <= rect.x1 or rect.y2 <= rect.y1 then
+        rect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+    end
+    return { image = image, rect = rect }
 end
 
 --- An array part only, capped: ignores map keys a caller may have mixed in.
@@ -385,6 +439,8 @@ local function RedactHero(hero)
         level = Whole(hero.level),
         className = Str(hero.className),
         ancestry = Str(hero.ancestry),
+        portrait = Portrait(hero.portrait),
+        player = Str(hero.player),
     }
     if type(hero.characteristics) == "table" then
         out.characteristics = {}
@@ -525,6 +581,13 @@ function StreamerKitRedact.Redact(raw)
     out.actions = RedactActions(raw.actions, hiddenIds, visibleNames)
     if out.mode == "montage" then
         out.montage = RedactMontage(raw.montage)
+    else
+        --the last montage to finish, folded up on the page: no turn in flight.
+        out.pastMontage = RedactMontage(raw.pastMontage)
+        if out.pastMontage ~= nil then
+            out.pastMontage.phase = "done"
+            out.pastMontage.turn = nil
+        end
     end
 
     local encounter = type(raw.encounter) == "table" and raw.encounter or {}

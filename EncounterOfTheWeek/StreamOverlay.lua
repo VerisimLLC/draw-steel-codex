@@ -643,6 +643,69 @@ local function Characteristic(props, attrid)
     return value
 end
 
+--The stored image id behind each portrait asset, by asset id: the lookup
+--logs on every call, and a portrait seldom changes.
+local g_portraitImageIds = {}
+
+--- The hero's card art as the viewer page draws it: the stored image id (a
+--- content-addressed id the server can fetch) and the crop the in-app hero
+--- card cuts it with. nil while the portrait's asset record has not loaded,
+--- or when the hero has no art.
+--- @param token CharacterToken
+--- @return nil|{image: string, rect: {x1: number, y1: number, x2: number, y2: number}}
+local function HeroPortrait(token)
+    local portrait = nil
+    pcall(function() portrait = token.offTokenPortrait end)
+    if type(portrait) ~= "string" or portrait == "" then
+        return nil
+    end
+    local image = g_portraitImageIds[portrait]
+    if image == nil then
+        local known = false
+        pcall(function() known = assets.allAssets[portrait] ~= nil end)
+        if not known then
+            return nil
+        end
+        pcall(function() image = dmhub.GetRawImageId(portrait) end)
+        --an id that comes back unchanged was not an image asset.
+        if type(image) ~= "string" or image == portrait then
+            return nil
+        end
+        g_portraitImageIds[portrait] = image
+    end
+    local width, height = 132, 188
+    local card = rawget(_G, "EotwHeroCard")
+    if type(card) == "table" and type(card.CARD_WIDTH) == "number" and type(card.CARD_HEIGHT) == "number" then
+        width, height = card.CARD_WIDTH, card.CARD_HEIGHT
+    end
+    local rect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+    pcall(function()
+        local r = CardPortraitRect(token, width / height, portrait)
+        if r ~= nil then
+            rect = { x1 = r.x1, y1 = r.y1, x2 = r.x2, y2 = r.y2 }
+        end
+    end)
+    return { image = image, rect = rect }
+end
+
+--- The name of the player who controls a hero, as the hero card shows it
+--- (without the Player Tag). nil for an unclaimed or party hero.
+--- @param token CharacterToken
+--- @return nil|string
+local function HeroPlayer(token)
+    local owner = nil
+    pcall(function() owner = token.ownerId end)
+    if type(owner) ~= "string" or owner == "" or owner == "PARTY" then
+        return nil
+    end
+    local name = nil
+    pcall(function() name = dmhub.GetDisplayName(owner) end)
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return name
+end
+
 --- @param token CharacterToken
 --- @param activeTokenIds table<string, boolean>
 --- @return table raw hero (see StreamerKitRedact)
@@ -684,6 +747,8 @@ local function RawHero(token, activeTokenIds)
     pcall(function() hero.surges = props:GetAvailableSurges() end)
     pcall(function() hero.victories = props:GetVictories() end)
     pcall(function() hero.level = props:CharacterLevel() end)
+    pcall(function() hero.portrait = HeroPortrait(token) end)
+    pcall(function() hero.player = HeroPlayer(token) end)
     return hero
 end
 
@@ -878,13 +943,21 @@ end
 --- once it is chosen, and the montage log. StreamerKitRedact still decides
 --- what leaves.
 --- @return nil|table
+--The last montage seen to finish (its block as of its "done" phase): the
+--feed keeps it as pastMontage, so viewers can still look back at it after
+--the next beat starts. Replaced when another montage finishes; lost if the
+--publisher reloads.
+local g_pastMontage = nil
+
+--- The montage block (see StreamerKitRedact), phase "done" included.
+--- @return nil|table
 local function RawMontage()
     local montage = rawget(_G, "EncounterMontage")
     if montage == nil then
         return nil
     end
     local m = montage.GetState()
-    if m == nil or m.phase == "done" then
+    if m == nil then
         return nil
     end
     local beat = montage.CurrentBeat()
@@ -1046,12 +1119,18 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
     --a montage beat: its own mode and block (combat wins if both somehow are).
     if q == nil then
         local ok, montage = pcall(RawMontage)
-        if ok and montage ~= nil then
+        if ok and montage ~= nil and montage.phase == "done" then
+            montage.turn = nil
+            g_pastMontage = montage
+        elseif ok and montage ~= nil then
             raw.mode = "montage"
             raw.montage = montage
         elseif not ok then
             print("StreamOverlay:: montage snapshot failed:", montage)
         end
+    end
+    if raw.mode ~= "montage" and g_pastMontage ~= nil then
+        raw.pastMontage = g_pastMontage
     end
 
     for _, token in ipairs(HeroTokens()) do
@@ -1134,6 +1213,15 @@ local function FitViewerToSize(viewer)
             end
         end
         text = dmhub.ToJson(viewer)
+    end
+    --a finished montage is the first thing to give up: its board, then its log.
+    if #text > VIEWER_MAX_BYTES and viewer.pastMontage ~= nil then
+        viewer.pastMontage.board = {}
+        text = dmhub.ToJson(viewer)
+        if #text > VIEWER_MAX_BYTES then
+            viewer.pastMontage.log = {}
+            text = dmhub.ToJson(viewer)
+        end
     end
     while #text > VIEWER_MAX_BYTES and #viewer.events > 1 do
         table.remove(viewer.events, 1)

@@ -381,6 +381,30 @@ end)()
     out = StreamerKitRedact.Redact(raw)
     check(out.montage == nil, "a non-table montage is dropped")
     AssertNoLeaks(out, "montage garbage")
+
+    --a finished montage rides along, folded up, once the montage is over.
+    raw.mode = "combat"
+    raw.montage = nil
+    raw.pastMontage = {
+        title = "Through the Reedmarsh", round = 3, rounds = 3, phase = "rounds",
+        successes = 5, failures = 2, unvanquished = 1,
+        board = { { id = "o1", kind = "opportunity", name = "Bribe the Ferryman", state = "taken", notes = SECRET } },
+        turn = { hero = "Ilsa Varn", entry = SECRET, option = SECRET, status = "rolling" },
+        log = { { round = 3, hero = "Sev", entry = "Leeches", option = "Climb", tier = 3, applied = { SECRET } } },
+        secret = SECRET,
+    }
+    out = StreamerKitRedact.Redact(raw)
+    local past = out.pastMontage
+    check(past ~= nil and past.title == "Through the Reedmarsh" and past.phase == "done", "the finished montage passes, as done")
+    check(past.successes == 5 and past.failures == 2 and #past.board == 1 and #past.log == 1, "its totals, board and log")
+    check(past.turn == nil, "no turn on a finished montage")
+    AssertNoLeaks(out, "past montage")
+    raw.mode = "montage"
+    raw.montage = { title = "Next", round = 1, rounds = 2, phase = "rounds", board = {}, log = {} }
+    check(StreamerKitRedact.Redact(raw).pastMontage == nil, "not while a montage is running")
+    raw.mode = "none"
+    raw.pastMontage = SECRET
+    check(StreamerKitRedact.Redact(raw).pastMontage == nil, "a non-table past montage is dropped")
 end)()
 
 --initiative groups: opaque ids in order, titles kept unless a member's name is private.
@@ -442,6 +466,40 @@ end)()
     check(StreamerKitRedact.Redact(raw).actions == nil, "non-table actions are dropped")
     raw.actions = nil
     check(StreamerKitRedact.Redact(raw).actions == nil, "no History, no actions")
+end)()
+
+-- Hero card art: only a stored image id of the two known forms, with its crop.
+;(function()
+    local P = StreamerKitRedact.PortraitImage
+    check(P("eQGTS9rnrtJ_wOjVvwdjbw") == nil, "an R2 key without its host is not a bare md5 (has _)")
+    check(P("q83vEjRWeJASNFZ4kBI0Vg==") == "q83vEjRWeJASNFZ4kBI0Vg==", "a bare base64 md5")
+    check(P("https://codexback.com/eQGTS9rnrtJ_wOjVvwdjbw") ~= nil, "a URL-form id on the Codex host")
+    check(P("https://evil.example.com/eQGTS9rnrtJ_wOjVvwdjbw") == nil, "another host")
+    check(P("https://codexback.com/a/../../x") == nil, "a path with segments")
+    check(P("http://codexback.com/eQGTS9rnrtJ_wOjVvwdjbw") == nil, "plain http")
+    check(P("0f8c3b9e-1d2a-4c5b-9e7f-112233445566") == nil, "an asset id (GUID)")
+    check(P("C:/Users/someone/portrait.png") == nil, "a local path")
+    check(P(42) == nil and P(nil) == nil and P("short") == nil, "non-strings and short strings")
+
+    local raw = Fixture()
+    raw.heroes[1].portrait = { image = "q83vEjRWeJASNFZ4kBI0Vg==", rect = { x1 = -0.5, y1 = 0.1, x2 = 0.9, y2 = 7 }, extra = SECRET }
+    raw.heroes[1].player = "Sam"
+    if raw.heroes[2] ~= nil then
+        raw.heroes[2].portrait = { image = "https://elsewhere.example/" .. SECRET }
+    end
+    local out = StreamerKitRedact.Redact(raw)
+    local p = out.heroes[1].portrait
+    check(p ~= nil and p.image == "q83vEjRWeJASNFZ4kBI0Vg==", "the portrait id is kept")
+    check(p ~= nil and p.rect.x1 == 0 and p.rect.y1 == 0.1 and p.rect.x2 == 0.9 and p.rect.y2 == 1, "the crop is clamped to the image")
+    check(p ~= nil and p.extra == nil, "nothing else rides along")
+    check(out.heroes[1].player == "Sam", "the player name")
+    if out.heroes[2] ~= nil then
+        check(out.heroes[2].portrait == nil, "a portrait on another host is dropped")
+    end
+    raw.heroes[1].portrait = { image = "q83vEjRWeJASNFZ4kBI0Vg==", rect = { x1 = 0.8, y1 = 0, x2 = 0.2, y2 = 1 } }
+    local r = StreamerKitRedact.Redact(raw).heroes[1].portrait.rect
+    check(r.x1 == 0 and r.x2 == 1, "an inside-out crop falls back to the whole image")
+    AssertNoLeaks(out, "portraits")
 end)()
 
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

@@ -492,6 +492,8 @@ local function NameRow(token)
     --where the Director's pill sits, from the last measure.
     local pillUnits = 0
     local pillBeside = false
+    --the row's width from the last measure; the guess until then.
+    local rowUnits = room
 
     --- @param typing boolean
     local function Show(typing)
@@ -544,9 +546,10 @@ local function NameRow(token)
             openFor = token ~= nil and token.charid or nil
             --the field takes the name's room short of a pill beside it, so
             --nothing moves while typing; the row measures again after a save.
+            --2 to spare, so rounding never drops the pill below mid-type.
             local width = nameMax
             if pillBeside then
-                width = math.max(80, width - pillUnits - 8)
+                width = math.max(80, math.min(nameMax, rowUnits - iconsRoom - pillUnits - 8 - 2))
             end
             field.selfStyle.width = width
             field.captureEscape = true
@@ -700,15 +703,17 @@ local function NameRow(token)
     }
     --- @param nameUnits number
     --- @param measuredPill number
-    local function Place(nameUnits, measuredPill)
+    --- @param measuredRow number the row's width
+    local function Place(nameUnits, measuredPill, measuredRow)
         pillUnits = measuredPill
-        pillBeside = nameUnits + iconsRoom + 8 + measuredPill <= room
+        rowUnits = measuredRow
+        pillBeside = nameUnits + iconsRoom + 8 + measuredPill <= measuredRow
         pill:SetClass("collapsed", not pillBeside)
         line2:SetClass("collapsed", pillBeside)
     end
     local pillText = "Controlled by " .. ControllerName(token)
     Place(math.min(nameMax, HeroSheetTheme.TextWidth(token.name or "", size) * 1.1),
-        HeroSheetTheme.TextWidth(pillText, 12) + 18)
+        HeroSheetTheme.TextWidth(pillText, 12) + 18, room)
     local function Measure()
         dmhub.Schedule(0.05, function()
             if mod.unloaded or not eye.valid or eye.renderedHeight <= 0 then
@@ -719,7 +724,13 @@ local function NameRow(token)
             if shown.renderedWidth <= 0 then
                 return
             end
-            Place(nameBox.renderedWidth / perUnit, shown.renderedWidth / perUnit)
+            --the row as drawn: Narrow's banner has no fixed column width,
+            --so the guess above can be far short of the room it has.
+            local measuredRow = room
+            if line1.renderedWidth > 0 then
+                measuredRow = line1.renderedWidth / perUnit
+            end
+            Place(nameBox.renderedWidth / perUnit, shown.renderedWidth / perUnit, measuredRow)
         end)
     end
     Measure()
@@ -1667,7 +1678,8 @@ end
 --Stamina: the bar with hover zones Damage / Set / Heal / Temp. Picking one
 --turns the bar into a field for that value: Enter or the tick applies, Esc
 --or the cross cancels. It writes Stamina the same way the Character panel's
---bar does.
+--bar does. In Edit mode the zones give way to the Max Stamina card
+--(HeroSheetStats.MaxStaminaCard), where custom changes to the maximum are made.
 
 local STAMINA_MODES = {
     dmg = {label = "Damage", description = "Apply Damage"},
@@ -1765,7 +1777,8 @@ local function Stamina()
     --- @param newMode string
     local function OpenField(newMode)
         local token = HeroSheet.Token()
-        if token == nil or not HeroSheetWrite.CanWrite() then
+        --Edit mode changes the maximum, not the Stamina the Hero has now.
+        if token == nil or not HeroSheetWrite.CanWrite() or HeroSheet.Editing() then
             return
         end
         local cur, _, temp = Values(token)
@@ -1964,7 +1977,6 @@ local function Stamina()
         cornerRadius = 4,
         width = "100%",
         height = 24,
-        tmargin = 8,
         gui.Panel{
             classes = {"heroSheetHpClip"},
             bgimage = "panels/square.png",
@@ -1982,6 +1994,36 @@ local function Stamina()
         zones,
         field,
     }
+
+    --In Edit mode a dashed frame goes round the bar, as on the stats band's
+    --editable values. Its padding is there in both modes, overhanging the
+    --bar's sides and taken from the gaps above and below, so the bar stays put.
+    local framePanel = gui.Panel(HeroSheetTheme.HoverCard({
+        classes = {"heroSheetEditFrame"},
+        bgimage = "panels/square.png",
+        border = 1,
+        cornerRadius = 6,
+        width = "100%+8",
+        height = "auto",
+        halign = "center",
+        hpad = 4,
+        vpad = 3,
+        borderBox = true,
+        tmargin = 5,
+        hover = function(element)
+            element:SetClass("heroSheetLit", HeroSheet.Editing())
+        end,
+        dehover = function(element)
+            element:SetClass("heroSheetLit", false)
+        end,
+        bar,
+    }, function(pinned, close, element)
+        local body = HeroSheetStats.MaxStaminaCard(pinned, element)
+        if body == nil then
+            return nil
+        end
+        return HeroSheetTheme.CardFrame(body, pinned, close)
+    end, nil, {halign = "center", valign = "bottom"}))
 
     --the line's labels: 13 at Wide, 11.5 at Medium and Narrow, so the
     --"Dead at" and "Winded at" values never run together.
@@ -2042,7 +2084,8 @@ local function Stamina()
         width = "100%",
         height = 22,
         flow = "horizontal",
-        tmargin = 2,
+        --with the frame's 3 of padding below the bar, -1 keeps the old 2 gap.
+        tmargin = -1,
         LinePart("Dead at", deadAt, "left"),
         LinePart("Winded at", windedAt, "center"),
         LinePart("Temp", tempHolder, "center"),
@@ -2083,22 +2126,41 @@ local function Stamina()
             windedAt.text = tostring(winded)
             tempValue.text = tostring(temp)
             HeroSheetTheme.SetDots(tempDots, HeroSheetTheme.TextWidth(tempValue.text, LineFont()))
-            tempDots:SetClass("collapsed", not HeroSheetWrite.CanWrite())
+            --Edit mode changes the maximum only: Damage, Set, Heal and Temp
+            --are off, and a field left open closes.
+            local editing = HeroSheet.Editing()
+            local canChange = HeroSheetWrite.CanWrite() and not editing
+            if editing and mode ~= nil then
+                CloseField()
+            end
+            tempDots:SetClass("collapsed", not canChange)
+            tempValue:SetClass("hoverable", canChange)
+            framePanel:SetClass("heroSheetEditOn", editing)
+            if not editing then
+                framePanel:SetClass("heroSheetLit", false)
+                framePanel.popup = nil
+            end
             local word = string.upper(string.sub(state, 1, 1)) .. string.sub(state, 2)
             stateWord.text = word
             stateWord:SetClass("heroSheetCardSuccess", state == "healthy")
             stateWord:SetClass("heroSheetCardWarning", state == "winded")
             stateWord:SetClass("heroSheetCardDanger", state == "dying" or state == "dead")
             --the zones only for those who may change the Hero.
-            zones:SetClass("collapsed", not HeroSheetWrite.CanWrite())
+            zones:SetClass("collapsed", not canChange)
         end,
-        bar,
+        heroSheetEdit = function(element, editing)
+            local token = HeroSheet.Token()
+            if token ~= nil then
+                element:FireEvent("heroSheetRedrawStamina", token)
+            end
+        end,
+        framePanel,
         line,
     }, {
         name = "card stamina",
         signature = function(token)
             local cur, max, temp, winded, state = Values(token)
-            return string.format("%d|%d|%d|%s", cur, max, temp, state)
+            return string.format("%d|%d|%d|%s|%s", cur, max, temp, state, tostring(HeroSheet.Editing()))
         end,
         refresh = function(panel, token)
             panel:FireEvent("heroSheetRedrawStamina", token)

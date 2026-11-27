@@ -624,28 +624,31 @@ end
 
 --The roster and the montage stage each build their own card for the same
 --hero, so one point of damage (or one heal) gets noticed twice. Keyed by
---charid, these remember the stamina total the sound last fired for and
---when: whichever card sees the change first plays it and the other stays
+--charid, these remember the damage entry the sound last fired for and
+--when: whichever card sees the entry first plays it and the other stays
 --silent. (Attack.Hit already de-duplicates itself over 0.2s, but the two
 --surfaces refresh on different cadences -- 0.5s on the stage, 1s on the
 --roster -- so they can easily notice the same hit further apart than that.)
---
---The window is what makes it a de-duplicator rather than a mute: landing
---on the same total again later -- healed back up and hit for the same
---amount -- is a new hit and must sound like one.
 local CARD_SOUND_DEDUP = 2
+--how old (seconds) a damage entry may be and still sound on a card. Undo
+--and Revert Turn can bring back entries from minutes ago, which must not.
+local CARD_ENTRY_FRESH = 10
 local g_hurtSound = {}
 local g_healSound = {}
 
 --2D, with no tokenid: the card is what the player is looking at, and
 --during a montage the map is not even on screen to position it in.
-local function FireCardSound(seen, charid, total, eventName)
+--- @param seen table g_hurtSound or g_healSound
+--- @param charid string
+--- @param key string the damage entry's id and amounts
+--- @param eventName string
+local function FireCardSound(seen, charid, key, eventName)
     local now = dmhub.Time()
     local last = seen[charid]
-    if last ~= nil and last.total == total and now - last.t < CARD_SOUND_DEDUP then
+    if last ~= nil and last.key == key and now - last.t < CARD_SOUND_DEDUP then
         return
     end
-    seen[charid] = { total = total, t = now }
+    seen[charid] = { key = key, t = now }
     audio.FireSoundEvent(eventName)
 end
 
@@ -988,11 +991,11 @@ end
 --cur/max numbers centered in white, and a temp-stamina segment in the
 --accent color riding the end of the fill when the hero has any.
 --
---A drop in stamina drains the fill down over ~0.3-0.7s (the numbers count
---with it), fires the generic hit sound, and fires "staminaLost" up the
---hierarchy so the card it sits on can flash red. A rise in stamina does
---the mirror image: the generic heal sound and "staminaGained", so the
---card flashes green.
+--A change in stamina slides the fill over ~0.3-0.7s (the numbers count
+--with it). Real damage (a new damage entry) also fires the generic hit
+--sound and "staminaLost" up the hierarchy so the card it sits on can flash
+--red; real healing that raises Stamina fires the heal sound and
+--"staminaGained" (green). A Stamina set by hand or a new maximum only slides.
 --
 --opts (optional): height (default 14) and fontSize for the numbers, for a
 --bar drawn larger than the card's (the hero sheet's). editable: a click on
@@ -1119,15 +1122,12 @@ local function CreateStaminaBar(charid, opts)
     --hero, no Recovery left, at max, or dead).
     ---@type number|nil
     local m_heal = nil
-    --stamina + temp stamina as of the last refresh, so a drop can be
-    --spotted. nil until the first refresh, so a card built on an already
-    --hurt hero does not flash on arrival.
-    local m_seenTotal = nil
-    --stamina ALONE as of the last refresh, for spotting a heal. Temp
-    --stamina is deliberately left out of this one: a grant of temp is not
-    --healing (it has its own Notify.TempStamina_Gain elsewhere), and
-    --counting it would flash the card green for it. nil on the same terms
-    --as m_seenTotal.
+    --the creature's damage and heal entries at the last refresh, with the
+    --largest amounts seen. Only a new or bigger one plays a sound.
+    --- @type nil|table<string, {damage: number, heal: number}>
+    local m_seenEntries = nil
+    --Stamina at the last refresh, so a heal sounds only when it went up.
+    --- @type nil|number
     local m_seenCur = nil
     --how much of the stamina the local user may see (StaminaDisplayFor).
     local m_display = "val"
@@ -1285,7 +1285,7 @@ local function CreateStaminaBar(charid, opts)
         --next refresh snaps to them, with no hurt or heal flash.
         setCharid = function(element, newCharid)
             charid = newCharid
-            m_shownPct, m_seenTotal, m_seenCur, m_slideTime = nil, nil, nil, nil
+            m_shownPct, m_seenEntries, m_seenCur, m_slideTime = nil, nil, nil, nil
             element.thinkTime = nil
         end,
 
@@ -1326,23 +1326,52 @@ local function CreateStaminaBar(charid, opts)
             m_display = StaminaDisplayFor(tok)
             track:SetClass("collapsed", m_display == "none")
 
-            --stamina lost: flash the card and play the hit. Temp stamina
-            --is counted in, so a hit fully soaked by temp still reads as
-            --one -- it is still damage taken.
-            local total = cur + temp
-            if m_seenTotal ~= nil and total < m_seenTotal then
-                element:FireEventOnParents("staminaLost", m_seenTotal - total)
-                FireCardSound(g_hurtSound, charid, total, "Attack.Hit")
+            --damage or healing that just happened (an entry new to this bar or
+            --grown, and fresh): one hit and one heal sound however many landed.
+            --A hit soaked by Temp Stamina still records an entry.
+            local entries = {}
+            pcall(function() entries = c:try_get("damageEntries", {}) end)
+            local firstRefresh = m_seenEntries == nil
+            local seen = {}
+            local hurt, healed = 0, 0
+            --the newest entry of each kind names the sound for FireCardSound,
+            --so two cards on the same Hero pick the same one.
+            local hurtPick, healPick = nil, nil
+            local function Newer(pick, id, age)
+                return pick == nil or age < pick.age or (age == pick.age and tostring(id) < pick.id)
             end
-            m_seenTotal = total
-
-            --stamina gained: flash the card green and play the heal. Off
-            --`cur` rather than the total, so temp stamina landing does not
-            --read as a heal, and a hero healed out of dying (cur going
-            --from negative to positive) still does.
-            if m_seenCur ~= nil and cur > m_seenCur then
-                element:FireEventOnParents("staminaGained", cur - m_seenCur)
-                FireCardSound(g_healSound, charid, cur, "Ability.Heal_Generic")
+            for id, entry in pairs(entries) do
+                local damage = tonumber(entry.damage) or 0
+                local heal = tonumber(entry.heal) or 0
+                local before = (m_seenEntries or {})[id] or {damage = 0, heal = 0}
+                seen[id] = {damage = math.max(damage, before.damage), heal = math.max(heal, before.heal)}
+                local age = TimestampAgeInSeconds(entry.timestamp)
+                if not firstRefresh and age < CARD_ENTRY_FRESH then
+                    local pick = {id = tostring(id), age = age, key = string.format("%s|%s|%s", tostring(id), tostring(damage), tostring(heal))}
+                    if damage > before.damage then
+                        hurt = hurt + damage - before.damage
+                        if Newer(hurtPick, id, age) then
+                            hurtPick = pick
+                        end
+                    end
+                    if heal > before.heal then
+                        healed = healed + heal - before.heal
+                        if Newer(healPick, id, age) then
+                            healPick = pick
+                        end
+                    end
+                end
+            end
+            m_seenEntries = seen
+            if hurtPick ~= nil then
+                element:FireEventOnParents("staminaLost", hurt)
+                FireCardSound(g_hurtSound, charid, hurtPick.key, "Attack.Hit")
+            end
+            --a heal at full Stamina records an entry but changes nothing: no
+            --sound or flash unless the Hero's Stamina went up.
+            if healPick ~= nil and m_seenCur ~= nil and cur > m_seenCur then
+                element:FireEventOnParents("staminaGained", healed)
+                FireCardSound(g_healSound, charid, healPick.key, "Ability.Heal_Generic")
             end
             m_seenCur = cur
 

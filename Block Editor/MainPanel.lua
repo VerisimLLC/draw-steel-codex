@@ -562,6 +562,10 @@ function BlockEditor.CreatePanel(record, options)
         captureEscape = not embedded,
         escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
         escape = function(element)
+            --Escape while typing over a word cancels that edit, not the window.
+            if BESlots.CancelEdit() then
+                return
+            end
             element:FireEvent("editorClose")
         end,
 

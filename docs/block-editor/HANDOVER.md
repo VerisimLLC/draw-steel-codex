@@ -316,3 +316,19 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   GoblinScript table: it shows as "(a formula table: edit it in the Advanced editor)" and is locked.
 - **Measured in DMHub:** both round trips 748/748 (one locked slot, that table). Changing, clearing
   and adding a filter write only `targetFilter`.
+
+## 15. In-place editing (2026-11-27, run in DMHub)
+
+- `Block Editor/Slots.lua`: `_editInPlace` hides a slot's words (they stay in the row) and puts an
+  `Input` (`beWordInput`, styled as the hot word, `@label` font) where the first one was. Ends on
+  submit, change or focus loss; unchanged text puts the words back. The box captures Escape at
+  `EscapePriority.DMHUB_DROPDOWN` (the window's is `EXIT_MODAL_DIALOG`, and the modal layer otherwise
+  closes the window first). `BESlots.CancelEdit()` is also called from the window's Escape.
+- Goes straight to the box: text, number, formulas with no options, lone-number amounts, tier
+  amounts with a value; amount pieces and the amount picker's "A number" / "Formula..." rows too.
+- **Measured in DMHub:** flavor, name, cost, tier damage typed in place; one undo step each; undo
+  restores; Escape cancels, a second Escape closes the window; Ctrl+Z while typing stays in the box.
+- **Known:** redrawing the page while a box is open logs engine "Cannot change the sibling
+  position" warnings (only reachable from code; the Undo button and Ctrl+Z end or keep the edit).
+- Also fixed: `BlockEditorHost` now declares `changedElsewhere` and `adopt` (type check problems
+  from the "Shared Edits" commit).

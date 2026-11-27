@@ -120,6 +120,8 @@ local mod = dmhub.GetModLoading()
 --- @field decl nil|BlockHost the Block.RegisterHost declaration the page is built from
 --- @field immediate? boolean save after every change instead of after a pause (an editor inside another, which uploads)
 --- @field track? fun(model: BERecordModel, record: table) names the live record a model saves into
+--- @field changedElsewhere? fun(id: string): table|nil the record's newer version when someone else changed it since this editor last saw or wrote it
+--- @field adopt? fun(id: string, current: table) takes a newer version as the record this editor saves into
 
 --- A control that edits one kind of slot.
 --- @class BESlotWidget

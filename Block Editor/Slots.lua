@@ -71,51 +71,147 @@ local function _choices(slot)
     return result
 end
 
---- Opens a small box at the pointer to type a slot's value in.
---- @param word Panel the clicked word
+--- The word being typed over, if any: its box and how to end or cancel it.
+--- @type {input: Panel, finish: fun(), cancel: fun()}|nil
+local g_activeEdit = nil
+
+--- Cancels the word being typed over, if there is one (the editor's Escape).
+--- @return boolean cancelled whether there was an edit to cancel
+function BESlots.CancelEdit()
+    local edit = g_activeEdit
+    if edit == nil or not edit.input.valid then
+        g_activeEdit = nil
+        return false
+    end
+    edit.cancel()
+    return true
+end
+
+--a value longer than this is typed in a box the width of the sentence, wrapping.
+local LONG_TEXT = 40
+--roughly how wide one character is, to size a box to the word it replaces.
+local CHAR_WIDTH = 9
+
+--- Turns a slot's words into a text box where they sit, to type its value
+--- over (ledger 2026-11-27: no pop-up to go through). Enter or clicking away
+--- keeps the text; Escape puts the words back as they were.
+--- @param word Panel the clicked word, inside a sentence row
 --- @param value any the current value
---- @param commit fun(value: any)
-local function _openTextBox(word, value, commit)
+--- @param commit fun(value: any, source: Panel) source is the box, still inside the editor
+--- @param start? string what the box starts with, when not the value itself (kept even if not retyped)
+local function _editInPlace(word, value, commit, start)
+    local row = word.parent
+    local slotId = word.data ~= nil and word.data.slot or nil
+    if row == nil or slotId == nil then
+        return
+    end
+    local text = tostring(value or "")
+    local shown = start or text
+    local formula = word:HasClass("beWordFormula")
+    --the slot's words (one slot can wrap across several), hidden while the box is up.
+    local hidden = {}
+    local first = nil
+    for index, child in ipairs(row.children) do
+        if child.data ~= nil and child.data.slot == slotId then
+            hidden[#hidden + 1] = child
+            first = first or index
+        end
+    end
+    if first == nil then
+        return
+    end
+
     local done = false
-    local function Commit(input)
+    --- @type Input
+    local input
+    --- Puts the words back and takes the box away, saving nothing.
+    local function Restore()
+        done = true
+        if g_activeEdit ~= nil and g_activeEdit.input == input then
+            g_activeEdit = nil
+        end
+        if row.valid then
+            for _, child in ipairs(hidden) do
+                if child.valid then
+                    child:SetClass("collapsed", false)
+                end
+            end
+            if input.valid then
+                input:DestroySelf()
+            end
+        end
+    end
+    local function Finish()
         if done then
             return
         end
-        done = true
-        local text = input.text
-        word.popup = nil
-        if text ~= tostring(value or "") then
-            commit(tonumber(text) ~= nil and type(value) == "number" and tonumber(text) or text)
+        local typed = input.text
+        if typed ~= text then
+            done = true
+            g_activeEdit = nil
+            --the editor redraws the sentence after a change, which removes the box.
+            commit(tonumber(typed) ~= nil and type(value) == "number" and tonumber(typed) or typed, input)
+            return
         end
+        Restore()
     end
-    word.popupPositioning = "mouse"
-    word.popup = gui.Panel{
-        classes = {"framedPanel"},
-        styles = ThemeEngine.GetStyles(),
-        interactable = true,
-        swallowPress = true,
-        width = 360,
+    local long = #shown > LONG_TEXT
+    input = gui.Input{
+        classes = {"beWordInput", formula and "beWordInputFormula" or nil},
+        width = long and "100%" or math.max(60, (#shown + 3) * CHAR_WIDTH),
         height = "auto",
-        pad = 8,
-        borderBox = true,
-        gui.Input{
-            width = "100%",
-            height = "auto",
-            fontSize = 14,
-            text = tostring(value or ""),
-            selectAllOnFocus = true,
-            lineType = "MultiLineSubmit",
-            create = function(element)
-                element.hasInputFocus = true
-            end,
-            submit = function(element)
-                Commit(element)
-            end,
-            change = function(element)
-                Commit(element)
-            end,
-        },
+        minHeight = 24,
+        lmargin = first > 1 and BEStyles.SIZES.WORD_GAP or 0,
+        text = shown,
+        selectAllOnFocus = true,
+        restoreOriginalTextOnEscape = true,
+        lineType = long and "MultiLineSubmit" or "SingleLine",
+        create = function(element)
+            element.hasInputFocus = true
+        end,
+        submit = function()
+            Finish()
+        end,
+        change = function()
+            Finish()
+        end,
+        --Escape restores the text without a change event, so the edit ends on focus loss too.
+        defocus = function()
+            Finish()
+        end,
+        deselect = function()
+            Finish()
+        end,
+        --above the editor window's own Escape (a dropdown's priority), so Escape cancels the edit only.
+        captureEscape = true,
+        escapePriority = EscapePriority.DMHUB_DROPDOWN,
+        escape = function()
+            if not done then
+                Restore()
+            end
+        end,
     }
+    --one box at a time: opening another ends this one as clicking away would.
+    if g_activeEdit ~= nil and g_activeEdit.finish ~= nil then
+        g_activeEdit.finish()
+    end
+    g_activeEdit = { input = input, finish = Finish, cancel = function()
+        if not done then
+            Restore()
+        end
+    end }
+    local children = {}
+    for index, child in ipairs(row.children) do
+        if index == first then
+            children[#children + 1] = input
+        end
+        children[#children + 1] = child
+    end
+    row.children = children
+    --hidden after the box is in place: the engine will not reorder a row while it shows or hides one of its words.
+    for _, child in ipairs(hidden) do
+        child:SetClass("collapsed", true)
+    end
 end
 
 --- Opens a slot's picker at the pointer.
@@ -138,7 +234,7 @@ local function _openPicker(word, slot, value, commit)
                 click = function()
                     word.popup = nil
                     if choice.action == "type" then
-                        _openTextBox(word, value, commit)
+                        _editInPlace(word, value, commit)
                     elseif choice.value ~= value then
                         commit(choice.value)
                     end
@@ -264,11 +360,9 @@ local function _openAmountPicker(word, slot, value, commit)
                     press = function(element)
                         word.popup = nil
                         if kind.action == "number" then
+                            --the box starts at 1 for an amount that is not a number yet.
                             local number = tonumber(current) ~= nil and current or "1"
-                            if number ~= current then
-                                commit(number)
-                            end
-                            _openTextBox(word, number, commit)
+                            _editInPlace(word, current, commit, number)
                         elseif kind.value ~= current then
                             commit(kind.value)
                         end
@@ -282,7 +376,7 @@ local function _openAmountPicker(word, slot, value, commit)
             classes = {"beAmountRow"},
             press = function(element)
                 word.popup = nil
-                _openTextBox(word, value, commit)
+                _editInPlace(word, value, commit)
             end,
             gui.Label{ classes = {"beAmountName"}, text = T("blockeditor.menu.formula"), interactable = false },
         }
@@ -430,7 +524,7 @@ local function _openPiecePicker(word, slot, value, ast, piece, commit)
         end
     end
     if piece.edit == "number" or piece.edit == "formula" then
-        _openTextBox(word, piece.text, PutText)
+        _editInPlace(word, piece.text, PutText)
         return
     end
     local entries = {}
@@ -730,9 +824,16 @@ function BESlots.SentenceRow(args)
                             _lightSlot(element.parent, nil)
                         end,
                         press = function(element)
-                            local function Done(newValue) Commit(newValue, element) end
-                            if slot.kind == "number" then
-                                _openTextBox(element, value, Done)
+                            local function Done(newValue, source) Commit(newValue, source or element) end
+                            --text, numbers and formulas with no suggestions are typed over in place.
+                            --an amount that is just a number is typed over too (any formula can be typed there).
+                            local loneNumber = (slot.amount or slot.kinds ~= nil) and not empty and tonumber(tostring(value)) ~= nil
+                            --a tier's amount (its own kinds, no pieces) is typed over whole once it has one.
+                            local filledKinds = slot.kinds ~= nil and not empty
+                            local typed = slot.kind == "text" or slot.kind == "number" or loneNumber or filledKinds
+                                or (slot.kind == "formula" and not slot.amount and slot.kinds == nil and #Block.SlotOptions(slot) == 0)
+                            if typed then
+                                _editInPlace(element, empty and "" or value, Done)
                             elseif slot.amount or slot.kinds ~= nil then
                                 _openAmountPicker(element, slot, value, Done)
                             else

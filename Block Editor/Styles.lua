@@ -1064,6 +1064,30 @@ local function _editorBlockStyles()
             color = Fixed(FIXED.WORD_TEXT_HOT),
             priority = 12,
         },
+        -- A word being typed over where it sits: the hot word's colours, so the
+        -- box reads as the word itself turned editable.
+        {
+            selectors = {"input", "beWordInput"},
+            halign = "left",
+            valign = "center",
+            --the words' own face (labels use @label, inputs default to @input).
+            fontFace = "@label",
+            fontSize = SIZES.WORD_FONT,
+            color = Fixed(FIXED.WORD_TEXT_HOT),
+            bgimage = true,
+            bgcolor = Fixed(FIXED.WORD_FILL_HOT),
+            cornerRadius = 3,
+            vmargin = 1,
+            hpad = 4,
+            borderBox = true,
+            priority = 12,
+        },
+        {
+            selectors = {"input", "beWordInputFormula"},
+            fontFace = "Courier",
+            fontSize = 14,
+            priority = 13,
+        },
 
         -- Keyword chips, with an X that shows under the pointer.
         {

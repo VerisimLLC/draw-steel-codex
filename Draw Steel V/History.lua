@@ -686,7 +686,7 @@ end
 
 --- True when a roll hidden from players is shown to them anyway: a hero's roll made inside
 --- another action (a forced or granted strike). At the table that hero's player rolls it in
---- the open, whoever's client threw the dice here.
+--- the open, whichever client rolled the dice.
 --- @param entry HistoryEntry
 --- @return boolean
 function History.RollAlwaysShown(entry)

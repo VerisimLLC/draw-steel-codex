@@ -471,12 +471,33 @@ end
 
 --- True for an entry nested under an action that made a power roll of its own: a forced or
 --- granted strike, which would be a separate roll at the table. The card gives it a section.
---- A roll players may not see still counts: History.Entry has taken its numbers out.
+--- A roll hidden from players still counts: for them its numbers are already removed.
 --- @param kid HistoryEntry
 --- @return boolean
 local function IsNestedRoll(kid)
     return (kid.kind == "action" or kid.kind == "trigger") and kid.family == nil and kid.actor ~= nil
         and kid.ability ~= nil and ((kid.roll ~= nil and kid.roll.total ~= nil) or kid.secretroll == true)
+end
+
+--- The rolls made inside an action, by entry id, and for each one what it set off (the
+--- entries caused by it that are not rolls of their own), so its section can draw them.
+--- @param kids HistoryEntry[]|nil Everything nested under the action.
+--- @return table<string, boolean> sectioned
+--- @return table<string, HistoryEntry[]> setOff
+local function NestedRolls(kids)
+    local sectioned, setOff = {}, {}
+    for _, kid in ipairs(kids or {}) do
+        if IsNestedRoll(kid) then
+            sectioned[kid.id] = true
+            setOff[kid.id] = {}
+        end
+    end
+    for _, kid in ipairs(kids or {}) do
+        if kid.cause ~= nil and setOff[kid.cause] ~= nil and not sectioned[kid.id] then
+            table.insert(setOff[kid.cause], kid)
+        end
+    end
+    return sectioned, setOff
 end
 
 --What a nested trigger did, or a resource it changed.
@@ -2624,24 +2645,13 @@ local function NumbersRows(entry, kids, width, nested)
     end
 
     --each roll made inside this action, in the order rolled and all at one level: its own
-    --heading, receipt and targets behind a quiet rule, with what it set off inside it.
-    local sectioned = {}
-    for _, kid in ipairs(kids or {}) do
-        if IsNestedRoll(kid) then
-            sectioned[kid.id] = true
-        end
-    end
+    --heading, receipt and targets on a faint panel, with what it set off inside it.
+    local sectioned, setOff = NestedRolls(kids)
     for _, kid in ipairs(kids or {}) do
         if sectioned[kid.id] then
-            local setOff = {}
-            for _, other in ipairs(kids or {}) do
-                if other.cause == kid.id and not sectioned[other.id] then
-                    setOff[#setOff + 1] = other
-                end
-            end
             local inner = width - NESTED_INDENT
             local lines = {SubHead(History.ShownName(kid.actor) .. History.DOT .. kid.ability.name, inner, kid.actor, true)}
-            for _, line in ipairs(NumbersRows(kid, setOff, inner, true)) do
+            for _, line in ipairs(NumbersRows(kid, setOff[kid.id], inner, true)) do
                 lines[#lines + 1] = line
             end
             rows[#rows + 1] = gui.Panel{
@@ -3515,11 +3525,9 @@ function History.Why(entry, kids, nested)
     --a roll made inside the action, and what it set off, are explained under its own heading
     --below, so the action's own lines leave them out.
     local allKids = kids or {}
-    local sectioned = {}
-    for _, kid in ipairs(allKids) do
-        if not nested and IsNestedRoll(kid) then
-            sectioned[kid.id] = true
-        end
+    local sectioned, setOff = {}, {}
+    if not nested then
+        sectioned, setOff = NestedRolls(allKids)
     end
     kids = {}
     for _, kid in ipairs(allKids) do
@@ -3845,13 +3853,7 @@ function History.Why(entry, kids, nested)
     --each roll made inside the action, in the order rolled: its heading, then its own lines.
     for _, kid in ipairs(allKids) do
         if sectioned[kid.id] then
-            local setOff = {}
-            for _, other in ipairs(allKids) do
-                if other.cause == kid.id and not sectioned[other.id] then
-                    setOff[#setOff + 1] = other
-                end
-            end
-            local lines = History.Why(kid, setOff, true)
+            local lines = History.Why(kid, setOff[kid.id], true)
             if #lines > 0 then
                 rows[#rows + 1] = {heading = History.ShownName(kid.actor) .. History.DOT .. AbilityNameLink(kid.actor, kid.ability.name), who = kid.actor}
                 for _, line in ipairs(lines) do

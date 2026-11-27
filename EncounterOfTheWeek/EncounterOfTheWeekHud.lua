@@ -1710,9 +1710,12 @@ local function CloseGoLive()
     m_goLiveDialog = nil
 end
 
+--- The Streamer Kit is behind the "dev" setting until it ships: without it
+--- the Go Live row is hidden and the dialog does not open.
 --- @return boolean
 local function StreamerKitLoaded()
-    return rawget(_G, "StreamOverlay") ~= nil and StreamOverlay.LiveSettings ~= nil
+    return dmhub.GetSettingValue("dev") == true
+        and rawget(_G, "StreamOverlay") ~= nil and StreamOverlay.LiveSettings ~= nil
         and rawget(_G, "StreamerKitRedact") ~= nil
 end
 

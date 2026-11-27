@@ -1117,8 +1117,13 @@ local function Tick()
 
     --the viewer feed is built from the same pass, before FitToSize trims the
     --band's events. Its failure must never stop the band.
+    --the viewer feed runs only while a host has gone live with a viewer code
+    --(Go Live is dev-only for now); the overlay alone never sends it.
     local viewer, viewerText = nil, nil
     local viewerOk, viewerErr = pcall(function()
+        if not StreamOverlay.LiveSettings().live then
+            return
+        end
         local raw = BuildViewerRaw(summary, q, activeTokenIds)
         viewer = StreamerKitRedact.Redact(raw)
         viewerText = FitViewerToSize(viewer)

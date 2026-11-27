@@ -36,47 +36,55 @@ text("blockeditor.tab.simple", [[Simple]])
 text("blockeditor.tab.advanced", [[Advanced editor]])
 --Its tooltip while the tab is not connected yet.
 text("blockeditor.tab.advanced_tooltip", [[Opens today's editor on the same record. Not connected yet.]])
---The Undo and Redo buttons. Short: buttons.
+--The Undo button. Short: a button.
 text("blockeditor.undo", [[Undo]])
-text("blockeditor.redo", [[Redo]])
---Their tooltips. {change} is what the step did, e.g. "Add Deal damage".
+--Its tooltips. {change} is what the step did, e.g. "Add Deal damage".
 text("blockeditor.undo_tooltip", [[Undo: {change}]])
-text("blockeditor.redo_tooltip", [[Redo: {change}]])
 text("blockeditor.undo_nothing", [[Nothing to undo.]])
-text("blockeditor.redo_nothing", [[Nothing to redo.]])
 
 --What an undo step is called when a block is added. {block} is the block's name.
 text("blockeditor.change.add", [[Add {block}]])
 
 ----------------------------------------------------------------------------
--- THE EDITOR WINDOW: the three columns
+-- THE EDITOR WINDOW: the page, blocks, shelf and side column
+-- (Page.lua, BlockPanel.lua, Slots.lua, Stack.lua, Shelf.lua, SidePanel.lua)
 ----------------------------------------------------------------------------
 
---The left column: the record's blocks.
-text("blockeditor.detail.heading", [[Blocks]])
---Shown while the record has no blocks.
-text("blockeditor.detail.empty", [[Nothing here yet. Click a block on the shelf to add it.]])
-
---The middle column: the blocks that can be added.
-text("blockeditor.shelf.heading", [[Shelf]])
-text("blockeditor.shelf.note", [[Click a block to add it.]])
-
---The right column.
+--The title bar's button that builds blocks from pasted ability text, and its
+--tooltip while it is not connected yet.
+text("blockeditor.paste", [[Paste text]])
+text("blockeditor.not_yet", [[Not connected yet.]])
+--How many steps a section holds, beside its name. {count} is a number.
+text("blockeditor.count.steps", [[{count} steps]])
+text("blockeditor.count.one_step", [[1 step]])
+--Beside a section the author may leave empty.
+text("blockeditor.optional", [[optional]])
+--The shelf's search box.
+text("blockeditor.search", [[Search blocks]])
+--A drop slot that opens under the pointer while a block is dragged.
+text("blockeditor.drop_here", [[Drop here]])
+--The menu on a block's "..." button.
+text("blockeditor.menu.delete", [[Delete]])
+text("blockeditor.menu.move_up", [[Move up]])
+text("blockeditor.menu.move_down", [[Move down]])
+--Menu entries on a word that opens a box to type in.
+text("blockeditor.menu.edit_text", [[Edit the text...]])
+text("blockeditor.menu.formula", [[Formula...]])
+text("blockeditor.menu.build_test", [[Build a test...]])
+--The word after a list of keyword chips, which adds one.
+text("blockeditor.add_keyword", [[+ keyword]])
+--What undo steps are called. {block} is a block's name; {what} is the changed
+--word's new value.
+text("blockeditor.change.set", [[Change to {what}]])
+text("blockeditor.change.delete", [[Delete {block}]])
+text("blockeditor.change.move", [[Move {block}]])
+text("blockeditor.change.remove_chip", [[Remove {what}]])
+--The heading over the checks in the side column.
 text("blockeditor.side.checks", [[Checks]])
-text("blockeditor.side.checks_note", [[Problems with the record will be listed here.]])
---A developer readout of the editor's undo and saving, while it is being built.
-text("blockeditor.side.state", [[Undo and saving]])
-text("blockeditor.side.state_text", [[Undo steps: {undo}
-Redo steps: {redo}
-Records not saved yet: {unsaved}
-Saves sent: {uploads}]])
+--Under the card in the side column.
+text("blockeditor.card_hint", [[Click any line on the card to change its wording.]])
 
 --The developer window's sample record and its sections.
-text("blockeditor.demo.record_name", [[a sample ability]])
-text("blockeditor.demo.section.what", [[What it is]])
-text("blockeditor.demo.section.who", [[Who it targets]])
-text("blockeditor.demo.section.when", [[Can only be used when]])
-text("blockeditor.demo.section.used", [[When it's used]])
 
 ----------------------------------------------------------------------------
 -- THE PROOFS: a developer-only window (Block Editor/Proofs.lua)

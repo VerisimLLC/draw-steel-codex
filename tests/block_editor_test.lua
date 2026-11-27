@@ -103,6 +103,23 @@ Block.RegisterHost{ id = "test.host", tableName = "tests", claims = function(rec
 Check(Block.FindHost({ kind = "test" }).id == "test.host", "a host claims its record")
 Check(Block.FindHost({ kind = "other" }) == nil, "no host claims another record")
 
+--styled text parts and bodies.
+local roll = Block.Instantiate("stub.powerroll")
+Check(roll ~= nil and roll.bodies ~= nil and roll.bodies.tier1 ~= nil and #roll.bodies.tier1 == 0, "a block with bodies starts with each body empty")
+local rollRuns = Block.Sentence(assert(Block.GetBlock("stub.powerroll")))
+Check(rollRuns[1].bold == true and rollRuns[1].text == "Power roll", "a styled text part keeps its look")
+local condRuns = Block.Sentence(assert(Block.GetBlock("stub.condition")))
+Check(string.sub(condRuns[1].text, 1, 1) == "T", "a capitalised sentence starts with a capital")
+local chips = assert(Block.GetBlock("stub.text"))
+Check(chips.shelf == false and chips.tag == "Text", "a card-text block stays off the shelf")
+
+--the stub ability host: its page, card and checks come from the model.
+local abilityHost = Block.Get("host", "stub.ability")
+Check(abilityHost ~= nil and abilityHost.demo ~= nil and #abilityHost.sections == 4, "the stub ability host declares its page and demo")
+local card = abilityHost.card(abilityHost.demo)
+Check(card.title == "Out of the Way! (3 Ferocity)" and #card.tiers == 3, "the card is built from the demo record")
+Check(#abilityHost.checks(abilityHost.demo) == 2, "the checks are built from the demo record")
+
 ----------------------------------------------------------------------------
 --State: undo, redo and uploads
 
@@ -175,6 +192,19 @@ Add()
 Check(state:UploadDirty(true) == 1 and #uploads == 2 and not state:IsDirty(), "a forced upload sends at once")
 state:Undo()
 Check(state:IsDirty(), "undo marks the record dirty, so the earlier state uploads too")
+
+--nested lists: every placed block has a uid, and a body is reached by its owner.
+local nested = { id = "n", name = "N", blocks = { Block.Instantiate("stub.powerroll") } }
+state:AddRecord(nested)
+local ownerUid = nested.blocks[1].uid
+Check(type(ownerUid) == "string", "opening a record gives its blocks uids")
+local tierRef = { field = "blocks", owner = ownerUid, body = "tier1" }
+Check(BEState.Insert(nested, tierRef, 1, Block.Instantiate("stub.tierdamage")), "a block goes into a body")
+local placed = nested.blocks[1].bodies.tier1[1]
+Check(placed.uid ~= nil and BEState.FindInstance(nested, placed.uid) == placed, "a nested block is found by uid")
+Check(BEState.Insert(nested, { field = "blocks" }, 2, Block.Instantiate("stub.damage")), "a block goes into the top list")
+Check(BEState.Move(nested, nested.blocks[2].uid, -1) and nested.blocks[1].block == "stub.damage", "a block moves up its list")
+Check(BEState.Remove(nested, placed.uid) == placed and #nested.blocks[2].bodies.tier1 == 0, "a nested block is removed")
 
 ----------------------------------------------------------------------------
 --Styles: one fixed colour rule and one hover rule per group

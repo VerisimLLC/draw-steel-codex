@@ -169,7 +169,7 @@ local function _dragProof()
         m_status.text = T("blockeditor.proofs.drag.status", {
             slot = drag.slot ~= nil and tostring(drag.slot) or "-",
             engine = drag.engineOver and T("blockeditor.proofs.yes") or T("blockeditor.proofs.no"),
-            y = pointerY ~= nil and string.format("%d", pointerY) or "-",
+            y = pointerY ~= nil and string.format("%d", math.floor(pointerY)) or "-",
         })
     end
 
@@ -828,7 +828,8 @@ local function _cardProof()
                     height = "auto",
                     flow = "vertical",
                     _cardText{ fontSize = 18, bold = true, text = T("blockeditor.proofs.card.name") },
-                    _cardText{ italic = true, text = T("blockeditor.proofs.card.flavor") },
+                    --Labels have no italic property; rich-text tags do it.
+                    _cardText{ text = "<i>" .. T("blockeditor.proofs.card.flavor") .. "</i>" },
                     gui.Panel{
                         width = "100%",
                         height = "auto",
@@ -1012,6 +1013,8 @@ function BEProofs.Open()
             classes = {cond(i ~= 1, "collapsed")},
             width = "100%",
             height = "auto",
+            --top: a vertical list centres each row in its share of spare height.
+            valign = "top",
             flow = "vertical",
             data = { proof = proof.id, built = false },
             --each proof is built the first time it is shown.
@@ -1095,6 +1098,7 @@ function BEProofs.Open()
             height = "100% available",
             gui.Panel{
                 classes = {"beScroll"},
+                vscroll = true,
                 children = sections,
             },
         },

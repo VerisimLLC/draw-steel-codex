@@ -15,10 +15,9 @@ local mod = dmhub.GetModLoading()
 --- @class BEStyles
 BEStyles = {}
 
---The design's hexes are sRGB (from the web prototype); fixed colours carry this
---prefix, as the Cream palette does in DMHub Titlescreen/Styles.lua. Set it to ""
---if the Blocks proof shows the palette wrong against the prototype.
-BEStyles.COLOR_PREFIX = "srgb:"
+--Prefix for the fixed block colours. Plain hexes already match the web
+--prototype in the app; "srgb:" converted them a second time and washed them out.
+BEStyles.COLOR_PREFIX = ""
 
 BEStyles.SIZES = {
     -- The editor window
@@ -42,6 +41,10 @@ BEStyles.SIZES = {
     BLOCK_GAP = 4,
     GLYPH = "14sp",
     GLYPH_GAP = 8,
+    --Room the block text leaves for the glyph (14sp at 140% plus the gap).
+    --A fixed offset, because "available" text gets no width while an
+    --auto-height block measures itself and wraps one letter per line.
+    BLOCK_TEXT_INSET = 30,
 
     -- Drop slots between blocks: hidden, hinted during a drag, open under the pointer
     SLOT_REST = 2,
@@ -51,6 +54,25 @@ BEStyles.SIZES = {
 
     -- The ring round a selected block
     SELECTED_RING = 2,
+
+    -- The editor window, laid out as docs/block-editor/lua-preview/ability.html
+    EDITOR_WIDTH = 1480,
+    EDITOR_HEIGHT = 900,
+    EDITOR_SHELF_WIDTH = 250,
+    EDITOR_SIDE_WIDTH = 330,
+    WORD_FONT = 16,          -- a block's sentence
+    WORD_GAP = 4,            -- the space between two words
+    GRIP = 16,
+    GEAR = 16,
+    --Room a sentence leaves for the grip, glyph and gear beside it. A fixed
+    --offset, for the same reason as BLOCK_TEXT_INSET.
+    SENTENCE_INSET = 74,
+    TAG_INSET = 46,          -- and for a "Text" tag
+    TIER_LABEL = 88,
+    SHELF_ROW = 32,
+    SLIVER_REST = 2,
+    SLIVER_HINT = 12,
+    SLIVER_OPEN = 34,
 }
 
 --Colours that never follow the theme (without COLOR_PREFIX; see BEStyles.Fixed).
@@ -66,10 +88,23 @@ BEStyles.FIXED = {
     WORD_REST = "#00000055",
     WORD_HOVER = "#ffffff70",
     CHIP = "#14141438",
+    -- A clickable word in the editor: a dark inset of the block's own colour,
+    -- white with dark text under the pointer or while its menu is open.
+    WORD_FILL = "#0000004d",
+    WORD_FILL_HOT = "#ffffff",
+    WORD_TEXT_HOT = "#111111",
+    ASIDE_TEXT = "#ffffffc7",
+    CHIP_EDGE = "#ffffff59",
+    TAG_EDGE = "#ffffff8c",
+    GRIP_REST = "#ffffff8c",
+    ROW_RULE = "#00000047",
+    CARD_HOVER = "#8c6a2426",
+    SLIVER_HINT_FILL = "#ffffff12",
+    SLIVER_OPEN_FILL = "#ffffff26",
 }
 
 --How much brighter a block is under the pointer (0-1, towards white).
-local HOVER_LIGHTEN = 0.14
+local HOVER_LIGHTEN = 0.08
 
 --- A fixed colour as the engine should read it.
 --- @param hex string "#rrggbb" or "#rrggbbaa"
@@ -160,12 +195,12 @@ local function _chromeStyles()
             width = "100%",
             height = "100% available",
             flow = "vertical",
-            vscroll = true,
         },
         {
             selectors = {"label", "beHeading"},
             width = "100%",
             height = "auto",
+            valign = "top",
             fontSize = 16,
             bold = true,
             color = "@fgStrong",
@@ -175,6 +210,7 @@ local function _chromeStyles()
             selectors = {"label", "beNote"},
             width = "100%",
             height = "auto",
+            valign = "top",
             fontSize = 13,
             color = "@fgMuted",
             textWrap = true,
@@ -184,6 +220,7 @@ local function _chromeStyles()
             selectors = {"label", "beGroupHeading"},
             width = "100%",
             height = "auto",
+            valign = "top",
             fontSize = 12,
             color = "@fgMuted",
             tmargin = 8,
@@ -263,6 +300,878 @@ local function _chromeStyles()
     }
 end
 
+--- The editor's chrome, following the mockup: window, title bar, section
+--- strip, columns, section headers, add rows, slivers, shelf and checks.
+--- @return table[]
+local function _editorChromeStyles()
+    local SIZES = BEStyles.SIZES
+    local FIXED = BEStyles.FIXED
+    local Fixed = BEStyles.Fixed
+    return {
+        {
+            selectors = {"beWindow"},
+            bgimage = true,
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@borderSolid",
+            cornerRadius = 10,
+            flow = "vertical",
+        },
+        {
+            selectors = {"beEditorTitleBar"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            bgimage = true,
+            gradient = "@barTrack",
+            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+            borderColor = "@borderSolid",
+            lpad = 14,
+            rpad = 14,
+            tpad = 10,
+            borderBox = true,
+        },
+        {
+            selectors = {"label", "beEditorTitle"},
+            width = "auto",
+            height = "auto",
+            valign = "bottom",
+            fontSize = 22,
+            bold = true,
+            color = "@fgStrong",
+            bmargin = 10,
+            rmargin = 18,
+        },
+        {
+            selectors = {"label", "beToolLabel"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 13,
+            color = "@fgMuted",
+            rmargin = 8,
+        },
+
+        -- The section strip: a row of section names under the title bar.
+        {
+            selectors = {"beStrip"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            bgimage = true,
+            bgcolor = "clear",
+            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"beNavRow"},
+            halign = "left",
+            width = "auto",
+            height = 34,
+            flow = "horizontal",
+            hpad = 12,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "clear",
+            border = {x1 = 0, x2 = 0, y1 = 3, y2 = 0},
+            borderColor = "clear",
+        },
+        {
+            selectors = {"beNavRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"beNavRow", "selected"},
+            bgcolor = "@bgAlt",
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"label", "beNavText"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = 16,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "beNavText", "parent:selected"},
+            bold = true,
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "beCount"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 11,
+            color = "@fgMuted",
+            lmargin = 8,
+        },
+
+        -- The three columns.
+        {
+            selectors = {"beColumns"},
+            width = "100%",
+            height = "100% available",
+            flow = "horizontal",
+        },
+        {
+            selectors = {"beDetail"},
+            height = "100%",
+            flow = "vertical",
+            bgimage = true,
+            gradient = "@surfaceRadial",
+            lpad = 18,
+            rpad = 18,
+            tpad = 6,
+            bpad = 30,
+            borderBox = true,
+        },
+        {
+            selectors = {"beShelfColumn"},
+            width = SIZES.EDITOR_SHELF_WIDTH,
+            height = "100%",
+            flow = "vertical",
+            bgimage = true,
+            bgcolor = "@bg",
+            border = {x1 = 1, x2 = 0, y1 = 0, y2 = 0},
+            borderColor = "@borderSolid",
+        },
+        {
+            selectors = {"beSideColumn"},
+            width = SIZES.EDITOR_SIDE_WIDTH,
+            height = "100%",
+            flow = "vertical",
+            bgimage = true,
+            bgcolor = "@bg",
+            border = {x1 = 1, x2 = 0, y1 = 0, y2 = 0},
+            borderColor = "@borderSolid",
+            pad = 12,
+            borderBox = true,
+        },
+
+        -- "This is [an ability | a triggered ability]"
+        {
+            selectors = {"beIsRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+            tmargin = 12,
+            bmargin = 2,
+        },
+        {
+            selectors = {"label", "beIsLabel"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = 15,
+            color = "@fg",
+            rmargin = 10,
+        },
+
+        -- Section headers: caret, small uppercase title, count, and a rule under.
+        {
+            selectors = {"beSecHead"},
+            width = "100%",
+            height = 30,
+            flow = "horizontal",
+            valign = "top",
+            tmargin = 14,
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"beSecHeadShelf"},
+            tmargin = 6,
+        },
+        {
+            selectors = {"beCaret"},
+            halign = "left",
+            width = 12,
+            height = 12,
+            valign = "center",
+            rmargin = 8,
+            bgimage = "phosphor/caret-down-fill.png",
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"label", "beSecTitle"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 13,
+            bold = true,
+            uppercase = true,
+            color = "@fg",
+        },
+        {
+            selectors = {"label", "beSecTitle", "parent:hover"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"label", "beSecOptional"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 11,
+            color = "@fgMuted",
+            lmargin = 6,
+        },
+        {
+            selectors = {"label", "beSecCount"},
+            lmargin = 6,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 11,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"beSecRule"},
+            width = "100%",
+            height = 1,
+            valign = "top",
+            bmargin = 4,
+            bgimage = true,
+            bgcolor = "@border",
+        },
+
+        -- The italic line under a header group, and the add rows.
+        {
+            selectors = {"label", "beSummary"},
+            width = "100%-20",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+            lmargin = 10,
+            tmargin = 4,
+            fontSize = 13,
+            color = "@fgMuted",
+            textWrap = true,
+        },
+        {
+            selectors = {"beAddReq"},
+            width = "auto",
+            height = 28,
+            flow = "horizontal",
+            halign = "left",
+            valign = "top",
+            hpad = 10,
+            borderBox = true,
+            tmargin = 4,
+            bgimage = true,
+            bgcolor = "clear",
+            border = 1,
+            borderStyle = "dashed",
+            borderColor = "@borderSolid",
+            cornerRadius = 5,
+        },
+        {
+            selectors = {"beAddReq", "hover"},
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"beAddRow"},
+            width = "100%",
+            height = 30,
+            flow = "horizontal",
+            valign = "top",
+            hpad = 8,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "clear",
+            cornerRadius = 5,
+        },
+        {
+            selectors = {"beAddRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"beAddIcon"},
+            halign = "left",
+            width = 12,
+            height = 12,
+            valign = "center",
+            rmargin = 8,
+            bgimage = "phosphor/plus-bold.png",
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"beAddIcon", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "beAddText"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = 15,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"label", "beAddText", "beAddReqText"},
+            fontSize = 14,
+        },
+        {
+            selectors = {"label", "beAddText", "parent:hover"},
+            color = "@fgStrong",
+        },
+
+        -- "Start from:" and its pills.
+        {
+            selectors = {"beStartRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            wrap = true,
+            valign = "top",
+            vmargin = 6,
+        },
+        {
+            selectors = {"label", "beStartLabel"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = 14,
+            color = "@fgMuted",
+            rmargin = 6,
+        },
+        {
+            selectors = {"label", "bePill"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 13,
+            color = "@fg",
+            hpad = 10,
+            vpad = 3,
+            rmargin = 6,
+            bgimage = true,
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@borderSolid",
+            cornerRadius = 12,
+        },
+        {
+            selectors = {"label", "bePill", "hover"},
+            bgcolor = "@bgAlt",
+            color = "@fgStrong",
+        },
+
+        -- Drop slivers: 2px at rest; during a drag the ones the block fits are
+        -- dashed slots, and the one under the pointer opens to "Drop here".
+        {
+            selectors = {"beSliver"},
+            width = "100%",
+            height = SIZES.SLIVER_REST,
+            valign = "top",
+            vmargin = 3,
+            bgimage = true,
+            bgcolor = "clear",
+            cornerRadius = 4,
+            flow = "none",
+        },
+        {
+            selectors = {"beSliver", "beSliverHint"},
+            height = SIZES.SLIVER_HINT,
+            vmargin = 4,
+            bgcolor = Fixed(FIXED.SLIVER_HINT_FILL),
+            border = 1,
+            borderStyle = "dashed",
+            borderColor = "@fgMuted",
+        },
+        {
+            selectors = {"beSliver", "beSliverOpen"},
+            height = SIZES.SLIVER_OPEN,
+            bgcolor = Fixed(FIXED.SLIVER_OPEN_FILL),
+            border = 2,
+            borderStyle = "solid",
+            borderColor = "@accentHover",
+            priority = 10,
+        },
+        {
+            selectors = {"label", "beSliverLabel"},
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 13,
+            bold = true,
+            color = "@fgStrong",
+            collapsed = 1,
+        },
+        {
+            selectors = {"label", "beSliverLabel", "parent:beSliverOpen"},
+            collapsed = 0,
+        },
+
+        -- The shelf: search, sections, rows.
+        {
+            selectors = {"beShelfSearch"},
+            width = "100%-24",
+            height = 30,
+            halign = "center",
+            valign = "top",
+            vmargin = 12,
+        },
+        {
+            selectors = {"beShelfList"},
+            width = "100%",
+            height = "100% available",
+            flow = "vertical",
+            valign = "top",
+            bpad = 8,
+            borderBox = true,
+        },
+        {
+            selectors = {"beShelfHead"},
+            width = "100%-24",
+            halign = "center",
+            valign = "top",
+        },
+
+        -- The editor's menus inherit these rules: their entries sit left, as
+        -- in the mockup (the shared menu leaves a label centred in its row).
+        {
+            selectors = {"label", "contextMenuLabel"},
+            halign = "left",
+            lmargin = 6,
+        },
+
+        -- The checks.
+        {
+            selectors = {"beIssue"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+            vpad = 4,
+        },
+        {
+            selectors = {"beIssueDot"},
+            halign = "left",
+            width = 8,
+            height = 8,
+            valign = "top",
+            tmargin = 6,
+            rmargin = 8,
+            bgimage = true,
+            cornerRadius = 4,
+        },
+        {
+            selectors = {"beIssueDot", "success"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"beIssueDot", "warning"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"beIssueDot", "danger"},
+            bgcolor = "@danger",
+        },
+        {
+            selectors = {"label", "beIssueText"},
+            halign = "left",
+            width = "100%-16",
+            height = "auto",
+            fontSize = 14,
+            color = "@fg",
+            textWrap = true,
+        },
+        {
+            selectors = {"label", "beCardHint"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            tmargin = 12,
+            fontFace = "@input",
+            fontSize = 13,
+            color = "@fgMuted",
+            textWrap = true,
+        },
+    }
+end
+
+--- The editor's blocks, words and card: fixed colours, the same in every scheme.
+--- @return table[]
+local function _editorBlockStyles()
+    local SIZES = BEStyles.SIZES
+    local FIXED = BEStyles.FIXED
+    local Fixed = BEStyles.Fixed
+    return {
+        -- A block's head row (grip, glyph, sentence, gear) and its bodies.
+        {
+            selectors = {"beBlockHead"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+        },
+        {
+            selectors = {"beGrip"},
+            halign = "left",
+            width = SIZES.GRIP,
+            height = SIZES.GRIP,
+            valign = "top",
+            tmargin = 3,
+            rmargin = 8,
+            bgimage = "phosphor/dots-six-vertical-bold.png",
+            bgcolor = Fixed(FIXED.GRIP_REST),
+            priority = 10,
+        },
+        {
+            selectors = {"beGrip", "parent:hover"},
+            bgcolor = "white",
+            priority = 10,
+        },
+        {
+            selectors = {"beGear"},
+            width = SIZES.GEAR,
+            height = SIZES.GEAR,
+            halign = "right",
+            valign = "top",
+            tmargin = 3,
+            bgimage = "phosphor/dots-three-bold.png",
+            bgcolor = Fixed(FIXED.GRIP_REST),
+            priority = 10,
+        },
+        {
+            selectors = {"beGear", "hover"},
+            bgcolor = "white",
+            priority = 11,
+        },
+        {
+            selectors = {"beGlyph", "beBlockGlyph"},
+            halign = "left",
+            valign = "top",
+            tmargin = 4,
+            priority = 11,
+        },
+        {
+            selectors = {"label", "beTag"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "top",
+            tmargin = 2,
+            rmargin = 8,
+            fontFace = "@input",
+            fontSize = 10,
+            bold = true,
+            uppercase = true,
+            color = Fixed(FIXED.BLOCK_TEXT),
+            hpad = 5,
+            vpad = 2,
+            bgimage = true,
+            bgcolor = "clear",
+            border = 1,
+            borderColor = Fixed(FIXED.TAG_EDGE),
+            cornerRadius = 3,
+            priority = 10,
+        },
+
+        -- The sentence: a wrapping row of word labels.
+        {
+            selectors = {"beSentence"},
+            halign = "left",
+            height = "auto",
+            flow = "horizontal",
+            wrap = true,
+            valign = "top",
+            priority = 10,
+        },
+        {
+            selectors = {"label", "beWordText"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = SIZES.WORD_FONT,
+            color = Fixed(FIXED.BLOCK_TEXT),
+            vmargin = 2,
+            priority = 10,
+        },
+        {
+            selectors = {"label", "beWordAside"},
+            fontSize = 14,
+            color = Fixed(FIXED.ASIDE_TEXT),
+            priority = 11,
+        },
+        {
+            selectors = {"label", "beWord"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = SIZES.WORD_FONT,
+            color = Fixed(FIXED.BLOCK_TEXT),
+            vmargin = 1,
+            bgimage = true,
+            bgcolor = Fixed(FIXED.WORD_FILL),
+            cornerRadius = 3,
+            priority = 10,
+        },
+        {
+            selectors = {"label", "beWordFormula"},
+            fontFace = "Courier",
+            fontSize = 14,
+            priority = 11,
+        },
+        {
+            selectors = {"label", "beWord", "beWordHot"},
+            bgcolor = Fixed(FIXED.WORD_FILL_HOT),
+            color = Fixed(FIXED.WORD_TEXT_HOT),
+            priority = 12,
+        },
+
+        -- Keyword chips, with an X that shows under the pointer.
+        {
+            selectors = {"beChip"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+            rmargin = 4,
+            vmargin = 2,
+            hpad = 6,
+            vpad = 1,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = Fixed(FIXED.WORD_FILL),
+            border = 1,
+            borderColor = Fixed(FIXED.CHIP_EDGE),
+            cornerRadius = 5,
+            priority = 10,
+        },
+        {
+            selectors = {"label", "beChipText"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontFace = "@input",
+            fontSize = 13,
+            color = Fixed(FIXED.BLOCK_TEXT),
+            priority = 10,
+        },
+        {
+            selectors = {"beChipX"},
+            halign = "left",
+            width = 12,
+            height = 12,
+            valign = "center",
+            lmargin = 4,
+            bgimage = "phosphor/x-bold.png",
+            bgcolor = "white",
+            opacity = 0,
+            priority = 10,
+        },
+        {
+            selectors = {"beChipX", "parent:hover"},
+            opacity = 1,
+            priority = 10,
+        },
+
+        -- A block's bodies: tier rows (a label beside an inner list) or an
+        -- inset list on the window's own colour.
+        {
+            selectors = {"beTierRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+            tmargin = 6,
+        },
+        {
+            selectors = {"beTierLabel"},
+            halign = "left",
+            width = SIZES.TIER_LABEL,
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            lpad = 6,
+            tpad = 9,
+            rmargin = 8,
+            borderBox = true,
+        },
+        {
+            selectors = {"label", "beTierName"},
+            halign = "left",
+            width = "100%",
+            height = "auto",
+            fontFace = "@input",
+            fontSize = 13,
+            bold = true,
+            color = Fixed(FIXED.BLOCK_TEXT),
+            textWrap = true,
+            priority = 10,
+        },
+        {
+            selectors = {"label", "beTierSub"},
+            halign = "left",
+            width = "100%",
+            height = "auto",
+            fontFace = "@input",
+            fontSize = 11,
+            color = Fixed(FIXED.ASIDE_TEXT),
+            priority = 10,
+        },
+        {
+            selectors = {"beInner"},
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            hpad = 8,
+            vpad = 2,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            cornerRadius = 4,
+        },
+        {
+            selectors = {"beInner", "beInset"},
+            width = "100%-14",
+            halign = "right",
+            tmargin = 6,
+        },
+        {
+            selectors = {"beInner", "beTierInner"},
+            width = "100%-" .. (SIZES.TIER_LABEL + 8),
+            halign = "left",
+        },
+
+        -- The fixed header group: one colour, rows split by a hairline.
+        {
+            selectors = {"beHeaderGroup"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            bgimage = true,
+            border = 1,
+            borderColor = Fixed(FIXED.BLOCK_EDGE),
+            cornerRadius = SIZES.BLOCK_RADIUS,
+            priority = 10,
+        },
+        {
+            selectors = {"beHeaderRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+            hpad = 10,
+            vpad = 7,
+            borderBox = true,
+        },
+        {
+            selectors = {"beHeaderRule"},
+            width = "100%",
+            height = 1,
+            valign = "top",
+            bgimage = true,
+            bgcolor = Fixed(FIXED.ROW_RULE),
+            priority = 10,
+        },
+
+        -- A shelf row: a small block in the colour of the block it adds.
+        {
+            selectors = {"beShelfRow"},
+            width = "100%-24",
+            height = SIZES.SHELF_ROW,
+            halign = "center",
+            valign = "top",
+            vmargin = 4,
+            flow = "horizontal",
+            lpad = 8,
+            rpad = 10,
+            borderBox = true,
+            bgimage = true,
+            border = 1,
+            borderColor = Fixed(FIXED.BLOCK_EDGE),
+            cornerRadius = SIZES.BLOCK_RADIUS,
+            priority = 10,
+        },
+        {
+            selectors = {"beGrip", "beShelfGrip"},
+            valign = "center",
+            tmargin = 0,
+            priority = 11,
+        },
+        {
+            selectors = {"beGlyph", "beShelfGlyph"},
+            halign = "left",
+            valign = "center",
+            tmargin = 0,
+            priority = 11,
+        },
+        {
+            selectors = {"label", "beShelfName"},
+            halign = "left",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = 15,
+            color = Fixed(FIXED.BLOCK_TEXT),
+            priority = 10,
+        },
+
+        -- The book card's lines (the card panel itself is beCard).
+        {
+            selectors = {"beCardLine"},
+            bgimage = true,
+            bgcolor = "clear",
+            cornerRadius = 3,
+            priority = 10,
+        },
+        {
+            selectors = {"beCardLine", "hover"},
+            bgcolor = Fixed(FIXED.CARD_HOVER),
+            priority = 10,
+        },
+        {
+            selectors = {"beCardChip"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hpad = 4,
+            vpad = 1,
+            bgimage = true,
+            bgcolor = Fixed(FIXED.INK),
+            cornerRadius = 2,
+            priority = 10,
+        },
+        {
+            selectors = {"beCardIcon"},
+            halign = "left",
+            width = 17,
+            height = 17,
+            valign = "center",
+            rmargin = 6,
+            bgcolor = Fixed(FIXED.INK),
+            priority = 10,
+        },
+    }
+end
+
 --- The blocks and the book card: fixed colours, the same in every scheme.
 --- @return table[]
 local function _blockStyles()
@@ -281,8 +1190,10 @@ local function _blockStyles()
             border = 1,
             borderColor = Fixed(FIXED.BLOCK_EDGE),
             cornerRadius = SIZES.BLOCK_RADIUS,
-            hpad = SIZES.BLOCK_HPAD,
-            vpad = SIZES.BLOCK_VPAD,
+            tpad = 8,
+            bpad = 8,
+            lpad = 8,
+            rpad = 10,
             borderBox = true,
             priority = 10,
         },
@@ -309,7 +1220,7 @@ local function _blockStyles()
         },
         {
             selectors = {"label", "beBlockText"},
-            width = "100% available",
+            width = "100%-" .. SIZES.BLOCK_TEXT_INSET,
             height = "auto",
             valign = "center",
             fontSize = SIZES.BLOCK_FONT_SIZE,
@@ -382,6 +1293,21 @@ local function _blockStyles()
             bgcolor = Fixed(entry.hover),
             priority = 10,
         }
+        styles[#styles + 1] = {
+            selectors = {"beShelfRow", groupClass},
+            bgcolor = Fixed(entry.color),
+            priority = 10,
+        }
+        styles[#styles + 1] = {
+            selectors = {"beShelfRow", groupClass, "hover"},
+            bgcolor = Fixed(entry.hover),
+            priority = 10,
+        }
+        styles[#styles + 1] = {
+            selectors = {"beHeaderGroup", groupClass},
+            bgcolor = Fixed(entry.color),
+            priority = 10,
+        }
     end
 
     return styles
@@ -394,6 +1320,12 @@ end
 function BEStyles.GetStyles()
     local styles = _chromeStyles()
     for _, rule in ipairs(_blockStyles()) do
+        styles[#styles + 1] = rule
+    end
+    for _, rule in ipairs(_editorChromeStyles()) do
+        styles[#styles + 1] = rule
+    end
+    for _, rule in ipairs(_editorBlockStyles()) do
         styles[#styles + 1] = rule
     end
     return styles
@@ -448,6 +1380,9 @@ function BEStyles.BlockPanel(args)
         classes[#classes + 1] = class
     end
     options.classes = classes
+    --Inline, not in the beBlock rule (the rule's valign did not apply): a
+    --vertical list centres each row in an equal share of the spare height.
+    options.valign = options.valign or "top"
 
     local labelClasses = {"beBlockText"}
     for _, class in ipairs(textClasses) do
@@ -466,4 +1401,42 @@ function BEStyles.BlockPanel(args)
     }
     options.children = children
     return gui.Panel(options)
+end
+
+--- A section header as the mockup draws it: a caret, a small uppercase title,
+--- an optional "optional" tag and a count on the right, with a rule under it.
+--- Returns the header and its rule as two panels, for a vertical list.
+--- @param args {title: string, count?: string, optional?: string, shelf?: boolean, press?: fun(element: Panel), countFn?: fun(state: BEState): string, data?: table}
+--- @return Panel header, Panel rule
+function BEStyles.SectionHeader(args)
+    local children = {
+        gui.Panel{ classes = {"beCaret"}, interactable = false },
+        gui.Label{ classes = {"beSecTitle"}, text = args.title, interactable = false },
+    }
+    if args.optional ~= nil then
+        children[#children + 1] = gui.Label{ classes = {"beSecOptional"}, text = args.optional, interactable = false }
+    end
+    if args.count ~= nil or args.countFn ~= nil then
+        local countFn = args.countFn
+        children[#children + 1] = gui.Label{
+            classes = {"beSecCount"},
+            text = args.count or "",
+            interactable = false,
+            --a count that follows the record, such as "3 steps".
+            [BlockEditor.REFRESH_EVENT] = countFn ~= nil and function(element, state)
+                element.text = countFn(state)
+            end or nil,
+        }
+    end
+    local header = gui.Panel{
+        classes = {"beSecHead", args.shelf and "beSecHeadShelf" or nil, args.shelf and "beShelfHead" or nil},
+        press = args.press,
+        data = args.data or {},
+        children = children,
+    }
+    local rule = gui.Panel{
+        classes = {"beSecRule", args.shelf and "beShelfHead" or nil},
+        interactable = false,
+    }
+    return header, rule
 end

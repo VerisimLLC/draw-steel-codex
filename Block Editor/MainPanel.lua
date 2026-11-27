@@ -7,9 +7,13 @@ local mod = dmhub.GetModLoading()
     BlockEditor.lua). It holds data = { state, host }, runs every change
     through BEState, and fires refreshEditorState down its tree.
 
-    Phase 0: the window opens empty on a demo record. Clicking a shelf block
-    appends it to the demo record, so undo, redo and the upload timer can be
-    exercised; nothing real is read or saved.
+    The window follows docs/block-editor/lua-preview/ability.html: a title bar
+    (title, Simple / Advanced editor tabs, the host's dropdown, Paste text,
+    Undo), a strip of section names, then three columns: the page (BEPage),
+    the shelf (BEShelf) and the checks and card (BESidePanel).
+
+    Phase 1: with no record it opens the stub ability host's demo record.
+    Edits, undo and the upload timer work; the host only logs the upload.
 ]]
 
 local T = UIText.T
@@ -17,9 +21,12 @@ local T = UIText.T
 local _fireControllerEvent = BlockEditor._fireControllerEvent
 local _getState = BlockEditor._getState
 
---The event the controller fires for cheap updates (button states, the status
---readout) that must not redraw blocks: after an upload, for one.
+--The event the controller fires for cheap updates (button states) that must
+--not redraw blocks: after an upload, for one.
 local STATUS_EVENT = "refreshEditorStatus"
+
+--The host the developer window opens when it is given no record.
+local DEMO_HOST = "stub.ability"
 
 --- The host the developer window uses: it accepts every change and only logs
 --- the upload. Real hosts come from Block.RegisterHost once records can be
@@ -34,167 +41,187 @@ local function _demoHost(decl)
             return true
         end,
         upload = function(record, model)
-            print(string.format("BLOCKEDITOR:: (phase 0) would upload '%s' with %d blocks", model.name, #model.blocks))
+            print(string.format("BLOCKEDITOR:: (phase 1) would upload '%s' with %d blocks", model.name, #model.blocks))
         end,
     }
 end
 
---- The sections of a host's page, or the demo page's when it declares none.
---- @param host BlockEditorHost
---- @return {id: string, label: string}[]
-local function _sections(host)
-    local result = {}
-    if host.decl ~= nil and host.decl.sections ~= nil then
-        for _, section in ipairs(host.decl.sections) do
-            result[#result + 1] = { id = tostring(section.id), label = tostring(section.label or section.id) }
-        end
-    end
-    if #result == 0 then
-        result = {
-            { id = "what", label = T("blockeditor.demo.section.what") },
-            { id = "who", label = T("blockeditor.demo.section.who") },
-            { id = "when", label = T("blockeditor.demo.section.when") },
-            { id = "used", label = T("blockeditor.demo.section.used") },
-        }
-    end
-    return result
-end
-
 --- A first model for a record: its id and name, and no blocks. RecordCache
 --- replaces this in phase 2 by reading the record's own data into blocks.
---- @param record table|nil
+--- @param record table
 --- @return BERecordModel
 local function _emptyModel(record)
     local id, name = nil, nil
-    if record ~= nil then
-        --a game-typed record raises on a field it does not have.
-        pcall(function() id = record.id end)
-        pcall(function() name = record.name end)
-    end
+    --a game-typed record raises on a field it does not have.
+    pcall(function() id = record.id end)
+    pcall(function() name = record.name end)
     return {
-        id = type(id) == "string" and id or "demo",
-        name = type(name) == "string" and name or T("blockeditor.demo.record_name"),
+        id = type(id) == "string" and id or "record",
+        name = type(name) == "string" and name or "",
+        values = {},
         blocks = {},
     }
 end
 
---- The title bar: the record's name, the Simple / Advanced editor tabs, and
---- Undo, Redo and Close.
+--- The title bar: the title, the Simple / Advanced editor tabs, then on the
+--- right the host's dropdown, Paste text, Undo and Close.
+--- @param decl BlockHost
 --- @return Panel
-local function _titleBar()
-    return gui.Panel{
-        classes = {"beTitleBar"},
-
-        gui.Label{
-            classes = {"sizeXl", "bold"},
-            width = "auto",
-            height = "auto",
+local function _titleBar(decl)
+    local tools = {}
+    local toolbar = decl.toolbar
+    if toolbar ~= nil then
+        tools[#tools + 1] = gui.Label{
+            classes = {"beToolLabel"},
+            text = toolbar.label,
+            interactable = false,
+        }
+        tools[#tools + 1] = gui.Dropdown{
+            classes = {"sizeS"},
+            width = 140,
             valign = "center",
-            rmargin = 16,
-            text = T("blockeditor.title", { name = "" }),
+            rmargin = 8,
+            options = toolbar.options,
+            idChosen = toolbar.options[1].id,
+            change = function(element)
+                local value = element.idChosen
+                for _, option in ipairs(toolbar.options) do
+                    if option.id == value then
+                        _fireControllerEvent(element, "editorChange", T("blockeditor.change.set", { what = option.text }), function(state)
+                            --- @cast state BEState
+                            local model = state:Model()
+                            if model ~= nil then
+                                model.values = model.values or {}
+                                model.values[toolbar.field] = value
+                            end
+                        end)
+                    end
+                end
+            end,
             [BlockEditor.REFRESH_EVENT] = function(element, state)
                 --- @cast state BEState
                 local model = state:Model()
-                element.text = T("blockeditor.title", { name = model ~= nil and model.name or "" })
+                local value = model ~= nil and (model.values or {})[toolbar.field] or nil
+                if value ~= nil and element.idChosen ~= value then
+                    element.idChosen = value
+                end
             end,
-        },
+        }
+    end
+    tools[#tools + 1] = gui.Button{
+        classes = {"sizeS"},
+        width = "auto",
+        hpad = 12,
+        valign = "center",
+        rmargin = 8,
+        text = T("blockeditor.paste"),
+        linger = function(element)
+            gui.Tooltip(T("blockeditor.not_yet"))(element)
+        end,
+    }
+    tools[#tools + 1] = gui.Button{
+        classes = {"sizeS"},
+        width = "auto",
+        hpad = 12,
+        valign = "center",
+        rmargin = 12,
+        text = T("blockeditor.undo"),
+        click = function(element)
+            _fireControllerEvent(element, "editorUndo")
+        end,
+        linger = function(element)
+            local state = _getState(element)
+            local change = state ~= nil and state:UndoDescription() or nil
+            if change ~= nil then
+                gui.Tooltip(T("blockeditor.undo_tooltip", { change = change }))(element)
+            else
+                gui.Tooltip(T("blockeditor.undo_nothing"))(element)
+            end
+        end,
+        [STATUS_EVENT] = function(element, state)
+            --- @cast state BEState
+            element:SetClass("disabled", not state:CanUndo())
+        end,
+    }
+    tools[#tools + 1] = gui.Button{
+        classes = {"closeButton", "sizeS"},
+        valign = "center",
+        click = function(element)
+            _fireControllerEvent(element, "editorClose")
+        end,
+    }
 
+    return gui.Panel{
+        classes = {"beEditorTitleBar"},
+        gui.Label{
+            classes = {"beEditorTitle"},
+            text = decl.title or T("blockeditor.title", { name = "" }),
+            interactable = false,
+        },
         gui.Panel{
             classes = {"tabBar"},
             halign = "left",
-            valign = "center",
+            valign = "bottom",
             gui.Label{
                 classes = {"tab", "selected"},
                 text = T("blockeditor.tab.simple"),
             },
             gui.Label{
                 classes = {"tab"},
-                width = 170,
+                --wide enough for the name on one line.
+                width = 190,
                 text = T("blockeditor.tab.advanced"),
                 linger = function(element)
                     gui.Tooltip(T("blockeditor.tab.advanced_tooltip"))(element)
                 end,
             },
         },
-
-        --one right-aligned group, so the three keep this order.
         gui.Panel{
             width = "auto",
             height = "auto",
             flow = "horizontal",
             halign = "right",
-            valign = "center",
-            gui.Button{
-                classes = {"sizeS"},
-                valign = "center",
-                rmargin = 6,
-                text = T("blockeditor.undo"),
-                click = function(element)
-                    _fireControllerEvent(element, "editorUndo")
-                end,
-                linger = function(element)
-                    local state = _getState(element)
-                    local change = state ~= nil and state:UndoDescription() or nil
-                    if change ~= nil then
-                        gui.Tooltip(T("blockeditor.undo_tooltip", { change = change }))(element)
-                    else
-                        gui.Tooltip(T("blockeditor.undo_nothing"))(element)
-                    end
-                end,
-                [STATUS_EVENT] = function(element, state)
-                    --- @cast state BEState
-                    element:SetClass("disabled", not state:CanUndo())
-                end,
-            },
-            gui.Button{
-                classes = {"sizeS"},
-                valign = "center",
-                rmargin = 16,
-                text = T("blockeditor.redo"),
-                click = function(element)
-                    _fireControllerEvent(element, "editorRedo")
-                end,
-                linger = function(element)
-                    local state = _getState(element)
-                    local change = state ~= nil and state:RedoDescription() or nil
-                    if change ~= nil then
-                        gui.Tooltip(T("blockeditor.redo_tooltip", { change = change }))(element)
-                    else
-                        gui.Tooltip(T("blockeditor.redo_nothing"))(element)
-                    end
-                end,
-                [STATUS_EVENT] = function(element, state)
-                    --- @cast state BEState
-                    element:SetClass("disabled", not state:CanRedo())
-                end,
-            },
-            gui.Button{
-                classes = {"closeButton", "sizeS"},
-                valign = "center",
-                click = function(element)
-                    _fireControllerEvent(element, "editorClose")
-                end,
-            },
+            valign = "bottom",
+            bmargin = 8,
+            children = tools,
         },
     }
 end
 
---- The section strip: one button per section of the host's page. Phase 0
---- only marks the pressed one; phase 1 scrolls the detail column to it.
---- @param host BlockEditorHost
+--- The strip of section names. A click marks the section and scrolls the page to it.
+--- @param decl BlockHost
 --- @return Panel
-local function _sectionStrip(host)
+local function _sectionStrip(decl)
     local children = {}
-    for i, section in ipairs(_sections(host)) do
-        children[#children + 1] = gui.Button{
-            classes = {"sizeS", cond(i == 1, "selected")},
-            width = "auto",
-            hpad = 12,
-            rmargin = 6,
-            text = section.label,
+    for i, section in ipairs(decl.sections or {}) do
+        local rowChildren = {
+            gui.Label{ classes = {"beNavText"}, text = section.title, interactable = false },
+        }
+        if section.stack ~= nil then
+            local field = section.stack
+            rowChildren[#rowChildren + 1] = gui.Label{
+                classes = {"beCount"},
+                text = "",
+                interactable = false,
+                [BlockEditor.REFRESH_EVENT] = function(element, state)
+                    --- @cast state BEState
+                    local model = state:Model()
+                    local count = model ~= nil and #(model[field] or {}) or 0
+                    element.text = count == 1 and T("blockeditor.count.one_step") or T("blockeditor.count.steps", { count = count })
+                end,
+            }
+        end
+        children[#children + 1] = gui.Panel{
+            classes = {"beNavRow", cond(i == 1, "selected")},
             data = { section = section.id },
-            click = function(element)
+            children = rowChildren,
+            press = function(element)
                 element.parent:FireEventTree("selectSection", element.data.section)
+                local controller = BlockEditor._getController(element)
+                local detail = controller ~= nil and controller:Get(BEPage.DETAIL_ID) or nil
+                if detail ~= nil then
+                    BEPage.ScrollTo(detail, element.data.section)
+                end
             end,
             selectSection = function(element, sectionId)
                 element:SetClass("selected", element.data.section == sectionId)
@@ -202,172 +229,13 @@ local function _sectionStrip(host)
         }
     end
     return gui.Panel{
-        classes = {"beSectionStrip"},
+        classes = {"beStrip"},
         children = children,
     }
 end
 
---- The detail column: the record's blocks. Phase 0 lists the demo record's
---- blocks as plain sentences and rebuilds the list on every change; the real
---- stack (phase 1) redraws only the block that changed.
---- @return Panel
-local function _detailColumn()
-    local SIZES = BEStyles.SIZES
-    return gui.Panel{
-        classes = {"beColumn"},
-        width = "100% available",
-        rmargin = SIZES.COLUMN_GAP,
-
-        gui.Label{
-            classes = {"beHeading"},
-            text = T("blockeditor.detail.heading"),
-        },
-        gui.Label{
-            classes = {"beNote"},
-            text = T("blockeditor.detail.empty"),
-            [BlockEditor.REFRESH_EVENT] = function(element, state)
-                --- @cast state BEState
-                local model = state:Model()
-                element:SetClass("collapsed", model ~= nil and #model.blocks > 0)
-            end,
-        },
-        gui.Panel{
-            classes = {"beScroll"},
-            [BlockEditor.REFRESH_EVENT] = function(element, state)
-                --- @cast state BEState
-                local model = state:Model()
-                local children = {}
-                for _, instance in ipairs(model ~= nil and model.blocks or {}) do
-                    local decl = Block.GetBlock(instance.block)
-                    if decl ~= nil then
-                        children[#children + 1] = BEStyles.BlockPanel{
-                            group = decl.group,
-                            text = Block.SentenceText(decl, instance.values),
-                            bmargin = SIZES.BLOCK_GAP,
-                        }
-                    end
-                end
-                element.children = children
-            end,
-        },
-    }
-end
-
---- The shelf: every registered block, under its colour group, in full colour
---- with the group's glyph. Read from the Block registries when the editor
---- opens, so nothing here names a block.
---- @return Panel
-local function _shelfColumn()
-    local SIZES = BEStyles.SIZES
-
-    --- @type table<string, BlockDecl[]>
-    local byGroup = {}
-    for _, decl in ipairs(Block.All("block")) do
-        --- @cast decl BlockDecl
-        byGroup[decl.group] = byGroup[decl.group] or {}
-        table.insert(byGroup[decl.group], decl)
-    end
-
-    local rows = {}
-    for _, group in ipairs(Block.All("group")) do
-        --- @cast group BlockGroup
-        local decls = byGroup[group.id]
-        if decls ~= nil then
-            rows[#rows + 1] = gui.Label{
-                classes = {"beGroupHeading"},
-                text = group.text,
-            }
-            for _, decl in ipairs(decls) do
-                rows[#rows + 1] = BEStyles.BlockPanel{
-                    group = decl.group,
-                    text = decl.label,
-                    bmargin = SIZES.BLOCK_GAP,
-                    data = { block = decl.id, label = decl.label, desc = decl.desc },
-                    --click, not press: press would swallow the start of a drag (phase 1).
-                    click = function(element)
-                        local blockId = element.data.block
-                        _fireControllerEvent(element, "editorChange", T("blockeditor.change.add", { block = element.data.label }), function(state)
-                            --- @cast state BEState
-                            local model = state:Model()
-                            local instance = Block.Instantiate(blockId)
-                            if model ~= nil and instance ~= nil then
-                                model.blocks[#model.blocks + 1] = instance
-                            end
-                        end)
-                    end,
-                    linger = function(element)
-                        if element.data.desc ~= nil then
-                            gui.Tooltip(element.data.desc)(element)
-                        end
-                    end,
-                }
-            end
-        end
-    end
-
-    return gui.Panel{
-        classes = {"beColumn"},
-        width = SIZES.SHELF_WIDTH,
-        rmargin = SIZES.COLUMN_GAP,
-
-        gui.Label{
-            classes = {"beHeading"},
-            text = T("blockeditor.shelf.heading"),
-        },
-        gui.Label{
-            classes = {"beNote"},
-            text = T("blockeditor.shelf.note"),
-        },
-        gui.Panel{
-            classes = {"beScroll"},
-            children = rows,
-        },
-    }
-end
-
---- The side panel: the checks and the book-style card go here (phase 1).
---- Phase 0 shows what the state holds, so undo and uploads can be watched.
---- @return Panel
-local function _sideColumn()
-    return gui.Panel{
-        classes = {"beColumn"},
-        width = BEStyles.SIZES.SIDE_WIDTH,
-
-        gui.Label{
-            classes = {"beHeading"},
-            text = T("blockeditor.side.checks"),
-        },
-        gui.Label{
-            classes = {"beNote"},
-            text = T("blockeditor.side.checks_note"),
-        },
-        gui.Label{
-            classes = {"beHeading"},
-            tmargin = 12,
-            text = T("blockeditor.side.state"),
-        },
-        gui.Label{
-            classes = {"beNote"},
-            text = "",
-            [STATUS_EVENT] = function(element, state)
-                --- @cast state BEState
-                local unsaved = 0
-                for _, _ in pairs(state.dirty) do
-                    unsaved = unsaved + 1
-                end
-                element.text = T("blockeditor.side.state_text", {
-                    undo = #state.undoStack,
-                    redo = #state.redoStack,
-                    unsaved = unsaved,
-                    uploads = state.uploads,
-                })
-            end,
-        },
-    }
-end
-
 --- Whether a registered host edits this record, so today's editors can send
---- it here and keep the rest (the Advanced editor). Phase 0: nothing is
+--- it here and keep the rest (the Advanced editor). Phase 1: nothing is
 --- routed, since no record can be read into blocks yet.
 --- @param record table|nil
 --- @param where? string where it was opened from ("compendium", ...)
@@ -377,17 +245,33 @@ function BlockEditor.Routes(record, where)
 end
 
 --- Opens the editor on a record, as a modal window. With no record (the
---- developer command) it opens on an empty demo record.
+--- developer command) it opens the stub ability host's demo record.
 --- @param record? table the record to edit (class, feature, ability, ...)
 --- @return Panel|nil controller the editor's root panel
 function BlockEditor.Open(record)
     --read every registry afresh, so blocks from mods loaded later are included.
     Block.Gather()
 
-    local decl = record ~= nil and Block.FindHost(record) or nil
+    local decl = nil
+    local model = nil
+    if record ~= nil then
+        decl = Block.FindHost(record)
+        model = _emptyModel(record)
+    else
+        decl = Block.Get("host", DEMO_HOST) --[[@as BlockHost|nil]]
+        if decl ~= nil and decl.demo ~= nil then
+            model = DeepCopy(decl.demo)
+        end
+    end
+    if decl == nil or model == nil then
+        dmhub.Log("The Block Editor has no host for this record yet.")
+        return nil
+    end
+    --- @cast model BERecordModel
+
     local host = _demoHost(decl)
     local state = BEState.CreateNew(host)
-    state:AddRecord(_emptyModel(record), record)
+    state:AddRecord(model, record)
 
     local SIZES = BEStyles.SIZES
     --- @type table|nil the theme subscription, dropped when the window closes
@@ -396,17 +280,14 @@ function BlockEditor.Open(record)
     --- @type Panel
     local controller
     controller = gui.Panel{
-        classes = {"framedPanel", BlockEditor.CONTROLLER_CLASS},
+        classes = {"beWindow", BlockEditor.CONTROLLER_CLASS},
         styles = ThemeEngine.MergeStyles(BEStyles.GetStyles()),
-        width = SIZES.WINDOW_WIDTH,
-        height = SIZES.WINDOW_HEIGHT,
+        width = SIZES.EDITOR_WIDTH,
+        height = SIZES.EDITOR_HEIGHT,
         maxWidth = SIZES.WINDOW_MAX_WIDTH,
         maxHeight = SIZES.WINDOW_MAX_HEIGHT,
         halign = "center",
         valign = "center",
-        flow = "vertical",
-        pad = SIZES.WINDOW_PAD,
-        borderBox = true,
 
         data = {
             state = state,
@@ -486,6 +367,12 @@ function BlockEditor.Open(record)
             end
         end,
 
+        --- Rings a block for a moment after it is added (from a shelf click).
+        --- @param uid string
+        flashRequest = function(element, uid)
+            element:FireEventTree("flashBlock", uid)
+        end,
+
         --Runs only while a record is dirty: uploads what is due, then stops.
         think = function(element)
             if mod.unloaded then
@@ -504,15 +391,15 @@ function BlockEditor.Open(record)
             gui.CloseModal()
         end,
 
-        _titleBar(),
-        _sectionStrip(host),
+        _titleBar(decl),
+        _sectionStrip(decl),
         gui.Panel{
-            width = "100%",
-            height = "100% available",
-            flow = "horizontal",
-            _detailColumn(),
-            _shelfColumn(),
-            _sideColumn(),
+            classes = {"beColumns", "beDropArea"},
+            --a drop target, so a drag the ghost carries ends here.
+            dragTarget = true,
+            BEPage.Create(decl),
+            BEShelf.Create(decl),
+            BESidePanel.Create(decl),
         },
     }
 
@@ -522,8 +409,8 @@ end
 
 Commands.RegisterMacro{
     name = "blockeditor",
-    summary = "open the empty Block Editor (developers)",
-    doc = "Usage: /blockeditor\nOpens the Block Editor on an empty demo record: the shelf lists the registered blocks, and clicking one adds it so undo, redo and the upload timer can be tried. Developer mode only.",
+    summary = "open the Block Editor on its demo ability (developers)",
+    doc = "Usage: /blockeditor\nOpens the Block Editor on the stub ability host's demo record (\"Out of the Way!\"). Every block and the page come from stub registrations; edits, undo and the upload timer work, and the upload is only logged. Developer mode only.",
     command = function(str)
         if not BlockEditor._isDeveloper() then
             dmhub.Log("The Block Editor is in development: turn on developer mode to open it.")

@@ -25,14 +25,16 @@ local mod = dmhub.GetModLoading()
     throws, so one mistake cannot stop a rules file loading.
 ]]
 
---- One part of a block's sentence: plain text, or a slot the author can change.
---- @alias BlockSentencePart string|{slot: string}
+--- One part of a block's sentence: plain text, a slot the author can change, or
+--- text with a look: {text = "Then", bold = true}, {text = "Flavor:", style = "aside"}.
+--- @alias BlockSentencePart string|{slot: string}|{text: string, bold?: boolean, style?: string}
 
 --- A value in a block's sentence that the author can change.
 --- @class BlockSlot
---- @field kind string which control edits it: "number", "choice", "stat", "test", "text", ...
---- @field default any the value a new block starts with
---- @field options? {id: string, text: string}[] the choices of a "choice" slot
+--- @field kind string which control edits it: "number", "choice", "stat", "test", "text", "formula", "many" (a list of chips), ...
+--- @field default any the value a new block starts with; a list of option ids for "many"
+--- @field options? {id: string, text: string}[] the choices of a "choice" or "many" slot, or the suggestions of a "formula"
+--- @field style? string how its word looks: "formula" draws it in the mono font
 
 --- A colour group: what kind of block this is. Colours are fixed (never theme tokens).
 --- @class BlockGroup
@@ -55,18 +57,72 @@ local mod = dmhub.GetModLoading()
 --- @field slots? table<string, BlockSlot> by the slot ids the sentence names
 --- @field fits? string[] the kinds of list it may go in ("step", "tier"); any list when absent
 --- @field order? number position within its group, low first
+--- @field bodies? BlockBody[] lists of blocks it holds (a power roll's tiers, a wrapper's steps)
+--- @field tag? string a small label drawn before the sentence ("Text" for card text the game does not apply)
+--- @field italic? boolean draws the sentence in italics
+--- @field capitalize? boolean capitalises the sentence's first letter (one that starts with a slot)
+--- @field shelf? boolean false keeps it off the shelf (it only arrives by reading a record)
 --- @field stub? boolean a placeholder with no record reading or writing yet
+
+--- A list of blocks inside a block. A power roll has one per tier; a wrapper has one.
+--- @class BlockBody
+--- @field id string
+--- @field fits string the kind of list it is ("step", "tier"): only blocks that fit it go in
+--- @field label? string drawn beside the list ("11 or lower"); a body with no label is drawn as an inset list
+--- @field sublabel? string a smaller second line under the label ("tier 1")
+
+--- A fixed row on a host's page: a sentence like a block's, whose values live
+--- in the record's own fields (model.values), not in a block.
+--- @class BlockHeaderRow
+--- @field id string
+--- @field sentence BlockSentencePart[]
+--- @field slots? table<string, BlockSlot>
+
+--- One section of a host's page (plan section 6).
+--- @class BlockHostSection
+--- @field id string
+--- @field title string
+--- @field optional? boolean marked "optional" in its header
+--- @field rows? BlockHeaderRow[] fixed rows, drawn as one coloured group
+--- @field summary? fun(model: table): string|nil a line under the rows that says what they add up to
+--- @field addText? string a dashed "add" row, for a list that is empty until the author adds to it
+--- @field stack? string the model field holding this section's list of blocks ("blocks")
+--- @field fits? string the kind of list the stack is ("step")
+--- @field stackAddText? string the "add" row under the stack
+
+--- A book-style card, as a host describes it from a model.
+--- @class BlockCard
+--- @field title string
+--- @field flavor? string
+--- @field rows? {left: string, right: string, leftIcon?: string, rightIcon?: string, bold?: boolean}[] two-column lines under the title
+--- @field roll? string the power roll line ("Power Roll + Might:")
+--- @field tiers? {parts: (string|{chip: string})[]}[] one per tier; a chip is a shaded characteristic letter
+--- @field effect? {label: string, text: string}
+
+--- One line in a host's checks.
+--- @class BlockCheck
+--- @field severity string "success", "warning" or "danger"
+--- @field text string
 
 --- An editor for one kind of record (plan section 6).
 --- @class BlockHost
 --- @field id string
 --- @field tableName string the data table its records live in
 --- @field claims fun(record: table): boolean whether this host edits the record
+--- @field title? string the window's title ("Edit Ability")
 --- @field header? string[] the fixed "what it is" rows
---- @field sections? table[] the page's sections, in order
+--- @field sections? BlockHostSection[] the page's sections, in order
+--- @field kindChoice? {label: string, field: string, options: {id: string, text: string}[]} a switch at the top of the page ("This is an ability / a triggered ability")
+--- @field toolbar? {label: string, field: string, options: {id: string, text: string}[]} a dropdown in the title bar ("Belongs to")
+--- @field shelfSections? {title: string, fits: string}[] the shelf's sections: each lists the blocks that fit one kind of list
+--- @field templates? {label: string, items: string[]} pills that start a new record from a template ("Start from:")
+--- @field card? fun(model: table): BlockCard the book-style card for the side panel
+--- @field checks? fun(model: table): BlockCheck[] problems and notes about the record
+--- @field demo? table a ready-made model, opened when the editor has no record (developers)
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
 --- @field upload? fun(record: table) sends one record to the server; the editor uploads the table row when absent
 --- @field order? number
+--- @field stub? boolean
 
 --- A way to gain a heroic resource (plan section 11).
 --- @class BlockGainEvent
@@ -116,11 +172,15 @@ local mod = dmhub.GetModLoading()
 --- @class BlockSentenceRun
 --- @field text string
 --- @field slot? string
+--- @field bold? boolean
+--- @field style? string "formula" (a slot's style) or "aside" (a text part's)
 
 --- A block placed in a record's model: which block it is and its slot values.
 --- @class BlockInstance
 --- @field block string a BlockDecl id
 --- @field values table<string, any> by slot id
+--- @field bodies? table<string, BlockInstance[]> by BlockBody id, for a block that holds others
+--- @field uid? string the editor's id for this placed block, unique within its record
 
 --- @class Block
 Block = {}
@@ -259,7 +319,9 @@ end
 --- @return boolean
 local function ValidateSentence(entry)
     for i, part in ipairs(entry.sentence) do
-        if type(part) == "table" then
+        if type(part) == "table" and part.slot == nil and type(part.text) == "string" then
+            --styled text: nothing to check.
+        elseif type(part) == "table" then
             local slot = part.slot
             if type(slot) ~= "string" or entry.slots == nil or type(entry.slots[slot]) ~= "table" then
                 Report(string.format("block '%s': sentence part %d names a slot it does not declare", entry.id, i))
@@ -430,9 +492,25 @@ function Block.Instantiate(blockId)
     end
     local values = {}
     for slotId, slot in pairs(decl.slots or {}) do
-        values[slotId] = slot.default
+        --a list default is copied, so two blocks never share one table.
+        if type(slot.default) == "table" then
+            local copy = {}
+            for i, item in ipairs(slot.default) do
+                copy[i] = item
+            end
+            values[slotId] = copy
+        else
+            values[slotId] = slot.default
+        end
     end
-    return { block = blockId, values = values }
+    local instance = { block = blockId, values = values }
+    if decl.bodies ~= nil then
+        instance.bodies = {}
+        for _, body in ipairs(decl.bodies) do
+            instance.bodies[body.id] = {}
+        end
+    end
+    return instance
 end
 
 --- How a slot's value reads in the sentence: a choice's text, a stat's or a
@@ -446,7 +524,14 @@ function Block.SlotText(decl, slotId, value)
     if slot == nil then
         return tostring(value)
     end
-    if slot.kind == "choice" then
+    if slot.kind == "many" and type(value) == "table" then
+        local texts = {}
+        for i, item in ipairs(value) do
+            texts[i] = Block.SlotText(decl, slotId, item)
+        end
+        return table.concat(texts, ", ")
+    end
+    if slot.kind == "choice" or slot.kind == "many" or slot.kind == "formula" then
         for _, option in ipairs(slot.options or {}) do
             if option.id == value then
                 return option.text
@@ -470,23 +555,31 @@ function Block.SlotText(decl, slotId, value)
 end
 
 --- A block's sentence as runs of text, each marked with the slot it shows, for
---- the UI to turn into link words (and for plain prose: join the texts).
---- @param decl BlockDecl
+--- the UI to turn into clickable words (and for plain prose: join the texts).
+--- Works for a host's header rows too: it only reads `sentence` and `slots`.
+--- @param decl BlockDecl|BlockHeaderRow
 --- @param values? table<string, any> slot values; a slot's default when absent
 --- @return BlockSentenceRun[]
 function Block.Sentence(decl, values)
+    --- @cast decl BlockDecl
     local runs = {}
     for _, part in ipairs(decl.sentence) do
-        if type(part) == "table" then
+        if type(part) == "table" and part.slot ~= nil then
             local slotId = part.slot
             local value = values ~= nil and values[slotId] or nil
-            if value == nil and decl.slots ~= nil and decl.slots[slotId] ~= nil then
-                value = decl.slots[slotId].default
+            local slot = decl.slots ~= nil and decl.slots[slotId] or nil
+            if value == nil and slot ~= nil then
+                value = slot.default
             end
-            runs[#runs + 1] = { text = Block.SlotText(decl, slotId, value), slot = slotId }
+            runs[#runs + 1] = { text = Block.SlotText(decl, slotId, value), slot = slotId, style = slot ~= nil and slot.style or nil }
+        elseif type(part) == "table" then
+            runs[#runs + 1] = { text = tostring(part.text), bold = part.bold, style = part.style }
         else
             runs[#runs + 1] = { text = part }
         end
+    end
+    if decl.capitalize and runs[1] ~= nil then
+        runs[1].text = string.upper(string.sub(runs[1].text, 1, 1)) .. string.sub(runs[1].text, 2)
     end
     return runs
 end

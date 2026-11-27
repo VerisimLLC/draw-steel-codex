@@ -25,8 +25,17 @@ local mod = dmhub.GetModLoading()
 --- @class BERecordModel
 --- @field id string the record's id
 --- @field name string
---- @field blocks BlockInstance[] the record's blocks, in order (phase 0: one flat list)
+--- @field blocks BlockInstance[] the record's steps, in order; a block may hold more lists in its bodies
+--- @field values? table<string, any> the record's own fields that header rows show, by slot id
+--- @field nextUid? integer the next number BEState.NewUid hands out
 --- @field hidden? boolean soft-deleted; undo clears it
+
+--- Where a list of blocks lives in a model: the record's own list (owner nil),
+--- or one body of a placed block.
+--- @class BEListRef
+--- @field field string the model field of the top list ("blocks")
+--- @field owner? string the uid of the block whose body this is
+--- @field body? string the BlockBody id
 
 --- One undo (or redo) step.
 --- @class BEUndoEntry
@@ -66,6 +75,7 @@ end
 --- @param model BERecordModel
 --- @param source? table the engine record it was read from
 function BEState:AddRecord(model, source)
+    BEState.AssignUids(model)
     self.models[model.id] = model
     self.sources[model.id] = source
     if self.current == nil then
@@ -273,4 +283,125 @@ function BEState:Think()
     end
     self:UploadDirty(false)
     return self:IsDirty()
+end
+
+----------------------------------------------------------------------------
+-- Lists of blocks inside a model. Every placed block has a uid, so a panel
+-- can find its block again after undo replaces the model with a copy.
+----------------------------------------------------------------------------
+
+--- A uid not yet used in the model.
+--- @param model BERecordModel
+--- @return string
+function BEState.NewUid(model)
+    local number = model.nextUid or 1
+    model.nextUid = number + 1
+    return "b" .. number
+end
+
+--- Gives a uid to every placed block that has none, down through bodies.
+--- @param model BERecordModel
+function BEState.AssignUids(model)
+    local function Walk(list)
+        for _, instance in ipairs(list or {}) do
+            if instance.uid == nil then
+                instance.uid = BEState.NewUid(model)
+            end
+            for _, body in pairs(instance.bodies or {}) do
+                Walk(body)
+            end
+        end
+    end
+    Walk(model.blocks)
+end
+
+--- A placed block by uid, with the list it is in and its position there.
+--- @param model BERecordModel
+--- @param uid string
+--- @return BlockInstance|nil, BlockInstance[]|nil, integer|nil
+function BEState.FindInstance(model, uid)
+    local function Search(list)
+        for index, instance in ipairs(list or {}) do
+            if instance.uid == uid then
+                return instance, list, index
+            end
+            for _, body in pairs(instance.bodies or {}) do
+                local found, foundList, foundIndex = Search(body)
+                if found ~= nil then
+                    return found, foundList, foundIndex
+                end
+            end
+        end
+        return nil, nil, nil
+    end
+    return Search(model.blocks)
+end
+
+--- The list a ref names, created empty if the block has no such body yet.
+--- @param model BERecordModel
+--- @param ref BEListRef
+--- @return BlockInstance[]|nil
+function BEState.GetList(model, ref)
+    if ref.owner == nil then
+        local list = model[ref.field]
+        if list == nil then
+            list = {}
+            model[ref.field] = list
+        end
+        return list
+    end
+    local owner = BEState.FindInstance(model, ref.owner)
+    if owner == nil or ref.body == nil then
+        return nil
+    end
+    owner.bodies = owner.bodies or {}
+    owner.bodies[ref.body] = owner.bodies[ref.body] or {}
+    return owner.bodies[ref.body]
+end
+
+--- Puts a new block into a list, giving it (and anything inside it) uids.
+--- @param model BERecordModel
+--- @param ref BEListRef
+--- @param index integer its position in the list (1 = first); past the end appends
+--- @param instance BlockInstance
+--- @return boolean placed
+function BEState.Insert(model, ref, index, instance)
+    local list = BEState.GetList(model, ref)
+    if list == nil then
+        return false
+    end
+    index = math.max(1, math.min(index, #list + 1))
+    table.insert(list, index, instance)
+    BEState.AssignUids(model)
+    return true
+end
+
+--- Takes a placed block out of its list.
+--- @param model BERecordModel
+--- @param uid string
+--- @return BlockInstance|nil removed
+function BEState.Remove(model, uid)
+    local _, list, index = BEState.FindInstance(model, uid)
+    if list == nil or index == nil then
+        return nil
+    end
+    return table.remove(list, index)
+end
+
+--- Moves a placed block up (-1) or down (+1) within its own list.
+--- @param model BERecordModel
+--- @param uid string
+--- @param delta integer
+--- @return boolean moved
+function BEState.Move(model, uid, delta)
+    local _, list, index = BEState.FindInstance(model, uid)
+    if list == nil or index == nil then
+        return false
+    end
+    local target = index + delta
+    if target < 1 or target > #list then
+        return false
+    end
+    list[index], list[target] = list[target], list[index]
+    return true
 end

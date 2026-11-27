@@ -82,8 +82,14 @@ local DEFAULT_CODE = {
     "Draw Steel V/HistoryCapture.lua",
     "Draw Steel V/HistoryCard.lua",
     "Draw Steel V/HistoryTray.lua",
-    --the Block Editor's window and proofs.
+    --the Block Editor's window, its parts and its proofs.
     "Block Editor/MainPanel.lua",
+    "Block Editor/Slots.lua",
+    "Block Editor/BlockPanel.lua",
+    "Block Editor/Stack.lua",
+    "Block Editor/Shelf.lua",
+    "Block Editor/Page.lua",
+    "Block Editor/SidePanel.lua",
     "Block Editor/Proofs.lua",
 }
 

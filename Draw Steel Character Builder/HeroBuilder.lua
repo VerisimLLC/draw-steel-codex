@@ -440,6 +440,9 @@ local function BuilderRules()
         {selectors = {"heroBuilderInfoIcon", "parent:hover"}, bgcolor = palette.cardStrong},
         {selectors = {"heroBuilderInfoIcon", "selected"}, bgcolor = palette.bg},
         {selectors = {"heroBuilderInfoIcon", "heroBuilderOnArt"}, bgcolor = palette.cardFg},
+        --a beta ancestry's plate on its art: the (i)'s dark disc, cream words.
+        {selectors = {"heroBuilderBeta"}, bgcolor = "#000000c7", color = palette.cardFg},
+        {selectors = {"heroBuilderBeta", "hover"}, bgcolor = "#000000ff"},
         --the picks pane: one block per choice, a lighter step of the
         --plate; an open choice has a gold bar down its left edge; a choice
         --that waits on the main pick is dashed and bare.
@@ -736,6 +739,7 @@ local CARD_HEIGHTS = {text = 46, cards = 38, kits = 88, wide = 88}
 --- @field impl nil|number its automation status, for options that track one
 --- @field quickBuild nil|boolean the book's Quick Build pick: a star after the diamond
 --- @field hoverText nil|string what a deliberate hover on the card says ("Picked. Click to drop it.")
+--- @field beta nil|boolean an ancestry still in beta: its tile wears a Beta plate
 
 --- @class HeroBuilderSection
 --- @field key string
@@ -1391,6 +1395,35 @@ local BASE_TITLES = {
     class = T("herobuilder.section.your_class"),
 }
 
+--- The ids of the loaded Hero modules their creator offers with Patreon:
+--- their ancestries are still in beta.
+--- @return table<string, boolean>
+local function PatreonHeroModuleIds()
+    local result = {}
+    for _, loaded in ipairs(module.GetLoadedModules() or {}) do
+        if loaded.isHeroModule and loaded.offeredWithPatreon then
+            result[loaded.fullid] = true
+        end
+    end
+    return result
+end
+
+--- True if an ancestry comes from one of those Hero modules.
+--- @param raceid string
+--- @param betaModules table<string, boolean> from PatreonHeroModuleIds
+--- @return boolean
+local function IsBetaAncestry(raceid, betaModules)
+    if next(betaModules) == nil then
+        return false
+    end
+    for _, change in ipairs(module.GetObjectTableChanges(Race.tableName, raceid) or {}) do
+        if betaModules[change.moduleid] then
+            return true
+        end
+    end
+    return false
+end
+
 --- The section for a step's main pick (ancestry, culture, career, class,
 --- complication). The pick itself is made by the page (it may confirm).
 --- @param token CharacterToken
@@ -1411,6 +1444,7 @@ local function BaseSection(token, stepid, base)
             local classItem = hero:GetClass()
             current = classItem ~= nil and classItem.id or nil
         end
+        local betaModules = cond(stepid == "ancestry", PatreonHeroModuleIds(), {})
         for _, entry in ipairs(Engine().BaseOptions(hero, stepid)) do
             local item = entry.item
             local art = nil
@@ -1424,6 +1458,7 @@ local function BaseSection(token, stepid, base)
                 art = art,
                 selected = entry.id == current,
                 available = true,
+                beta = IsBetaAncestry(entry.id, betaModules),
                 detail = function() return ItemDetail(stepid, item) end,
             }
             if entry.id == current then
@@ -2838,6 +2873,32 @@ function HeroBuilder.OptionCard(args)
             interactable = false,
         }
         parts.art:AddChild(parts.initials)
+        --a beta ancestry's plate, over the art's top-right corner.
+        parts.beta = gui.Label{
+            classes = {"heroBuilderBeta", "hoverable", "collapsed"},
+            bgimage = "panels/square.png",
+            cornerRadius = 4,
+            text = T("herobuilder.tile.beta"),
+            fontSize = 10,
+            bold = true,
+            width = "auto",
+            height = "auto",
+            hpad = 4,
+            vpad = 1,
+            borderBox = true,
+            floating = true,
+            halign = "right",
+            valign = "top",
+            tmargin = 3,
+            rmargin = 3,
+            hover = function(element)
+                EnterMark()
+                gui.Tooltip(T("herobuilder.tile.beta_tooltip"))(element)
+            end,
+            dehover = function(element)
+                LeaveMark()
+            end,
+        }
         --the name sits on a plate that fills when the tile is picked. It
         --shows in full: at least the art's width, wider and still centred
         --where the name needs it; FitGrid keeps neighbours apart.
@@ -2859,7 +2920,7 @@ function HeroBuilder.OptionCard(args)
             tmargin = 3,
             interactable = false,
         }
-        cardArgs.children = {parts.art, parts.name, parts.info}
+        cardArgs.children = {parts.art, parts.name, parts.info, parts.beta}
     else
         --every card in a grid is one size whatever its words: a text card
         --holds a two-line name, an option card a name and three lines; a
@@ -2958,6 +3019,7 @@ function HeroBuilder.SetOptionCard(card, option)
         SetArt(parts.art, option.art)
         --a picked tile, and the tile whose art fills the pane, are framed.
         parts.art.selfStyle.border = cond(option.selected or card:HasClass("heroBuilderShown"), 2, 1)
+        parts.beta:SetClass("collapsed", option.beta ~= true)
     else
         if parts.line ~= nil then
             parts.line.text = option.line or ""

@@ -163,6 +163,9 @@ text("herobuilder.card.points.other", [[{count} points]])
 text("herobuilder.card.taken_on", [[Taken on {step}]])
 --A purchased trait that costs more than is left: its tooltip.
 text("herobuilder.card.no_points", [[Not enough points left. Remove a trait to free some.]])
+--The small plate on a beta ancestry's art, and its tooltip. Short: a tag.
+text("herobuilder.tile.beta", [[Beta]])
+text("herobuilder.tile.beta_tooltip", [[This ancestry is in beta]])
 
 --A choice whose pick is no longer valid: the warning in its red row, and
 --the button there (also on a pick kept for a higher Level). Short: a button.

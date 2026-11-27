@@ -8,9 +8,8 @@ beats, victory and defeat).
 
 The player's path:
 
-1. **Titlescreen.** With the dev setting `dev:encounteroftheweek` on
-   (`/toggle dev:encounteroftheweek` in chat), a link in the top-right corner
-   opens the EotW screen: an overview, a lobby chat, who is present, and the
+1. **Titlescreen.** The Encounter of the Week card (every user since the
+   2026-11-27 release; the `dev:encounteroftheweek` opt-in is gone) opens the EotW screen: an overview, a lobby chat, who is present, and the
    list of joinable games.
 2. **Game lobby.** At the Town Gate a player forms a party for **the**
    Encounter of the Week (or one of the past ones) or joins a public one;
@@ -8671,8 +8670,8 @@ and older journal pages). The Dwarvish Bandits documents live only in
 game `1e3c159e` and are not in it.
 
 **Open questions (ask the user when the step comes up):**
-- Is the builder Director-only in any game, or only with
-  `dev:encounteroftheweek` on?
+- Is the builder Director-only in any game? (The `dev:encounteroftheweek`
+  opt-in it once hinged on was removed 2026-11-27.)
 - A document open in the journal editor while the builder writes it: warn,
   refuse, or let the journal's own refresh take it?
 - More than one montage beat in a script: tabs, or one board per beat?
@@ -8752,8 +8751,7 @@ The facts worth knowing:
 
 An EotW game is created fresh each time, so the per-game `localassets:dirs`
 cannot target it. The global preference `localassets:eotwdirs` (Settings >
-Editing > "Encounter of the Week Assets (Developer)", needs `dev` and
-`dev:encounteroftheweek`) is appended, at lowest precedence, for whichever
+Editing > "Encounter of the Week Assets (Developer)", needs `dev`) is appended, at lowest precedence, for whichever
 game sits in the account's EotW slot. Set it to the same pair as the
 authoring game (`C:\dev\eotw`, then `C:\dev\dmhub\draw-steel-codex\data`) so
 a playtest write-back and the authoring game edit the same files.
@@ -8766,7 +8764,7 @@ a playtest write-back and the authoring game edit the same files.
 - **Writes land on disk**: any asset edit during the session rewrites the
   YAML. Keep `C:\dev\eotw` committed before a playtest.
 - Mod documents (all EotW runtime state) are unaffected.
-- To hand it to another developer: dev mode + `dev:encounteroftheweek`, add
+- To hand it to another developer: dev mode, add
   their directories in that settings block, create or join from the EotW
   screen (both write the slot), and re-enter if already in the game. Paths
   are typed as Explorer shows them; a trailing separator was a trap until the
@@ -8834,9 +8832,8 @@ ordinary in-app publish dialog. Publishing it adds its encounters to the
 
 **Publishing** (`DMHub Core Panels/ModShare.lua`, the `eotw` entry in
 `g_moduleTypes` plus `CheckEncounterModule`):
-- The Module Type dropdown offers "Encounter of the Week" only while
-  `dev:encounteroftheweek` is on. A module that already has the type always
-  shows it. The type list gained two generic hooks: `available()`, and
+- The Module Type dropdown offers "Encounter of the Week" to everyone
+  (until 2026-11-27 only with the `dev:encounteroftheweek` opt-in). The type list gained two generic hooks: `available()`, and
   `publishingProperties(ctx)`, whose result is merged into the record at
   publish. The validator ctx gained `include(guid)`, which ticks an entry
   the way the author would.
@@ -8865,8 +8862,7 @@ ordinary in-app publish dialog. Publishing it adds its encounters to the
   writes. The status line says whether the encounters are now in the pool.
 - **Publish Encounter Update** (2026-10-19, user direction: an update should
   go up in one step, with everything needed selected). A Codex-menu row
-  (`share` group, Director only, shown while `dev:encounteroftheweek` is on
-  and the EotW code is loaded; also `/quickpublishencounters`).
+  (`share` group, Director only, shown while the EotW code is loaded; also `/quickpublishencounters`).
   `mod.shared.QuickPublishEncounters` downloads every module published from
   this game, keeps the live `moduleType == "eotw"` ones, and picks one: the
   only one, else the one whose `includedAssets` holds the current map, else
@@ -8991,7 +8987,7 @@ title, which strips the module id.
 
 **To test** (needs an app restart; ModShare, the titlescreen file and the
 EotW codemod all changed):
-1. With the dev setting on, in a game with `mcdm-encounteroftheweek`
+1. In a game with `mcdm-encounteroftheweek`
    installed, add a map `Encounter: Test` with a script document in its
    journal folder. Check the publish dialog: the type is offered, the script
    documents tick themselves, and the errors fire (rename the map, drop the

@@ -2384,18 +2384,13 @@ local g_moduleTypes = {
 		end,
 	},
 	{
-		--Encounter of the Week (dev-gated game mode). Published Public, the
+		--Encounter of the Week. Published Public, the
 		--module's encounters join the pool the town's Form a Party dialog
 		--offers (Codex Titlescreen/EncounterOfTheWeek.lua); a game for one is
 		--created from the official module and installs this one on top.
 		id = "eotw",
 		text = "Encounter of the Week",
 		description = "Encounters for the Encounter of the Week game mode. Each map named \"Encounter\" or \"Encounter: <title>\" is an encounter, played from the script in its journal folder; those documents are included automatically. Publish it as Public or Unlisted to add its encounters to the pool players choose from at the Town Gate.",
-		available = function()
-			local enabled = false
-			pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
-			return enabled
-		end,
 		--an EotW game already runs the official module and Draw Steel, so the
 		--authoring game's modules (codex-eotwauthor's Trap zone type pulled it
 		--in) and their code must never become dependencies.
@@ -2685,6 +2680,9 @@ local showShareModuleDialog = function(options)
 			local unlisted = false
 			pcall(function() unlisted = instance.publishingProperties.eotwUnlisted == true end)
 			return cond(unlisted and instance.moduleType == "eotw", "eotwunlisted", "public")
+		end
+		if instance.premium then
+			return "premium"
 		end
 		return "unlisted"
 	end
@@ -7740,11 +7738,9 @@ Commands.Register{
 	command = "quickpublishencounters",
 	ord = 4,
 	dmonly = true,
-	--only in an authoring game: EotW on and its code loaded here.
+	--only in an authoring game: one with the EotW code loaded.
 	filtered = function()
-		local enabled = false
-		pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
-		return not (enabled and rawget(_G, "EncounterMontage") ~= nil)
+		return rawget(_G, "EncounterMontage") == nil
 	end,
 }
 

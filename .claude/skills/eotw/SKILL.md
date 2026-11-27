@@ -63,9 +63,6 @@ Run these checks (toolkit "Preflight") and fix anything missing before going on:
    name.
 3. The author is the **Director** of this game (map markup, the encounter
    builder and publishing are Director-only). A Local (offline) game is ideal.
-4. The dev setting `dev:encounteroftheweek` is on (chat: `/toggle
-   dev:encounteroftheweek`). Publishing offers the "Encounter of the Week" module
-   type only while it is on.
 
 ## Phase 1 -- the concept
 

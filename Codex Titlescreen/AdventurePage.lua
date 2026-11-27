@@ -463,11 +463,9 @@ local function ReduceMotion()
     return access ~= nil and access.reduceMotion == true
 end
 
+--What the item costs now, for Add to Cart buttons (see ShopSale.lua).
 local function PriceText(item)
-    if item.price <= 0 then
-        return "Free"
-    end
-    return string.format("$%d.%02d", math.tointeger(math.floor(item.price / 100)), math.tointeger(item.price % 100))
+    return ShopSale.PriceText(item, { plain = true, free = "Free" })
 end
 
 --The image window that COVERS a box of boxW x boxH, zoomed in by `zoom`
@@ -2042,7 +2040,8 @@ local function MakeBuyBox(width)
         insideSection,
 
         showPage = function(element, item, cfg)
-            price.text = PriceText(item)
+            --During a sale: the normal price struck through, then the sale price.
+            price.text = ShopSale.PriceText(item, { free = "Free" })
 
             local moduleid = item.assetid
             m_moduleid = moduleid

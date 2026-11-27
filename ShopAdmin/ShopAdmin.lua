@@ -763,6 +763,175 @@ ShowShopPanel = function(parentPanel)
             },
         },
 
+        --Timed sale (see Codex Titlescreen/ShopSale.lua). Blank sale price =
+        --no sale. Dates are local YYYY-MM-DD, end date inclusive. Hidden on an
+        --engine without the sale fields, where the writes would do nothing.
+        gui.Panel{
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            item = function(element, item)
+                element:SetClass("collapsed", not ShopSale.Supported(item))
+            end,
+
+            gui.Panel{
+                classes = {"formPanel"},
+
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Sale Price (US cents):",
+                },
+
+                gui.Input{
+                    classes = {"formInput"},
+                    placeholderText = "No sale",
+                    item = function(element, item)
+                        local sale = ShopSale.Read(item)
+                        element.text = cond(sale ~= nil, string.format("%d", sale and sale.price or 0), "")
+                    end,
+                    change = function(element)
+                        local text = element.text or ""
+                        if string.match(text, "^%s*$") then
+                            m_item.salePrice = 0
+                            m_item:Upload()
+                        else
+                            local price = tonumber(text)
+                            if price ~= nil and price > 0 then
+                                m_item.salePrice = math.floor(price)
+                                --A new sale with no dates yet starts today and runs a week.
+                                if m_item.saleEnd <= 0 then
+                                    local today = ShopSale.ParseDate(ShopSale.FormatDate(os.time()))
+                                    if today ~= nil then
+                                        m_item.saleStart = today
+                                        local finish = today
+                                        for _=1,7 do
+                                            finish = ShopSale.NextDay(finish)
+                                        end
+                                        m_item.saleEnd = finish
+                                    end
+                                end
+                                m_item:Upload()
+                            end
+                        end
+
+                        element.parent.parent:FireEventTree("item", m_item)
+                    end,
+                },
+
+                gui.Label{
+                    classes = {"formLabel"},
+                    item = function(element, item)
+                        local sale = ShopSale.Read(item)
+                        if sale == nil then
+                            element.text = ""
+                        else
+                            element.text = ShopSale.FormatCents(sale.price)
+                        end
+                    end,
+                },
+            },
+
+            gui.Panel{
+                classes = {"formPanel"},
+                item = function(element, item)
+                    element:SetClass("collapsed", ShopSale.Read(item) == nil)
+                end,
+
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Sale Dates:",
+                },
+
+                gui.Input{
+                    classes = {"formInput"},
+                    width = 140,
+                    placeholderText = "YYYY-MM-DD",
+                    item = function(element, item)
+                        --A real if, not cond(): cond evaluates both branches.
+                        local sale = ShopSale.Read(item)
+                        if sale ~= nil and sale.start > 0 then
+                            element.text = ShopSale.FormatDate(sale.start)
+                        else
+                            element.text = ""
+                        end
+                    end,
+                    change = function(element)
+                        local t = ShopSale.ParseDate(element.text)
+                        if t ~= nil then
+                            m_item.saleStart = t
+                            m_item:Upload()
+                        end
+                        element.parent.parent:FireEventTree("item", m_item)
+                    end,
+                },
+
+                gui.Label{
+                    classes = {"formLabel"},
+                    width = "auto",
+                    hmargin = 8,
+                    text = "to",
+                },
+
+                gui.Input{
+                    classes = {"formInput"},
+                    width = 140,
+                    placeholderText = "YYYY-MM-DD",
+                    item = function(element, item)
+                        --A real if, not cond(): cond would run PrevDay(0), which
+                        --os.time cannot represent on Windows (before 1970).
+                        local sale = ShopSale.Read(item)
+                        if sale ~= nil and sale.finish > 0 then
+                            element.text = ShopSale.FormatDate(ShopSale.PrevDay(sale.finish))
+                        else
+                            element.text = ""
+                        end
+                    end,
+                    change = function(element)
+                        local t = ShopSale.ParseDate(element.text)
+                        if t ~= nil then
+                            --Stored exclusive: the sale runs through the whole end date.
+                            m_item.saleEnd = ShopSale.NextDay(t)
+                            m_item:Upload()
+                        end
+                        element.parent.parent:FireEventTree("item", m_item)
+                    end,
+                },
+
+                --Whether the sale is running, and anything wrong with it.
+                gui.Label{
+                    classes = {"formLabel"},
+                    width = "auto",
+                    lmargin = 12,
+                    item = function(element, item)
+                        local sale = ShopSale.Read(item)
+                        if sale == nil then
+                            element.text = ""
+                            return
+                        end
+                        local now = os.time()
+                        local color = "#aaaaaaff"
+                        local text
+                        if sale.price >= item.price then
+                            text = "Sale price must be below the price"
+                            color = "red"
+                        elseif sale.finish <= sale.start then
+                            text = "End date is before the start date"
+                            color = "red"
+                        elseif now < sale.start then
+                            text = "Not started"
+                        elseif now >= sale.finish then
+                            text = "Ended"
+                        else
+                            text = "On sale now"
+                            color = "green"
+                        end
+                        element.selfStyle.color = color
+                        element.text = text
+                    end,
+                },
+            },
+        },
+
         gui.Panel{
             classes = {"formPanel"},
 

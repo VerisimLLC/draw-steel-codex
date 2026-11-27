@@ -17,7 +17,6 @@ strict, and reading an undefined one raises.
 local function has(name) return rawget(_G, name) ~= nil end
 print("EotW code loaded:", has("EncounterMontage") and has("EncounterScript") and has("EncounterZones"))
 print("director:", dmhub.isDM, "game:", dmhub.gameid)
-print("dev:encounteroftheweek =", dmhub.GetSettingValue("dev:encounteroftheweek"))
 if has("EncounterZones") then
   local id, kw = EncounterZones.FindKeyword("Start")
   print("Start keyword:", id, kw and kw.name)
@@ -26,7 +25,6 @@ end
 
 - EotW code not loaded -> install `codex-eotwauthor` in this game and
   restart (the author does it).
-- `dev:encounteroftheweek` false -> the author types `/toggle dev:encounteroftheweek`.
 
 ## Current map
 

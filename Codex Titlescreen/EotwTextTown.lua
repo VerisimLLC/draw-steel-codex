@@ -25,15 +25,6 @@ local mod = dmhub.GetModLoading()
 local text = UIText.Define("EotwTextTown")
 
 ----------------------------------------------------------------------------
--- THE BETA SETTING: General Settings, before the town is ever opened
-----------------------------------------------------------------------------
-
---The checkbox's name in General Settings.
-text("eotw.settings.beta_name", [[Encounter of the Week Beta]])
---The help line under it.
-text("eotw.settings.beta_help", [[Opt in to the Encounter of the Week beta.]])
-
-----------------------------------------------------------------------------
 -- OPENING THE TOWN: the loading screen
 ----------------------------------------------------------------------------
 
@@ -648,9 +639,9 @@ text("eotw.away.abandon_button", [[Count as Abandoned]])
 
 text("eotw.survey.title", [[Encounter of the Week Survey]])
 --Under the encounter's name: how it went, then the invitation.
-text("eotw.survey.intro_victory", [[Your party won. Encounter of the Week is in beta, and a minute of your time helps us make it better. Every question is optional.]])
-text("eotw.survey.intro_defeat", [[Your party was defeated. Encounter of the Week is in beta, and a minute of your time helps us make it better. Every question is optional.]])
-text("eotw.survey.intro_left", [[You left the encounter. Encounter of the Week is in beta, and a minute of your time helps us make it better. Every question is optional.]])
+text("eotw.survey.intro_victory", [[Your party won. We would love to hear your feedback on Encounter of the Week.]])
+text("eotw.survey.intro_defeat", [[Your party was defeated. We would love to hear your feedback on Encounter of the Week.]])
+text("eotw.survey.intro_left", [[You left the encounter. We would love to hear your feedback on Encounter of the Week.]])
 
 --Asked only when the player left the game. Each answer is a short button.
 text("eotw.survey.leave.prompt", [[What made you leave?]])
@@ -737,15 +728,14 @@ text("eotw.inn_reveal.line", [[That was a tough challenge! We should head to the
 -- WELCOME: shown when a player opens the town until they accept it
 ----------------------------------------------------------------------------
 
-text("eotw.welcome.title", [[Welcome to the Encounter of the Week Playtest]])
+text("eotw.welcome.title", [[Welcome to Encounter of the Week Season 1]])
 text("eotw.welcome.intro", [[Play Draw Steel by yourself or with a few friends, or people you meet along the way.
 
-- This is an experimental playtest of a new game mode. You should not expect a final or polished experience.
-- Some features will be unbalanced as we look for feedback.
-- Progress will be wiped at the end of the playtest period.
+- By playing Encounter of the Week, you are participating in a massive online game of Draw Steel, with the Codex Developers hosting the game and acting as its Directors.
+- This is a new way of playing Draw Steel. It is based heavily on the Draw Steel rules but there may be some differences.
 - Please report bugs in Feedback > Bug Report]])
 --The box the player must tick before Let's Go! works.
-text("eotw.welcome.understood_check", [[I have read and understand this message]])
+text("eotw.welcome.understood_check", [[I have read and agreed to this message]])
 --{link} is the link below, underlined.
 text("eotw.welcome.discord", [[Discuss Encounter of the Week in the {link}!]])
 text("eotw.welcome.discord_link", [[DMHub Discord]])

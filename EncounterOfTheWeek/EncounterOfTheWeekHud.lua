@@ -1637,3 +1637,48 @@ Commands.Register{
         EncounterOfTheWeekHud.ShowAbout()
     end,
 }
+
+--Concede Defeat: the host (or a solo player) gives up the fight. It sits just
+--above Leave Game (group "zzz", ord 2 in Commands.lua) and shows only while
+--EncounterOfTheWeekGame.CanConcede says a live fight is waiting for an outcome.
+Commands.Register{
+    name = "Concede Defeat",
+    gettext = function() return T("hud.concede.menu") end,
+    identifier = "eotwconcede",
+    icon = "game-icons/black-flag.png",
+    menu = "codex",
+    group = "zzz",
+    ord = 1,
+    filtered = function()
+        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+        if eotw == nil or eotw.CanConcede == nil then
+            return true
+        end
+        local can = false
+        pcall(function() can = eotw.CanConcede() end)
+        return not can
+    end,
+    execute = function()
+        gui.ModalMessage{
+            title = T("hud.concede.title"),
+            message = T("hud.concede.message"),
+            width = 520,
+            height = "auto",
+            options = {
+                {
+                    text = T("hud.concede.cancel"),
+                    execute = function() end,
+                },
+                {
+                    text = T("hud.concede.confirm"),
+                    execute = function()
+                        local eotw = rawget(_G, "EncounterOfTheWeekGame")
+                        if eotw ~= nil and eotw.Concede ~= nil then
+                            eotw.Concede()
+                        end
+                    end,
+                },
+            },
+        }
+    end,
+}

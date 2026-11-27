@@ -1238,6 +1238,16 @@ text("presence.exit.abandon_tooltip_host", [[Your progress will be lost]])
 text("presence.exit.abandon_confirm", [[Really abandon?]])
 
 ----------------------------------------------------------------------------
+-- CONCEDING: the Concede Defeat menu row (host or solo, during combat)
+----------------------------------------------------------------------------
+
+text("hud.concede.menu", [[Concede Defeat]])
+text("hud.concede.title", [[Concede Defeat]])
+text("hud.concede.message", [[Do you want to concede defeat in this encounter?]])
+text("hud.concede.cancel", [[Cancel]])
+text("hud.concede.confirm", [[Concede]])
+
+----------------------------------------------------------------------------
 -- THE PLAYERS LIST: the popout under the title bar's players row
 ----------------------------------------------------------------------------
 

@@ -7,6 +7,9 @@
 --- @field keywords string Comma-separated keywords for searching.
 --- @field artistid string The identifier of the artist who created this item.
 --- @field price number The price in tokens.
+--- @field salePrice number The sale price in US cents, charged instead of price while the sale is running (saleStart <= now < saleEnd). 0 means the item has no sale.
+--- @field saleStart number When the sale starts, in unix seconds (UTC). 0 if no sale is set.
+--- @field saleEnd number When the sale ends, in unix seconds (UTC); the sale runs up to but not including this moment. 0 if no sale is set.
 --- @field hasBundle boolean True if this shop item includes a bundle of other items.
 --- @field bundle table<string, boolean> A table of bundled item IDs mapped to true. Read/write.
 --- @field hasAnimatedTokens boolean True if this is an AnimatedTokens item that grants one or more animated tokens.

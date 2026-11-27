@@ -2289,6 +2289,69 @@ local function DicePackSets(item)
 	return sets
 end
 
+--The bundles shown in the store (ItemVisibleInShop) that include this item,
+--sorted by name.
+---@param item ShopItemLua|nil
+---@return ShopItemLua[]
+local function BundlesContaining(item)
+	local result = {}
+	if item == nil then
+		return result
+	end
+	for _,bundle in pairs(assets.shopItems) do
+		if bundle.hasBundle and bundle.id ~= item.id and bundle.bundle[item.id] ~= nil and ItemVisibleInShop(bundle) then
+			result[#result+1] = bundle
+		end
+	end
+	table.sort(result, function(a, b)
+		if a.name ~= b.name then
+			return a.name < b.name
+		end
+		return a.id < b.id
+	end)
+	return result
+end
+
+--A row of "View <bundle>" buttons, one per bundle the item is sold in (see
+--BundlesContaining); each opens that bundle's page. Collapsed when there are
+--none. Rebuilt on refreshItem. args are panel fields, plus buttonWidth (nil =
+--each button fits its text).
+local function MakeBundleLinks(args)
+	local buttonWidth = args.buttonWidth
+	args.buttonWidth = nil
+
+	local params = {
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+
+		refreshItem = function(element, item)
+			local children = {}
+			for _,bundle in ipairs(BundlesContaining(item)) do
+				children[#children+1] = gui.Label{
+					classes = {"itemButton"},
+					text = string.format("View %s", bundle.name),
+					width = buttonWidth or "auto",
+					minWidth = 152,
+					hpad = cond(buttonWidth == nil, 24, 0),
+					borderBox = true,
+					rmargin = 12,
+					press = function(element)
+						element:FireEventOnParents("showItemDetails", bundle, "inBundle")
+					end,
+				}
+			end
+			element.children = children
+			element:SetClass("collapsed", #children == 0)
+		end,
+	}
+
+	for k,v in pairs(args) do
+		params[k] = v
+	end
+	return gui.Panel(params)
+end
+
 --US cents as "$12.34".
 ---@param cents number
 ---@return string
@@ -2302,7 +2365,7 @@ end
 local function DicePackSeparatePrice(sets)
 	local total = 0
 	for _,set in ipairs(sets) do
-		total = total + set.price
+		total = total + ShopSale.Price(set)
 	end
 	return total
 end
@@ -2927,7 +2990,7 @@ local function MakeDicePackShowcase()
 			if inCart then
 				element.text = "Remove from Cart"
 			else
-				local priceText = cond(item.price <= 0, "FREE", FormatCents(item.price))
+				local priceText = ShopSale.PriceText(item, { plain = true })
 				element.text = string.format("%s - %s", cond(shop:ItemInInventory(item.id), "Add as Gift", "Add to Cart"), priceText)
 			end
 		end,
@@ -3011,7 +3074,7 @@ local function MakeDicePackShowcase()
 				height = "auto",
 				fontSize = 13,
 				color = "#aaaaaaff",
-				text = cond(set.price <= 0, "FREE", FormatCents(set.price)),
+				text = ShopSale.PriceText(set),
 			},
 
 			ownedTag,
@@ -3095,7 +3158,7 @@ local function MakeDicePackShowcase()
 
 			local separate = DicePackSeparatePrice(sets)
 			local text = string.format("%d sets", count)
-			if separate > item.price then
+			if separate > ShopSale.Price(item) then
 				text = string.format("%d sets, <b>%s</b> separately", count, FormatCents(separate))
 			end
 			if owned > 0 and owned < count and not shop:ItemInInventory(item.id) then
@@ -3558,13 +3621,12 @@ local MakeShopItemText = function(options)
 				if item.price <= 0 then
 					element.text = "FREE"
 				else
-					local dollars = math.tointeger(math.floor(item.price/100))
-					local cents = math.tointeger(item.price%100)
-					local text = string.format("$%d.%02dUS", dollars, cents)
+					local text = ShopSale.PriceText(item, { suffix = "US" })
 
 					--A dice pack also shows what its sets cost bought separately, struck through.
+					--Not during a sale, which already shows a struck-through price.
 					local packSets = DicePackSets(item)
-					if packSets ~= nil then
+					if packSets ~= nil and not ShopSale.IsActive(item) then
 						local separate = DicePackSeparatePrice(packSets)
 						if separate > item.price then
 							text = string.format("%s  <color=#8c8c8cff><s>%s</s></color>", text, FormatCents(separate))
@@ -3619,7 +3681,7 @@ local MakeShopItemText = function(options)
 						if item ~= nil then
 							listText = string.format("%s\n* [%s](shop/%s)", listText, item.name, itemid)
 							count = count+1
-							price = price + item.price
+							price = price + ShopSale.Price(item)
 						end
 					end
 
@@ -5565,12 +5627,7 @@ local ShowItemDetailsInternal = function(args)
 						if inCart then
 							element.text = "Remove from Cart"
 						else
-							local priceText
-							if item.price <= 0 then
-								priceText = "FREE"
-							else
-								priceText = string.format("$%d.%02d", math.tointeger(math.floor(item.price/100)), math.tointeger(item.price%100))
-							end
+							local priceText = ShopSale.PriceText(item, { plain = true })
 							element.text = string.format("%s - %s", cond(shop:ItemInInventory(item.id), "Add as Gift", "Add to Cart"), priceText)
 						end
 					end,
@@ -5587,6 +5644,17 @@ local ShowItemDetailsInternal = function(args)
 							analytics.Event{ type = "shopAddCart", itemid = item.id }
 						end
 					end,
+				},
+
+				--"View <bundle>" for each bundle this set is sold in, just left
+				--of Add to Cart (x = its right inset plus its width).
+				MakeBundleLinks{
+					classes = {"collapsedWhenInventory", "collapseOnGift"},
+					floating = true,
+					halign = "right",
+					valign = "center",
+					x = -344,
+					buttonWidth = 320,
 				},
 
 				--Equip panel (inventory only), filling the right side of the action
@@ -6046,6 +6114,14 @@ local ShowItemDetailsInternal = function(args)
 				halign = "left",
 				m_shopItemText,
 			}),
+
+			--"View <bundle>" for each bundle this item is sold in, under the
+			--cart button.
+			(not args.gift) and MakeBundleLinks{
+				classes = {"collapsedWhenInventory", "collapseOnGift"},
+				halign = "left",
+				vmargin = 6,
+			} or nil,
 
 			m_heroModuleToggle,
 		},
@@ -6802,8 +6878,9 @@ local function CreateShopScreenInternal(arguments)
 				--Funnel attribution: which surface brought the user to this
 				--product page -- "featuredBanner" (top banner's View Dice),
 				--"productTile" (grid cards below), "cartRow", "bundleLink",
-				--"packContents" (a dice pack's "In this pack" row) or
-				--"packBack" (Go Back from one of those sets to its pack).
+				--"packContents" (a dice pack's "In this pack" row),
+				--"packBack" (Go Back from one of those sets to its pack) or
+				--"inBundle" (an item's "View <bundle>" button).
 				--nil = a re-fire from inside the already-open details view
 				--(gallery presses), which is not a navigation, so not counted.
 				if source ~= nil then
@@ -8065,7 +8142,7 @@ local function CreateShopScreenInternal(arguments)
 								local total_price = 0
 								for _,product in ipairs(m_allProducts) do
 									if m_shoppingCart[product.id] then
-										total_price = total_price + product.price
+										total_price = total_price + ShopSale.Price(product)
 									end
 								end
 

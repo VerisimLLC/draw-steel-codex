@@ -6973,18 +6973,15 @@ function EncounterOfTheWeekGame.StartAtCombat()
     printf("EotW: combat only -- starting on the encounter beat (%d)", target)
 end
 
---- developer: force victory / defeat ---------------------------------------
+--- conceding, and the developer's forced victory / defeat ------------------
 
---do...end keeps ForceOutcomeTarget out of the file's 200 top-level locals.
+--do...end keeps these helpers out of the file's 200 top-level locals.
 do
---The live encounter a forced outcome would end, or nil: an admin in dev mode,
---on the client running the map script's host tick, in an EotW fight whose
---victory/defeat screen is not up yet. The award must come from that client:
---it alone drives the screen's Proceed and the teardown that follows.
-local function ForceOutcomeTarget()
-    if not (devmode() and dmhub.isAdminAccount) then
-        return nil
-    end
+--The live encounter an outcome could be awarded to now, or nil: on the client
+--running the map script's host tick, in an EotW fight whose victory/defeat
+--screen is not up yet. The award must come from that client: it alone drives
+--the screen's Proceed and the teardown that follows.
+local function LiveFightOnHost()
     if not (EncounterOfTheWeekGame.IsEotwGame() or EncounterOfTheWeekGame.IsTestRunning()) then
         return nil
     end
@@ -7008,6 +7005,35 @@ local function ForceOutcomeTarget()
         return nil
     end
     return queue, live
+end
+
+--The fight a developer's forced outcome would end: as above, admins in dev mode only.
+local function ForceOutcomeTarget()
+    if not (devmode() and dmhub.isAdminAccount) then
+        return nil
+    end
+    return LiveFightOnHost()
+end
+
+--True while the host can concede: a live EotW fight with no outcome up yet.
+--Only the host's client qualifies (always so in a solo game).
+---@return boolean
+function EncounterOfTheWeekGame.CanConcede()
+    return LiveFightOnHost() ~= nil
+end
+
+--The host gives up the fight: the defeat screen comes up for everyone at once,
+--and the encounter ends exactly as a defeat would (no wait for open prompts).
+---@return boolean conceded false when there was no fight to concede
+function EncounterOfTheWeekGame.Concede()
+    local queue, live = LiveFightOnHost()
+    if queue == nil or live == nil then
+        print("EotW: nothing to concede -- needs a live EotW encounter on the host, before its outcome")
+        return false
+    end
+    print("EotW: the host conceded defeat")
+    EncounterOfTheWeekGame.HostAwardOutcome(queue, live, false)
+    return true
 end
 
 --End the current fight at once as a victory (true) or defeat (false), with no

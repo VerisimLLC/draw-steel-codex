@@ -50,26 +50,6 @@ local function EotwProf(fmt, ...)
     end)
 end
 
---Opt-in gate, shown as "Encounter of the Week Beta" in General Settings
---(chat also works: /toggle dev:encounteroftheweek). The id keeps its old
---dev: name so existing opt-ins carry over. The titlescreen card monitors
---this id, so ticking it at the titlescreen shows the card straight away.
-EncounterOfTheWeek.enabledSetting = setting{
-    id = "dev:encounteroftheweek",
-    description = T("eotw.settings.beta_name"),
-    help = T("eotw.settings.beta_help"),
-    editor = "check",
-    section = "general",
-    default = false,
-    storage = "preference",
-    onchange = function()
-        --Warm the pregen cache now rather than on the first open.
-        if EncounterOfTheWeek.Enabled() then
-            EncounterOfTheWeek.CachePregens()
-        end
-    end,
-}
-
 --Fast launch: members enter the game on "launched", loading alongside the
 --host, and wait behind the loading screen for the host's setup stamp; every
 --client starts directly on the encounter map. Off = the old order (members
@@ -83,11 +63,6 @@ EncounterOfTheWeek.fastLaunchSetting = setting{
 
 function EncounterOfTheWeek.FastLaunch()
     return dmhub.GetSettingValue("eotw:fastlaunch") ~= false
-end
-
---True if the Encounter of the Week mode is available to this user at all.
-function EncounterOfTheWeek.Enabled()
-    return dmhub.GetSettingValue("dev:encounteroftheweek") == true
 end
 
 --Debug "New Player Window" (the Codex menu while this screen is open, admin
@@ -169,12 +144,13 @@ setting{
     storage = "preference",
 }
 
---The accounts on this machine that have accepted the town's playtest welcome
---dialog (ShowWelcomeDialog), as JSON text: { [userid] = true }. Machine-local,
---so a player on a second machine sees it once more. A new id, so accounts that
---only saw the older welcome (eotw:welcomed, no longer read) see this one too.
+--The accounts on this machine that have accepted the town's welcome dialog
+--(ShowWelcomeDialog), as JSON text: { [userid] = true }. Machine-local, so a
+--player on a second machine sees it once more. A new id for the full release,
+--so accounts that accepted an older welcome (eotw:welcomed,
+--eotw:welcomedPlaytest, neither read any more) see this one too.
 setting{
-    id = "eotw:welcomedPlaytest",
+    id = "eotw:welcomedRelease",
     default = "",
     storage = "preference",
 }
@@ -2688,9 +2664,7 @@ local function WarmPregensOnTitlescreen()
         dmhub.Schedule(2, WarmPregensOnTitlescreen)
         return
     end
-    if EncounterOfTheWeek.Enabled() then
-        EncounterOfTheWeek.CachePregens()
-    end
+    EncounterOfTheWeek.CachePregens()
 end
 dmhub.Schedule(5, WarmPregensOnTitlescreen)
 
@@ -11055,8 +11029,8 @@ CreateScreen = function(args)
     end
 
     --- the welcome dialog --------------------------------------------------
-    --Until an account accepts it on this machine (eotw:welcomedPlaytest), the
-    --town opens with the playtest welcome. Accepting needs the "I have read"
+    --Until an account accepts it on this machine (eotw:welcomedRelease), the
+    --town opens with the welcome. Accepting needs the "I have read"
     --box ticked; Cancel (or Escape) closes the town, and it asks again next
     --time. It is a ModalDialog, so the inn's reveal, the debrief and the
     --survey all wait for it to close.
@@ -11064,7 +11038,7 @@ CreateScreen = function(args)
     local DISCORD_URL = "https://discord.gg/q7kg5AVSfj"
 
     local LoadWelcomed = function()
-        local text = dmhub.GetSettingValue("eotw:welcomedPlaytest")
+        local text = dmhub.GetSettingValue("eotw:welcomedRelease")
         if type(text) == "string" and text ~= "" then
             local parsed = dmhub.FromJson(text)
             if type(parsed) == "table" and parsed.success and type(parsed.result) == "table" then
@@ -11077,18 +11051,19 @@ CreateScreen = function(args)
     local MarkWelcomed = function()
         local all = LoadWelcomed()
         all[dmhub.loginUserid] = true
-        dmhub.SetSettingValue("eotw:welcomedPlaytest", dmhub.ToJson(all))
+        dmhub.SetSettingValue("eotw:welcomedRelease", dmhub.ToJson(all))
     end
 
     --Also reachable over MCP for testing: EncounterOfTheWeek.ShowWelcomeDialog().
     --Analytics event eotw_welcome, action = shown / accepted / cancelled /
-    --discord; dialog = "playtest" tells these apart from the older welcome's.
+    --discord; dialog = "release" tells these apart from the older welcomes'
+    --(the playtest's was "playtest").
     local ShowWelcomeDialog = function()
         local dlg = nil
         local goButton = nil
         local understood = false
         local Track = function(action)
-            EotwAnalytics.Track("eotw_welcome", { action = action, dialog = "playtest" })
+            EotwAnalytics.Track("eotw_welcome", { action = action, dialog = "release" })
         end
         local Cancel = function()
             Track("cancelled")

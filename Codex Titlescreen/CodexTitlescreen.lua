@@ -285,12 +285,12 @@ local g_eotwRowWidth = 500 * 3 + g_eotwRowGap * 2
 local g_eotwRowScale = 0.8
 local g_eotwRowBannerY = (1080 - 60 - 200) - g_eotwRowGap * g_eotwRowScale - 700 * g_eotwRowScale - (1080 - 700) / 2
 
---Whether the Encounter of the Week card (and so the three-card row) is shown.
+--Whether the Encounter of the Week card (and so the three-card row) is shown:
+--every user has the mode, so only whether its code is loaded matters.
 --rawget rather than a bare global read: globals are strict here, so a plain
 --read would raise if load order ever put this file first.
 local function EotwCardEnabled()
-    local eotw = rawget(_G, "EncounterOfTheWeek")
-    return eotw ~= nil and eotw.Enabled()
+    return rawget(_G, "EncounterOfTheWeek") ~= nil
 end
 
 --The EotW card shows a centred, unstretched slice of the Custom Campaign art
@@ -2105,6 +2105,11 @@ local g_adventureOptions = {
     {
         id = "codex-darkheart",
         text = "The Dark Heart of the Wood",
+        store = true,
+    },
+    {
+        id = "codex-condemned",
+        text = "The Condemned",
         store = true,
     },
 }
@@ -5135,7 +5140,8 @@ function CreateGameDialog()
         if item == nil or item.price == nil or item.price <= 0 then
             return "FREE"
         end
-        return string.format("$%d.%02d", math.tointeger(math.floor(item.price / 100)), math.tointeger(item.price % 100))
+        --What it costs now, sale included (see ShopSale.lua).
+        return ShopSale.PriceText(item, { plain = true })
     end
 
     local cardStyles = {
@@ -8713,7 +8719,7 @@ function CreateTitlescreen(dialog, options)
                 --When the store banner is shown at the bottom of the screen,
                 --pull the Director/Player cards closer together, shrink them
                 --a little, and shift them to make room for it.
-                multimonitor = { "dev:storepreview", "dev:encounteroftheweek" },
+                multimonitor = { "dev:storepreview" },
                 monitor = function(element)
                     element:SetClass("makeRoomForShopBanner", g_devStorePreviewSetting:Get())
                     element:SetClassTree("eotwRow", EotwCardEnabled())
@@ -8958,12 +8964,10 @@ function CreateTitlescreen(dialog, options)
 
 
                 --Encounter of the Week card: the third card of the row,
-                --matching Director and Player. Shown only when EotW is enabled
-                --(dev:encounteroftheweek; toggle via chat: /toggle
-                --dev:encounteroftheweek). Everything else about the mode lives
-                --in EncounterOfTheWeek.lua -- this card just opens its screen.
-                --The 'collapsed' cond is listed last so a nil (setting on)
-                --cannot truncate the classes array.
+                --matching Director and Player. Everything else about the mode
+                --lives in EncounterOfTheWeek.lua -- this card just opens its
+                --screen. The 'collapsed' cond is listed last so a nil (card
+                --shown) cannot truncate the classes array.
                 gui.Panel {
 
                     id = "eotwTitlescreenLink",
@@ -9003,11 +9007,6 @@ function CreateTitlescreen(dialog, options)
                             },
                         },
                     },
-
-                    multimonitor = { "dev:encounteroftheweek" },
-                    monitor = function(element)
-                        element:SetClass("collapsed", not EotwCardEnabled())
-                    end,
 
                     hover = function()
                         audio.FireSoundEvent("Mouse.Hover")
@@ -9223,7 +9222,7 @@ function CreateTitlescreen(dialog, options)
 
                 --eotwRow is set on the whole tree so the cross-fade art layer
                 --crops the same way as the banner's own art.
-                multimonitor = { "dev:storepreview", "dev:encounteroftheweek" },
+                multimonitor = { "dev:storepreview" },
                 monitor = function(element)
                     element:SetClass("collapsed", not g_devStorePreviewSetting:Get())
                     element:SetClassTree("eotwRow", EotwCardEnabled())

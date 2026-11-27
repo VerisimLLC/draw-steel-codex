@@ -416,7 +416,8 @@ local function PartyRoster()
     local partyId = GetDefaultPartyID()
     local result = {}
     for _, entry in ipairs(Roster()) do
-        if entry.token.partyId == partyId then
+        --the roster is cached briefly, so a hero deleted since then has a dead token: skip it.
+        if entry.token.valid and entry.token.partyId == partyId then
             result[#result + 1] = entry
         end
     end

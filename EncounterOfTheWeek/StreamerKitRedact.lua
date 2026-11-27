@@ -53,6 +53,15 @@
 --      abilities = { { id, name, text, used, maliceCost, notes } },
 --      villainActions = { { id, name, text, used, notes } } } },
 --    events = { { seq, t, kind, whoId, who, targetId, target, amount, crit } },
+--    monsters[i].group, groupTitle: the initiative group it acts with
+--      (InitiativeQueue.GetInitiativeId) and that group's title.
+--    actions = nil | { { t, round, ability, villain,
+--      actor = { id, name, secret, hero },
+--      roll = { total, tier },
+--      targets = { { id, name, secret, hero, tier, taken, healed, state,
+--                    conds = { name, ... } } } } }
+--      This combat's actions from History, already in the players' cut
+--      (History.PlayerEntry): hidden rolls and secret conditions are out.
 --    montage = nil | { title, round, rounds, phase, successes, failures,
 --      unvanquished,
 --      board = { { id, kind ("opportunity"|"threat"), name,
@@ -90,6 +99,9 @@ local MODES = { combat = true, exploration = true, respite = true, montage = tru
 local MAX_BOARD = 40
 local MAX_MONTAGE_LOG = 12
 local ENTRY_KINDS = { opportunity = true, threat = true }
+local MAX_ACTIONS = 12
+local MAX_TARGETS = 10
+local TARGET_STATES = { winded = true, dying = true, killed = true }
 local ENTRY_STATES = { open = true, taken = true, vanquished = true }
 local MONTAGE_PHASES = { rounds = true, consequences = true }
 local TURN_STATUSES = {
@@ -144,6 +156,77 @@ local function List(list, max)
         result[#result + 1] = list[i]
     end
     return result
+end
+
+--- A creature named in an action, or nil when viewers may not learn of it.
+--- @param c any
+--- @param hiddenIds table
+--- @param visibleNames table
+--- @return nil|table
+local function ActionCreature(c, hiddenIds, visibleNames)
+    if type(c) ~= "table" then
+        return nil
+    end
+    if c.id ~= nil and hiddenIds[c.id] then
+        return nil
+    end
+    local name = (c.id ~= nil and visibleNames[c.id]) or nil
+    if name == nil then
+        name = (c.secret == true) and "???" or (Str(c.name) or "???")
+    end
+    return { name = name, side = (c.hero == true) and "hero" or "monster" }
+end
+
+--- This combat's actions (see RAW SNAPSHOT), newest last, capped.
+--- @param raw any
+--- @param hiddenIds table
+--- @param visibleNames table
+--- @return nil|table
+local function RedactActions(raw, hiddenIds, visibleNames)
+    if type(raw) ~= "table" then
+        return nil
+    end
+    local out = {}
+    for i = math.max(1, #raw - MAX_ACTIONS + 1), #raw do
+        local a = raw[i]
+        if type(a) == "table" and Str(a.ability) ~= nil
+            and not (type(a.actor) == "table" and a.actor.id ~= nil and hiddenIds[a.actor.id]) then
+            local action = {
+                t = Whole(a.t),
+                round = Whole(a.round),
+                ability = Str(a.ability),
+                villain = a.villain == true or nil,
+                actor = ActionCreature(a.actor, hiddenIds, visibleNames),
+                targets = {},
+            }
+            if type(a.roll) == "table" then
+                local tier = Whole(a.roll.tier)
+                action.roll = {
+                    total = Whole(a.roll.total),
+                    tier = (tier ~= nil and tier >= 1 and tier <= 3) and tier or nil,
+                }
+            end
+            for _, t in ipairs(List(a.targets, MAX_TARGETS)) do
+                local target = ActionCreature(t, hiddenIds, visibleNames)
+                if target ~= nil then
+                    local tier = Whole(t.tier)
+                    target.tier = (tier ~= nil and tier >= 1 and tier <= 3) and tier or nil
+                    target.taken = Whole(t.taken)
+                    target.healed = Whole(t.healed)
+                    target.state = TARGET_STATES[t.state] and t.state or nil
+                    target.conds = {}
+                    for _, c in ipairs(List(t.conds, MAX_CONDITIONS)) do
+                        if Str(c) ~= nil then
+                            target.conds[#target.conds + 1] = Str(c)
+                        end
+                    end
+                    action.targets[#action.targets + 1] = target
+                end
+            end
+            out[#out + 1] = action
+        end
+    end
+    return out
 end
 
 --- The montage block (see RAW SNAPSHOT). Nil unless it is a table.
@@ -383,6 +466,39 @@ function StreamerKitRedact.Redact(raw)
         end
     end
 
+    --initiative groups: an opaque id per group, in order of first appearance
+    --(the raw id can carry a squad name), and the group's title unless a
+    --member's name is private.
+    local groupIds, groupCount, groupPrivate = {}, 0, {}
+    local visibleIndex = 0
+    for _, monster in ipairs(List(raw.monsters, MAX_MONSTERS * 4)) do
+        if type(monster) == "table" and not monster.hidden and visibleIndex < MAX_MONSTERS then
+            visibleIndex = visibleIndex + 1
+            local key = monster.group
+            if type(key) == "string" and key ~= "" then
+                if groupIds[key] == nil then
+                    groupCount = groupCount + 1
+                    groupIds[key] = "g" .. groupCount
+                end
+                if monster.namePrivate then
+                    groupPrivate[key] = true
+                end
+                local entry = monsters[visibleIndex]
+                entry.group = groupIds[key]
+                entry.groupTitle = Str(monster.groupTitle)
+                entry._groupKey = key
+            end
+        end
+    end
+    for _, entry in ipairs(monsters) do
+        if entry._groupKey ~= nil then
+            if groupPrivate[entry._groupKey] then
+                entry.groupTitle = "???"
+            end
+            entry._groupKey = nil
+        end
+    end
+
     local heroes = {}
     for _, hero in ipairs(List(raw.heroes, MAX_HEROES)) do
         if type(hero) == "table" then
@@ -406,6 +522,7 @@ function StreamerKitRedact.Redact(raw)
         foes = { standing = standing, total = total, list = monsters },
         events = {},
     }
+    out.actions = RedactActions(raw.actions, hiddenIds, visibleNames)
     if out.mode == "montage" then
         out.montage = RedactMontage(raw.montage)
     end

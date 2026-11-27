@@ -383,4 +383,65 @@ end)()
     AssertNoLeaks(out, "montage garbage")
 end)()
 
+--initiative groups: opaque ids in order, titles kept unless a member's name is private.
+;(function()
+    local raw = Fixture()
+    local byId = {}
+    for _, m in ipairs(raw.monsters) do byId[m.id] = m end
+    byId["m-boss"].group = "boss-guid"; byId["m-boss"].groupTitle = "The Underboss and Friends"
+    byId["m-ambusher"].group = "boss-guid"; byId["m-ambusher"].groupTitle = SECRET
+    byId["m-runner1"].group = "MONSTER-Runners"; byId["m-runner1"].groupTitle = "Runners"
+    byId["m-runner2"].group = "MONSTER-Runners"; byId["m-runner2"].groupTitle = "Runners"
+    byId["m-masked"].group = "masked-guid"; byId["m-masked"].groupTitle = SECRET .. " Knight's Retinue"
+    local out = StreamerKitRedact.Redact(raw)
+    local foes = {}
+    for _, f in ipairs(out.foes.list) do foes[f.id] = f end
+    check(foes["m-boss"].group == "g1" and foes["m-boss"].groupTitle == "The Underboss and Friends", "first group, its title")
+    check(foes["m-runner1"].group == "g2" and foes["m-runner2"].group == "g2", "a squad shares one group")
+    check(foes["m-runner1"].groupTitle == "Runners", "the squad's title")
+    check(foes["m-masked"].group == "g3" and foes["m-masked"].groupTitle == "???", "a private member hides the title")
+    check(foes["m-ambusher"] == nil, "a hidden member stays out")
+    AssertNoLeaks(out, "groups")
+    for _, f in ipairs(out.foes.list) do
+        check(f._groupKey == nil, "no internal key left on " .. tostring(f.id))
+        check(f.group == nil or string.match(f.group, "^g%d+$") ~= nil, "group ids are opaque")
+    end
+end)()
+
+--actions from History: who used what, on whom, what happened; hidden creatures out.
+;(function()
+    local raw = Fixture()
+    raw.actions = {
+        { t = 1000, round = 1, ability = "Judgment", actor = { id = "h-vex", name = "Vex Thornwood", hero = true },
+          roll = { total = 17, tier = 3, sources = { SECRET } },
+          targets = {
+            { id = "m-boss", name = "Goblin Underboss", tier = 3, taken = 9, state = "winded", conds = { "Taunted" }, parts = { SECRET } },
+            { id = "m-ambusher", name = SECRET, tier = 2, taken = 5 },
+            { id = "m-masked", name = SECRET .. " Mystery Knight", secret = true, tier = 1, taken = 2, state = "exploded" },
+          } },
+        { t = 2000, round = 1, ability = SECRET .. " Ambush", actor = { id = "m-ambusher", name = SECRET },
+          targets = { { id = "h-kal", name = "Kallis", hero = true, taken = 7 } } },
+        { t = 3000, round = 2, ability = "Get Them!", villain = true, actor = { id = "m-unknown", name = SECRET, secret = true },
+          roll = { total = 9, tier = 7 }, targets = {} },
+        { t = 4000, ability = "" },
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    check(type(out.actions) == "table" and #out.actions == 2, "two actions survive: " .. tostring(out.actions and #out.actions))
+    local a = out.actions[1]
+    check(a.ability == "Judgment" and a.actor.name == "Vex Thornwood" and a.actor.side == "hero", "actor and ability")
+    check(a.roll.total == 17 and a.roll.tier == 3 and a.roll.sources == nil, "roll total and tier only")
+    check(#a.targets == 2, "the hidden target is dropped")
+    check(a.targets[1].name == "Goblin Underboss" and a.targets[1].taken == 9 and a.targets[1].state == "winded", "target result")
+    check(a.targets[1].conds[1] == "Taunted", "conditions it started")
+    check(a.targets[2].name == "???" and a.targets[2].state == nil, "a secret name reads ???; an unknown state is dropped")
+    local v = out.actions[2]
+    check(v.villain == true and v.actor.name == "???" and v.roll.tier == nil, "villain action, secret actor, impossible tier dropped")
+    AssertNoLeaks(out, "actions")
+
+    raw.actions = SECRET
+    check(StreamerKitRedact.Redact(raw).actions == nil, "non-table actions are dropped")
+    raw.actions = nil
+    check(StreamerKitRedact.Redact(raw).actions == nil, "no History, no actions")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

@@ -783,6 +783,94 @@ end
 local g_outcome = nil
 local g_outcomeCombat = nil
 
+--- How many recent History entries the viewer feed looks back over, and how
+--- many of the newest it reads again each time (a reveal or an Undo rewrites
+--- an entry in place).
+local HISTORY_LOOKBACK = 40
+local HISTORY_REREAD = 6
+
+--key -> the players' cut of a History entry (false when players get none).
+local g_historyCache = {}
+local g_historyMap = nil
+
+--- A creature from a History entry, as the viewer feed keeps it.
+--- @param c any
+--- @return nil|table
+local function RawHistoryCreature(c)
+    if type(c) ~= "table" then
+        return nil
+    end
+    return { id = c.id, name = c.name, secret = c.secret == true, hero = c.hero == true }
+end
+
+--- This combat's actions from History (Draw Steel V/History.lua), in the cut
+--- players read (History.PlayerEntry): who used what, on whom, the roll, and
+--- what it did to each target. Nil when History is off.
+--- @param q table the initiative queue
+--- @return nil|table
+local function RawActions(q)
+    local history = rawget(_G, "History")
+    if history == nil or history.PlayerEntry == nil or not history.Enabled() then
+        return nil
+    end
+    local mapid = history.CurrentMap()
+    if mapid == nil then
+        return nil
+    end
+    if mapid ~= g_historyMap then
+        g_historyCache = {}
+        g_historyMap = mapid
+    end
+    local keys = history.Keys(mapid)
+    local actions = {}
+    local first = math.max(1, #keys - HISTORY_LOOKBACK + 1)
+    for i = first, #keys do
+        local key = keys[i]
+        local entry = g_historyCache[key]
+        if entry == nil or i > #keys - HISTORY_REREAD then
+            entry = history.PlayerEntry(mapid, key) or false
+            g_historyCache[key] = entry
+        end
+        if entry and entry.kind == "action" and entry.encounter == q.guid and entry.reverted == nil and entry.ability ~= nil then
+            local action = {
+                t = entry.t,
+                round = entry.round,
+                actor = RawHistoryCreature(entry.actor),
+                ability = entry.ability.name,
+                villain = entry.ability.villainaction ~= nil,
+                targets = {},
+            }
+            if type(entry.roll) == "table" and not entry.secretroll then
+                action.roll = { total = entry.roll.total, tier = entry.roll.tier }
+            end
+            for _, target in ipairs(entry.targets or {}) do
+                local t = RawHistoryCreature(target)
+                if t ~= nil then
+                    t.tier = target.tier
+                    t.taken = target.taken
+                    t.healed = target.healed
+                    t.state = target.state
+                    t.conds = {}
+                    for _, c in ipairs(target.conds or {}) do
+                        if type(c) == "table" and not c.secret then
+                            t.conds[#t.conds + 1] = c.name
+                        end
+                    end
+                    action.targets[#action.targets + 1] = t
+                end
+            end
+            actions[#actions + 1] = action
+        end
+    end
+    --drop cached entries that have scrolled out of the look-back.
+    if first > 1 then
+        for i = 1, first - 1 do
+            g_historyCache[keys[i]] = nil
+        end
+    end
+    return actions
+end
+
 --- The montage as the party's screen shows it, or nil when no montage is
 --- running. Only what every player can see goes in: entries already on the
 --- board (EncounterMontage.EntryHidden keeps locked, removed and expired ones
@@ -946,6 +1034,15 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
     end
     raw.outcome = g_outcome
 
+    if q ~= nil then
+        local ok, actions = pcall(RawActions, q)
+        if ok then
+            raw.actions = actions
+        else
+            print("StreamOverlay:: history actions failed:", actions)
+        end
+    end
+
     --a montage beat: its own mode and block (combat wins if both somehow are).
     if q == nil then
         local ok, montage = pcall(RawMontage)
@@ -1000,6 +1097,17 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                 pcall(function() monster.squad = props:MinionSquad() end)
                 monster.minion = monster.squad ~= nil
                 pcall(function() monster.monsterType = props:GetMonsterType() end)
+                --the initiative group it acts with, and the group's title.
+                local initiative = rawget(_G, "InitiativeQueue")
+                if q ~= nil and initiative ~= nil then
+                    pcall(function()
+                        local groupid = initiative.GetInitiativeId(token)
+                        if groupid ~= nil then
+                            monster.group = groupid
+                            monster.groupTitle = q:DescribeEntry(groupid)
+                        end
+                    end)
+                end
                 monster.conditions = MonsterConditions(props)
                 monster.abilities, monster.villainActions = RawMonsterAbilities(token, used)
                 raw.monsters[#raw.monsters + 1] = monster
@@ -1011,7 +1119,7 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
 end
 
 --- Shrink the viewer snapshot past its cap: drop ability text, then older
---- events, then foes' ability lists.
+--- events, then older actions, then foes' ability lists.
 --- @param viewer table
 --- @return string json
 local function FitViewerToSize(viewer)
@@ -1029,6 +1137,10 @@ local function FitViewerToSize(viewer)
     end
     while #text > VIEWER_MAX_BYTES and #viewer.events > 1 do
         table.remove(viewer.events, 1)
+        text = dmhub.ToJson(viewer)
+    end
+    while #text > VIEWER_MAX_BYTES and viewer.actions ~= nil and #viewer.actions > 1 do
+        table.remove(viewer.actions, 1)
         text = dmhub.ToJson(viewer)
     end
     if #text > VIEWER_MAX_BYTES then

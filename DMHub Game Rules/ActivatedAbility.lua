@@ -7626,22 +7626,17 @@ end
 -- declared in this file. Fields a block does not show are kept as saved.
 ----------------------------------------------------------------------------
 
---How an ongoing effect's duration reads in a block, by the Advanced editor's duration ids.
-local g_blockDurations = {
-    { id = "turn", text = "until the end of the turn" },
-    { id = "endround", text = "until the end of the round" },
-    { id = "endnextround", text = "until the end of the next round" },
-    { id = "end_of_next_turn", text = "until the end of their next turn" },
-    { id = "save_ends", text = "(save ends)" },
-    { id = "rounds", text = "for some rounds" },
-    { id = "rounds_end_turn", text = "for some rounds, from the end of the turn" },
-    { id = "until_rest", text = "until they take a respite" },
-    { id = "until_long_rest", text = "until they take a long rest" },
-    { id = "eoe", text = "until the end of the encounter" },
-    { id = "eoe_or_dying", text = "until the end of the encounter or they are dying" },
-    { id = "momentary", text = "for a moment" },
-    { id = "indefinite", text = "indefinitely" },
-}
+--- The duration choices of an "Apply an effect" block: the game's own
+--- duration options, in the words a game system gives them in a sentence
+--- (Block.DurationWords), or the option's own name.
+--- @return {id: string, text: string}[]
+local function _blockDurations()
+    local result = {}
+    for _, option in ipairs(CharacterOngoingEffect.durationOptions or {}) do
+        result[#result + 1] = { id = option.id, text = Block.DurationWords[option.id] or string.lower(option.text) }
+    end
+    return result
+end
 
 Block.RegisterBehaviorBlock{
     id = "ability.applyeffect",
@@ -7653,7 +7648,7 @@ Block.RegisterBehaviorBlock{
     slots = {
         effect = { kind = "choice", default = "", options = Block.TableOptions("characterOngoingEffects") },
         who = Block.WhoSlot(),
-        duration = { kind = "choice", default = "eoe", options = g_blockDurations },
+        duration = { kind = "choice", default = "eoe", options = _blockDurations },
     },
     fits = { "step" },
     order = 60,

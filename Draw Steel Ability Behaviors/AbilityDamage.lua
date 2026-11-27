@@ -630,8 +630,7 @@ Block.RegisterBehaviorBlock{
             options = function()
                 --the game's own list (custom damage types included); "" is untyped.
                 local result = { { id = "", text = "" } }
-                local available = rules ~= nil and rules.damageTypesAvailable or nil
-                for _, damageType in ipairs(available or Block.TierDamageTypes) do
+                for _, damageType in ipairs(Block.DamageTypes()) do
                     result[#result + 1] = { id = damageType, text = damageType }
                 end
                 return result

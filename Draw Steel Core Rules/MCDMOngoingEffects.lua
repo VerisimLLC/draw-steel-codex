@@ -1,5 +1,19 @@
 local mod = dmhub.GetModLoading()
 
+--How each duration reads in a Block Editor sentence ("Apply Slowed to the target until the end of the turn").
+Block.DurationWords = {
+    turn = "until the end of the turn",
+    endround = "until the end of the round",
+    endnextround = "until the end of the next round",
+    end_of_next_turn = "until the end of their next turn",
+    save_ends = "(save ends)",
+    rounds = "for some rounds",
+    rounds_end_turn = "for some rounds, from the end of the turn",
+    until_rest = "until they take a respite",
+    eoe = "until the end of the encounter",
+    eoe_or_dying = "until the end of the encounter or they are dying",
+    indefinite = "indefinitely",
+}
 
 CharacterOngoingEffect.durationOptions = {
 	{

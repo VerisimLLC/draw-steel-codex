@@ -4613,7 +4613,7 @@ end
 ----------------------------------------------------------------------------
 -- Block Editor: the power roll as a block (DMHub Utils/Block.lua). Its three
 -- tiers hold tier blocks, one per part of the tier text, read and written by
--- the tier grammar (DMHub Utils/BlockTiers.lua), so an unedited part keeps its
+-- the tier grammar (Draw Steel Core Rules/BlockTiers.lua), so an unedited part keeps its
 -- saved words.
 ----------------------------------------------------------------------------
 
@@ -4754,7 +4754,7 @@ end
 --- @return {id: string, text: string}[]
 local function _damageTypeOptions()
     local result = { { id = "untyped", text = "" } }
-    for _, damageType in ipairs(Block.TierDamageTypes) do
+    for _, damageType in ipairs(Block.DamageTypes()) do
         result[#result + 1] = { id = damageType, text = damageType }
     end
     return result
@@ -4980,6 +4980,7 @@ Block.RegisterBlock{
 --own reading of the tier.
 Block.RegisterBlock{
     id = Block.TIER_TEXT_BLOCK,
+    unread = true,
     family = "step",
     group = "advanced",
     label = "Tier words",

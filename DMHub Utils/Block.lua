@@ -68,6 +68,7 @@ local mod = dmhub.GetModLoading()
 --- @field write? fun(values: table, saved: table|nil, ctx: BlockContext, bodies: table<string, BlockInstance[]>): table a behaviour for the values and bodies; saved is a copy of the behaviour it was read from (keep every field the block does not claim), nil for a new block
 --- @field tier? BlockTierInfo set on a block that shows one part of a power roll tier
 --- @field stub? boolean a placeholder with no record reading or writing yet
+--- @field unread? boolean holds saved words or data no block reads yet, kept as written (counted by /blockroundtrip as not read)
 
 --- A list of blocks inside a block. A power roll has one per tier; a wrapper has one.
 --- @class BlockBody
@@ -577,6 +578,12 @@ local function Signature(value)
     end
     return "{" .. table.concat(parts, ",") .. "}"
 end
+
+--- How an ongoing effect duration reads in a block's sentence, by duration id
+--- ("eoe" -> "until the end of the encounter"). A game system fills it beside
+--- its durations; a duration with no words shows its option's name.
+--- @type table<string, string>
+Block.DurationWords = {}
 
 --- A record's value for a field as the game reads it: the saved value, or the
 --- type's own default when nothing is saved (ActivatedAbilityBehavior.damageType

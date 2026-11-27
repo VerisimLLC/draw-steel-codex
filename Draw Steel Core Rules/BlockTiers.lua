@@ -17,6 +17,13 @@ local mod = dmhub.GetModLoading()
  unedited tier always saves byte-identical. A changed one is written by its
  rule's compile, keeping the spaces and period that were around it.
 
+ The second half shows the segments as tier blocks (Block.TierInstances and
+ Block.TierText), for the power roll block and any block that holds tiers.
+
+ It is Draw Steel's grammar, so it lives in Draw Steel Core Rules and loads
+ before the files that declare tier blocks (MCDMAbilityBehavior.lua,
+ MCDMAbilityRollBehavior.lua).
+
  Rules are data: a rules file can add or replace one (by id) with
  Block.RegisterTierRule. The grammar here is ported from the design prototype
  (ui-mockup/ability-blocks-stack.html, parseTierText and compileTier).
@@ -360,15 +367,32 @@ end
 -- The core Draw Steel tier grammar.
 ----------------------------------------------------------------------------
 
---- The damage types a tier names between the amount and "damage". Add to it
---- for a new type; "untyped" is written as no word at all.
+--- The core damage types, for when the game's own list is not loaded (the
+--- plain-Lua tests). "untyped" is written as no word at all.
 --- @type string[]
 Block.TierDamageTypes = { "fire", "cold", "acid", "poison", "holy", "corruption", "psychic", "lightning", "sonic" }
+
+--- The damage types a tier can name between the amount and "damage": the
+--- game's list (custom ones included), lower case, without "untyped".
+--- @return string[]
+function Block.DamageTypes()
+    local available = rawget(_G, "rules") ~= nil and rules.damageTypesAvailable or nil
+    if type(available) ~= "table" or #available == 0 then
+        return Block.TierDamageTypes
+    end
+    local result = {}
+    for _, damageType in ipairs(available) do
+        if damageType ~= "untyped" and damageType ~= "all" then
+            result[#result + 1] = damageType
+        end
+    end
+    return result
+end
 
 --- @param word string lower case
 --- @return boolean
 local function IsDamageType(word)
-    for _, damageType in ipairs(Block.TierDamageTypes) do
+    for _, damageType in ipairs(Block.DamageTypes()) do
         if damageType == word then
             return true
         end
@@ -737,3 +761,168 @@ Block.RegisterTierRule{
         return Block.CompileTierSegment(values.first) .. (values.joiner or " and ") .. Block.CompileTierSegment(values.second)
     end,
 }
+
+----------------------------------------------------------------------------
+-- Power roll tiers as blocks. Each segment of a tier (BlockTiers.lua) becomes
+-- one tier block, chosen by the segment's kind (BlockDecl.tier). A segment
+-- that holds others (a potency check, "X and Y") holds them in bodies named
+-- after the value they came from.
+----------------------------------------------------------------------------
+
+--- Whether a value is a nested tier segment.
+--- @param value any
+--- @return boolean
+local function _isSegment(value)
+    return type(value) == "table" and type(value.kind) == "string" and type(value.values) == "table"
+end
+
+--- @param list string[]
+--- @param value string
+--- @return boolean
+local function _has(list, value)
+    for _, item in ipairs(list or {}) do
+        if item == value then
+            return true
+        end
+    end
+    return false
+end
+
+--- The tier block for a segment: the first whose tier info takes its kind.
+--- @param segment BlockTierSegment
+--- @return BlockDecl|nil
+local function _tierBlockFor(segment)
+    for _, decl in ipairs(Block.All("block")) do
+        --- @cast decl BlockDecl
+        local info = decl.tier
+        if info ~= nil and _has(info.kinds, segment.kind) then
+            local ok, accepted = true, true
+            if info.accepts ~= nil then
+                ok, accepted = pcall(info.accepts, segment.values)
+            end
+            if ok and accepted then
+                return decl
+            end
+        end
+    end
+    return nil
+end
+
+--- The id of the block words no tier block reads open as (BlockDecl id).
+Block.TIER_TEXT_BLOCK = "tier.text"
+
+--- A placed tier block for one segment.
+--- @param segment BlockTierSegment
+--- @return BlockInstance
+function Block.TierInstance(segment)
+    local decl = _tierBlockFor(segment)
+    local values, bodies = {}, nil
+    if decl == nil then
+        --a kind no block shows: its words, kept as written.
+        decl = Block.GetBlock(Block.TIER_TEXT_BLOCK)
+        values = { text = string.match(segment.text or "", "^%s*(.-)%.?%s*$") }
+    else
+        for key, value in pairs(segment.values) do
+            if _isSegment(value) then
+                bodies = bodies or {}
+                bodies[key] = { Block.TierInstance(value) }
+            else
+                values[key] = type(value) == "table" and DeepCopy(value) or value
+            end
+        end
+        if decl.tier.from ~= nil then
+            values = decl.tier.from(values)
+        end
+    end
+    local saved = DeepCopy(segment)
+    saved.valuesSignature = Block.ValueSignature(values)
+    return { block = decl ~= nil and decl.id or Block.TIER_TEXT_BLOCK, values = values, bodies = bodies, saved = saved }
+end
+
+--- A tier's text as placed tier blocks.
+--- @param text string|nil
+--- @return BlockInstance[]
+function Block.TierInstances(text)
+    local result = {}
+    for i, segment in ipairs(Block.ParseTier(text or "")) do
+        result[i] = Block.TierInstance(segment)
+    end
+    return result
+end
+
+--- The segment a placed tier block stands for. Values the author did not
+--- change keep the segment's saved text (Block.CompileTierSegment decides).
+--- @param instance BlockInstance
+--- @return BlockTierSegment
+function Block.TierSegmentOf(instance)
+    local saved = instance.saved
+    local decl = Block.GetBlock(instance.block)
+    local info = decl ~= nil and decl.tier or nil
+    local lead = saved ~= nil and saved.lead or nil
+    local trail = saved ~= nil and saved.trail or ""
+    if info == nil then
+        --not a tier block (an Advanced block dropped in): kept as it was, or nothing.
+        if saved ~= nil then
+            return DeepCopy(saved)
+        end
+        return { kind = "empty", values = {} }
+    end
+    if info.words ~= nil then
+        if saved ~= nil and saved.valuesSignature == Block.ValueSignature(instance.values or {}) and instance.bodies == nil then
+            return DeepCopy(saved)
+        end
+        return { kind = "todo", values = { text = info.words(instance.values or {}) }, lead = lead, trail = trail }
+    end
+    local values = DeepCopy(instance.values or {})
+    for bodyId, list in pairs(instance.bodies or {}) do
+        if list[1] ~= nil then
+            values[bodyId] = Block.TierSegmentOf(list[1])
+        else
+            values[bodyId] = { kind = "empty", values = {} }
+        end
+    end
+    local kind = info.kinds[1]
+    if saved ~= nil and _has(info.kinds, saved.kind) then
+        kind = saved.kind
+    end
+    --an empty part the author typed words into is words now.
+    if kind == "empty" and (values.text or "") ~= "" then
+        kind = "todo"
+    end
+    return {
+        kind = kind,
+        values = values,
+        lead = lead,
+        trail = trail,
+        text = saved ~= nil and saved.text or nil,
+        openSignature = saved ~= nil and saved.openSignature or nil,
+    }
+end
+
+--- Placed tier blocks back to tier text.
+--- @param instances BlockInstance[]|nil
+--- @return string
+function Block.TierText(instances)
+    local segments = {}
+    for i, instance in ipairs(instances or {}) do
+        segments[i] = Block.TierSegmentOf(instance)
+    end
+    return Block.CompileTier(segments)
+end
+
+--- Whether a list of tier blocks (and any inside them) holds words no tier block reads.
+--- @param instances BlockInstance[]|nil
+--- @return boolean
+function Block.TierHasText(instances)
+    for _, instance in ipairs(instances or {}) do
+        if instance.block == Block.TIER_TEXT_BLOCK then
+            return true
+        end
+        for _, list in pairs(instance.bodies or {}) do
+            if Block.TierHasText(list) then
+                return true
+            end
+        end
+    end
+    return false
+end

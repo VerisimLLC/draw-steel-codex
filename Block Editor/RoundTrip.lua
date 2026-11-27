@@ -58,9 +58,10 @@ end
 local function _scan(list, advancedBlock)
     local advanced, words = false, false
     for _, instance in ipairs(list or {}) do
+        local decl = Block.GetBlock(instance.block)
         if instance.block == advancedBlock then
             advanced = true
-        elseif instance.block == Block.TIER_TEXT_BLOCK then
+        elseif decl ~= nil and decl.unread then
             words = true
         end
         for _, body in pairs(instance.bodies or {}) do

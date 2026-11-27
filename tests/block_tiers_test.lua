@@ -1,5 +1,5 @@
 --Run from the codex root with ../dependencies/lua/bin/lua.exe tests/block_tiers_test.lua
---Checks the power roll tier grammar in DMHub Utils/BlockTiers.lua: what each
+--Checks the power roll tier grammar in Draw Steel Core Rules/BlockTiers.lua: what each
 --kind of tier part reads as, that an unedited tier writes back byte-identical,
 --and how an edited segment is written.
 --Inside DMHub (no io), send this file's text to execute_lua: it then tests the
@@ -20,7 +20,7 @@ if not inApp then
         Error = function(message) errors[#errors + 1] = message end,
     })
     assert(load(readSource("DMHub Utils/Block.lua"), "Block.lua"))()
-    assert(load(readSource("DMHub Utils/BlockTiers.lua"), "BlockTiers.lua"))()
+    assert(load(readSource("Draw Steel Core Rules/BlockTiers.lua"), "BlockTiers.lua"))()
 end
 
 --Small fixed tables, so the test does not depend on the compendium.

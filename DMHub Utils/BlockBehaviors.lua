@@ -3,8 +3,9 @@ local mod = dmhub.GetModLoading()
 --[[
  BlockBehaviors: helpers for declaring the Block Editor's blocks beside the
  ability behaviours they read (an ActivatedAbility's steps). Loads after
- Block.lua and BlockTiers.lua, before the game rules, so a behaviour's file
- can declare its block right under the type:
+ Block.lua, before the game rules, so a behaviour's file can declare its
+ block right under the type. Nothing here is Draw Steel's: power roll tiers
+ as blocks are in Draw Steel Core Rules/BlockTiers.lua.
 
      Block.RegisterBehaviorBlock{
          id = "ability.heal", family = "step", group = "help", label = "Heal",
@@ -19,10 +20,6 @@ local mod = dmhub.GetModLoading()
  a codec's default is only for a field neither has. Writing starts from the saved
  behaviour and sets only the fields whose value differs from what the saved
  one reads as, so an untouched field keeps its saved spelling.
-
- The second half turns power roll tier text (the tier grammar in
- BlockTiers.lua) into tier blocks and back, for the power roll and for rule
- text (DrawSteelCommand).
 ]]
 
 --- How one slot reads and writes a behaviour.
@@ -181,171 +178,6 @@ end
 --- @return BlockFieldCodec
 function Block.WhoField()
     return { field = "applyto", default = "targets" }
-end
-
-----------------------------------------------------------------------------
--- Power roll tiers as blocks. Each segment of a tier (BlockTiers.lua) becomes
--- one tier block, chosen by the segment's kind (BlockDecl.tier). A segment
--- that holds others (a potency check, "X and Y") holds them in bodies named
--- after the value they came from.
-----------------------------------------------------------------------------
-
---- Whether a value is a nested tier segment.
---- @param value any
---- @return boolean
-local function _isSegment(value)
-    return type(value) == "table" and type(value.kind) == "string" and type(value.values) == "table"
-end
-
---- @param list string[]
---- @param value string
---- @return boolean
-local function _has(list, value)
-    for _, item in ipairs(list or {}) do
-        if item == value then
-            return true
-        end
-    end
-    return false
-end
-
---- The tier block for a segment: the first whose tier info takes its kind.
---- @param segment BlockTierSegment
---- @return BlockDecl|nil
-local function _tierBlockFor(segment)
-    for _, decl in ipairs(Block.All("block")) do
-        --- @cast decl BlockDecl
-        local info = decl.tier
-        if info ~= nil and _has(info.kinds, segment.kind) then
-            local ok, accepted = true, true
-            if info.accepts ~= nil then
-                ok, accepted = pcall(info.accepts, segment.values)
-            end
-            if ok and accepted then
-                return decl
-            end
-        end
-    end
-    return nil
-end
-
---- The id of the block words no tier block reads open as (BlockDecl id).
-Block.TIER_TEXT_BLOCK = "tier.text"
-
---- A placed tier block for one segment.
---- @param segment BlockTierSegment
---- @return BlockInstance
-function Block.TierInstance(segment)
-    local decl = _tierBlockFor(segment)
-    local values, bodies = {}, nil
-    if decl == nil then
-        --a kind no block shows: its words, kept as written.
-        decl = Block.GetBlock(Block.TIER_TEXT_BLOCK)
-        values = { text = string.match(segment.text or "", "^%s*(.-)%.?%s*$") }
-    else
-        for key, value in pairs(segment.values) do
-            if _isSegment(value) then
-                bodies = bodies or {}
-                bodies[key] = { Block.TierInstance(value) }
-            else
-                values[key] = type(value) == "table" and DeepCopy(value) or value
-            end
-        end
-        if decl.tier.from ~= nil then
-            values = decl.tier.from(values)
-        end
-    end
-    local saved = DeepCopy(segment)
-    saved.valuesSignature = Block.ValueSignature(values)
-    return { block = decl ~= nil and decl.id or Block.TIER_TEXT_BLOCK, values = values, bodies = bodies, saved = saved }
-end
-
---- A tier's text as placed tier blocks.
---- @param text string|nil
---- @return BlockInstance[]
-function Block.TierInstances(text)
-    local result = {}
-    for i, segment in ipairs(Block.ParseTier(text or "")) do
-        result[i] = Block.TierInstance(segment)
-    end
-    return result
-end
-
---- The segment a placed tier block stands for. Values the author did not
---- change keep the segment's saved text (Block.CompileTierSegment decides).
---- @param instance BlockInstance
---- @return BlockTierSegment
-function Block.TierSegmentOf(instance)
-    local saved = instance.saved
-    local decl = Block.GetBlock(instance.block)
-    local info = decl ~= nil and decl.tier or nil
-    local lead = saved ~= nil and saved.lead or nil
-    local trail = saved ~= nil and saved.trail or ""
-    if info == nil then
-        --not a tier block (an Advanced block dropped in): kept as it was, or nothing.
-        if saved ~= nil then
-            return DeepCopy(saved)
-        end
-        return { kind = "empty", values = {} }
-    end
-    if info.words ~= nil then
-        if saved ~= nil and saved.valuesSignature == Block.ValueSignature(instance.values or {}) and instance.bodies == nil then
-            return DeepCopy(saved)
-        end
-        return { kind = "todo", values = { text = info.words(instance.values or {}) }, lead = lead, trail = trail }
-    end
-    local values = DeepCopy(instance.values or {})
-    for bodyId, list in pairs(instance.bodies or {}) do
-        if list[1] ~= nil then
-            values[bodyId] = Block.TierSegmentOf(list[1])
-        else
-            values[bodyId] = { kind = "empty", values = {} }
-        end
-    end
-    local kind = info.kinds[1]
-    if saved ~= nil and _has(info.kinds, saved.kind) then
-        kind = saved.kind
-    end
-    --an empty part the author typed words into is words now.
-    if kind == "empty" and (values.text or "") ~= "" then
-        kind = "todo"
-    end
-    return {
-        kind = kind,
-        values = values,
-        lead = lead,
-        trail = trail,
-        text = saved ~= nil and saved.text or nil,
-        openSignature = saved ~= nil and saved.openSignature or nil,
-    }
-end
-
---- Placed tier blocks back to tier text.
---- @param instances BlockInstance[]|nil
---- @return string
-function Block.TierText(instances)
-    local segments = {}
-    for i, instance in ipairs(instances or {}) do
-        segments[i] = Block.TierSegmentOf(instance)
-    end
-    return Block.CompileTier(segments)
-end
-
---- Whether a list of tier blocks (and any inside them) holds words no tier block reads.
---- @param instances BlockInstance[]|nil
---- @return boolean
-function Block.TierHasText(instances)
-    for _, instance in ipairs(instances or {}) do
-        if instance.block == Block.TIER_TEXT_BLOCK then
-            return true
-        end
-        for _, list in pairs(instance.bodies or {}) do
-            if Block.TierHasText(list) then
-                return true
-            end
-        end
-    end
-    return false
 end
 
 ----------------------------------------------------------------------------

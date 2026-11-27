@@ -59,7 +59,7 @@ local function readSource(path)
     f:close()
     return source
 end
-for _, path in ipairs({ "DMHub Utils/Block.lua", "DMHub Utils/BlockTiers.lua", "DMHub Utils/BlockBehaviors.lua", "Block Editor/RecordCache.lua" }) do
+for _, path in ipairs({ "DMHub Utils/Block.lua", "DMHub Utils/BlockBehaviors.lua", "Block Editor/RecordCache.lua" }) do
     assert(load(readSource(path), path))()
 end
 

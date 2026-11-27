@@ -2422,6 +2422,10 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     end
     local overrideTier = overrideProperties:try_get("overrideTier")
     --an overridden tier: who chose it and what the dice gave, for a record of play (History).
+    --Cleared when not overridden: an earlier roll on this cast (an invoking or invoked
+    --ability's) may have left its own.
+    options.symbols.cast.overrideBy = nil
+    options.symbols.cast.diceTier = nil
     if overrideTier ~= nil then
         options.symbols.cast.overrideBy = overrideProperties:try_get("overrideBy")
         options.symbols.cast.diceTier = DiceResultToTier(m_result)
@@ -2609,6 +2613,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                 local surges = 0
                 local potencyApplied = 0
+                --An earlier roll on this cast (an invoking or invoked ability's) may have recorded
+                --this target's own roll, sources, surges or potency; only this roll's should show.
+                for _, field in ipairs({"targetRolls", "targetSources", "targetDamageSources", "targetSurges", "targetPotencySources", "potencyApplied"}) do
+                    local byTarget = options.symbols.cast:try_get(field)
+                    if byTarget ~= nil then
+                        byTarget[targetToken.charid] = nil
+                    end
+                end
                 --this target's row of the roll dialog. Found by token: when targets are chosen as
                 --each tier resolves (promptWhenResolving) every pass has one target at position 1.
                 local multitarget = nil

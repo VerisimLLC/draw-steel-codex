@@ -475,7 +475,8 @@ end
 --- @param kid HistoryEntry
 --- @return boolean
 local function IsNestedRoll(kid)
-    return (kid.kind == "action" or kid.kind == "trigger") and kid.family == nil and kid.actor ~= nil
+    --an automatic trigger's entry never saves its roll, so only actions qualify.
+    return kid.kind == "action" and kid.family == nil and kid.actor ~= nil
         and kid.ability ~= nil and ((kid.roll ~= nil and kid.roll.total ~= nil) or kid.secretroll == true)
 end
 

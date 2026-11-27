@@ -307,3 +307,12 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   changes), removing, adding, and the empty-test check all checked with saving stubbed.
 - **Not built:** the target filter row ("Only affects creatures who", `targetFilter`, 78 class
   abilities); the section count says "steps" for requirements.
+
+## 14. Target filter row (2026-11-27, run in DMHub)
+
+- **Row** under Who it targets: "Only affects a creature if [test]" (`filter` slot, saved as
+  `targetFilter`; the game skips any creature that fails it, bare names being the target's).
+- 79 class abilities use one (`Enemy` 33, `not Enemy` 25, then one-offs). I'm No Threat's is a
+  GoblinScript table: it shows as "(a formula table: edit it in the Advanced editor)" and is locked.
+- **Measured in DMHub:** both round trips 748/748 (one locked slot, that table). Changing, clearing
+  and adding a filter write only `targetFilter`.

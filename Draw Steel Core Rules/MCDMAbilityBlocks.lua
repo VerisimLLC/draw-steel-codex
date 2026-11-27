@@ -215,6 +215,7 @@ local SLOTS = {
         end,
     },
     charges = { kind = "formula", style = "formula", default = "1", options = {} },
+    filter = { kind = "formula", style = "formula", default = "", empty = "+ test", options = {} },
 }
 
 --- The record's own fields, by the header slot that shows them.
@@ -332,6 +333,35 @@ local function _writeLimit(record, key, value)
     end
     record.usageLimitOptions = options
 end
+
+--what a filter saved as a table of formulas reads as: shown, never written (the slot locks).
+local TABLE_FILTER = "(a formula table: edit it in the Advanced editor)"
+
+FIELDS.filter = {
+    touches = { "targetFilter" },
+    read = function(record)
+        local filter = Block.FieldValue(record, "targetFilter")
+        if type(filter) == "table" then
+            return TABLE_FILTER
+        end
+        return filter ~= nil and tostring(filter) or ""
+    end,
+    write = function(record, value, original)
+        if type(rawget(record, "targetFilter")) == "table" then
+            error("a target filter saved as a table cannot be written as text")
+        end
+        if value == original then
+            return
+        end
+        local saved = tostring(Block.FieldValue(record, "targetFilter") or "")
+        value = tostring(value or "")
+        --a test that means the same keeps its saved spelling ("enemy", "Enemy").
+        if saved == value or (Block.FormulaCanonical(saved) or saved) == (Block.FormulaCanonical(value) or value) then
+            return
+        end
+        record.targetFilter = value
+    end,
+}
 
 FIELDS.targetsAre = {
     touches = { "sequentialTargeting" },
@@ -1258,6 +1288,8 @@ Block.RegisterHost{
                         return values.targetsAre == "sequential" or tostring(values.count) ~= "1"
                     end,
                 },
+                --the target filter: the game skips any creature that fails it (a bare name is the target's).
+                { id = "filter", sentence = { "Only affects a creature if ", { slot = "filter" } }, slots = SLOTS },
             },
         },
         { id = "req", title = "Can only be used when", optional = true, stack = "requirements", fits = "requirement", stackAddText = "add a requirement" },

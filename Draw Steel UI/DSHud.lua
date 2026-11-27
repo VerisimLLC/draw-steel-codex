@@ -1,5 +1,23 @@
 local mod = dmhub.GetModLoading()
 
+--The riders of `mount` that sit in a locked saddle and that the user controls. Grabbing a
+--locked rider drags its mount instead, and the engine reports neither the selection nor the
+--hover as the rider, so we can't tell which one the player reached for: any drag of a mount
+--with locked riders gets the reminder.
+function GameHud.LockedRidersOf(mount)
+    local result = {}
+    if mount == nil or not mount.valid then
+        return result
+    end
+
+    for _,rider in ipairs(mount.riders or {}) do
+        if rider.valid and (not rider.saddleUnlocked) and rider.canControl then
+            result[#result+1] = rider
+        end
+    end
+    return result
+end
+
 --functions called by dmhud to indicate that a token is moving or has finished moving.
 function GameHud.TokenMoving(self, token, path)
 
@@ -408,6 +426,22 @@ function GameHud.TokenMoving(self, token, path)
     --hold Ctrl to teleport instead of moving -- shown while walking and while teleporting.
     if creature ~= nil and creature:CanTeleport() and not path.forced then
         codexCallouts[#codexCallouts+1] = UIText.T("movement.callout.hold_ctrl_to_teleport")
+    end
+
+    --A creature locked into its saddle can't be dragged off: grabbing it drags its mount
+    --instead, so the token passed in here is the mount. The padlock on the rider's token is
+    --what dismounts it, so whenever a mount carrying locked riders is dragged, say where the
+    --lock is.
+    local lockedRiders = GameHud.LockedRidersOf(token)
+    if #lockedRiders > 0 then
+        local riderName = lockedRiders[1].name
+        if riderName == nil or riderName == "" then
+            riderName = tr("this creature")
+        end
+        codexCallouts[#codexCallouts+1] = UIText.Plural("movement.callout.click_lock_to_dismount", #lockedRiders, {
+            lock = GameHud.CodexCalloutLockMarker,
+            name = riderName,
+        })
     end
 
     --A feature may carry the same note as its own Codex Callout (Cinder Step); show it once.

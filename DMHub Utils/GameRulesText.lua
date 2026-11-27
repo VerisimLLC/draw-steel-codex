@@ -31,6 +31,13 @@ local text = UIText.Define("GameRulesText")
 --control, not the rule. Short: one line.
 text("movement.callout.hold_ctrl_to_teleport", [[Hold Ctrl while moving to teleport.]])
 
+--Boxed note shown when a player grabs a creature that is locked into a saddle (which drags
+--its mount instead). {lock} is drawn as the padlock icon that sits on the rider's token; keep
+--it in the sentence where the icon should appear. {name} is the rider's name; with several
+--riders no names are listed (the line would run off the box). Short: one or two lines.
+text("movement.callout.click_lock_to_dismount.one", [[To dismount: Click the {lock} on {name}'s token.]])
+text("movement.callout.click_lock_to_dismount.other", [[To dismount: Click the {lock} on a mounted creature's token.]])
+
 ----------------------------------------------------------------------------
 -- REMINDER TEXT EDITOR
 -- (DMHub Game Rules/ModifierMovementText.lua)

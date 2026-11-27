@@ -115,7 +115,9 @@ text("blockeditor.amount.sign_divide", [[/ divided by]])
 text("blockeditor.amount.change", [[Change what it is based on...]])
 text("blockeditor.check.unsaveable", [[{count} added blocks cannot be saved yet and will be left out: remove them, or use the Advanced editor.]])
 --Under the card in the side column.
-text("blockeditor.card_hint", [[Click any line on the card to change its wording.]])
+text("blockeditor.card_hint", [[How the ability reads in the book. Change it with the blocks on the left.]])
+--The shelf's one section when a host names none.
+text("blockeditor.shelf.blocks", [[Blocks]])
 
 --The developer window's sample record and its sections.
 

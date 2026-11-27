@@ -259,7 +259,7 @@ Block.RegisterBlock{
 Block.RegisterBlock{
     id = "stub.text",
     family = "step",
-    group = "advanced",
+    group = "display",
     label = "Card text",
     desc = "Text on the card that the game does not apply.",
     sentence = { { slot = "text" } },

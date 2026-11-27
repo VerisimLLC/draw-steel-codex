@@ -133,3 +133,52 @@ registrations: **never write block knowledge into the UI** (no modifier, behavio
 - Who builds which part in parallel.
 - Where recipes (saved features) are stored: a per-user setting or a compendium table.
 - Engine asks: focus on link words for keyboard use; a surge-spend purpose (F14/F15).
+
+## 8. Phase 2 audit fixes (2026-11-27, commits after `563f0146`)
+
+An audit of phase 2 against the decisions found gaps; these are fixed on this branch. Every
+plain-Lua test passes (`tests/block_*_test.lua`), the type check is clean, and
+`python tools/block_editor/check_ui.py` passes. **None of it has run in DMHub yet.**
+
+**Do this first in the app (CodeMod registration changed):**
+1. **DMHub Utils**: remove `DMHub Utils/BlockTiers.lua` from the file list (the file moved). The
+   list should hold `Block.lua`, `BlockFormula.lua`, `BlockBehaviors.lua`, `BlockStubs.lua`, in
+   that order, after `UIText.lua` and `Utils.lua`.
+2. **Draw Steel Core Rules**: register `Draw Steel Core Rules/BlockTiers.lua` **before**
+   `MCDMAbilityBehavior.lua` and `MCDMAbilityRollBehavior.lua` (they declare tier blocks at load).
+   `MCDMAbilityBlocks.lua` must be registered too, anywhere after it.
+3. **Block Editor**: `BlockEditor.lua` first; then `State.lua`, `BlockEditorText.lua`,
+   `Styles.lua`, `RecordCache.lua`, `Slots.lua`, `BlockPanel.lua`, `Stack.lua`, `Shelf.lua`,
+   `Page.lua`, `SidePanel.lua`, `MainPanel.lua`, `RoundTrip.lua`, `Proofs.lua`.
+4. Turn on **developer mode** and the new **Block Editor (in development)** developer setting
+   (`blockeditor:enabled`); the commands refuse to run without it.
+5. Run `/blockroundtrip` and `/blockroundtrip forced`. The forced run now really writes every
+   slot, so it may report differences the old one could not see: those are writers that do not
+   reproduce the saved form, worth a look one by one.
+
+**What changed:**
+- **Saving:** stub blocks are off a real ability's shelf; a tier part that saves as one segment
+  takes one block (`BlockBody.max`); a red check counts added blocks that cannot be saved; a
+  failed upload stays dirty and retries; a failing block writer keeps the saved step.
+- **Defaults:** an unsaved field reads as the game reads it (`Block.FieldValue`): damage type
+  force, roll 1d6, category Skill, cost 1. Melee to ranged now sets a range of 10.
+- **The UI names no game types** (CI: `.github/workflows/block-editor.yml`). The ability host
+  lists its records (`records`) and names its Advanced steps (`stepName`).
+- **Formulas** go through the parser: the roll's characteristic, the card's roll line, Only if
+  grouping, and formula slots compared by meaning. The Draw Steel characteristics are a stat
+  source and replace the stubs.
+- **Amount picker:** one row per kind (A number, A stat, A stat with math, More as you level,
+  Depends on a test, A dice roll), a "Now:" line, a search that adapts the examples; on the
+  block each number, stat and sign is its own word. Number slots open a box.
+- **Redo** button; the tier code moved to Draw Steel Core Rules; durations and damage types come
+  from the game's lists; ledger rows for per-word sentence panels and `RegisterBehaviorBlock`.
+
+**Look at in the app:** the amount picker (`Slots.lua`, `_openAmountPicker`) is new UI drawn
+without seeing it: its width, the search box and row hover (`Styles.lua`, `beAmount*`).
+
+**Still open (planned, not built):** saving through the class or subclass row (milestone 2c:
+the ability host has no `upload`, and `tableName = "abilities"` is not a real table); usage
+limits, Choose one when used (variations) and the "Targets are:" row; plan 12.5-12.6 (soft
+deletes, other people's changes); the Advanced editor tab and its states; the per-block word
+list; redrawing only the changed block; the dashed "doesn't fit" shelf rows; a card for a roll
+like "2d10 + Might + 1" shows the raw roll.

@@ -391,6 +391,10 @@ local function _modeNames(key, record)
     for _, number in ipairs(_keyList(key) or {}) do
         local mode = type(modeList) == "table" and modeList[number] or nil
         local text = mode ~= nil and rawget(mode, "text") or nil
+        if number == -1 then
+            --the Advanced editor's "Disabled": in no mode at all.
+            text = "no mode (turned off)"
+        end
         names[#names + 1] = type(text) == "string" and text or ("mode " .. tostring(number))
     end
     return table.concat(names, " or ")
@@ -413,7 +417,13 @@ Block.RegisterWrapper{
     id = "ability.mode",
     order = 10,
     block = "ability.mode",
-    key = function(behavior)
+    key = function(behavior, ctx)
+        --the game only reads a step's modes on an ability that has modes
+        --(ActivatedAbilityBehavior:SkippedInMode), so elsewhere they are left as saved.
+        local record = ctx ~= nil and ctx.record or nil
+        if record == nil or not Block.FieldValue(record, "multipleModes") then
+            return nil
+        end
         return _listKey(rawget(behavior, "modesSelected"))
     end,
     values = function(key, ctx)

@@ -88,7 +88,7 @@ end
 function BEShelf.Create(host)
     local sections = host ~= nil and host.shelfSections or nil
     if sections == nil or #sections == 0 then
-        sections = { { title = "Blocks", fits = "step" } }
+        sections = { { title = T("blockeditor.shelf.blocks"), fits = "step" } }
     end
 
     local children = {}

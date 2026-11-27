@@ -813,8 +813,9 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         local m_rollInfo
         local m_rollInfoKey
         local m_finished = false
-        --Edges and banes changed while the dice are still rolling (a hero pressing a
-        --triggered bane at once). Written to the roll's chat message when they land.
+        --A change to edges or banes made while the dice are still rolling (e.g. a
+        --hero's triggered bane pressed straight after the throw). Written to the
+        --roll's chat message when the dice land.
         local m_pendingRollProperties = nil
         local m_tierFinished = nil
         local m_multitargetResults = nil
@@ -828,9 +829,13 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     return
                 end
             end
-            --a re-roll's key may not be listed as its own message.
+            --Not in the chat list (a re-roll can be missing from it): upload through
+            --the roll itself.
             if m_rollInfo ~= nil then
-                pcall(function() m_rollInfo:UploadProperties(props) end)
+                local ok, err = pcall(function() m_rollInfo:UploadProperties(props) end)
+                if not ok then
+                    print("ROLL:: could not upload edges and banes to the roll:", err)
+                end
             end
         end
 
@@ -1015,6 +1020,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 m_endTime = nil
                 m_finished = false
                 m_tierFinished = nil
+                --m_pendingRollProperties is kept on purpose: a change made while a
+                --re-roll's dice tumble belongs on the new roll.
                 --a re-roll hides a secret Critical again until it lands.
                 m_critRevealed = false
 
@@ -2407,10 +2414,24 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --of Cast applies (manual amend / test overrideTier wins over the natural
     --dice tier).
     local rolledTier = EffectiveTier(nil)
+    --A tier picked on the chat card is saved on the roll's message, which is also where
+    --each target's tier above reads it; one picked in the roll dialog is saved here too.
+    local overrideProperties = rollProperties
+    if m_rollInfo ~= nil and m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("overrideTier") ~= nil then
+        overrideProperties = m_rollInfo.properties
+    end
+    local overrideTier = overrideProperties:try_get("overrideTier")
     --an overridden tier: who chose it and what the dice gave, for a record of play (History).
-    if rollProperties:try_get("overrideTier") ~= nil then
-        options.symbols.cast.overrideBy = rollProperties:try_get("overrideBy")
+    if overrideTier ~= nil then
+        options.symbols.cast.overrideBy = overrideProperties:try_get("overrideBy")
         options.symbols.cast.diceTier = DiceResultToTier(m_result)
+    end
+    --The roll's own tier, before any one target's edges, banes or tier changes. History
+    --shows it beside the roll's total; cast.tier ends up as the last target's tier.
+    --A silenced caster's roll has no tier, as on the target lines.
+    options.symbols.cast.rollTier = overrideTier or DiceResultToTier(m_result)
+    if rollProperties:try_get("tierSuppressed") then
+        options.symbols.cast.rollTier = -1
     end
     if followUpDice == nil and (rolledTier == 1 or rolledTier == 2 or rolledTier == 3) then
         LiveEncounter.TrackHeroStats(casterToken.charid, string.format("tierRolls/tier%d", rolledTier))

@@ -726,7 +726,8 @@ local function AddRoll(entry, cast, ability, caster)
         high = cast:try_get("highRoll"),
         edges = cast.boonsApplied,
         banes = cast.banesApplied,
-        tier = cast.tier,
+        --the roll's own tier; cast.tier is the last target's, which its own edges can change.
+        tier = cast:try_get("rollTier") or cast.tier,
         hidden = cast:try_get("hiddenRoll"),
     }
     --a tier chosen after the dice landed: who chose it and what the dice gave.

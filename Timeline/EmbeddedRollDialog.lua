@@ -8611,19 +8611,33 @@ function GameHud.CreateEmbeddedRollDialog()
                         --dialog was hidden). Copy this dialog's target rows over when they differ.
                         local liveRows = rollProperties ~= nil and rollProperties:try_get("multitargets") or nil
                         if rolled ~= nil and rolled ~= rollProperties and liveRows ~= nil then
+                            --The row fields that decide each target's tier and its surges. A whole-row
+                            --compare would also catch hover texts and upload on every roll.
+                            local resolvedRowFields = {"tokenid", "boons", "banes", "tiersDelta", "autosuccess", "autofailure", "nottierone", "nottierthree", "surges"}
                             local rolledRows = rolled:try_get("multitargets") or {}
                             local rowsDiffer = #rolledRows ~= #liveRows
                             for i, liveRow in ipairs(liveRows) do
                                 local rolledRow = rolledRows[i]
-                                for _, field in ipairs({"tokenid", "boons", "banes", "tiersDelta", "autosuccess", "autofailure", "nottierone", "nottierthree"}) do
-                                    if rolledRow == nil or rolledRow[field] ~= liveRow[field] then
+                                if rolledRow == nil then
+                                    rowsDiffer = true
+                                else
+                                    for _, field in ipairs(resolvedRowFields) do
+                                        if rolledRow[field] ~= liveRow[field] then
+                                            rowsDiffer = true
+                                        end
+                                    end
+                                    --a modifier added after the throw (one that raises potency, say).
+                                    if #(rolledRow.modifiersUsed or {}) ~= #(liveRow.modifiersUsed or {}) then
                                         rowsDiffer = true
                                     end
                                 end
                             end
                             if rowsDiffer then
                                 rolled.multitargets = DeepCopy(liveRows)
-                                pcall(function() rollInfo:UploadProperties(rolled) end)
+                                local ok, err = pcall(function() rollInfo:UploadProperties(rolled) end)
+                                if not ok then
+                                    print("ROLL:: could not upload edges and banes to the roll:", err)
+                                end
                             end
                         end
                         if rolled ~= nil and rolled ~= rollProperties then

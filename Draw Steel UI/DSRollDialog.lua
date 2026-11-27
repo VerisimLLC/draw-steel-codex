@@ -3765,12 +3765,7 @@ function GameHud.CreateRollDialog(self)
                             --Only counts above 0 are recorded below, so first clear what an earlier
                             --roll on this cast (an invoked or repeated strike) recorded for this target.
                             if m_symbols ~= nil and m_symbols.cast ~= nil then
-                                for _, field in ipairs({"targetFreeSurges", "targetGainedSurges"}) do
-                                    local byTarget = m_symbols.cast:try_get(field)
-                                    if byTarget ~= nil then
-                                        byTarget[target.token.charid] = nil
-                                    end
-                                end
+                                m_symbols.cast:ClearTargetRollRecords(target.token.charid, ActivatedAbilityCast.targetDialogSurgeFields)
                             end
 
                             --Record free surges a modifier granted just for this strike, so the

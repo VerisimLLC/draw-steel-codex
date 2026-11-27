@@ -1020,7 +1020,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 m_endTime = nil
                 m_finished = false
                 m_tierFinished = nil
-                --Not cleared: a change still waiting from the last throw is uploaded with this one.
+                --m_pendingRollProperties is kept on purpose: an edge pressed during the last
+                --throw still uploads when this one lands.
                 --a re-roll hides a secret Critical again until it lands.
                 m_critRevealed = false
 
@@ -2616,14 +2617,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 local potencyApplied = 0
                 --An earlier roll on this cast (an invoking or invoked ability's) may have recorded
                 --this target's own roll, sources, surges or potency; only this roll's should show.
-                --Keep in step with the invoke's list in AbilityInvokeAbility.lua; both roll dialogs
-                --clear the free and gained surges themselves, as they record them.
-                for _, field in ipairs({"targetRolls", "targetSources", "targetDamageSources", "targetSurges", "targetPotencySources", "potencyApplied"}) do
-                    local byTarget = options.symbols.cast:try_get(field)
-                    if byTarget ~= nil then
-                        byTarget[targetToken.charid] = nil
-                    end
-                end
+                options.symbols.cast:ClearTargetRollRecords(targetToken.charid, ActivatedAbilityCast.targetRollRecordFields)
                 --this target's row of the roll dialog. Found by token: when targets are chosen as
                 --each tier resolves (promptWhenResolving) every pass has one target at position 1.
                 local multitarget = nil

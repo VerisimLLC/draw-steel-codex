@@ -881,17 +881,25 @@ local function InvokeIsWholeAbility(behavior, ability)
 end
 
 --The cast's record of the parent's power roll that an invoked roll writes over: who
---rolled, the dice, total, edges and banes, the tiers, and each target's own roll,
---sources, potency and surges (the last are tables keyed by target). Keep the per-target
---list in step with the one the power roll clears in MCDMAbilityRollBehavior.lua's Cast.
+--rolled, the dice, total, edges and banes, and the tiers. The per-target records are
+--listed on ActivatedAbilityCast (see TargetRollFields below).
 local g_rollFields = {
     "tier", "rollTier", "total", "naturalRoll", "lowRoll", "highRoll", "boonsApplied", "banesApplied",
     "hiddenRoll", "diceTier", "overrideBy", "casterid",
 }
-local g_rollTargetFields = {
-    "tokenToTier", "potencyApplied", "targetRolls", "targetSources", "targetDamageSources",
-    "targetSurges", "targetFreeSurges", "targetGainedSurges", "targetPotencySources",
-}
+
+--Every per-target roll record, each a table keyed by charid. Built when called: the
+--lists are defined by Draw Steel Core Rules, which loads after this file.
+--- @return string[]
+local function TargetRollFields()
+    local fields = {"tokenToTier"}
+    for _, list in ipairs({ActivatedAbilityCast.targetRollRecordFields, ActivatedAbilityCast.targetDialogSurgeFields}) do
+        for _, field in ipairs(list or {}) do
+            fields[#fields + 1] = field
+        end
+    end
+    return fields
+end
 
 --- Runs the invoke, then puts back the invoking cast's power roll. An invoked ability
 --- shares its parent's cast, so its own roll (an ally's granted strike) would otherwise
@@ -909,7 +917,8 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
     for _, field in ipairs(g_rollFields) do
         saved[field] = cast:try_get(field)
     end
-    for _, field in ipairs(g_rollTargetFields) do
+    local targetFields = TargetRollFields()
+    for _, field in ipairs(targetFields) do
         local byTarget = cast:try_get(field)
         --a copy: the invoked roll adds its own targets to these tables.
         saved[field] = byTarget ~= nil and table.shallow_copy(byTarget) or nil
@@ -920,7 +929,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
     for _, field in ipairs(g_rollFields) do
         cast[field] = saved[field]
     end
-    for _, field in ipairs(g_rollTargetFields) do
+    for _, field in ipairs(targetFields) do
         cast[field] = saved[field]
     end
 end

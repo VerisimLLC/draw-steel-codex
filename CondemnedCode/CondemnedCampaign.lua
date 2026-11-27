@@ -1813,6 +1813,9 @@ local function CreateElsewhereRow(entry)
     end, { lmargin = 6, hover = gui.Tooltip("Record this hero's collar as taken off: it counts for the ending.") })
 
     local function Refresh()
+        --look the token up again on every refresh: the one saved when the row was
+        --built stops working if the token is removed.
+        entry.token = dmhub.GetCharacterById(entry.charid) or entry.token
         local status = CollarStatus(entry.charid, entry.token)
         SetChip(chip, STATUS_TEXT[status], STATUS_CLASS[status])
         local record = (Data().collars or {})[entry.charid]

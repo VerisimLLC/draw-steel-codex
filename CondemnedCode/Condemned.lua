@@ -112,7 +112,8 @@ local g_busy = {}
 ---@param token CharacterToken
 ---@return boolean
 local function IsCollared(token)
-    return token.portraitFrameMaterial == COLLAR_FRAME_ID
+    --a token saved earlier stops working once it is deleted; count it as not collared.
+    return token.valid and token.portraitFrameMaterial == COLLAR_FRAME_ID
 end
 
 --the blown-up heroes, keyed by charid.

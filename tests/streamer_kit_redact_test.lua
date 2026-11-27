@@ -328,4 +328,59 @@ end)()
     AssertNoLeaks(out, "outcome")
 end)()
 
+--the montage: its block passes only in montage mode, and only known fields.
+;(function()
+    local raw = Fixture()
+    raw.mode = "montage"
+    raw.montage = {
+        title = "Through the Reedmarsh",
+        round = 2, rounds = 3, phase = "rounds",
+        successes = 3, failures = 1, unvanquished = 0,
+        secretEntries = { SECRET },
+        board = {
+            { id = "o1", kind = "opportunity", name = "Bribe the Ferryman", state = "taken", notes = SECRET },
+            { id = "t1", kind = "threat", name = "Leeches", state = "open", remaining = 2, temporary = true,
+              consequence = { text = SECRET } },
+            { id = "x", kind = "secret", name = SECRET },
+            { id = "y", kind = "threat", name = "" },
+            { id = "z", kind = "opportunity", name = "Odd state", state = SECRET },
+        },
+        turn = { hero = "Ilsa Varn", entry = "Leeches", option = "Burn them off", status = "rolling", tier = 9,
+                 options = { SECRET } },
+        log = {},
+    }
+    for i = 1, 20 do
+        raw.montage.log[i] = { round = 1, hero = "Sev", entry = "Entry " .. i, option = "Climb", tier = 2, applied = { SECRET } }
+    end
+    raw.montage.log[21] = { round = 2, entry = "Leeches", consequence = true, effects = SECRET }
+
+    local out = StreamerKitRedact.Redact(raw)
+    check(out.mode == "montage", "montage mode passes")
+    local m = out.montage
+    check(m ~= nil and m.title == "Through the Reedmarsh", "montage title")
+    check(m.round == 2 and m.rounds == 3 and m.phase == "rounds", "round, rounds and phase")
+    check(m.successes == 3 and m.failures == 1 and m.unvanquished == 0, "totals")
+    check(#m.board == 3, "board keeps known kinds with names: " .. #m.board)
+    check(m.board[1].state == "taken" and m.board[2].remaining == 2 and m.board[2].temporary == true, "entry state, remaining, temporary")
+    check(m.board[1].remaining == nil, "an opportunity has no remaining count")
+    check(m.board[3].state == "open", "an unknown state reads open")
+    check(m.turn.option == "Burn them off" and m.turn.tier == nil, "the chosen option passes; an impossible tier does not")
+    check(#m.log == 12, "only the last 12 log lines: " .. #m.log)
+    check(m.log[12].consequence == true and m.log[12].entry == "Leeches", "the newest line is last")
+    AssertNoLeaks(out, "montage")
+
+    raw.montage.turn.status = "choosing"
+    check(StreamerKitRedact.Redact(raw).montage.turn.option == nil, "no option while the hero is still choosing")
+    raw.montage.turn.status = "peeking"
+    check(StreamerKitRedact.Redact(raw).montage.turn == nil, "an unknown turn status drops the turn")
+
+    raw.mode = "combat"
+    check(StreamerKitRedact.Redact(raw).montage == nil, "no montage block outside montage mode")
+    raw.mode = "montage"
+    raw.montage = SECRET
+    out = StreamerKitRedact.Redact(raw)
+    check(out.montage == nil, "a non-table montage is dropped")
+    AssertNoLeaks(out, "montage garbage")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

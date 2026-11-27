@@ -783,6 +783,103 @@ end
 local g_outcome = nil
 local g_outcomeCombat = nil
 
+--- The montage as the party's screen shows it, or nil when no montage is
+--- running. Only what every player can see goes in: entries already on the
+--- board (EncounterMontage.EntryHidden keeps locked, removed and expired ones
+--- out, and later rounds are not on it yet), the option a hero has chosen
+--- once it is chosen, and the montage log. StreamerKitRedact still decides
+--- what leaves.
+--- @return nil|table
+local function RawMontage()
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return nil
+    end
+    local m = montage.GetState()
+    if m == nil or m.phase == "done" then
+        return nil
+    end
+    local beat = montage.CurrentBeat()
+    if beat == nil or beat.kind ~= "montage" then
+        return nil
+    end
+    local round = tonumber(m.round) or 1
+
+    local totals = montage.TotalsFromLog(m)
+    local raw = {
+        title = beat.title,
+        round = round,
+        rounds = #(beat.rounds or {}),
+        phase = m.phase,
+        successes = totals.successes,
+        failures = totals.failures,
+        unvanquished = totals.unvanquished,
+        board = {},
+        log = {},
+    }
+
+    for _, r in ipairs(beat.rounds or {}) do
+        for _, entry in ipairs(r.entries or {}) do
+            if (tonumber(entry.round) or 1) <= round and not montage.EntryHidden(m, beat, entry) then
+                local state = "open"
+                if entry.kind == "opportunity" and (m.taken or {})[entry.id] then
+                    state = "taken"
+                elseif entry.kind == "threat" and (m.vanquished or {})[entry.id] then
+                    state = "vanquished"
+                end
+                raw.board[#raw.board + 1] = {
+                    id = entry.id,
+                    kind = entry.kind,
+                    name = entry.name,
+                    state = state,
+                    temporary = entry.temporary == true,
+                    remaining = cond(entry.kind == "threat", montage.ThreatRemaining(m, entry), nil),
+                }
+            end
+        end
+    end
+
+    local t = m.turn
+    if type(t) == "table" and t.status ~= "resolved" then
+        local heroName = nil
+        for _, hero in ipairs(montage.Heroes()) do
+            if hero.charid == t.heroid then
+                heroName = hero.name
+            end
+        end
+        local entry = montage.TurnEntry(beat, t)
+        local turn = {
+            hero = heroName,
+            entry = entry ~= nil and entry.name or nil,
+            status = t.status,
+        }
+        --the option once the hero has picked it (not while choosing).
+        if t.optionIndex ~= nil and t.status ~= "choosing" and entry ~= nil then
+            local option = (entry.options or {})[t.optionIndex]
+            turn.option = option ~= nil and option.name or nil
+        end
+        if t.tier ~= nil then
+            turn.tier = tonumber(t.tier)
+        end
+        raw.turn = turn
+    end
+
+    for _, e in ipairs(m.log or {}) do
+        if type(e) == "table" then
+            raw.log[#raw.log + 1] = {
+                round = tonumber(e.round),
+                hero = e.heroName,
+                entry = e.entryName,
+                option = e.optionName,
+                tier = tonumber(e.tier),
+                passed = e.passed == true,
+                consequence = e.consequence == true,
+            }
+        end
+    end
+    return raw
+end
+
 --- The raw (Director-level) snapshot for the viewer feed. Malice is never
 --- collected: viewers do not see it (decided 2026-11-27), and what is not
 --- gathered cannot leak.
@@ -848,6 +945,17 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
         end
     end
     raw.outcome = g_outcome
+
+    --a montage beat: its own mode and block (combat wins if both somehow are).
+    if q == nil then
+        local ok, montage = pcall(RawMontage)
+        if ok and montage ~= nil then
+            raw.mode = "montage"
+            raw.montage = montage
+        elseif not ok then
+            print("StreamOverlay:: montage snapshot failed:", montage)
+        end
+    end
 
     for _, token in ipairs(HeroTokens()) do
         if token.valid and token.properties ~= nil then

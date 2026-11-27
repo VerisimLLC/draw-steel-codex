@@ -75,6 +75,16 @@ local g_gamesOpenSetting = setting{
     default = true,
 }
 
+--Streamer Mode (the "streamermode" setting) keeps the rail collapsed, so a
+--stream does not show friends' names or the town chat, until the streamer
+--opens it. Opening it is remembered for the rest of the app run.
+local g_streamerOpened = false
+
+--- @return boolean
+local function StreamerMode()
+    return dmhub.GetSettingValue("streamermode") == true
+end
+
 --The account lookup, kept for the session: { [steamId] = uid } and
 --{ [discordId] = uid }, which ids were asked about, and when.
 local g_lookup = {
@@ -734,8 +744,10 @@ end
 function EotwSocialRail.Create(ctx)
     local height = ctx.height
 
+    local streamerCollapsed = StreamerMode() and not g_streamerOpened
     local state = {
         collapsed = false,
+        streamerMode = StreamerMode(),
         friendsOpen = g_friendsOpenSetting:Get() ~= false,
         gamesOpen = g_gamesOpenSetting:Get() ~= false,
         showOffline = false,
@@ -1154,6 +1166,9 @@ function EotwSocialRail.Create(ctx)
             return
         end
         state.collapsed = collapsed
+        if StreamerMode() then
+            g_streamerOpened = not collapsed
+        end
         expanded:SetClass("collapsed", collapsed)
         mini:SetClass("collapsed", not collapsed)
         local width = cond(collapsed, EotwSocialRail.COLLAPSED_WIDTH, EotwSocialRail.WIDTH)
@@ -1355,6 +1370,16 @@ function EotwSocialRail.Create(ctx)
 
         thinkTime = 0.5,
         think = function(element)
+            --Streamer Mode turned on with the rail open: collapse it.
+            local streamerMode = StreamerMode()
+            if streamerMode ~= state.streamerMode then
+                state.streamerMode = streamerMode
+                if streamerMode then
+                    SetCollapsed(true)
+                else
+                    g_streamerOpened = false
+                end
+            end
             local conn = ctx.conn()
             if countLabel ~= nil and countLabel.valid and conn ~= nil then
                 local n = 0
@@ -1386,6 +1411,20 @@ function EotwSocialRail.Create(ctx)
         expanded,
         mini,
     }
+    --Streamer Mode: build it collapsed, so it never shows open, then tell the
+    --town once the screen holding the rail exists.
+    if streamerCollapsed then
+        state.collapsed = true
+        expanded:SetClass("collapsed", true)
+        mini:SetClass("collapsed", false)
+        rail.selfStyle.width = EotwSocialRail.COLLAPSED_WIDTH
+        dmhub.Schedule(0.05, function()
+            if rail.valid and state.collapsed then
+                ctx.OnChatShown(false)
+                ctx.OnWidthChanged(EotwSocialRail.COLLAPSED_WIDTH)
+            end
+        end)
+    end
     if ctx.created ~= nil then
         ctx.created(rail)
     end

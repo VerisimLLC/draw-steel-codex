@@ -53,7 +53,16 @@
 --      abilities = { { id, name, text, used, maliceCost, notes } },
 --      villainActions = { { id, name, text, used, notes } } } },
 --    events = { { seq, t, kind, whoId, who, targetId, target, amount, crit } },
+--    montage = nil | { title, round, rounds, phase, successes, failures,
+--      unvanquished,
+--      board = { { id, kind ("opportunity"|"threat"), name,
+--                  state ("open"|"taken"|"vanquished"), temporary, remaining } },
+--      turn = { hero, entry, option, status, tier },
+--      log = { { round, hero, entry, option, tier, passed, consequence } } },
 --  }
+--  The montage block holds only what every player's screen shows: the
+--  collector leaves out locked, removed and expired entries, later rounds'
+--  entries, and the option a hero is still choosing.
 --
 --VIEWER SNAPSHOT (output): see Redact below; FORMAT_VERSION bumps on change.
 
@@ -77,7 +86,16 @@ local MAX_EVENTS = 20
 local MAX_STRING = 600
 
 local HERO_STATES = { ok = true, winded = true, dying = true, dead = true }
-local MODES = { combat = true, exploration = true, respite = true, none = true }
+local MODES = { combat = true, exploration = true, respite = true, montage = true, none = true }
+local MAX_BOARD = 40
+local MAX_MONTAGE_LOG = 12
+local ENTRY_KINDS = { opportunity = true, threat = true }
+local ENTRY_STATES = { open = true, taken = true, vanquished = true }
+local MONTAGE_PHASES = { rounds = true, consequences = true }
+local TURN_STATUSES = {
+    scene = true, choosing = true, rolling = true, perk = true, pardon = true,
+    dice = true, chest = true, chestlanded = true, delvechoice = true,
+}
 local TURN_KINDS = { hero = true, monster = true, ["heroes-choosing"] = true, ["monsters-choosing"] = true }
 --the kinds StreamOverlay.lua emits, plus ones planned for the ticker.
 local EVENT_KINDS = {
@@ -126,6 +144,67 @@ local function List(list, max)
         result[#result + 1] = list[i]
     end
     return result
+end
+
+--- The montage block (see RAW SNAPSHOT). Nil unless it is a table.
+--- @param raw any
+--- @return nil|table
+local function RedactMontage(raw)
+    if type(raw) ~= "table" then
+        return nil
+    end
+    local out = {
+        title = Str(raw.title),
+        round = Whole(raw.round),
+        rounds = Whole(raw.rounds),
+        phase = MONTAGE_PHASES[raw.phase] and raw.phase or "rounds",
+        successes = Whole(raw.successes) or 0,
+        failures = Whole(raw.failures) or 0,
+        unvanquished = Whole(raw.unvanquished) or 0,
+        board = {},
+        log = {},
+    }
+    for _, entry in ipairs(List(raw.board, MAX_BOARD)) do
+        if type(entry) == "table" and ENTRY_KINDS[entry.kind] and Str(entry.name) ~= nil then
+            out.board[#out.board + 1] = {
+                id = Str(entry.id),
+                kind = entry.kind,
+                name = Str(entry.name),
+                state = ENTRY_STATES[entry.state] and entry.state or "open",
+                temporary = entry.temporary == true or nil,
+                remaining = entry.kind == "threat" and Whole(entry.remaining) or nil,
+            }
+        end
+    end
+    local turn = raw.turn
+    if type(turn) == "table" and TURN_STATUSES[turn.status] then
+        local tier = Whole(turn.tier)
+        out.turn = {
+            hero = Str(turn.hero),
+            entry = Str(turn.entry),
+            --the choice only once it is made.
+            option = (turn.status ~= "choosing" and turn.status ~= "scene") and Str(turn.option) or nil,
+            status = turn.status,
+            tier = (tier ~= nil and tier >= 1 and tier <= 4) and tier or nil,
+        }
+    end
+    local log = type(raw.log) == "table" and raw.log or {}
+    for i = math.max(1, #log - MAX_MONTAGE_LOG + 1), #log do
+        local e = log[i]
+        if type(e) == "table" then
+            local tier = Whole(e.tier)
+            out.log[#out.log + 1] = {
+                round = Whole(e.round),
+                hero = Str(e.hero),
+                entry = Str(e.entry),
+                option = Str(e.option),
+                tier = (tier ~= nil and tier >= 1 and tier <= 4) and tier or nil,
+                passed = e.passed == true or nil,
+                consequence = e.consequence == true or nil,
+            }
+        end
+    end
+    return out
 end
 
 local function Initials(name)
@@ -327,6 +406,9 @@ function StreamerKitRedact.Redact(raw)
         foes = { standing = standing, total = total, list = monsters },
         events = {},
     }
+    if out.mode == "montage" then
+        out.montage = RedactMontage(raw.montage)
+    end
 
     local encounter = type(raw.encounter) == "table" and raw.encounter or {}
     out.encounter = { title = Str(encounter.title) }

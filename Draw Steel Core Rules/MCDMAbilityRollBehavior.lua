@@ -2818,6 +2818,15 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     else
         --multitargets, not targets: it holds every creature hit, after any redirects.
         ActivatedAbility.SaveTargetsForLater(ability, casterToken, multitargets, m_rollInfo)
+        --Temporary: the dice the natural 19-20 triggers will see, next to every die
+        --the roll reported. Remove once that bug is confirmed.
+        local diceSeen = {}
+        for _, die in ipairs(m_rollInfo.rolls or {}) do
+            diceSeen[#diceSeen+1] = string.format("d%s=%s%s", tostring(die.numFaces), tostring(die.result), die.dropped and "(dropped)" or "")
+        end
+        print("ROLL:: POWER DISPATCH", casterToken.name, ability.name, "castid=" .. tostring(options.symbols.castid),
+            "natural=" .. tostring(triggerInfo.naturalroll), "high=" .. tostring(triggerInfo.highroll), "low=" .. tostring(triggerInfo.lowroll),
+            "dice=" .. table.concat(diceSeen, ","))
         casterToken.properties:DispatchEvent("rollpower", triggerInfo)
     end
 

@@ -96,7 +96,8 @@ local Int = History.Int
 --creatures players control are always seen; Hidden alone hides nothing (the rules let players
 --know a Hidden creature is there), only with the Hidden Creatures are Invisible setting.
 local function UnseenByPlayers(token)
-    if token.invisibleToPlayers then
+    --a hidden object (an unfound trap) uses its own flag, not invisibleToPlayers.
+    if token.invisibleToPlayers or (token.isObject and token.objectInvisibleToPlayers) then
         return "token"
     end
     if token.playerControlled then
@@ -1203,7 +1204,8 @@ local function OnRested(creature)
     end
 end
 
---- Objects have Stamina but are never winded, so History leaves winded out of their rows.
+--- Whether a token is an object, or a creature treated as one. Objects have Stamina but
+--- are never winded, and at 0 Stamina they are destroyed rather than killed.
 --- @param token CharacterToken
 --- @return boolean
 local function IsObjectToken(token)

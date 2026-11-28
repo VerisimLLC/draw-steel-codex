@@ -4789,8 +4789,8 @@ local function CreateFace()
         if not stick then
             CaptureAnchor()
         end
-        --caught up: a new row while the reader sits at the bottom ends "New since you last
-        --looked"; with History open, what arrives now is being watched.
+        --caught up: once the reader has had "New since you last looked" on screen, a new row
+        --while they sit at the bottom ends it; with History open, what arrives now is being watched.
         local keys = History.Keys(mapid)
         local newest = keys[#keys]
         if fromGame and stick and not firstBuild and (markerSeen or rows["newmarker"] == nil) and builtNewest ~= nil and newest ~= nil and newest > builtNewest then

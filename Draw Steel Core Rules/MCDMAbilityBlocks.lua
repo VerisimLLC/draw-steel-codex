@@ -532,20 +532,60 @@ local function _tierParts(text)
     local parts = {}
     local position = 1
     while true do
+        --a potency ("M < weak") is boxed whole, as the book prints it; a lone letter is a chip.
+        local pFirst, pLast, pLetter, pWord = string.find(text, "%f[%w]([MARIP])%s*<%s*(%a+)", position)
         local first, last, letter = string.find(text, "%f[%w]([MARIP])%f[%W]", position)
-        if first == nil then
+        if first == nil and pFirst == nil then
             break
         end
-        if first > position then
-            parts[#parts + 1] = string.sub(text, position, first - 1)
+        if pFirst ~= nil and (first == nil or pFirst <= first) then
+            if pFirst > position then
+                parts[#parts + 1] = string.sub(text, position, pFirst - 1)
+            end
+            parts[#parts + 1] = { box = pLetter .. "<" .. string.upper(pWord) }
+            position = pLast + 1
+        else
+            if first > position then
+                parts[#parts + 1] = string.sub(text, position, first - 1)
+            end
+            parts[#parts + 1] = { chip = letter }
+            position = last + 1
         end
-        parts[#parts + 1] = { chip = letter }
-        position = last + 1
     end
     if position <= #text then
         parts[#parts + 1] = string.sub(text, position)
     end
     return parts
+end
+
+--- The effect text as the book prints it: a paragraph per line, a leading
+--- "Label:" (or "**Label:**") as its bold label, "**bold**" as bold, and
+--- "Effect:" on the first paragraph that has no label of its own.
+--- @param text string
+--- @return {label?: string, text: string}[]
+local function _effectParagraphs(text)
+    local result = {}
+    for line in string.gmatch(text .. "\n", "([^\n]*)\n") do
+        line = string.gsub(line, "^%s+", "")
+        line = string.gsub(line, "%s+$", "")
+        if line ~= "" then
+            local label, rest = string.match(line, "^%*%*([^*]-:)%*%*%s*(.*)$")
+            if label == nil then
+                --a short plain "Label:" at the start ("Strained:", "Spend 1 Ferocity:").
+                label, rest = string.match(line, "^([%a][%w '%-]-:)%s+(.*)$")
+                if label ~= nil and #label > 30 then
+                    label, rest = nil, nil
+                end
+            end
+            rest = rest or line
+            rest = string.gsub(rest, "%*%*(.-)%*%*", "<b>%1</b>")
+            result[#result + 1] = { label = label, text = rest }
+        end
+    end
+    if result[1] ~= nil and result[1].label == nil then
+        result[1].label = "Effect:"
+    end
+    return result
 end
 
 ----------------------------------------------------------------------------
@@ -1531,7 +1571,8 @@ Block.RegisterHost{
         local values = model.values or {}
         local title = _text(model, "name")
         local cost = tonumber(values.cost) or 0
-        if cost > 0 then
+        --a cost only means something with a resource to pay it in ("1 nothing" otherwise).
+        if cost > 0 and values.resource ~= nil and values.resource ~= "none" then
             title = string.format("%s (%d %s)", title, cost, _text(model, "resource"))
         end
         local action = _text(model, "action")
@@ -1590,7 +1631,7 @@ Block.RegisterHost{
             end
         end
         if effect ~= "" then
-            card.effect = { label = "Effect:", text = effect }
+            card.paragraphs = _effectParagraphs(effect)
         end
         return card
     end,

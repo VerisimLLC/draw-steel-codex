@@ -520,10 +520,11 @@ local function _editorChromeStyles()
         },
 
         -- Section headers: caret, small uppercase title, count, and a rule under.
+        -- Kept light (ledger 2026-11-28): a dim small title over a faint rule.
         {
             selectors = {"beSecHead"},
             width = "100%",
-            height = 30,
+            height = 24,
             flow = "horizontal",
             valign = "top",
             tmargin = 14,
@@ -537,12 +538,12 @@ local function _editorChromeStyles()
         {
             selectors = {"beCaret"},
             halign = "left",
-            width = 12,
-            height = 12,
+            width = 10,
+            height = 10,
             valign = "center",
-            rmargin = 8,
+            rmargin = 6,
             bgimage = "phosphor/caret-down-fill.png",
-            bgcolor = "@fg",
+            bgcolor = "@fgMuted",
         },
         {
             selectors = {"label", "beSecTitle"},
@@ -551,14 +552,13 @@ local function _editorChromeStyles()
             height = "auto",
             valign = "center",
             fontFace = "@input",
-            fontSize = 13,
-            bold = true,
+            fontSize = 11,
             uppercase = true,
-            color = "@fg",
+            color = "@fgMuted",
         },
         {
             selectors = {"label", "beSecTitle", "parent:hover"},
-            color = "@fgStrong",
+            color = "@fg",
         },
         {
             selectors = {"label", "beSecOptional"},
@@ -590,6 +590,7 @@ local function _editorChromeStyles()
             bmargin = 4,
             bgimage = true,
             bgcolor = "@border",
+            opacity = 0.5,
         },
 
         -- The italic line under a header group, and the add rows.
@@ -748,7 +749,8 @@ local function _editorChromeStyles()
             bgcolor = Fixed(FIXED.SLIVER_HINT_FILL),
             border = 1,
             borderStyle = "dashed",
-            borderColor = "@fgMuted",
+            --the accent, as the prototype's gold slots.
+            borderColor = "@accent",
         },
         {
             selectors = {"beSliver", "beSliverOpen"},
@@ -847,6 +849,61 @@ local function _editorChromeStyles()
             height = "auto",
             flow = "vertical",
             valign = "top",
+        },
+        -- The block being dragged, faded in place.
+        {
+            selectors = {"beBlock", "beDragSource"},
+            opacity = 0.4,
+            priority = 12,
+        },
+        -- A list chosen as the insertion cursor (adds go at its end): outlined in the accent.
+        {
+            selectors = {"beCursorList"},
+            bgimage = true,
+            border = 1,
+            borderColor = "@accent",
+            priority = 12,
+        },
+        -- A shelf row that cannot go in the insertion cursor's list.
+        {
+            selectors = {"beShelfRow", "beNoFit"},
+            opacity = 0.45,
+            priority = 12,
+        },
+        -- The button on a grey Advanced block that opens the Advanced editor.
+        {
+            selectors = {"label", "beAdvancedButton"},
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            fontSize = 12,
+            color = "@fg",
+            hpad = 8,
+            vpad = 2,
+            rmargin = 6,
+            bgimage = true,
+            bgcolor = "clear",
+            border = 1,
+            borderColor = "@fgMuted",
+            cornerRadius = 4,
+        },
+        {
+            selectors = {"label", "beAdvancedButton", "hover"},
+            borderColor = "@fg",
+        },
+        -- An outlined phrase on the card (a potency), in the card's ink.
+        {
+            selectors = {"beCardBox"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hpad = 3,
+            bgimage = true,
+            bgcolor = "clear",
+            border = 1,
+            borderColor = Fixed(FIXED.INK),
+            cornerRadius = 2,
         },
         -- The status sentence above the checks: a bordered box, red when something must be fixed.
         {
@@ -1612,7 +1669,7 @@ end
 --- A section header as the mockup draws it: a caret, a small uppercase title,
 --- an optional "optional" tag and a count on the right, with a rule under it.
 --- Returns the header and its rule as two panels, for a vertical list.
---- @param args {title: string, count?: string, optional?: string, shelf?: boolean, press?: fun(element: Panel), countFn?: (fun(state: BEState): string), data?: table}
+--- @param args {title: string, count?: string, optional?: string, emptyFn?: (fun(state: BEState): boolean), shelf?: boolean, press?: fun(element: Panel), countFn?: (fun(state: BEState): string), data?: table}
 --- @return Panel header, Panel rule
 function BEStyles.SectionHeader(args)
     local children = {
@@ -1620,7 +1677,16 @@ function BEStyles.SectionHeader(args)
         gui.Label{ classes = {"beSecTitle"}, text = args.title, interactable = false },
     }
     if args.optional ~= nil then
-        children[#children + 1] = gui.Label{ classes = {"beSecOptional"}, text = args.optional, interactable = false }
+        local emptyFn = args.emptyFn
+        children[#children + 1] = gui.Label{
+            classes = {"beSecOptional"},
+            text = args.optional,
+            interactable = false,
+            --"optional" shows only while the section is empty.
+            [BlockEditor.REFRESH_EVENT] = emptyFn ~= nil and function(element, state)
+                element:SetClass("collapsed", not emptyFn(state))
+            end or nil,
+        }
     end
     if args.count ~= nil or args.countFn ~= nil then
         local countFn = args.countFn

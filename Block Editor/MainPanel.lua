@@ -432,6 +432,32 @@ local function _sectionStrip(decl)
     return gui.Panel{
         classes = {"beStrip"},
         children = children,
+        --the mark follows scrolling: the section whose header is last at or above
+        --the page's top edge (the first section while nothing has scrolled past).
+        thinkTime = 0.25,
+        think = function(element)
+            local controller = BlockEditor._getController(element)
+            local detail = controller ~= nil and controller:Get(BEPage.DETAIL_ID) or nil
+            if detail == nil or not detail.valid then
+                return
+            end
+            local viewTop = detail.positionInScreenSpace.y + detail.renderedHeight / 2
+            local current = nil
+            for _, child in ipairs(detail.children) do
+                local sectionId = child.data ~= nil and child.data.sectionId or nil
+                if sectionId ~= nil and child.valid then
+                    local top = child.positionInScreenSpace.y + child.renderedHeight / 2
+                    if current == nil or top >= viewTop - 20 then
+                        current = sectionId
+                    end
+                end
+            end
+            if current ~= nil and current ~= element.data.current then
+                element.data.current = current
+                element:FireEventTree("selectSection", current)
+            end
+        end,
+        data = { current = nil },
     }
 end
 
@@ -484,7 +510,7 @@ end
 --- record (the developer command) it opens the stub ability host's demo.
 --- The record is read from a copy; every save writes into the record itself.
 --- @param record? table the record to edit (class, feature, ability, ...)
---- @param options? {embedded?: boolean, changed?: fun(record: table)} embedded: a panel inside another editor, which uploads the record itself; changed: called after each write into the record
+--- @param options? {embedded?: boolean, changed?: fun(record: table), showAdvanced?: fun()} embedded: a panel inside another editor, which uploads the record itself; changed: called after each write into the record; showAdvanced: switches that editor to its Advanced tab
 --- @return Panel|nil controller the editor's root panel
 function BlockEditor.CreatePanel(record, options)
     options = options or {}
@@ -545,6 +571,8 @@ function BlockEditor.CreatePanel(record, options)
         data = {
             state = state,
             host = host,
+            --switches the editor around this one to the Advanced editor (a grey block's button); nil in the window.
+            showAdvanced = options ~= nil and options.showAdvanced or nil,
         },
 
         --inside another editor, Escape belongs to that editor's dialog.
@@ -629,6 +657,14 @@ function BlockEditor.CreatePanel(record, options)
             if state:IsDirty() then
                 element.thinkTime = BlockEditor.UPLOAD_THINK_TIME
             end
+        end,
+
+        --- Sets or clears the insertion cursor (BECursor): where a shelf click adds.
+        --- It is the author's place on the page, not an edit, so it is not undone.
+        --- @param cursor BECursor|nil
+        editorCursor = function(element, cursor)
+            element.data.cursor = cursor
+            element:FireEventTree("cursorChanged", cursor)
         end,
 
         --- Rings a block for a moment after it is added (from a shelf click).

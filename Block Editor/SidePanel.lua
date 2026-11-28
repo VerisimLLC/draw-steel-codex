@@ -92,12 +92,28 @@ local function _rowCell(text, icon, bold, right)
 end
 
 --- A tier's text: words and characteristic chips in a wrapping row.
---- @param parts (string|{chip: string})[]
+--- @param parts (string|{chip?: string, box?: string})[]
 --- @return Panel
 local function _tierText(parts)
     local children = {}
     for _, part in ipairs(parts) do
-        if type(part) == "table" then
+        if type(part) == "table" and part.box ~= nil then
+            --an outlined phrase, as the book boxes a potency.
+            children[#children + 1] = gui.Panel{
+                classes = {"beCardBox"},
+                halign = "left",
+                lmargin = 4,
+                gui.Label{
+                    classes = {"beCardText"},
+                    fontFace = CARD.FONT,
+                    fontSize = 11,
+                    bold = true,
+                    width = "auto",
+                    text = part.box,
+                    interactable = false,
+                },
+            }
+        elseif type(part) == "table" then
             children[#children + 1] = gui.Panel{
                 classes = {"beCardChip"},
                 halign = "left",
@@ -219,10 +235,16 @@ function BESidePanel.Card(card)
             }, { tmargin = 3 })
         end
     end
-    if card.effect ~= nil then
-        children[#children + 1] = _line({
-            _cardText{ text = string.format("<b>%s</b> %s", card.effect.label, card.effect.text) },
-        }, { tmargin = 8 })
+    local paragraphs = card.paragraphs
+    if paragraphs == nil and card.effect ~= nil then
+        paragraphs = { { label = card.effect.label, text = card.effect.text } }
+    end
+    for i, paragraph in ipairs(paragraphs or {}) do
+        local text = paragraph.text
+        if paragraph.label ~= nil and paragraph.label ~= "" then
+            text = string.format("<b>%s</b> %s", paragraph.label, text)
+        end
+        children[#children + 1] = _line({ _cardText{ text = text } }, { tmargin = i == 1 and 8 or 4 })
     end
 
     return gui.Panel{

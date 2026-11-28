@@ -79,6 +79,19 @@ local function _row(decl)
         shelfSearch = function(element, text)
             element:SetClass("collapsed", text ~= "" and string.find(element.data.name, text, 1, true) == nil)
         end,
+        --with an insertion cursor, a block that cannot go there keeps its colour, outlined dashed.
+        cursorChanged = function(element, cursor)
+            local fits = true
+            if cursor ~= nil then
+                fits = false
+                for _, kind in ipairs(decl.fits or {}) do
+                    if kind == cursor.kind then
+                        fits = true
+                    end
+                end
+            end
+            element:SetClass("beNoFit", not fits)
+        end,
     }
 end
 
@@ -143,6 +156,15 @@ function BEShelf.Create(host)
             classes = {"beShelfHint"},
             text = T("blockeditor.shelf.hint"),
             interactable = false,
+            cursorChanged = function(element, cursor)
+                if cursor == nil then
+                    element.text = T("blockeditor.shelf.hint")
+                elseif cursor.afterUid ~= nil then
+                    element.text = T("blockeditor.shelf.hint_after", { block = cursor.label or "" })
+                else
+                    element.text = T("blockeditor.shelf.hint_end", { list = cursor.label or "" })
+                end
+            end,
         },
         list,
     }

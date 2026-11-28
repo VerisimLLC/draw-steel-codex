@@ -225,6 +225,14 @@ local function _section(section)
     end
 
     local countFn = nil
+    local emptyFn = nil
+    if section.stack ~= nil then
+        local listField = section.stack
+        emptyFn = function(state)
+            local model = state:Model()
+            return model == nil or #(model[listField] or {}) == 0
+        end
+    end
     if section.stack ~= nil then
         local field = section.stack
         countFn = function(state)
@@ -246,6 +254,7 @@ local function _section(section)
     local header, rule = BEStyles.SectionHeader{
         title = section.title,
         optional = section.optional and T("blockeditor.optional") or nil,
+        emptyFn = emptyFn,
         countFn = countFn,
         --the caret folds the section away.
         press = function(element)

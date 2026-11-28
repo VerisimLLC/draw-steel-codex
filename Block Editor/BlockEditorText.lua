@@ -76,6 +76,7 @@ text("blockeditor.menu.delete", [[Delete]])
 text("blockeditor.menu.move_up", [[Move up]])
 text("blockeditor.menu.move_down", [[Move down]])
 text("blockeditor.menu.duplicate", [[Duplicate]])
+text("blockeditor.advanced_button", [[Edit in the Advanced editor]])
 text("blockeditor.menu.wrap", [[Wrap in {block}]])
 text("blockeditor.menu.unwrap", [[Unwrap (keep the steps inside)]])
 text("blockeditor.change.duplicate", [[Duplicate {block}]])
@@ -134,6 +135,8 @@ text("blockeditor.check.unsaveable", [[{count} added blocks cannot be saved yet 
 text("blockeditor.card_hint", [[How the ability reads in the book. Change it with the blocks on the left.]])
 --The shelf's one section when a host names none.
 text("blockeditor.shelf.blocks", [[Blocks]])
+text("blockeditor.shelf.hint_after", [[Click a block to add it after {block}. Click {block} again to stop.]])
+text("blockeditor.shelf.hint_end", [[Click a block to add it at the end of {list}. Click the label again to stop.]])
 text("blockeditor.shelf.hint", [[Drag a block onto the page, or click it to add it at the end of the first list it fits.]])
 
 --The developer window's sample record and its sections.

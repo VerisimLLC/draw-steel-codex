@@ -111,8 +111,9 @@ local mod = dmhub.GetModLoading()
 --- @field flavor? string
 --- @field rows? {left: string, right: string, leftIcon?: string, rightIcon?: string, bold?: boolean}[] two-column lines under the title
 --- @field roll? string the power roll line ("Power Roll + Might:")
---- @field tiers? {parts: (string|{chip: string})[]}[] one per tier; a chip is a shaded characteristic letter
---- @field effect? {label: string, text: string}
+--- @field tiers? {parts: (string|{chip?: string, box?: string})[]}[] one per tier; a chip is a shaded characteristic letter, a box an outlined phrase (a potency, "M<WEAK")
+--- @field effect? {label: string, text: string} one paragraph (paragraphs wins when both are given)
+--- @field paragraphs? {label?: string, text: string}[] the effect as the book prints it: each its own paragraph, the label bold ("Effect:", "Strained:")
 
 --- One of the record's own fields as a header slot: how it reads and writes.
 --- @class BlockField

@@ -438,3 +438,24 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
 - Still from the audit: the test picker, an insertion cursor the shelf follows, curated Common and
   faded blocks that don't fit, drag visuals, fonts and header weight (decision 4), "Edit in the
   Advanced editor" on grey blocks, keyboard paths, the card's effect paragraphs and potency box.
+
+## 21. Open audit items, second batch (2026-11-28, run in DMHub)
+
+- **Card:** `BlockCard.paragraphs` (each {label?, text}); `_effectParagraphs` splits the
+  description by line, a leading "**Label:**" or short "Label:" is the bold label, `**x**` is
+  bold, "Effect:" labels the first unlabelled paragraph. Potency is one outlined box
+  (`{box = "M<WEAK"}`, `beCardBox`). The title shows a cost only with a resource ("1 nothing" gone).
+- **Edit in the Advanced editor:** the ability editor passes `showAdvanced` to its views
+  (`_viewRoot`); the Simple tab passes it to `BlockEditor.CreatePanel`; the grey Advanced block's
+  `beAdvancedButton` shows only where the controller has it. Checked in the real dialog on Optic
+  Blast: pressing it switches to the Advanced editor tab; hidden in the window.
+- **Insertion cursor (`BECursor`, controller `editorCursor`):** a click on a block's background
+  (after it) or a tier's label (its end) sets it, a second click clears it; shelf clicks add there
+  and move it past the new block (`BEStack.AppendAtCursor`); the shelf hint names it; shelf rows
+  that cannot go there fade (`beNoFit`); the chosen block keeps its ring, a chosen list is
+  outlined (`beCursorList`). Not an edit: undo does not touch it.
+- **Headers (decision 4):** smaller, dimmer titles, a faint rule; "optional" only while empty
+  (`emptyFn`); the section strip's mark follows scrolling (`think` on the strip).
+- **Drag:** the moved block fades (`beDragSource`); hint slots use the accent. The open slot keeps
+  its fixed size (an inline height cannot be cleared reliably afterwards).
+- Still open: the test picker, keyboard paths, the open slot sized to the block, curated Common.

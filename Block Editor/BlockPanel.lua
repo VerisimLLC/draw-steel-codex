@@ -285,15 +285,56 @@ function BEBlockPanel.Create(instance)
     end
     local sentenceIndex = #headChildren + 1
     headChildren[sentenceIndex] = _sentence(decl, instance, sentenceWidth)
+    --a step no block reads: a button to the Advanced editor, where the editor
+    --around this one offers it (the ability editor's Simple tab).
+    if decl.tag ~= nil then
+        local blockId = instance.block
+        headChildren[#headChildren + 1] = gui.Label{
+            classes = {"beAdvancedButton", "collapsed"},
+            text = T("blockeditor.advanced_button"),
+            [BlockEditor.REFRESH_EVENT] = function(element)
+                local controller = BlockEditor._getController(element)
+                local host = controller ~= nil and controller.data.host or nil
+                local advanced = host ~= nil and host.decl ~= nil and host.decl.advancedBlock == blockId
+                element:SetClass("collapsed", not advanced or controller == nil or controller.data.showAdvanced == nil)
+            end,
+            press = function(element)
+                local controller = BlockEditor._getController(element)
+                local showAdvanced = controller ~= nil and controller.data.showAdvanced or nil
+                if showAdvanced ~= nil then
+                    showAdvanced()
+                end
+            end,
+        }
+    end
     headChildren[#headChildren + 1] = gui.Panel{
         classes = {"beGear"},
         press = function(element)
             _openBlockMenu(element, uid, decl.label)
         end,
     }
+    --the whole block, declared first so the head's click can find its list.
+    --- @type Panel
+    local panel
     head = gui.Panel{
         classes = {"beBlockHead"},
         children = headChildren,
+        --a click on the block (not on a word) makes it the insertion cursor:
+        --the shelf adds after it. A second click clears it.
+        press = function(element)
+            local stack = panel ~= nil and panel.parent or nil
+            local data = stack ~= nil and stack.data or nil
+            if data == nil or data.ref == nil then
+                return
+            end
+            local controller = BlockEditor._getController(element)
+            local cursor = controller ~= nil and controller.data.cursor or nil
+            if cursor ~= nil and cursor.afterUid == uid then
+                BlockEditor._fireControllerEvent(element, "editorCursor", nil)
+            else
+                BlockEditor._fireControllerEvent(element, "editorCursor", { ref = data.ref, kind = data.kind, afterUid = uid, label = decl.label })
+            end
+        end,
     }
 
     --the bodies: one stack each, kept for the life of the block panel.
@@ -308,6 +349,16 @@ function BEBlockPanel.Create(instance)
                 classes = {"beTierRow"},
                 gui.Panel{
                     classes = {"beTierLabel"},
+                    --a click on a tier's label makes its list the insertion cursor (adds go at its end).
+                    press = function(element)
+                        local controller = BlockEditor._getController(element)
+                        local cursor = controller ~= nil and controller.data.cursor or nil
+                        if cursor ~= nil and cursor.afterUid == nil and BEStack.SameRef(cursor.ref, ref) then
+                            BlockEditor._fireControllerEvent(element, "editorCursor", nil)
+                        else
+                            BlockEditor._fireControllerEvent(element, "editorCursor", { ref = ref, kind = body.fits, label = body.label })
+                        end
+                    end,
                     gui.Label{ classes = {"beTierName"}, text = body.label, interactable = false },
                     gui.Label{ classes = {"beTierSub"}, text = body.sublabel or "", interactable = false },
                 },
@@ -320,8 +371,6 @@ function BEBlockPanel.Create(instance)
         end
     end
 
-    --- @type Panel
-    local panel
     panel = gui.Panel{
         classes = {"beBlock", BEStyles.GroupClass(decl.group)},
         flow = "vertical",
@@ -352,7 +401,19 @@ function BEBlockPanel.Create(instance)
             end
         end,
         unflash = function(element)
-            element:SetClass("selected", false)
+            element:SetClass("selected", element.data.isCursor == true)
+        end,
+
+        --- Fades the block while it is the one being dragged.
+        --- @param movingUid string|nil
+        dragSource = function(element, movingUid)
+            element:SetClass("beDragSource", movingUid ~= nil and movingUid == uid)
+        end,
+
+        --the insertion cursor is after this block: it keeps its ring.
+        cursorChanged = function(element, cursor)
+            element.data.isCursor = cursor ~= nil and cursor.afterUid == uid
+            element:SetClass("selected", element.data.isCursor)
         end,
     }
     panel:FireEvent("refreshBlock", instance)

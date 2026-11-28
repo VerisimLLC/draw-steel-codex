@@ -127,6 +127,55 @@ local function _fittingBlocks(kind)
     return result
 end
 
+--- Whether two list refs name the same list.
+--- @param a BEListRef|nil
+--- @param b BEListRef|nil
+--- @return boolean
+function BEStack.SameRef(a, b)
+    return a ~= nil and b ~= nil and a.field == b.field and a.owner == b.owner and a.body == b.body
+end
+
+--- Adds a block at the insertion cursor (after its block, or at the end of
+--- its list), as one undo step, and moves the cursor past it so the next add
+--- follows. False when the cursor's place is gone (undo took it away).
+--- @param element Panel inside the editor
+--- @param blockId string
+--- @param cursor BECursor
+--- @return boolean placed
+function BEStack.AppendAtCursor(element, blockId, cursor)
+    local decl = Block.GetBlock(blockId)
+    if decl == nil then
+        return false
+    end
+    local placedUid = nil
+    BlockEditor._fireControllerEvent(element, "editorChange", T("blockeditor.change.add", { block = decl.label }), function(state)
+        --- @cast state BEState
+        local model = state:Model()
+        local list = model ~= nil and BEState.GetList(model, cursor.ref) or nil
+        if model == nil or list == nil then
+            return
+        end
+        local index = #list + 1
+        if cursor.afterUid ~= nil then
+            local _, foundList, foundIndex = BEState.FindInstance(model, cursor.afterUid)
+            if foundList ~= list or foundIndex == nil then
+                return
+            end
+            index = foundIndex + 1
+        end
+        local instance = Block.Instantiate(blockId)
+        if instance ~= nil and BEState.Insert(model, cursor.ref, index, instance) then
+            placedUid = instance.uid
+        end
+    end)
+    if placedUid == nil then
+        return false
+    end
+    BlockEditor._fireControllerEvent(element, "editorCursor", { ref = cursor.ref, kind = cursor.kind, afterUid = placedUid, label = decl.label })
+    BlockEditor._fireControllerEvent(element, "flashRequest", placedUid)
+    return true
+end
+
 --- Adds a block at the end of one list (a click on an add row), as one undo step.
 --- @param element Panel inside the editor
 --- @param blockId string
@@ -230,7 +279,13 @@ function BEStack.Create(args)
         height = "auto",
         flow = "vertical",
         valign = "top",
-        data = { ref = ref },
+        data = { ref = ref, kind = kind },
+
+        --the insertion cursor at the end of this list (a tier or a body chosen to add into).
+        cursorChanged = function(element, cursor)
+            local here = cursor ~= nil and cursor.afterUid == nil and BEStack.SameRef(cursor.ref, ref)
+            element:SetClass("beCursorList", here)
+        end,
 
         --- Puts the stack's panels in the list's order, building new ones.
         --- @param list BlockInstance[]
@@ -478,6 +533,7 @@ local function _drop(ghost)
     local target = drag.open
     if controller.valid then
         controller:FireEventTree("dragHint", nil)
+        controller:FireEventTree("dragSource", nil)
     end
     if target == nil or not target.valid or not controller.valid then
         return
@@ -622,6 +678,8 @@ function BEStack.BeginDrag(row, source)
     controller:AddChild(ghost)
     ghost:SetAsLastSibling()
     controller:FireEventTree("dragHint", fits)
+    --the block being moved fades, so it reads as the one in hand.
+    controller:FireEventTree("dragSource", source.moveUid)
     row:transferDragTo(ghost)
 end
 
@@ -635,6 +693,12 @@ function BEStack.Append(element, blockId)
         return
     end
     local fits = decl.fits or {}
+    --the insertion cursor wins when the block fits there.
+    local controller = BlockEditor._getController(element)
+    local cursor = controller ~= nil and controller.data.cursor or nil
+    if cursor ~= nil and _fitsKind(fits, cursor.kind) and BEStack.AppendAtCursor(element, blockId, cursor) then
+        return
+    end
     local placedUid = nil
     BlockEditor._fireControllerEvent(element, "editorChange", T("blockeditor.change.add", { block = decl.label }), function(state)
         --- @cast state BEState

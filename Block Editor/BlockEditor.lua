@@ -124,6 +124,13 @@ local mod = dmhub.GetModLoading()
 --- @field changedElsewhere? fun(id: string): table|nil the record's newer version when someone else changed it since this editor last saw or wrote it
 --- @field adopt? fun(id: string, current: table) takes a newer version as the record this editor saves into
 
+--- Where a shelf click adds: after a block (afterUid), or at the end of a list.
+--- @class BECursor
+--- @field ref BEListRef the list
+--- @field kind string the kind of list ("step", "tier"), for what fits
+--- @field afterUid? string the block it follows; the end of the list when nil
+--- @field label? string the block's or list's name, for the shelf's hint
+
 --- A control that edits one kind of slot.
 --- @class BESlotWidget
 --- @field kind string the BlockSlot kind it edits

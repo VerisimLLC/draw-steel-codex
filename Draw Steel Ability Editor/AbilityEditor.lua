@@ -5345,7 +5345,7 @@ end
 --- @field label string the tab's name
 --- @field tooltip? string
 --- @field available fun(ability: table): boolean whether the view can show this ability
---- @field create fun(ability: table, options: {changed: fun()}): Panel|nil builds the view; changed is called after it writes into the ability
+--- @field create fun(ability: table, options: {changed: fun(), showAdvanced: fun()}): Panel|nil builds the view; changed is called after it writes into the ability; showAdvanced switches this dialog to the Advanced editor tab
 
 AbilityEditor._views = AbilityEditor._views or {}
 --the tab last chosen, so the next ability opens on it too.
@@ -5375,7 +5375,7 @@ AbilityEditor.RegisterView{
         return not mod.unloaded and blockEditor ~= nil and blockEditor.CanOpen(record)
     end,
     create = function(record, options)
-        return BlockEditor.CreatePanel(record, { embedded = true, changed = options.changed })
+        return BlockEditor.CreatePanel(record, { embedded = true, changed = options.changed, showAdvanced = options.showAdvanced })
     end,
 }
 
@@ -5466,7 +5466,16 @@ end
 local function _viewRoot(ability, opts, views, view)
     --- @type Panel
     local root
-    local ok, body = pcall(view.create, ability, { changed = function() end })
+    --showAdvanced lets the view send the author to this editor's tab (a step it cannot show).
+    local ok, body = pcall(view.create, ability, {
+        changed = function() end,
+        showAdvanced = function()
+            AbilityEditor._lastView = "advanced"
+            if root ~= nil and root.valid then
+                _rebuildInPlace(root, ability, opts)
+            end
+        end,
+    })
     if not ok or body == nil then
         dmhub.Error(string.format("Ability editor: the %s view could not open this ability: %s", view.label, tostring(body)))
         body = gui.Label{

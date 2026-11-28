@@ -1161,6 +1161,19 @@ local function BuildRules()
             bold = true,
         },
         {
+            selectors = { "eotwsNeedDismiss" },
+            bgcolor = "#00000000",
+            cornerRadius = 6,
+        },
+        {
+            selectors = { "eotwsNeedDismiss", "hover" },
+            bgcolor = "#1a140b33",
+        },
+        {
+            selectors = { "eotwsNeedDismissIcon" },
+            bgcolor = C.INK,
+        },
+        {
             selectors = { "eotwsSwitchLabel" },
             color = C.MUTED,
             fontSize = 11,
@@ -3630,52 +3643,113 @@ end
 
 --Why the player is needed right now, as the top bar's line (T9-T12, N7), or
 --nil. Checked across this player's Heroes in the encounter, the shown Hero
---first; the story only counts once it moved since the sheet opened.
+--first; the story only counts once it moved since the sheet opened. A line the
+--player closed with the bar's X is skipped (the next need shows instead) until
+--that need goes away.
 ---@param ctx table
 ---@return string|nil
 local function NeededLine(ctx)
-    if not ctx.inGame or ctx.fallen ~= nil then
+    if ctx.fallen ~= nil then
         return nil
     end
+    local lines = {}
     --for testing the bar's look: set EotwHeroSheet.debugNeededLine to a line
+    --(it shows in town too, so the bar can be checked without a game)
     if type(EotwHeroSheet.debugNeededLine) == "string" then
-        return EotwHeroSheet.debugNeededLine
-    end
-    local mine = {}
-    for _,entry in ipairs(EotwHeroCard.CollectHeroes()) do
-        if entry.mine then
-            if entry.charid == ctx.charid then
-                table.insert(mine, 1, entry)
-            else
-                mine[#mine+1] = entry
+        lines[1] = EotwHeroSheet.debugNeededLine
+    elseif not ctx.inGame then
+        return nil
+    else
+        local mine = {}
+        for _,entry in ipairs(EotwHeroCard.CollectHeroes()) do
+            if entry.mine then
+                if entry.charid == ctx.charid then
+                    table.insert(mine, 1, entry)
+                else
+                    mine[#mine+1] = entry
+                end
+            end
+        end
+        for _,entry in ipairs(mine) do
+            local tok = dmhub.GetCharacterById(entry.charid)
+            local p = tok ~= nil and tok.properties or nil
+            if p ~= nil then
+                local trigger, save = false, false
+                pcall(function() trigger = HeroNeeds.HasTrigger(p) end)
+                pcall(function() save = HeroNeeds.HasSave(p) end)
+                if trigger then
+                    lines[#lines+1] = T("herosheet.topbar.needed_trigger", { hero = tostring(entry.name) })
+                elseif save then
+                    lines[#lines+1] = T("herosheet.topbar.needed_save", { hero = tostring(entry.name) })
+                elseif HeroNeeds.HasRoll(entry.charid) then
+                    lines[#lines+1] = T("herosheet.topbar.needed_roll", { hero = tostring(entry.name) })
+                end
+            end
+        end
+        if ctx.storySignature ~= nil and StorySignature() ~= ctx.storySignature then
+            lines[#lines+1] = T("herosheet.topbar.needed_story")
+        end
+        for _,entry in ipairs(mine) do
+            if HeroNeeds.CanAct(entry.charid) then
+                lines[#lines+1] = T("herosheet.topbar.needed_act")
+                break
             end
         end
     end
-    for _,entry in ipairs(mine) do
-        local tok = dmhub.GetCharacterById(entry.charid)
-        local p = tok ~= nil and tok.properties or nil
-        if p ~= nil then
-            local trigger, save = false, false
-            pcall(function() trigger = HeroNeeds.HasTrigger(p) end)
-            pcall(function() save = HeroNeeds.HasSave(p) end)
-            if trigger then
-                return T("herosheet.topbar.needed_trigger", { hero = tostring(entry.name) })
-            elseif save then
-                return T("herosheet.topbar.needed_save", { hero = tostring(entry.name) })
-            elseif HeroNeeds.HasRoll(entry.charid) then
-                return T("herosheet.topbar.needed_roll", { hero = tostring(entry.name) })
-            end
+
+    --the lines the player closed, forgotten once that need is gone
+    local dismissed = ctx.dismissedNeeds or {}
+    ctx.dismissedNeeds = dismissed
+    local live = {}
+    local first = nil
+    for _,line in ipairs(lines) do
+        live[line] = true
+        if first == nil and not dismissed[line] then
+            first = line
         end
     end
-    if ctx.storySignature ~= nil and StorySignature() ~= ctx.storySignature then
-        return T("herosheet.topbar.needed_story")
-    end
-    for _,entry in ipairs(mine) do
-        if HeroNeeds.CanAct(entry.charid) then
-            return T("herosheet.topbar.needed_act")
+    for line,_ in pairs(dismissed) do
+        if not live[line] then
+            dismissed[line] = nil
         end
     end
-    return nil
+    return first
+end
+
+--The X on the gold bar: hides this need so the switcher shows again.
+---@param ctx table
+---@param line string the need it closes
+---@param onClosed fun()
+---@return Panel
+local function DismissNeedButton(ctx, line, onClosed)
+    return gui.Panel{
+        classes = { "eotwsFocusable", "eotwsNeedDismiss" },
+        canFocus = true,
+        lmargin = 8,
+        width = 32,
+        height = 32,
+        halign = "right",
+        valign = "center",
+        bgimage = "panels/square.png",
+        linger = function(element)
+            gui.Tooltip(T("herosheet.topbar.needed_dismiss_tip"))(element)
+        end,
+        click = function()
+            audio.FireSoundEvent("UI.WindowClose")
+            ctx.dismissedNeeds = ctx.dismissedNeeds or {}
+            ctx.dismissedNeeds[line] = true
+            onClosed()
+        end,
+        gui.Panel{
+            classes = { "eotwsNeedDismissIcon" },
+            bgimage = "window-chrome/chrome-close.png",
+            width = 12,
+            height = 12,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        },
+    }
 end
 
 --The Close button: Close [Esc]; ink on gold on the you're-needed bar.
@@ -4046,6 +4120,7 @@ local function TopBarRegion(ctx)
                 element.children = {
                     Text(needed, { "eotwsNeededText" }, { valign = "center", width = "100% available" }),
                     CloseButton(ctx, true),
+                    DismissNeedButton(ctx, needed, function() Rebuild(element) end),
                 }
             end
             return

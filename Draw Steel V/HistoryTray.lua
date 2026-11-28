@@ -4419,10 +4419,9 @@ local function CreateFace()
     local builtFrame = 0
     local face
     local list
-    --true until the first build: History opens on "New since you last looked" when the
-    --new rows don't all fit, so the first one is in view.
-    local openAtMarker = true
-    local markerTries = 0
+    --true until the first build. Opening always lands on the newest row, so the first
+    --build never holds a scrolled-up view or clears the "New since you last looked" marker.
+    local firstBuild = true
     --The last build's items, and the row ShowEntry is bringing into view.
     --- @type table[]
     local builtItems = {}
@@ -4762,7 +4761,7 @@ local function CreateFace()
         --looked"; with History open, what arrives now is being watched.
         local keys = History.Keys(mapid)
         local newest = keys[#keys]
-        if fromGame and stick and not openAtMarker and builtNewest ~= nil and newest ~= nil and newest > builtNewest then
+        if fromGame and stick and not firstBuild and builtNewest ~= nil and newest ~= nil and newest > builtNewest then
             g_since = nil
         end
         builtNewest = newest
@@ -4782,16 +4781,15 @@ local function CreateFace()
                 end
             end
         end
-        --opening on new turns: build back far enough to include the marker.
-        local markerShown = false
-        if openAtMarker then
+        --ShowEntry's row may be older than the rows built: build back far enough to include it.
+        if showKey ~= nil then
             for i, item in ipairs(items) do
-                if item.kind == "newmarker" then
-                    markerShown = true
+                if item.key == showKey then
                     if i < first then
                         first = i
                         rowsWanted = #items - i + 1
                     end
+                    break
                 end
             end
         end
@@ -4863,7 +4861,7 @@ local function CreateFace()
         rowsPanel.children = children
         if stick and not loadingOlder then
             list:ScheduleEvent("toBottom", 0.02)
-        elseif not loadingOlder and not openAtMarker and holdPanel ~= nil then
+        elseif not loadingOlder and not firstBuild and holdPanel ~= nil then
             --scrolled up: the row at the top of the view stays where it is.
             holdTries = 0
             list:ScheduleEvent("holdAnchor", 0.02)
@@ -4885,13 +4883,7 @@ local function CreateFace()
             end
         end
         UpdateNewBelow()
-        if openAtMarker then
-            openAtMarker = false
-            if markerShown then
-                markerTries = 0
-                list:ScheduleEvent("toMarker", 0.05)
-            end
-        end
+        firstBuild = false
         UpdateLatest()
 
         --a trigger landing after the row closed changes what the open card says.
@@ -4998,33 +4990,6 @@ local function CreateFace()
             end
             showKey = nil
             UpdateLatest()
-        end,
-
-        --puts the new-rows marker at the top when what follows it is taller than the list;
-        --otherwise the bottom already shows it. Layout takes a few frames, so it retries.
-        toMarker = function(element)
-            markerTries = markerTries + 1
-            local marker = rows["newmarker"]
-            local windowHeight = element.renderedHeight or 0
-            local contentHeight = rowsPanel.renderedHeight or 0
-            local range = contentHeight - windowHeight
-            if marker ~= nil and marker.panel.valid and range > 0 then
-                local offset = 0
-                for _, row in ipairs(rowsPanel.children) do
-                    if row == marker.panel then
-                        break
-                    end
-                    offset = offset + (row.renderedHeight or 0)
-                end
-                if contentHeight - offset > windowHeight then
-                    element.vscrollPosition = 1 - math.min(offset, range) / range
-                end
-            end
-            if markerTries < 6 then
-                element:ScheduleEvent("toMarker", 0.05)
-            else
-                UpdateLatest()
-            end
         end,
 
         --the rows built don't reach a quarter of a view above the bottom one: build more now,
@@ -5613,13 +5578,15 @@ local function CreateFace()
         ApplySearch()
     end
 
-    --Opens on one row: the Sidebar Preview's click. Stops the opening's own scroll
-    --to the marker, which would otherwise pull the view back.
+    --Opens on one row: the Sidebar Preview's click. It scrolls after opening has gone to
+    --the bottom, so the view ends on this row with its card open.
     --- @param key string The row's entry key.
     local function ShowEntry(key)
         showKey = key
         showTries = 0
-        markerTries = 99
+        if rows[key] == nil then
+            Refresh()
+        end
         list:ScheduleEvent("toEntry", 0.1)
     end
 

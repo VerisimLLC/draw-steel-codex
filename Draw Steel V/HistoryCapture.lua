@@ -1235,6 +1235,11 @@ local function OnThreshold(creature, thresholdState, info)
     if not History.Enabled() or token == nil then
         return
     end
+    --objects have Stamina but are never winded: their rows just say they took damage.
+    local isObject = token.isObject or (token.properties ~= nil and token.properties:try_get("treatAsObject", false))
+    if thresholdState == "winded" and isObject then
+        return
+    end
     local state = OpenCast(info.cast)
     if state == nil then
         WriteLine(token, "threshold", {state = thresholdState, causetext = Cause(info.source)})

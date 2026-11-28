@@ -258,7 +258,7 @@ text("herosheet.topbar.needed_roll", [[{hero} has a roll to make]])
 text("herosheet.topbar.needed_story", [[The story continues]])
 text("herosheet.topbar.needed_act", [[The Heroes can act]])
 --The hover on the gold bar's X, which hides the line until that need goes.
-text("herosheet.topbar.needed_dismiss_tip", [[Dismiss and stay on the sheet]])
+text("herosheet.topbar.needed_dismiss_tip", [[Dismiss]])
 
 --The Close button, and the key shown beside it. Short: a button.
 text("herosheet.topbar.close", [[Close]])

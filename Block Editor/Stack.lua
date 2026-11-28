@@ -13,8 +13,10 @@ local mod = dmhub.GetModLoading()
         stays put and hands its drag to a small floating ghost
         (transferDragTo), as proven in Proofs.lua.
       * Every sliver of the matching kind ("step" or "tier") turns into a
-        dashed slot; the others stay 2px. The one nearest the pointer, in the
-        column under it, opens to "Drop here".
+        dashed slot; the others stay 2px. The innermost list under the pointer
+        that the block fits takes the drop, and the gap is chosen by which half
+        of a block the pointer is over (before it in the top half, after it in
+        the bottom half). That gap opens to "Drop here".
       * Letting go inserts the block there as one undo step.
 ]]
 
@@ -27,8 +29,9 @@ local DRAG = {
     TICK = 0.03,
     REACH = 28,          -- how far (px) from a slot the pointer may be and still open it
     STICK = 10,          -- an open slot keeps the drop until the pointer is this far outside it
-    EDGE = 36,           -- auto-scroll starts this close to the detail column's top or bottom
-    SCROLL_STEP = 0.015, -- vscrollPosition per tick at the edge
+    EDGE_IN = 16,        -- auto-scroll inside the detail column this close to its top or bottom edge
+    EDGE_OUT = 60,       -- ...and outside it this far past the edge
+    SCROLL_SPEED = 8,    -- how far (screen units) the page scrolls per tick at an edge, however long it is
     GRAB_X = 14,
     GHOST_HALF_HEIGHT = 16,
 }
@@ -39,7 +42,9 @@ local DRAG = {
 --- @field fits string[] the kinds of list the block may go in
 --- @field ghost Panel
 --- @field slivers Panel[] the slivers it may drop on
+--- @field lists {stack: Panel, slivers: Panel[]}[] those slivers by the stack they are in
 --- @field open Panel|nil the sliver that is open
+--- @field contentTop? number where the top of the page's content was, to hold it still while slots open
 --- @field controller Panel
 
 --- @type BEDrag|nil
@@ -184,27 +189,126 @@ local function _open(drag, sliver)
     end
 end
 
---- One step of a drag: scroll near the detail column's edges, then open the
---- sliver nearest the pointer in the column under it.
-local function _tick()
-    local drag = g_drag
-    if drag == nil or mod.unloaded or not drag.ghost.valid then
+--- The pointer, in the same screen units as _rect (y runs up). Read from the
+--- window itself: the ghost does not sit exactly under the pointer.
+--- @param controller Panel
+--- @return number x, number y
+local function _pointer(controller)
+    local pos = controller.positionInScreenSpace
+    local mouse = controller.mousePoint
+    return pos.x - controller.renderedWidth / 2 + mouse.x * controller.renderedWidth,
+        pos.y - controller.renderedHeight / 2 + mouse.y * controller.renderedHeight
+end
+
+--- The gap in the innermost list under the pointer that the block fits: before
+--- the first block whose middle is below the pointer. Nil when the pointer is
+--- over no such list.
+--- @param drag BEDrag
+--- @param pointerX number
+--- @param pointerY number
+--- @return Panel|nil
+local function _gapUnder(drag, pointerX, pointerY)
+    local best, bestHeight = nil, nil
+    for _, list in ipairs(drag.lists) do
+        if list.stack.valid then
+            local left, right, bottom, top = _rect(list.stack)
+            --a little above and below the list still counts, for its first and last gaps.
+            if pointerX >= left and pointerX <= right and pointerY >= bottom - DRAG.REACH and pointerY <= top + DRAG.REACH then
+                local height = top - bottom
+                if bestHeight == nil or height < bestHeight then
+                    best, bestHeight = list, height
+                end
+            end
+        end
+    end
+    if best == nil then
+        return nil
+    end
+    local index = 1
+    for _, child in ipairs(best.stack.children) do
+        if child.valid and not child:HasClass("beSliver") and not child:HasClass("collapsed") then
+            local _, _, bottom, top = _rect(child)
+            if (bottom + top) / 2 > pointerY then
+                index = index + 1
+            end
+        end
+    end
+    for _, sliver in ipairs(best.slivers) do
+        if sliver.valid and sliver.data.index == index then
+            return sliver
+        end
+    end
+    return nil
+end
+
+--- The top of the page's content and how far it can scroll (screen units).
+--- @param detail Panel the page's scrolling column
+--- @return number|nil top, number scrollable
+local function _content(detail)
+    local first, last = nil, nil
+    for _, child in ipairs(detail.children) do
+        if child.valid and not child:HasClass("collapsed") then
+            first = first or child
+            last = child
+        end
+    end
+    if first == nil or last == nil then
+        return nil, 0
+    end
+    local _, _, _, top = _rect(first)
+    local _, _, bottom, _ = _rect(last)
+    return top, (top - bottom) - detail.renderedHeight
+end
+
+--- Keeps the page's content where it was while slots open and close. The
+--- scroll position is a fraction, so a taller page moves what is on screen
+--- (at the bottom, everything above a new slot moves up under the pointer);
+--- this scrolls it back. Auto-scroll clears contentTop to take a new place.
+--- @param drag BEDrag
+--- @param detail Panel the page's scrolling column
+local function _holdStill(drag, detail)
+    local top, scrollable = _content(detail)
+    if top == nil then
         return
     end
-    local ghost = drag.ghost
-    local ghostPos = ghost.positionInScreenSpace
-    local pointerX = ghostPos.x - ghost.renderedWidth / 2 + DRAG.GRAB_X
-    local pointerY = ghostPos.y
+    if drag.contentTop == nil then
+        drag.contentTop = top
+        return
+    end
+    local moved = top - drag.contentTop
+    if math.abs(moved) >= 0.5 and scrollable > 1 then
+        --content that moved up needs a smaller offset from the top: a larger position.
+        detail.vscrollPosition = math.max(0, math.min(1, detail.vscrollPosition + moved / scrollable))
+    end
+end
+
+--- One step of a drag: scroll near the detail column's edges, then open the
+--- gap under the pointer.
+local function _tick()
+    local drag = g_drag
+    if drag == nil or mod.unloaded or not drag.ghost.valid or not drag.controller.valid then
+        return
+    end
+    local pointerX, pointerY = _pointer(drag.controller)
 
     --auto-scroll the detail column: vscrollPosition runs 1 (top) to 0 (bottom).
     local detail = drag.controller:Get("beDetailScroll")
     if detail ~= nil and detail.valid then
+        _holdStill(drag, detail)
         local left, right, bottom, top = _rect(detail)
-        if pointerX >= left and pointerX <= right then
-            if pointerY > top - DRAG.EDGE and pointerY <= top + DRAG.EDGE then
-                detail.vscrollPosition = math.min(1, detail.vscrollPosition + DRAG.SCROLL_STEP)
-            elseif pointerY < bottom + DRAG.EDGE and pointerY >= bottom - DRAG.EDGE then
-                detail.vscrollPosition = math.max(0, detail.vscrollPosition - DRAG.SCROLL_STEP)
+        local _, scrollable = _content(detail)
+        if pointerX >= left and pointerX <= right and scrollable > 1 then
+            local before = detail.vscrollPosition
+            --a fixed distance per tick, so a long page does not race past.
+            local step = DRAG.SCROLL_SPEED / scrollable
+            if pointerY > top - DRAG.EDGE_IN and pointerY <= top + DRAG.EDGE_OUT then
+                detail.vscrollPosition = math.min(1, before + step)
+            elseif pointerY < bottom + DRAG.EDGE_IN and pointerY >= bottom - DRAG.EDGE_OUT then
+                detail.vscrollPosition = math.max(0, before - step)
+            end
+            --a real scroll takes a new place to hold; one at the end of the page did nothing.
+            if detail.vscrollPosition ~= before then
+                drag.contentTop = nil
             end
         end
     end
@@ -218,6 +322,13 @@ local function _tick()
         end
     end
 
+    local gap = _gapUnder(drag, pointerX, pointerY)
+    if gap ~= nil then
+        _open(drag, gap)
+        return
+    end
+
+    --over no list it fits: the nearest gap within reach, in the column under the pointer.
     local best, bestDistance = nil, DRAG.REACH
     for _, sliver in ipairs(drag.slivers) do
         if sliver.valid then
@@ -350,6 +461,8 @@ function BEStack.BeginDrag(row, source)
             _tick()
         end,
         drag = function(element, target)
+            --where the pointer is now decides, not the last tick (a release can come between ticks).
+            _tick()
             _drop(element)
         end,
         removeGhost = function(element)
@@ -371,11 +484,28 @@ function BEStack.BeginDrag(row, source)
         slivers = own
     end
 
+    --the slivers grouped by the stack they are in, which is what _gapUnder searches.
+    local lists = {}
+    local byStack = {}
+    for _, sliver in ipairs(slivers) do
+        local stack = sliver.parent
+        if stack ~= nil then
+            local list = byStack[stack]
+            if list == nil then
+                list = { stack = stack, slivers = {} }
+                byStack[stack] = list
+                lists[#lists + 1] = list
+            end
+            list.slivers[#list.slivers + 1] = sliver
+        end
+    end
+
     g_drag = {
         source = source,
         fits = fits,
         ghost = ghost,
         slivers = slivers,
+        lists = lists,
         open = nil,
         controller = controller,
     }

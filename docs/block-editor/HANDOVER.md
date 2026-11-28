@@ -332,3 +332,21 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   position" warnings (only reachable from code; the Undo button and Ctrl+Z end or keep the edit).
 - Also fixed: `BlockEditorHost` now declares `changedElsewhere` and `adopt` (type check problems
   from the "Shared Edits" commit).
+
+## 16. Drop-slot precision (2026-11-27, run in DMHub with virtual mouse drags)
+
+- `Block Editor/Stack.lua`. Found by driving the bridge's `/mouse` (`down`, `move`, `up`, virtual):
+  the pointer was read from the ghost (about 50 units off sideways); a slot opened only within 28
+  units of a gap, so most of a tall block took nothing; opening a slot made the page taller and
+  the fractional scroll moved everything under the pointer (the target jumped to the list's end);
+  the edge auto-scroll band reached 36 units into the column at 1.5% of the page per tick; and a
+  release between ticks dropped into the last open slot even outside every list.
+- Now: `_pointer` (the window's `mousePoint`), `_gapUnder` (innermost fitting list, block halves),
+  `_holdStill` (scrolls back by how far the content's top moved), `EDGE_IN` 16 / `EDGE_OUT` 60 at
+  `SCROLL_SPEED` 8 units per tick, and the drop runs `_tick` first. The nearest-gap rule is kept for
+  a pointer over no list.
+- **Measured:** on Explosive Parade at mid-scroll, both halves of two steps open the right gaps
+  with no jumps; a shelf drop lands after the step under the pointer; a grip move lands where shown
+  (adjusted for the gap it leaves); a release outside every list adds nothing. On Banshee Howl, the
+  option steps and the gap after the power roll.
+- Testing note: set `vscrollPosition` a second or more after the window opens; earlier it is ignored.

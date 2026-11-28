@@ -356,7 +356,7 @@ FIELDS.filter = {
         local saved = tostring(Block.FieldValue(record, "targetFilter") or "")
         value = tostring(value or "")
         --a test that means the same keeps its saved spelling ("enemy", "Enemy").
-        if saved == value or (Block.FormulaCanonical(saved) or saved) == (Block.FormulaCanonical(value) or value) then
+        if Block.SameFormula(saved, value) then
             return
         end
         record.targetFilter = value
@@ -544,6 +544,30 @@ Block.RegisterBlock{
     shelf = false,
 }
 
+--- A mode key after Choose one when used renumbered its options. remap maps an
+--- old mode number to its new one, -1 (taken out: the game's "no mode") or
+--- false (modes were off: the tag is stale and goes).
+--- @param key string "2" or "1,3"
+--- @param remap table<integer, integer|false>
+--- @return string|nil
+local function _remapModes(key, remap)
+    local numbers = {}
+    for _, number in ipairs(_keyList(key) or {}) do
+        local moved = remap[number]
+        if moved == nil then
+            moved = number
+        end
+        --a taken-out mode becomes -1 ("no mode") only when nothing else is left.
+        if moved ~= false and (moved ~= -1 or #numbers == 0) then
+            numbers[#numbers + 1] = moved
+        end
+    end
+    if #numbers > 1 and numbers[1] == -1 then
+        table.remove(numbers, 1)
+    end
+    return _listKey(numbers)
+end
+
 Block.RegisterWrapper{
     id = "ability.mode",
     order = 10,
@@ -566,24 +590,24 @@ Block.RegisterWrapper{
         if remap == nil or values.modes == nil then
             return values.modes
         end
-        local numbers = {}
-        for _, number in ipairs(_keyList(values.modes) or {}) do
-            local moved = remap[number]
-            if moved == nil then
-                moved = number
-            end
-            --a taken-out mode becomes -1 ("no mode") only when nothing else is left.
-            if moved ~= -1 or #numbers == 0 then
-                numbers[#numbers + 1] = moved
-            end
-        end
-        if #numbers > 1 and numbers[1] == -1 then
-            table.remove(numbers, 1)
-        end
-        return _listKey(numbers)
+        return _remapModes(values.modes, remap)
     end,
     apply = function(behavior, key)
         behavior.modesSelected = _keyList(key)
+    end,
+    --a step no block reads (an Advanced block) is never wrapped, but its modes still follow.
+    rekey = function(behavior, ctx)
+        local remap = ctx ~= nil and ctx.remap ~= nil and ctx.remap["ability.mode"] or nil
+        local key = _listKey(rawget(behavior, "modesSelected"))
+        if remap == nil or key == nil then
+            return false
+        end
+        local moved = _remapModes(key, remap)
+        if moved == key then
+            return false
+        end
+        behavior.modesSelected = _keyList(moved)
+        return true
     end,
 }
 
@@ -598,15 +622,43 @@ Block.RegisterWrapper{
 --the condition a mode with an extra cost gets, as Banshee Howl's "Spend 1 Ferocity".
 local EXTRA_COST_CONDITION = "Heroic Resources Available to Spend >= %d"
 
---- The extra cost a mode's condition asks for, or 0.
+--- The extra cost a mode's condition asks for (0 for none), and the rest of
+--- the condition ("" for none): a cost is the whole condition, or joined to the
+--- end of another with "and".
 --- @param condition any
---- @return integer
+--- @return integer cost, string rest
 local function _extraCost(condition)
     if type(condition) ~= "string" then
-        return 0
+        return 0, ""
     end
     local amount = string.match(condition, "^%s*Heroic Resources Available to Spend%s*>=%s*(%d+)%s*$")
-    return tonumber(amount) or 0
+    if amount ~= nil then
+        return tonumber(amount) or 0, ""
+    end
+    local rest, joined = string.match(condition, "^(.-)%s+and%s+Heroic Resources Available to Spend%s*>=%s*(%d+)%s*$")
+    if joined ~= nil then
+        return tonumber(joined) or 0, rest
+    end
+    return 0, condition
+end
+
+--- A mode's condition for a cost, keeping the rest of what it asked.
+--- @param rest string the condition without its cost
+--- @param cost integer
+--- @return string|nil
+local function _costCondition(rest, cost)
+    local costText = cost > 0 and string.format(EXTRA_COST_CONDITION, cost) or nil
+    if string.find(rest, "%S") == nil then
+        return costText
+    end
+    if costText == nil then
+        return rest
+    end
+    --a rest that uses "or" is bracketed, so the cost applies to all of it.
+    if string.find(rest, "%f[%w]or%f[%W]") ~= nil and not string.match(rest, "^%(.*%)$") then
+        rest = "(" .. rest .. ")"
+    end
+    return rest .. " and " .. costText
 end
 
 local EXTRA_COSTS = { { id = "0", text = "no extra cost" } }
@@ -664,7 +716,7 @@ Block.RegisterBlock{
             for index, mode in ipairs(modeList) do
                 local option = Block.Instantiate("ability.option") --[[@as BlockInstance]]
                 option.values.name = tostring(rawget(mode, "text") or "")
-                option.values.cost = tostring(_extraCost(rawget(mode, "condition")))
+                option.values.cost = tostring((_extraCost(rawget(mode, "condition"))))
                 option.values.rules = tostring(rawget(mode, "rules") or "")
                 option.values.number = index
                 option.saved = DeepCopy(mode)
@@ -689,6 +741,8 @@ Block.RegisterBlock{
             chooser.values.timing = Block.FieldValue(record, "chooseModeAfterTargeting") == true and "after" or "before"
             chooser.bodies.options = options
             local running = true
+            --- @type table<table, boolean> options whose cost step is already found
+            local costMatched = {}
             for _, instance in ipairs(list) do
                 local number = instance.block == "ability.mode" and tonumber((instance.values or {}).modes) or nil
                 --- @type BlockInstance|nil
@@ -699,9 +753,15 @@ Block.RegisterBlock{
                     optionSteps = option.bodies.steps
                 end
                 local fits = optionSteps ~= nil
-                if running and fits and optionSteps ~= nil then
+                if running and fits and optionSteps ~= nil and option ~= nil then
                     for _, step in ipairs((instance.bodies or {}).steps or {}) do
                         optionSteps[#optionSteps + 1] = step
+                        --the Spend step that pays this option's cost is the one a new cost changes.
+                        if not costMatched[option] and _isCostStep(step) and tostring((step.values or {}).quantity) == option.values.cost then
+                            step.marks = step.marks or {}
+                            step.marks.costStep = true
+                            costMatched[option] = true
+                        end
                     end
                     if not placed then
                         result[#result + 1] = chooser
@@ -734,8 +794,14 @@ Block.RegisterBlock{
                 end
             end
             local modeList = ctx.record ~= nil and rawget(ctx.record, "modeList") or nil
+            --modes were off (the block was taken out earlier): old tags are stale, and
+            --must not come back to life on the new options.
+            local modesOn = ctx.record ~= nil and Block.FieldValue(ctx.record, "multipleModes")
             for number = 1, type(modeList) == "table" and #modeList or 0 do
-                if remap[number] == nil then
+                if not modesOn then
+                    remap[number] = false
+                    moved = true
+                elseif remap[number] == nil then
                     remap[number] = -1
                     moved = true
                 end
@@ -783,8 +849,9 @@ Block.RegisterBlock{
                     entry.rules = rules ~= "" and rules or nil
                 end
                 local cost = tonumber(values.cost) or 0
-                if _extraCost(rawget(entry, "condition")) ~= cost then
-                    entry.condition = cost > 0 and string.format(EXTRA_COST_CONDITION, cost) or nil
+                local savedCost, rest = _extraCost(rawget(entry, "condition"))
+                if savedCost ~= cost then
+                    entry.condition = _costCondition(rest, cost)
                 end
                 local targets = ((option.bodies or {}).targets or {})[1]
                 if targets ~= nil then
@@ -866,8 +933,9 @@ Block.RegisterBlock{
         --an extra cost spends the Heroic Resource as the option is used.
         local cost = tonumber(instance.values.cost) or 0
         local steps = instance.bodies.steps
+        --only the Spend step this cost made (or matched when opened): one the author added stays.
         for index, step in ipairs(steps) do
-            if _isCostStep(step) then
+            if step.marks ~= nil and step.marks.costStep and _isCostStep(step) then
                 if cost > 0 then
                     step.values.quantity = tostring(cost)
                 else
@@ -883,6 +951,7 @@ Block.RegisterBlock{
                 spend.values.quantity = tostring(cost)
                 spend.values.resource = CharacterResource.heroicResourceId
                 spend.values.who = "caster"
+                spend.marks = { costStep = true }
                 table.insert(steps, 1, spend)
             end
         end
@@ -1066,9 +1135,13 @@ local REQUIREMENTS = {
         local result = {}
         local saved = rawget(record, "reasonedFilters")
         for _, filter in ipairs(type(saved) == "table" and saved or {}) do
+            local formula = rawget(filter, "formula")
             result[#result + 1] = {
                 block = "ability.requirement",
-                values = { test = tostring(rawget(filter, "formula") or ""), reason = tostring(rawget(filter, "reason") or "") },
+                values = {
+                    test = type(formula) == "table" and TABLE_FILTER or tostring(formula or ""),
+                    reason = tostring(rawget(filter, "reason") or ""),
+                },
                 saved = DeepCopy(filter),
             }
         end
@@ -1082,11 +1155,16 @@ local REQUIREMENTS = {
             --a new requirement with no test yet is not saved: an empty formula could fail every target.
             if instance.saved ~= nil or string.find(test, "%S") ~= nil then
                 local entry = DeepCopy(instance.saved or {})
-                local savedTest = tostring(rawget(entry, "formula") or "")
-                --a test that means the same keeps its saved spelling.
-                if savedTest ~= test and (Block.FormulaCanonical(savedTest) or savedTest) ~= (Block.FormulaCanonical(test) or test) then
+                local savedFormula = rawget(entry, "formula")
+                if type(savedFormula) == "table" then
+                    --a formula table stays as saved unless the author typed a new test over it.
+                    if test ~= TABLE_FILTER then
+                        entry.formula = test
+                    end
+                elseif savedFormula == nil then
                     entry.formula = test
-                elseif rawget(entry, "formula") == nil then
+                elseif not Block.SameFormula(tostring(savedFormula), test) then
+                    --a test that means the same keeps its saved spelling.
                     entry.formula = test
                 end
                 if tostring(rawget(entry, "reason") or "") ~= tostring(values.reason or "") then
@@ -1125,6 +1203,13 @@ Block.RegisterBlock{
 --the tables whose abilities /blockroundtrip covers: the core class content.
 local ROUND_TRIP_TABLES = { "classes", "subclasses" }
 
+--- Where each listed ability was found: its table, row and the keys down to
+--- it. Several rows can hold an ability with the same guid (Censor and Conduit
+--- share domain abilities), so saving goes back to the row it was opened from.
+--- Weak keys: an ability the tables no longer hold is forgotten.
+--- @type table<table, {tableid: string, key: string, path: any[]}>
+local g_sources = setmetatable({}, { __mode = "k" })
+
 --- Every top-level ability in the class tables, with where it was found. An
 --- ability inside another (a follow-up) is checked as part of its parent;
 --- Hidden ones are the engine's own helpers.
@@ -1132,7 +1217,7 @@ local ROUND_TRIP_TABLES = { "classes", "subclasses" }
 local function _classAbilities()
     local result = {}
     local seen = {}
-    local function Walk(obj, where, depth)
+    local function Walk(obj, where, depth, source, path)
         if (type(obj) ~= "table" and type(obj) ~= "userdata") or depth > 16 or seen[obj] then
             return
         end
@@ -1142,23 +1227,39 @@ local function _classAbilities()
         if typeName == "ActivatedAbility" then
             if rawget(obj, "categorization") ~= "Hidden" then
                 result[#result + 1] = { record = obj, where = where }
+                g_sources[obj] = { tableid = source.tableid, key = source.key, path = path }
             end
             return
         end
         pcall(function()
-            for _, value in pairs(obj) do
+            for key, value in pairs(obj) do
                 if type(value) == "table" then
-                    Walk(value, where, depth + 1)
+                    local inner = { table.unpack(path) }
+                    inner[#inner + 1] = key
+                    Walk(value, where, depth + 1, source, inner)
                 end
             end
         end)
     end
     for _, tableName in ipairs(ROUND_TRIP_TABLES) do
-        for _, row in unhidden_pairs(dmhub.GetTable(tableName) or {}) do
-            Walk(row, string.format("%s/%s", tableName, tostring(row.name)), 0)
+        for key, row in unhidden_pairs(dmhub.GetTable(tableName) or {}) do
+            Walk(row, string.format("%s/%s", tableName, tostring(row.name)), 0, { tableid = tableName, key = key }, {})
         end
     end
     return result
+end
+
+--- Where an ability is stored: the row it was listed from, or (opened some
+--- other way) the first row holding its guid, as the Advanced editor finds it.
+--- @param ability table
+--- @return {tableid: string, key: string, path: any[]}|nil
+local function _sourceOf(ability)
+    local source = g_sources[ability]
+    if source ~= nil then
+        return source
+    end
+    pcall(function() source = ability:FindCompendiumSource() end)
+    return source
 end
 
 --- A step's name for its Advanced block: the behaviour type without the
@@ -1184,19 +1285,23 @@ end
 --- @param ability table
 --- @return boolean
 local function _uploadOwner(ability)
-    local guid = rawget(ability, "guid")
-    if guid == nil then
+    if rawget(ability, "guid") == nil then
         error("the ability has no guid, so where it is stored cannot be found")
     end
-    local item, tableid, _, path = FindCompendiumItemOwningGuid(guid)
-    if item == nil or tableid == nil then
+    local source = _sourceOf(ability)
+    if source == nil then
         error(string.format("could not find which compendium entry holds '%s'", tostring(rawget(ability, "name"))))
     end
-    --the owner already holds this very ability; re-seat it in case it was copied.
-    if path ~= nil and #path > 0 then
-        SetObjectAtPath(item, path, ability)
+    local rows = dmhub.GetTable(source.tableid)
+    local item = rows ~= nil and rows[source.key] or nil
+    if type(item) ~= "table" then
+        error(string.format("the compendium entry that held '%s' is gone", tostring(rawget(ability, "name"))))
     end
-    dmhub.SetAndUploadTableItem(tableid, item)
+    --the owner already holds this very ability; re-seat it in case it was copied.
+    if source.path ~= nil and #source.path > 0 then
+        SetObjectAtPath(item, source.path, ability)
+    end
+    dmhub.SetAndUploadTableItem(source.tableid, item)
     return true
 end
 
@@ -1210,8 +1315,7 @@ local function _locate(ability)
     if guid == nil then
         return nil
     end
-    local source = nil
-    pcall(function() source = ability:FindCompendiumSource() end)
+    local source = _sourceOf(ability)
     if source == nil then
         return nil
     end
@@ -1222,6 +1326,8 @@ local function _locate(ability)
     end
     local current = GetObjectAtPath(item, source.path)
     if type(current) == "table" and rawget(current, "guid") == guid then
+        --the newer copy is in the same place: remember it, so saving it goes there too.
+        g_sources[current] = source
         return current
     end
     return nil

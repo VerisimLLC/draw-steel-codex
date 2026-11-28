@@ -192,7 +192,7 @@ local function _editInPlace(word, value, commit, start)
         end,
     }
     --one box at a time: opening another ends this one as clicking away would.
-    if g_activeEdit ~= nil and g_activeEdit.finish ~= nil then
+    if g_activeEdit ~= nil and g_activeEdit.finish ~= nil and g_activeEdit.input.valid then
         g_activeEdit.finish()
     end
     g_activeEdit = { input = input, finish = Finish, cancel = function()

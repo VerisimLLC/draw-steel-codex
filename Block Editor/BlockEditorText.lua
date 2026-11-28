@@ -60,6 +60,7 @@ text("blockeditor.paste", [[Paste text]])
 text("blockeditor.not_yet", [[Not connected yet.]])
 text("blockeditor.notice.updated", [[Someone else changed {name}; this is their version now.]])
 text("blockeditor.notice.conflict", [[Someone else changed {name} while you were editing it. Your changes are not saved yet.]])
+text("blockeditor.notice.close_conflict", [[Before closing, choose whose version of {name} to keep: someone else changed it while you were editing it.]])
 text("blockeditor.notice.reload_theirs", [[Use theirs]])
 text("blockeditor.notice.keep_mine", [[Keep mine]])
 --How many steps a section holds, beside its name. {count} is a number.

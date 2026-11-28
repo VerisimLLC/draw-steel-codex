@@ -204,6 +204,21 @@ g_failUpload = false
 g_now = g_now + 3
 Check(state:Think() == false and #uploads == 3, "the failed record is sent again after the delay")
 
+--a record held for "Use theirs / Keep mine" uploads nothing until released,
+--whatever happens meanwhile: edits, undo, redo or a forced upload (closing).
+uploads = {}
+state.dirty = {}
+Add()
+state:Hold("a")
+Add()
+state:Undo()
+state:Redo()
+g_now = g_now + 10
+Check(state:Think() == true and state:UploadDirty(true) == 0 and #uploads == 0 and state:AnyHeld(),
+    "a held record stays unsent through edits, undo, redo and a forced upload")
+state:Release("a")
+Check(state:UploadDirty(true) == 1 and #uploads == 1 and not state:AnyHeld(), "released, it uploads")
+
 --someone else's version replaces a record: its pending change and its undo
 --steps go, while a step that also touched another record keeps that part.
 state.undoStack, state.redoStack, state.dirty = {}, {}, {}

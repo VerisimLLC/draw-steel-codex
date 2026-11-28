@@ -350,3 +350,31 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   (adjusted for the gap it leaves); a release outside every list adds nothing. On Banshee Howl, the
   option steps and the gap after the power roll.
 - Testing note: set `vscrollPosition` a second or more after the window opens; earlier it is ignored.
+
+## 17. Phase 2 audit: saving fixes (2026-11-28, run in DMHub)
+
+`PHASE2_AUDIT.md` was reviewed against the code; its saving and code-rule findings held up. Fixed:
+- **Conflict hold:** `BEState:Hold` / `Release` / `AnyHeld` (`state.held`); held records never
+  upload, even forced. Closing with a record held shows a notice ("closing") instead of closing;
+  a window destroyed otherwise keeps theirs. One bar, but an "updated" note no longer hides a
+  conflict, and the next held record shows after a choice. Reloads cancel an open word box.
+- **Gather failure:** the opened list keeps `splitFailed`; saving then skips `saveRecord(nil)`.
+- **Saving to the opened row:** `_classAbilities` records table, row key and path per ability
+  (`g_sources`, weak keys); `_uploadOwner` and `_locate` use it (`_sourceOf`, id lookup as the
+  fallback). 36 class or subclass ability guids are shared between rows (Censor and Conduit both
+  hold Hands of the Maker, Grave Speech, Revitalizing Ritual).
+- **Requirements:** a formula table reads as the table marker and is kept unless retyped.
+- **Modes:** wrapper `rekey` renumbers steps outside the wrapper (Advanced steps); re-adding Choose
+  one after modes were off drops stale tags (`remap` false). Extra cost keeps the rest of a
+  condition (joined with "and"); only the Spend step the cost made, or matched on open
+  (`instance.marks.costStep`), is changed or removed.
+- Code: `Slots` checks an old box is valid before finishing it; conflict buttons ignore a nil id;
+  `Block.SameFormula` replaces the copy in the target filter; dead `BlockEditor.Routes` removed.
+- `git rm` of `DMHub Utils/BlockTiers.lua` and `DMHub Game Rules/GetTableTypes().lua`; also remove
+  them from those mods' file lists in the Codex's mod tools, or the app recreates them.
+- **Measured in DMHub:** round trips 748/748 both; conflict held through edit, undo, redo and a
+  forced upload; close blocked with notice; Keep mine uploads once; Censor's Hands of the Maker
+  resolves to Censor's row; Banshee Howl's cost step updates and removes only itself.
+- **Still from the audit:** tab name "Advanced editor", add rows in every list, card book wording,
+  the "fx" button (decision 1), the Simple tab registered from the Draw Steel side, and the
+  look-and-feel items. Owner decisions are in the ledger (2026-11-28).

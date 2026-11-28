@@ -232,13 +232,21 @@ function BERecordCache.OpenSteps(behaviors, host, ctx)
         local target = #chain > 0 and chain[#chain].list or top
         target[#target + 1] = instance
     end
+    --- @type table<string, boolean> split blocks that failed to open here
+    local failed = {}
     for _, decl in ipairs(_splitDecls()) do
         local ok, gathered = pcall(decl.split.gather, top, behaviors, ctx)
         if not ok then
+            failed[decl.id] = true
             dmhub.Error(string.format("BlockEditor: block '%s' failed to gather its steps: %s", decl.id, tostring(gathered)))
         elseif type(gathered) == "table" then
             top = gathered
         end
+    end
+    --the list remembers a block that failed to open, so saving does not take its
+    --absence for the author removing it (that would clear the record's fields).
+    if next(failed) ~= nil then
+        rawset(top, "splitFailed", failed)
     end
     for _, instance in ipairs(top) do
         if instance.openSignature == nil and _splitFor(instance.block) ~= nil then
@@ -302,6 +310,12 @@ function BERecordCache.SaveSteps(instances, source, host, ctx)
                 if context[candidate.id] ~= opened[candidate.id] then
                     candidate.apply(behavior, context[candidate.id], ctx)
                     same = false
+                elseif context[candidate.id] == nil and candidate.rekey ~= nil and ctx.remap ~= nil then
+                    --a step outside the wrapper (an Advanced one is never wrapped) can still need renumbering.
+                    local ok, changed = pcall(candidate.rekey, behavior, ctx)
+                    if ok and changed then
+                        same = false
+                    end
                 end
             end
         end
@@ -385,8 +399,9 @@ function BERecordCache.SaveSteps(instances, source, host, ctx)
         untouched = false
     end
     --a list whose split block was taken out: the record loses those fields.
+    local splitFailed = instances ~= nil and rawget(instances, "splitFailed") or nil
     for _, decl in ipairs(_splitDecls()) do
-        if not seen[decl.id] then
+        if not seen[decl.id] and not (type(splitFailed) == "table" and splitFailed[decl.id]) then
             local ok, err = pcall(decl.split.saveRecord, nil, ctx)
             if not ok then
                 dmhub.Error(string.format("BlockEditor: block '%s' failed to clear its options: %s", decl.id, tostring(err)))

@@ -55,6 +55,7 @@ local mod = dmhub.GetModLoading()
 --- @field undoStack BEUndoEntry[]
 --- @field redoStack BEUndoEntry[]
 --- @field dirty table<string, number> record id -> dmhub.Time() of its last change
+--- @field held table<string, boolean> records whose uploads wait for the author to choose (BEState:Hold)
 --- @field uploads number how many uploads this editor has sent, for the debug readout
 --- @field failedUploads? integer how many uploads failed (each is retried)
 BEState = {}
@@ -72,9 +73,30 @@ function BEState.CreateNew(host)
         undoStack = {},
         redoStack = {},
         dirty = {},
+        held = {},
         uploads = 0,
     }
     return setmetatable(state, BEState)
+end
+
+--- Holds a record's uploads until Release: someone else changed it while this
+--- editor had a change waiting, and the author has not chosen whose to keep.
+--- Edits, undo and redo still mark it dirty; nothing uploads, even on close.
+--- @param id string
+function BEState:Hold(id)
+    self.held[id] = true
+end
+
+--- Lets a held record upload again.
+--- @param id string
+function BEState:Release(id)
+    self.held[id] = nil
+end
+
+--- Whether any record is held for the author's choice.
+--- @return boolean
+function BEState:AnyHeld()
+    return next(self.held) ~= nil
 end
 
 --- Adds a record to the editor without an undo step (opening is not an edit).
@@ -282,7 +304,7 @@ function BEState:UploadDirty(force)
     local now = dmhub.Time()
     local due = {}
     for id, changedAt in pairs(self.dirty) do
-        if force or now - changedAt >= BlockEditor.UPLOAD_DELAY then
+        if not self.held[id] and (force or now - changedAt >= BlockEditor.UPLOAD_DELAY) then
             due[#due + 1] = id
         end
     end

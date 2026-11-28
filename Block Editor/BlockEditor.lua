@@ -24,8 +24,8 @@
  state, and one refresh event goes back down the tree.
 
  Blocks are a view over the engine's own records. Nothing is migrated: a
- record the editor cannot show is routed to today's editor, which is called
- the Advanced editor everywhere (BlockEditor.Routes).
+ record the editor cannot show stays with today's editor, which is called
+ the Advanced editor everywhere (BlockEditor.CanOpen decides).
 
  WHERE THINGS LIVE
 
@@ -105,8 +105,9 @@
 
  The ability host (Draw Steel Core Rules/MCDMAbilityBlocks.lua) reads every
  class ability into blocks and saves it back; blocks are declared beside the
- behaviour types. Saving to the server through the containing record
- (milestone 2c) is not built yet, and BlockEditor.Routes returns false.
+ behaviour types. The window saves through the class or subclass row the
+ ability was listed from; the Simple tab writes into the ability and the
+ Advanced editor's dialog uploads it.
 ]]
 
 local mod = dmhub.GetModLoading()

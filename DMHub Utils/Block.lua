@@ -234,6 +234,7 @@ local mod = dmhub.GetModLoading()
 --- @field values fun(key: string, ctx: BlockContext): table the wrapper block's values for a key
 --- @field keyOf fun(values: table, ctx: BlockContext): string|nil the key a wrapper block's values stand for
 --- @field apply fun(behavior: table, key: string|nil, ctx: BlockContext) sets the behaviour's field so key() gives this key (nil: not wrapped)
+--- @field rekey? fun(behavior: table, ctx: BlockContext): boolean updates the field on a saved step outside this wrapper (an Advanced block, never wrapped) after ctx.remap; true when it changed it
 
 --- A ready-made feature: several blocks added together.
 --- @class BlockRecipe
@@ -257,6 +258,7 @@ local mod = dmhub.GetModLoading()
 --- @field openSignature? string its values and bodies as opened (Block.InstanceSignature), so an unchanged block writes back what it was read from
 --- @field openContext? table<string, string> the wrapper keys it was opened inside, by wrapper id
 --- @field saved? table what a block's read keeps to write an unchanged piece back as it was (a tier segment)
+--- @field marks? table<string, boolean> notes a host keeps on a placed block, outside its values (so they never count as an edit): the Spend step an option's cost made
 
 --- @class Block
 Block = {}

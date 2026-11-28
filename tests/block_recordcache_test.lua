@@ -497,6 +497,42 @@ Reqs(model)[#Reqs(model) + 1] = { block = "t.req", values = { test = "Winded" } 
 saved = BERecordCache.Save(model, { name = "None", behaviors = {} }, listHost)
 Check(saved.filters ~= nil and saved.filters[1].formula == "Winded", "a block added to an empty list is saved")
 
+--a split block that fails to open does not count as taken out: saving keeps the record's fields.
+local choose = Block.GetBlock("t.choose") --[[@as BlockDecl]]
+local realGather = choose.split.gather
+choose.split.gather = function() error("broken gather") end
+local errorsBefore = #g_errors
+model = BERecordCache.Open(moded, host)
+saved = BERecordCache.Save(model, moded, host)
+Check(Equal(saved.modes, moded.modes) and #g_errors == errorsBefore + 1, "a split block that failed to open leaves the record's fields alone")
+choose.split.gather = realGather
+
+--a step outside every wrapper (an Advanced one) still follows renumbering.
+local rekeyed = 0
+for _, wrapper in ipairs(Block.All("wrapper")) do
+    if wrapper.id == "t.mode" then
+        wrapper.rekey = function(behavior, ctx)
+            local remap = ctx.remap and ctx.remap["t.mode"]
+            local mode = rawget(behavior, "mode")
+            if remap and mode and remap[mode] and remap[mode] ~= mode then
+                behavior.mode = remap[mode]
+                rekeyed = rekeyed + 1
+                return true
+            end
+            return false
+        end
+    end
+end
+choose.split.prepare = function(instance, ctx)
+    ctx.remap = { ["t.mode"] = { [2] = 1 } }
+end
+local loose = { name = "Loose", modes = { "Fire", "Ice" }, behaviors = { Other.new{ mode = 2 }, Damage.new{ roll = "1", mode = 1 } } }
+model = BERecordCache.Open(loose, host)
+saved = BERecordCache.Save(model, loose, host)
+Check(model.blocks[1].block == "t.advanced" and saved.behaviors[1].mode == 1 and rekeyed == 1,
+    "an Advanced step's tag is renumbered through the wrapper's rekey")
+choose.split.prepare = nil
+
 local fresh = Block.Instantiate("t.choose") --[[@as BlockInstance]]
 Check(#fresh.bodies.options == 2, "a new split block starts with the options its initial gives")
 model = BERecordCache.Open(record, host)

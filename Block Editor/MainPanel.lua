@@ -31,7 +31,7 @@ local _getState = BlockEditor._getState
 local STATUS_EVENT = "refreshEditorStatus"
 
 --- The host the developer window opens when it is given no record: the
---- first that declares a demo record (the stub ability host, in phase 1).
+--- first that declares a demo record (the stub ability host).
 --- @return BlockHost|nil
 local function _demoDecl()
     for _, host in ipairs(Block.All("host")) do
@@ -351,7 +351,7 @@ local function _noticeBar()
                 _fireControllerEvent(element, "editorKeepMine", bar.data.recordId)
             end,
         },
-        --- @param kind string|nil "updated", "conflict", or nil to hide
+        --- @param kind string|nil "updated", "conflict", "closing" (a close waiting on a conflict), or nil to hide
         --- @param recordId string|nil
         --- @param name string|nil the record's name
         editorNotice = function(element, kind, recordId, name)
@@ -361,14 +361,17 @@ local function _noticeBar()
             if kind == nil then
                 return
             end
+            local choosing = kind == "conflict" or kind == "closing"
             if kind == "conflict" then
                 element.children[1].text = T("blockeditor.notice.conflict", { name = name or "" })
+            elseif kind == "closing" then
+                element.children[1].text = T("blockeditor.notice.close_conflict", { name = name or "" })
             else
                 element.children[1].text = T("blockeditor.notice.updated", { name = name or "" })
             end
             for _, child in ipairs(element.children) do
                 if child:HasClass("beNoticeChoice") then
-                    child:SetClass("collapsed", kind ~= "conflict")
+                    child:SetClass("collapsed", not choosing)
                 end
             end
             if kind == "updated" then
@@ -431,20 +434,6 @@ local function _sectionStrip(decl)
         children = children,
     }
 end
-
---- Whether a registered host edits this record, so today's editors can send
---- it here and keep the rest (the Advanced editor). Nothing is routed until
---- a host can save its records (milestone 2c) and the Simple tab is on.
---- @param record table|nil
---- @param where? string where it was opened from ("compendium", ...)
---- @return boolean
-function BlockEditor.Routes(record, where)
-    return false
-end
-
---A dirty time far in the future: the record is held, not uploaded, while
---the author chooses between their version and someone else's.
-local UNTIL_CHOSEN = math.huge
 
 --- The records someone else changed since this editor last saw or wrote them.
 --- @param host BlockEditorHost
@@ -590,6 +579,7 @@ function BlockEditor.CreatePanel(record, options)
 
         destroy = function(element)
             --closing uploads whatever is pending (plan 12.3), then the stacks go.
+            --A record held for a conflict is not uploaded: their version stays.
             state:UploadDirty(true)
             element.inputEvents = nil
             if themeSub ~= nil then
@@ -661,8 +651,26 @@ function BlockEditor.CreatePanel(record, options)
             end
         end,
 
+        --- A conflict still waiting stops the close and says so (ledger 2026-11-28).
         editorClose = function(element)
+            local held = next(state.held)
+            if held ~= nil then
+                local model = state:Model(held)
+                element:FireEventTree("editorNotice", "closing", held, model ~= nil and model.name or "")
+                return
+            end
             gui.CloseModal()
+        end,
+
+        --- Shows the next record still waiting on a choice, or hides the bar.
+        editorNextConflict = function(element)
+            local held = next(state.held)
+            if held == nil then
+                element:FireEventTree("editorNotice", nil)
+                return
+            end
+            local model = state:Model(held)
+            element:FireEventTree("editorNotice", "conflict", held, model ~= nil and model.name or "")
         end,
 
         --Other people's changes (plan 12.6). The window watches the game's
@@ -675,15 +683,20 @@ function BlockEditor.CreatePanel(record, options)
             for id, current in pairs(_changesElsewhere(host, state)) do
                 local model = state:Model(id)
                 local name = model ~= nil and model.name or ""
-                if state.dirty[id] == nil then
-                    --nothing of ours is waiting: show theirs.
+                if state.dirty[id] == nil and not state.held[id] then
+                    --nothing of ours is waiting: show theirs. A word being typed
+                    --over is dropped first, as the page is about to be redrawn.
+                    BESlots.CancelEdit()
                     _reloadRecord(state, host, decl, id, current)
                     element:FireEvent("editorRefresh")
-                    element:FireEventTree("editorNotice", "updated", id, name)
+                    --a conflict bar for another record stays up instead of this note.
+                    if not state:AnyHeld() then
+                        element:FireEventTree("editorNotice", "updated", id, name)
+                    end
                 elseif not dmhub.DeepEqual(conflicts[id], current) then
                     --ours is waiting to save: hold it until the author chooses.
                     conflicts[id] = DeepCopy(current)
-                    state.dirty[id] = UNTIL_CHOSEN
+                    state:Hold(id)
                     element:FireEventTree("editorNotice", "conflict", id, name)
                 end
             end
@@ -692,28 +705,37 @@ function BlockEditor.CreatePanel(record, options)
         --- Drops this editor's changes to a record and shows the other version.
         --- @param id string
         editorReloadTheirs = function(element, id)
-            local current = id ~= nil and host.changedElsewhere(id) or nil
+            if id == nil then
+                return
+            end
+            local current = host.changedElsewhere(id)
             conflicts[id] = nil
+            state:Release(id)
+            BESlots.CancelEdit()
             if current ~= nil then
                 _reloadRecord(state, host, decl, id, current)
             else
                 state.dirty[id] = nil
             end
             element:FireEvent("editorRefresh")
-            element:FireEventTree("editorNotice", nil)
+            element:FireEvent("editorNextConflict")
         end,
 
         --- Keeps this editor's version: it saves over the other one (last save wins).
         --- @param id string
         editorKeepMine = function(element, id)
-            local current = id ~= nil and host.changedElsewhere(id) or nil
+            if id == nil then
+                return
+            end
+            local current = host.changedElsewhere(id)
             conflicts[id] = nil
+            state:Release(id)
             if current ~= nil then
                 host.adopt(id, current)
             end
             state.dirty[id] = dmhub.Time() - BlockEditor.UPLOAD_DELAY
             element:FireEvent("editorRefresh")
-            element:FireEventTree("editorNotice", nil)
+            element:FireEvent("editorNextConflict")
         end,
 
         _titleBar(decl, embedded),

@@ -577,4 +577,41 @@ end)()
     AssertNoLeaks(out, "condition sources")
 end)()
 
+;(function()
+    -- the box score: heroes per round, foes per opaque group, never stamina.
+    local raw = Fixture()
+    raw.monsters[1].group = "grp-secret-squad-key"
+    raw.monsters[3].group = "grp-secret-squad-key"
+    raw.monsters[4].group = "grp-secret-squad-key"
+    local cell = function(t, h, g, e) return { taken = t, healed = h, gained = g or {}, ended = e or {} } end
+    raw.boxScore = {
+        current = 2, rounds = 3,
+        heroes = {
+            { id = "h-vex", cells = { cell(14, 0, { "Winded" }), cell(6, 10, {}, { "Bleeding" }), cell(0, 0) } },
+            { id = "h-nobody", cells = { cell(99, 0) } },
+        },
+        foes = {
+            { id = "m-boss", group = "grp-secret-squad-key", cells = { cell(0, 0), cell(9, 50, { "Winded" }) }, stamina = { cur = 18 } },
+            { id = "m-ambusher", cells = { cell(5, 0, { SECRET .. " Mark" }) } },
+            { id = "m-ambusher", group = "grp-hidden-only", cells = { cell(5, 0) } },
+        },
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    local b = out.boxScore
+    check(b ~= nil and b.rounds == 3 and b.current == 2, "box score rounds and current round")
+    check(#b.heroes == 1 and b.heroes[1].id == "h-vex", "only heroes in the snapshot get a row")
+    check(#b.heroes[1].cells == 3 and b.heroes[1].cells[2].healed == 10 and b.heroes[1].cells[1].gained[1] == "Winded", "hero cells keep taken, healed and tags")
+    check(#b.foes == 1, "one foe row per shown group; hidden foes are dropped: " .. tostring(#b.foes))
+    local foe = b.foes[1]
+    check(foe.group == out.foes.list[1].group and foe.id == nil, "a foe row carries the opaque group id only")
+    check(foe.cells[2].taken == 9 and foe.cells[2].healed == nil and foe.cells[3].taken == 0, "foe cells: damage taken, no healing, empty rounds filled")
+    check(foe.stamina == nil, "no stamina in a foe row")
+    Walk(b, "box", function(path, key, value)
+        check(value ~= "grp-secret-squad-key", "the raw group key never leaves: " .. path)
+    end)
+    raw.boxScore.current = 9
+    check(StreamerKitRedact.Redact(raw).boxScore.current == nil, "a current round past the last is dropped")
+    AssertNoLeaks(out, "box score")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

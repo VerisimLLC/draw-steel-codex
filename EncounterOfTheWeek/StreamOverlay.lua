@@ -1266,6 +1266,242 @@ local function RawMontage()
     return raw
 end
 
+-- ---------------------------------------------------------------------------
+-- The box score (per-round tallies for the viewer page's Box score view)
+-- ---------------------------------------------------------------------------
+--
+--Each publish pass during combat compares every combatant's stamina (temporary
+--stamina included) and conditions with the last pass, and adds the change to
+--the current round: damage taken, healing (heroes only) and conditions gained
+--or ended. Sampling stamina catches every source (abilities, ongoing damage,
+--edits by hand), which History does not. Minions share their squad's pool, so
+--a squad is sampled once. Foes are tallied per initiative group.
+--
+--The tallies live in their own document as JSON, so a reload picks them up
+--where they were; a new combat starts them over, and after the combat they
+--stay as the fight's recap until the next one.
+
+local BOX_DOC = "streamerKitBoxScore"
+local BOX_MAX_ROUNDS = 30
+local g_box = nil
+
+--- @return table
+local function NewBox(combatid)
+    return { combat = combatid, maxRound = 0, rows = {}, order = {}, pools = {}, conds = {} }
+end
+
+--- The saved tallies, or nil.
+--- @return nil|table
+local function LoadBox()
+    local box = nil
+    pcall(function()
+        local text = mod:GetDocumentSnapshot(BOX_DOC).data.box
+        if type(text) == "string" then
+            box = dmhub.FromJson(text)
+        end
+    end)
+    if type(box) ~= "table" or type(box.rows) ~= "table" then
+        return nil
+    end
+    box.order = type(box.order) == "table" and box.order or {}
+    box.pools = type(box.pools) == "table" and box.pools or {}
+    box.conds = type(box.conds) == "table" and box.conds or {}
+    box.maxRound = tonumber(box.maxRound) or 0
+    return box
+end
+
+--- A row's cell for a round, made on first use.
+local function BoxCell(row, round)
+    local key = "r" .. round
+    local cell = row.r[key]
+    if type(cell) ~= "table" then
+        cell = { t = 0, h = 0, g = {}, e = {} }
+        row.r[key] = cell
+    end
+    cell.g = type(cell.g) == "table" and cell.g or {}
+    cell.e = type(cell.e) == "table" and cell.e or {}
+    return cell
+end
+
+--- The row for a key, made on first use.
+local function BoxRow(box, key, side, id, group)
+    local row = box.rows[key]
+    if type(row) ~= "table" then
+        row = { side = side, id = id, group = group, r = {} }
+        box.rows[key] = row
+        box.order[#box.order + 1] = key
+    end
+    row.r = type(row.r) == "table" and row.r or {}
+    return row
+end
+
+--- Add a stamina sample's change to the round. Returns true if it changed.
+local function BoxStamina(box, poolKey, sample, row, round, countHealing)
+    local prev = tonumber(box.pools[poolKey])
+    box.pools[poolKey] = sample
+    if prev == nil or sample == prev then
+        return prev == nil
+    end
+    if sample < prev then
+        local cell = BoxCell(row, round)
+        cell.t = (tonumber(cell.t) or 0) + (prev - sample)
+    elseif countHealing then
+        local cell = BoxCell(row, round)
+        cell.h = (tonumber(cell.h) or 0) + (sample - prev)
+    end
+    return true
+end
+
+--- Note conditions gained and ended since the last pass. Returns true if any.
+local function BoxConditions(box, creatureKey, names, row, round)
+    local prev = box.conds[creatureKey]
+    box.conds[creatureKey] = names
+    if type(prev) ~= "table" then
+        return true
+    end
+    local changed = false
+    for name, _ in pairs(names) do
+        if not prev[name] then
+            local cell = BoxCell(row, round)
+            if cell.e[name] then
+                cell.e[name] = nil
+            else
+                cell.g[name] = true
+            end
+            changed = true
+        end
+    end
+    for name, _ in pairs(prev) do
+        if not names[name] then
+            local cell = BoxCell(row, round)
+            if cell.g[name] then
+                cell.g[name] = nil
+            else
+                cell.e[name] = true
+            end
+            changed = true
+        end
+    end
+    return changed
+end
+
+--- @return table<string, boolean>
+local function ConditionNames(list, dropSecret)
+    local names = {}
+    for _, c in ipairs(list or {}) do
+        if type(c) == "table" and type(c.name) == "string" and not (dropSecret and c.hiddenFromEnemies) then
+            names[c.name] = true
+        end
+    end
+    return names
+end
+
+--- @return string[]
+local function SortedKeys(set)
+    local list = {}
+    for k, _ in pairs(set or {}) do
+        list[#list + 1] = k
+    end
+    table.sort(list)
+    return list
+end
+
+--- Update the tallies from this pass's raw heroes and monsters, and give the
+--- box score block for the raw snapshot (nil before any combat was seen).
+--- @param raw table
+--- @param q nil|InitiativeQueue
+--- @return nil|table
+local function UpdateBoxScore(raw, q)
+    if g_box == nil then
+        g_box = LoadBox()
+    end
+    local changed = false
+    if q ~= nil and (g_box == nil or g_box.combat ~= q.guid) then
+        g_box = NewBox(q.guid)
+        changed = true
+    end
+    if g_box == nil then
+        return nil
+    end
+    local box = g_box
+
+    if q ~= nil then
+        local round = math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS))
+        if round > box.maxRound then
+            box.maxRound = round
+            changed = true
+        end
+        for _, hero in ipairs(raw.heroes) do
+            if hero.id ~= nil then
+                local row = BoxRow(box, hero.id, "hero", hero.id, nil)
+                local s = hero.stamina or {}
+                local sample = (tonumber(s.cur) or 0) + (tonumber(s.temp) or 0)
+                changed = BoxStamina(box, hero.id, sample, row, round, true) or changed
+                changed = BoxConditions(box, hero.id, ConditionNames(hero.conditions, false), row, round) or changed
+            end
+        end
+        local sampled = {}
+        for _, monster in ipairs(raw.monsters) do
+            if not monster.hidden and monster.id ~= nil then
+                local key = monster.group or monster.id
+                local row = BoxRow(box, key, "foe", monster.id, monster.group)
+                local pool = monster.id
+                if monster.minion and monster.squad ~= nil then
+                    pool = "squad/" .. tostring(monster.squad)
+                end
+                if not sampled[pool] then
+                    sampled[pool] = true
+                    local s = monster.stamina or {}
+                    local sample = (tonumber(s.cur) or 0) + (tonumber(s.temp) or 0)
+                    changed = BoxStamina(box, pool, sample, row, round, false) or changed
+                end
+                changed = BoxConditions(box, monster.id, ConditionNames(monster.conditions, true), row, round) or changed
+            end
+        end
+    end
+
+    if changed then
+        pcall(function()
+            local doc = mod:GetDocumentSnapshot(BOX_DOC)
+            doc:BeginChange()
+            doc.data.box = dmhub.ToJson(box)
+            doc:CompleteChange("Box score", {undoable = false})
+        end)
+    end
+
+    local out = {
+        current = q ~= nil and math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS)) or nil,
+        rounds = box.maxRound,
+        heroes = {},
+        foes = {},
+    }
+    for _, key in ipairs(box.order) do
+        local row = box.rows[key]
+        if type(row) == "table" then
+            local cells = {}
+            for r = 1, box.maxRound do
+                local cell = type(row.r) == "table" and row.r["r" .. r] or nil
+                if type(cell) == "table" then
+                    cells[r] = {
+                        taken = tonumber(cell.t) or 0,
+                        healed = tonumber(cell.h) or 0,
+                        gained = SortedKeys(cell.g),
+                        ended = SortedKeys(cell.e),
+                    }
+                else
+                    cells[r] = { taken = 0, healed = 0, gained = {}, ended = {} }
+                end
+            end
+            if row.side == "hero" then
+                out.heroes[#out.heroes + 1] = { id = row.id, cells = cells }
+            elseif row.side == "foe" then
+                out.foes[#out.foes + 1] = { id = row.id, group = row.group, cells = cells }
+            end
+        end
+    end
+    return out
+end
+
 --- The raw (Director-level) snapshot for the viewer feed. Malice is never
 --- collected: viewers do not see it (decided 2026-11-27), and what is not
 --- gathered cannot leak.
@@ -1405,7 +1641,7 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                     id = token.charid,
                     name = PublicName(token),
                     namePrivate = token.namePrivate == true,
-                    stamina = { cur = props:CurrentHitpoints(), max = props:MaxHitpoints() },
+                    stamina = { cur = props:CurrentHitpoints(), max = props:MaxHitpoints(), temp = props:TemporaryHitpoints() },
                     dead = props:IsDead(),
                     conditions = {},
                 }
@@ -1430,6 +1666,11 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                     if remembered ~= nil then
                         monster.group = remembered.group
                         monster.groupTitle = remembered.title
+                    elseif initiative ~= nil then
+                        --after a reload the memory is gone, but the token
+                        --still carries its group (initiativeGrouping, or its
+                        --squad); the title is filled in below.
+                        pcall(function() monster.group = initiative.GetInitiativeId(token) end)
                     end
                 end
                 monster.conditions = WithSources(MonsterConditions(props), token)
@@ -1440,6 +1681,31 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
         end
     end
 
+
+    --groups read back from the tokens have no title (it lived on the
+    --initiative queue): name them for their leader, else their first member,
+    --as the queue does.
+    local titles = {}
+    for _, monster in ipairs(raw.monsters) do
+        if monster.group ~= nil and monster.groupTitle == nil then
+            local t = titles[monster.group]
+            if t == nil or (t.minion and not monster.minion) then
+                titles[monster.group] = { name = monster.name, minion = monster.minion }
+            end
+        end
+    end
+    for _, monster in ipairs(raw.monsters) do
+        if monster.group ~= nil and monster.groupTitle == nil and titles[monster.group] ~= nil then
+            monster.groupTitle = titles[monster.group].name
+        end
+    end
+
+    local okBox, box = pcall(UpdateBoxScore, raw, q)
+    if okBox then
+        raw.boxScore = box
+    else
+        print("StreamOverlay:: box score failed:", box)
+    end
     return raw
 end
 

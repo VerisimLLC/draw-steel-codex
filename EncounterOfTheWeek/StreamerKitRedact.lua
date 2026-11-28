@@ -79,6 +79,13 @@
 --      log = { { round, hero, entry, option, tier, passed, consequence } } },
 --    pastMontage = the same block for the last montage to finish (phase
 --      "done", no turn), sent while no montage is running.
+--    boxScore = nil | { current (round, nil once the combat is over), rounds,
+--      heroes = { { id, cells = { { taken, healed, gained = { name },
+--                                   ended = { name } } } } },
+--      foes = { { id, group (raw group key), cells = { same, healing
+--                 ignored } } } }
+--      Per-round tallies (StreamOverlay.lua UpdateBoxScore). Published with
+--      foe rows per opaque group id and damage taken only.
 --  }
 --  The montage block holds only what every player's screen shows: the
 --  collector leaves out locked, removed and expired entries, later rounds'
@@ -568,6 +575,79 @@ local function RedactMonster(monster)
     return out
 end
 
+local MAX_BOX_ROUNDS = 30
+local MAX_BOX_TAGS = 8
+
+--- Condition names for a box score cell: short strings, capped.
+local function BoxTags(list)
+    local result = {}
+    for _, name in ipairs(List(list, MAX_BOX_TAGS)) do
+        local s = Short(name)
+        if s ~= nil then
+            result[#result + 1] = s
+        end
+    end
+    return result
+end
+
+--- The box score block. Heroes keep taken and healed per round; foes keep
+--- damage taken only (it is in the combat log already), per initiative
+--- group, never stamina. A row is kept only for a hero in the snapshot, a
+--- group the snapshot shows, or a foe the snapshot shows.
+--- @param box any
+--- @param heroIds table<string, boolean>
+--- @param groupIds table<string, string> raw group key -> opaque id
+--- @param foeIds table<string, boolean> visible foes
+--- @return nil|table
+local function RedactBoxScore(box, heroIds, groupIds, foeIds)
+    if type(box) ~= "table" then
+        return nil
+    end
+    local rounds = math.max(0, math.min(Whole(box.rounds) or 0, MAX_BOX_ROUNDS))
+    local current = Whole(box.current)
+    if current ~= nil and (current < 1 or current > rounds) then
+        current = nil
+    end
+    local out = { rounds = rounds, current = current, heroes = {}, foes = {} }
+    local function Cells(cells, withHealing)
+        local result = {}
+        cells = type(cells) == "table" and cells or {}
+        for r = 1, rounds do
+            local c = type(cells[r]) == "table" and cells[r] or {}
+            local cell = {
+                taken = math.max(0, Whole(c.taken) or 0),
+                gained = BoxTags(c.gained),
+                ended = BoxTags(c.ended),
+            }
+            if withHealing then
+                cell.healed = math.max(0, Whole(c.healed) or 0)
+            end
+            result[r] = cell
+        end
+        return result
+    end
+    for _, row in ipairs(List(box.heroes, MAX_HEROES * 2)) do
+        if type(row) == "table" and type(row.id) == "string" and heroIds[row.id] and #out.heroes < MAX_HEROES then
+            out.heroes[#out.heroes + 1] = { id = row.id, cells = Cells(row.cells, true) }
+        end
+    end
+    local seenGroups = {}
+    for _, row in ipairs(List(box.foes, MAX_MONSTERS * 2)) do
+        if type(row) == "table" and #out.foes < MAX_MONSTERS then
+            if type(row.group) == "string" then
+                local gid = groupIds[row.group]
+                if gid ~= nil and not seenGroups[gid] then
+                    seenGroups[gid] = true
+                    out.foes[#out.foes + 1] = { group = gid, cells = Cells(row.cells, false) }
+                end
+            elseif type(row.id) == "string" and foeIds[row.id] then
+                out.foes[#out.foes + 1] = { id = row.id, cells = Cells(row.cells, false) }
+            end
+        end
+    end
+    return out
+end
+
 --- Redact a raw (Director-level) snapshot into the viewer snapshot.
 --- @param raw nil|table anything that is not a table redacts to an empty snapshot
 --- @return table
@@ -678,6 +758,19 @@ function StreamerKitRedact.Redact(raw)
         events = {},
     }
     out.actions = RedactActions(raw.actions, hiddenIds, visibleNames)
+
+    local heroIds, foeIds = {}, {}
+    for _, entry in ipairs(heroes) do
+        if entry.id ~= nil then
+            heroIds[entry.id] = true
+        end
+    end
+    for _, entry in ipairs(monsters) do
+        if entry.id ~= nil and not hiddenIds[entry.id] then
+            foeIds[entry.id] = true
+        end
+    end
+    out.boxScore = RedactBoxScore(raw.boxScore, heroIds, groupIds, foeIds)
     if out.mode == "montage" then
         out.montage = RedactMontage(raw.montage)
     else

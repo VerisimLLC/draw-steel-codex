@@ -1173,6 +1173,15 @@ local STATE_CAPTIONS = {
     dying = {text = T("history.caption.dying"), style = "historyDying"},
     killed = {text = T("history.caption.killed"), style = "historyDead"},
 }
+local DESTROYED_CAPTION = {text = T("history.caption.destroyed"), style = "historyDead"}
+
+--The caption for a target's state: an object at 0 Stamina is destroyed, not killed.
+local function StateCaption(who)
+    if who.state == "killed" and who.isobject then
+        return DESTROYED_CAPTION
+    end
+    return STATE_CAPTIONS[who.state]
+end
 
 --What minion deaths read as. The whole squad gone says so.
 local function MinionWords(entry)
@@ -1234,7 +1243,8 @@ local function Captions(who, minions, allyHit)
         Add(UIText.Plural("history.story.minions", who.byminions, {count = Int(who.byminions)}))
     end
     if who.state ~= nil then
-        Add(STATE_CAPTIONS[who.state].text, nil, STATE_CAPTIONS[who.state].style)
+        local caption = StateCaption(who)
+        Add(caption.text, nil, caption.style)
     end
     for _, entry in ipairs(minions or {}) do
         Add(MinionWords(entry), nil, "historyDead")
@@ -1745,7 +1755,7 @@ local function TriggerRow(index, entry, rowActor)
             effects[#effects + 1] = T("history.story.effect_ended", {name = name})
         end
         if who.state ~= nil then
-            effects[#effects + 1] = STATE_CAPTIONS[who.state].text
+            effects[#effects + 1] = StateCaption(who).text
         end
         if who.moved ~= nil then
             effects[#effects + 1] = MovedWords(who.moved)
@@ -2269,7 +2279,7 @@ local function LineWords(entry)
         return words
     elseif family == "threshold" then
         if entry.state == "killed" then
-            return T("history.line.killed", {name = name})
+            return T(cond(entry.isobject, "history.line.destroyed", "history.line.killed"), {name = name})
         end
         --state is the stored key, "winded" or "dying", shown as it is.
         return T("history.line.threshold", {name = name, state = entry.state})
@@ -3620,7 +3630,7 @@ local function AddLoneTrigger(items, entry, key, kids)
             parts[#parts + 1] = {family = "ended", names = who.ended}
         end
         if who.state ~= nil then
-            parts[#parts + 1] = {family = "threshold", state = who.state}
+            parts[#parts + 1] = {family = "threshold", state = who.state, isobject = who.isobject}
         end
         if who.moved ~= nil then
             parts[#parts + 1] = {family = "moved", moved = who.moved}
@@ -4419,10 +4429,12 @@ local function CreateFace()
     local builtFrame = 0
     local face
     local list
-    --true until the first build: History opens on "New since you last looked" when the
-    --new rows don't all fit, so the first one is in view.
-    local openAtMarker = true
-    local markerTries = 0
+    --true until the first build. Opening always lands on the newest row, so the first
+    --build never holds a scrolled-up view or clears the "New since you last looked" marker.
+    local firstBuild = true
+    --Whether the reader has had "New since you last looked" on screen. Opening lands at the
+    --bottom, often below it, so new rows only end it once it has been seen.
+    local markerSeen = false
     --The last build's items, and the row ShowEntry is bringing into view.
     --- @type table[]
     local builtItems = {}
@@ -4531,6 +4543,25 @@ local function CreateFace()
 
     --Built rows by item key: {panel, sig}.
     local rows = {}
+
+    --Sets markerSeen once "New since you last looked" has been on screen in the list.
+    local function CheckMarkerSeen()
+        local marker = rows["newmarker"]
+        if markerSeen or marker == nil or not marker.panel.valid then
+            return
+        end
+        local windowHeight = list.renderedHeight or 0
+        local range = (rowsPanel.renderedHeight or 0) - windowHeight
+        local top = (1 - list.vscrollPosition) * math.max(range, 0)
+        local offset = 0
+        for _, row in ipairs(rowsPanel.children) do
+            if row == marker.panel then
+                break
+            end
+            offset = offset + (row.renderedHeight or 0)
+        end
+        markerSeen = offset + (marker.panel.renderedHeight or 0) > top and offset < top + windowHeight
+    end
 
     rowsPanel = gui.Panel{
         flow = "vertical",
@@ -4758,11 +4789,11 @@ local function CreateFace()
         if not stick then
             CaptureAnchor()
         end
-        --caught up: a new row while the reader sits at the bottom ends "New since you last
-        --looked"; with History open, what arrives now is being watched.
+        --caught up: once the reader has had "New since you last looked" on screen, a new row
+        --while they sit at the bottom ends it; with History open, what arrives now is being watched.
         local keys = History.Keys(mapid)
         local newest = keys[#keys]
-        if fromGame and stick and not openAtMarker and builtNewest ~= nil and newest ~= nil and newest > builtNewest then
+        if fromGame and stick and not firstBuild and (markerSeen or rows["newmarker"] == nil) and builtNewest ~= nil and newest ~= nil and newest > builtNewest then
             g_since = nil
         end
         builtNewest = newest
@@ -4782,16 +4813,16 @@ local function CreateFace()
                 end
             end
         end
-        --opening on new turns: build back far enough to include the marker.
-        local markerShown = false
-        if openAtMarker then
+        --build back far enough to include the marker when opening, and ShowEntry's row,
+        --which may be older than the rows built.
+        if firstBuild or showKey ~= nil then
             for i, item in ipairs(items) do
-                if item.kind == "newmarker" then
-                    markerShown = true
+                if item.key == showKey or (firstBuild and item.kind == "newmarker") then
                     if i < first then
                         first = i
                         rowsWanted = #items - i + 1
                     end
+                    break
                 end
             end
         end
@@ -4863,7 +4894,7 @@ local function CreateFace()
         rowsPanel.children = children
         if stick and not loadingOlder then
             list:ScheduleEvent("toBottom", 0.02)
-        elseif not loadingOlder and not openAtMarker and holdPanel ~= nil then
+        elseif not loadingOlder and not firstBuild and holdPanel ~= nil then
             --scrolled up: the row at the top of the view stays where it is.
             holdTries = 0
             list:ScheduleEvent("holdAnchor", 0.02)
@@ -4885,13 +4916,7 @@ local function CreateFace()
             end
         end
         UpdateNewBelow()
-        if openAtMarker then
-            openAtMarker = false
-            if markerShown then
-                markerTries = 0
-                list:ScheduleEvent("toMarker", 0.05)
-            end
-        end
+        firstBuild = false
         UpdateLatest()
 
         --a trigger landing after the row closed changes what the open card says.
@@ -5000,33 +5025,6 @@ local function CreateFace()
             UpdateLatest()
         end,
 
-        --puts the new-rows marker at the top when what follows it is taller than the list;
-        --otherwise the bottom already shows it. Layout takes a few frames, so it retries.
-        toMarker = function(element)
-            markerTries = markerTries + 1
-            local marker = rows["newmarker"]
-            local windowHeight = element.renderedHeight or 0
-            local contentHeight = rowsPanel.renderedHeight or 0
-            local range = contentHeight - windowHeight
-            if marker ~= nil and marker.panel.valid and range > 0 then
-                local offset = 0
-                for _, row in ipairs(rowsPanel.children) do
-                    if row == marker.panel then
-                        break
-                    end
-                    offset = offset + (row.renderedHeight or 0)
-                end
-                if contentHeight - offset > windowHeight then
-                    element.vscrollPosition = 1 - math.min(offset, range) / range
-                end
-            end
-            if markerTries < 6 then
-                element:ScheduleEvent("toMarker", 0.05)
-            else
-                UpdateLatest()
-            end
-        end,
-
         --the rows built don't reach a quarter of a view above the bottom one: build more now,
         --so there is always room to scroll up into (and so to load more).
         --Layout takes a few frames, so it waits until the height stops changing.
@@ -5038,6 +5036,7 @@ local function CreateFace()
                 element:ScheduleEvent("fillView", 0.05)
                 return
             end
+            CheckMarkerSeen()
             local windowHeight = element.renderedHeight or 0
             if hasOlder and not loadingOlder and windowHeight > 0 and contentHeight < windowHeight * 1.25 then
                 rowsWanted = rowsWanted + ROWS_CHUNK
@@ -5049,6 +5048,7 @@ local function CreateFace()
         scroll = function(element)
             AlignCard()
             UpdateLatest()
+            CheckMarkerSeen()
             --back at the bottom: everything is seen.
             if newBelow > 0 and AtBottom() then
                 newBelow = 0
@@ -5613,13 +5613,15 @@ local function CreateFace()
         ApplySearch()
     end
 
-    --Opens on one row: the Sidebar Preview's click. Stops the opening's own scroll
-    --to the marker, which would otherwise pull the view back.
+    --Opens on one row: the Sidebar Preview's click. It scrolls after opening has gone to
+    --the bottom, so the view ends on this row with its card open.
     --- @param key string The row's entry key.
     local function ShowEntry(key)
         showKey = key
         showTries = 0
-        markerTries = 99
+        if rows[key] == nil then
+            Refresh()
+        end
         list:ScheduleEvent("toEntry", 0.1)
     end
 

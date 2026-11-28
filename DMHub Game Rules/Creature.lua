@@ -8159,13 +8159,17 @@ creature._tmp_triggeredOpportunityAttacks = 0
 --- @param path LuaPath|nil
 --- @return boolean
 function creature.IsPhantomMove(path)
-    if path == nil or path.numSteps ~= 0 or path.cost ~= 0 or path.forced or (path.fallDistance or 0) ~= 0 then
+    --a path that involves a mount (getting on, getting off or riding) counts even with no steps
+    if path == nil or path.numSteps ~= 0 or path.cost ~= 0 or path.forced or path.mount
+        or (path.fallDistance or 0) ~= 0 then
         return false
     end
-    --a 0-step path to another square is still a real move (a creature carried along, say)
+    --a 0-step path that ends on another square or at another height is still a real move
+    --(a creature carried along, or lifted straight up)
     local origin, destination = path.origin, path.destination
     return origin ~= nil and destination ~= nil and origin.x == destination.x
         and origin.y == destination.y and origin.floor == destination.floor
+        and origin.altitude == destination.altitude
 end
 
 --called by dmhub when the creature moves.

@@ -8153,8 +8153,27 @@ CreatureFilter.Register{
 
 creature._tmp_triggeredOpportunityAttacks = 0
 
+--- True for the empty path the engine hands OnMove for every token on the map whenever it
+--- recalculates heights (a ground change, a script placing a token): nobody actually moved.
+--- @param path LuaPath|nil
+--- @return boolean
+function creature.IsPhantomMove(path)
+    if path == nil or path.numSteps ~= 0 or path.cost ~= 0 or path.forced or (path.fallDistance or 0) ~= 0 then
+        return false
+    end
+    --a 0-step path to another square is still a real move (a creature carried along, say)
+    local origin, destination = path.origin, path.destination
+    return origin ~= nil and destination ~= nil and origin.x == destination.x
+        and origin.y == destination.y and origin.floor == destination.floor
+end
+
 --called by dmhub when the creature moves.
 function creature:OnMove(path)
+
+    --Nobody moved, so skip it: "the target moves" triggers such as Overwatch would fire for every creature.
+    if creature.IsPhantomMove(path) then
+        return
+    end
 
     local ourToken = dmhub.LookupToken(self)
     if ourToken == nil then

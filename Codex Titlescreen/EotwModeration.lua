@@ -1035,9 +1035,9 @@ function EotwModeration.ShowAchievementsDialog(args)
     end
 
     --Search box text: a display name (or part of one) or a user id. The town
-    --knows the name each player last entered town with. Several matches are
-    --listed to choose from; an older town server without the search treats
-    --the text as a user id.
+    --knows the name each player last entered town with. Matches are listed
+    --to choose from; an older town server without the search treats the
+    --text as a user id.
     local function Search(query)
         if query == "" then
             SetStatus("Enter the player's name or user id.", true)
@@ -1063,34 +1063,36 @@ function EotwModeration.ShowAchievementsDialog(args)
                 return
             end
             local users = type(result) == "table" and result.users or {}
-            if #users == 1 then
-                Pick(users[1].userid, users[1].name)
-                return
-            end
+            local rows = {}
             if #users == 0 then
                 --No name matched. Text shaped like a user id may be an account the town has no name for yet.
-                if string.find(query, "^[%w_%-]+$") ~= nil and #query >= MIN_USERID_LENGTH then
-                    Pick(query, nil)
-                else
+                if string.find(query, "^[%w_%-]+$") == nil or #query < MIN_USERID_LENGTH then
                     listPanel.children = {}
                     SetStatus("No player by that name has entered town since names started being recorded.", true)
+                    return
                 end
-                return
+                rows[1] = Text("No player has that name. Look it up as a user id:", 15, "#b8ad96")
+                users = { { userid = query } }
+            else
+                rows[1] = Text("Players who match. Pick one to see their achievements:", 15, "#b8ad96")
             end
-            local rows = { Text("Several players match. Pick one:", 15, "#b8ad96") }
             for _, user in ipairs(users) do
                 local seen = ""
                 if tonumber(user.seen) ~= nil then
                     seen = "  -  last in town " .. tostring(os.date("%b %d, %Y", math.floor(tonumber(user.seen) / 1000)))
+                end
+                local label = Plain(user.userid)
+                if user.name ~= nil then
+                    label = string.format("%s  <color=#b8ad96><size=80%%>%s%s</size></color>", Plain(user.name), label, seen)
                 end
                 rows[#rows + 1] = gui.Panel{
                     width = "100%",
                     height = "auto",
                     flow = "horizontal",
                     vmargin = 2,
-                    Text(string.format("%s  <color=#b8ad96><size=80%%>%s%s</size></color>", Plain(user.name or "?"), Plain(user.userid), seen), 16, nil, { width = "100%-140", valign = "center" }),
+                    Text(label, 16, nil, { width = "100%-140", valign = "center" }),
                     gui.Button{
-                        text = "Open",
+                        text = "Look Up",
                         fontSize = 15,
                         width = 130,
                         height = 32,
@@ -1140,7 +1142,7 @@ function EotwModeration.ShowAchievementsDialog(args)
                     end,
                 },
                 gui.Button{
-                    text = "Look Up",
+                    text = "Search",
                     fontSize = 17,
                     width = 120,
                     height = 36,

@@ -783,6 +783,10 @@ end)
 --moving client before the new location is committed.
 local g_rewindBaseOnMove = creature.OnMove
 function creature:OnMove(path)
+	--no checkpoint for the empty moves the engine reports for every token when heights change
+	if creature.IsPhantomMove(path) then
+		return g_rewindBaseOnMove(self, path)
+	end
 	local ok, err = pcall(function()
 		local q = dmhub.initiativeQueue
 		if q == nil or not RewindTracking(q) or not NothingResolving() then

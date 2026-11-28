@@ -22,7 +22,7 @@ local Int = History.Int
 --- @field rect? number[] Part of the portrait to show: x1, y1, x2, y2.
 --- @field hero boolean True on the heroes' side.
 --- @field secret? boolean True when players may not see the name.
---- @field unseen? "token"|"hidden" Players could not see it on the map: "token", a token the Director hid from players; "hidden", a Director's creature while Hidden with Hidden Creatures are Invisible on. History cuts it from what players read.
+--- @field unseen? "token"|"hidden" Players could not see it on the map: "token", a token or map object the Director hid from players; "hidden", a Director's creature while Hidden with Hidden Creatures are Invisible on. History cuts it from what players read.
 --- @field tier? integer On a target: the tier of the roll against it.
 --- @field roll? {edges: number, banes: number, total: number, sources: HistoryEdgeSource[]|nil} On a target: its own roll, when edges or banes against it alone changed the total.
 --- @field sources? HistoryEdgeSource[] On a target without a roll of its own: what applied to its roll, when that differs from the roll's sources (empty when nothing did). Absent means the same as the roll's.
@@ -95,7 +95,8 @@ local Int = History.Int
 --creatures players control are always seen; Hidden alone hides nothing (the rules let players
 --know a Hidden creature is there), only with the Hidden Creatures are Invisible setting.
 local function UnseenByPlayers(token)
-    if token.invisibleToPlayers then
+    --a map object the Director hid (a hidden trap) has its own flag: invisibleToPlayers is only for creatures
+    if token.invisibleToPlayers or token.objectInvisibleToPlayers then
         return "token"
     end
     if token.playerControlled then
@@ -112,7 +113,8 @@ end
 --- @param token CharacterToken
 --- @return HistoryCreature
 function History.Creature(token)
-    local name = token.name
+    --an object shows its own name, not its art's (a flying machine's art is "teleporter")
+    local name = creature.TokenDisplayName(token)
     if name == nil or name == "" then
         name = token.description
     end

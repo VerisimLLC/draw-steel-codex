@@ -866,10 +866,13 @@ local ACHIEVEMENT_COUNTERS = {
     { id = "ritesAided", text = "Rites helped" },
 }
 
+--Codex user ids are 28 letters, digits, - or _; display names are usually shorter.
+local MIN_USERID_LENGTH = 20
+
 --Admin: one player's achievements, each with Grant or Take Away. Most are
 --earned automatically; Grant also gives the ones only admins can hand out.
 --Take Away is permanent: the player never earns that one again.
---args: userid (nil shows a box to enter one), name.
+--args: userid (nil shows a box to search by name or id), name.
 function EotwModeration.ShowAchievementsDialog(args)
     local root = Root()
     if root == nil or not dmhub.isAdminAccount then
@@ -1005,12 +1008,104 @@ function EotwModeration.ShowAchievementsDialog(args)
             for _, counter in ipairs(ACHIEVEMENT_COUNTERS) do
                 counts[#counts + 1] = string.format("%s %d", counter.text, tonumber((result.counters or {})[counter.id]) or 0)
             end
+            local who = Plain(userid)
+            if name ~= nil and name ~= "" then
+                who = Plain(name) .. "  (" .. who .. ")"
+            end
             local rows = {
-                Text("Account: " .. Plain(userid), 15, "#b8ad96"),
+                Text("Account: " .. who, 15, "#b8ad96"),
                 Text(table.concat(counts, "  -  "), 15, "#b8ad96"),
             }
             for _, def in ipairs(EotwPlayerTags.Defs()) do
                 rows[#rows + 1] = Row(def, byId[def.id])
+            end
+            listPanel.children = rows
+            SetStatus("")
+        end)
+    end
+
+    --Show one account's achievements and put its user id in the search box.
+    local function Pick(pickedId, pickedName)
+        userid = pickedId
+        name = pickedName
+        if idInput ~= nil and idInput.valid then
+            idInput.text = pickedId
+        end
+        Load()
+    end
+
+    --Search box text: a display name (or part of one) or a user id. The town
+    --knows the name each player last entered town with. Several matches are
+    --listed to choose from; an older town server without the search treats
+    --the text as a user id.
+    local function Search(query)
+        if query == "" then
+            SetStatus("Enter the player's name or user id.", true)
+            return
+        end
+        if #query < 2 then
+            SetStatus("Type at least 2 characters.", true)
+            return
+        end
+        busy = true
+        SetStatus("Searching...")
+        EncounterOfTheWeek.CityRequest("find-users", { query = query }, function(ok, result)
+            busy = false
+            if listPanel == nil or not listPanel.valid then
+                return
+            end
+            if not ok then
+                if string.find(tostring(result), "Unknown action", 1, true) ~= nil then
+                    Pick(query, nil)
+                else
+                    SetStatus("Could not search: " .. tostring(result), true)
+                end
+                return
+            end
+            local users = type(result) == "table" and result.users or {}
+            if #users == 1 then
+                Pick(users[1].userid, users[1].name)
+                return
+            end
+            if #users == 0 then
+                --No name matched. Text shaped like a user id may be an account the town has no name for yet.
+                if string.find(query, "^[%w_%-]+$") ~= nil and #query >= MIN_USERID_LENGTH then
+                    Pick(query, nil)
+                else
+                    listPanel.children = {}
+                    SetStatus("No player by that name has entered town since names started being recorded.", true)
+                end
+                return
+            end
+            local rows = { Text("Several players match. Pick one:", 15, "#b8ad96") }
+            for _, user in ipairs(users) do
+                local seen = ""
+                if tonumber(user.seen) ~= nil then
+                    seen = "  -  last in town " .. tostring(os.date("%b %d, %Y", math.floor(tonumber(user.seen) / 1000)))
+                end
+                rows[#rows + 1] = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    vmargin = 2,
+                    Text(string.format("%s  <color=#b8ad96><size=80%%>%s%s</size></color>", Plain(user.name or "?"), Plain(user.userid), seen), 16, nil, { width = "100%-140", valign = "center" }),
+                    gui.Button{
+                        text = "Open",
+                        fontSize = 15,
+                        width = 130,
+                        height = 32,
+                        valign = "center",
+                        click = function()
+                            if busy then
+                                return
+                            end
+                            Pick(user.userid, user.name)
+                        end,
+                    },
+                }
+            end
+            if result.more == true then
+                rows[#rows + 1] = Text("More players match; type more of the name.", 14, "#b8ad96")
             end
             listPanel.children = rows
             SetStatus("")
@@ -1039,7 +1134,7 @@ function EotwModeration.ShowAchievementsDialog(args)
                     width = "100%-260",
                     height = 36,
                     fontSize = 17,
-                    placeholderText = "Player's user id (right-click their chat line > Copy User Id)",
+                    placeholderText = "Player's name or user id",
                     create = function(element)
                         idInput = element
                     end,
@@ -1054,8 +1149,7 @@ function EotwModeration.ShowAchievementsDialog(args)
                         if busy or idInput == nil or not idInput.valid then
                             return
                         end
-                        userid = string.trim(idInput.text or "")
-                        Load()
+                        Search(string.trim(idInput.text or ""))
                     end,
                 },
                 --your own account, for testing grants on yourself.
@@ -1069,11 +1163,7 @@ function EotwModeration.ShowAchievementsDialog(args)
                         if busy then
                             return
                         end
-                        userid = dmhub.loginUserid
-                        if idInput ~= nil and idInput.valid then
-                            idInput.text = userid
-                        end
-                        Load()
+                        Pick(dmhub.loginUserid, nil)
                     end,
                 },
             },

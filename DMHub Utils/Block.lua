@@ -136,7 +136,7 @@ local mod = dmhub.GetModLoading()
 --- @field sections? BlockHostSection[] the page's sections, in order
 --- @field kindChoice? {label: string, field: string, options: {id: string, text: string}[]} a switch at the top of the page ("This is an ability / a triggered ability")
 --- @field toolbar? {label: string, field: string, options: {id: string, text: string}[]} a dropdown in the title bar ("Belongs to")
---- @field shelfSections? {title: string, fits: string}[] the shelf's sections: each lists the blocks that fit one kind of list
+--- @field shelfSections? {title: string, fits: string, folded?: boolean}[] the shelf's sections: each lists the blocks that fit one kind of list; folded ones start closed
 --- @field addTexts? table<string, string> the "+ add" row's words at the end of each inner list, by the kind of list ("step" -> "add step"); "add" when absent
 --- @field templates? {label: string, items: string[]} pills that start a new record from a template ("Start from:")
 --- @field card? fun(model: table, record?: table): BlockCard the book-style card for the side panel; record is the one opened, when there is one

@@ -34,7 +34,6 @@ text("blockeditor.title", [[Edit {name}]])
 --everywhere; do not reword it in one place only.
 text("blockeditor.tab.simple", [[Simple]])
 text("blockeditor.tab.advanced", [[Advanced editor]])
-text("blockeditor.tab.simple_tooltip", [[Edit this ability as blocks (in development).]])
 --Its tooltip while the tab is not connected yet.
 text("blockeditor.tab.advanced_tooltip", [[Opens today's editor on the same record. Not connected yet.]])
 --The Undo button. Short: a button.
@@ -76,6 +75,12 @@ text("blockeditor.drop_here", [[Drop here]])
 text("blockeditor.menu.delete", [[Delete]])
 text("blockeditor.menu.move_up", [[Move up]])
 text("blockeditor.menu.move_down", [[Move down]])
+text("blockeditor.menu.duplicate", [[Duplicate]])
+text("blockeditor.menu.wrap", [[Wrap in {block}]])
+text("blockeditor.menu.unwrap", [[Unwrap (keep the steps inside)]])
+text("blockeditor.change.duplicate", [[Duplicate {block}]])
+text("blockeditor.change.wrap", [[Wrap in {block}]])
+text("blockeditor.change.unwrap", [[Unwrap {block}]])
 --Menu entries on a word that opens a box to type in.
 text("blockeditor.menu.edit_text", [[Edit the text...]])
 text("blockeditor.menu.formula", [[Formula...]])
@@ -121,11 +126,15 @@ text("blockeditor.amount.sign_minus", [[- minus]])
 text("blockeditor.amount.sign_times", [[* times]])
 text("blockeditor.amount.sign_divide", [[/ divided by]])
 text("blockeditor.amount.change", [[Change what it is based on...]])
+text("blockeditor.check.ready", [[Ready to save. The Advanced editor can open it too.]])
+text("blockeditor.check.to_fix_one", [[1 thing to fix before saving.]])
+text("blockeditor.check.to_fix", [[{count} things to fix before saving.]])
 text("blockeditor.check.unsaveable", [[{count} added blocks cannot be saved yet and will be left out: remove them, or use the Advanced editor.]])
 --Under the card in the side column.
 text("blockeditor.card_hint", [[How the ability reads in the book. Change it with the blocks on the left.]])
 --The shelf's one section when a host names none.
 text("blockeditor.shelf.blocks", [[Blocks]])
+text("blockeditor.shelf.hint", [[Drag a block onto the page, or click it to add it at the end of the first list it fits.]])
 
 --The developer window's sample record and its sections.
 

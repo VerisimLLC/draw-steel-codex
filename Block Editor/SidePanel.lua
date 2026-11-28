@@ -274,6 +274,24 @@ function BESidePanel.Create(host)
                 header.selfStyle.tmargin = 0
                 children[#children + 1] = header
                 children[#children + 1] = rule
+                --one sentence first: ready, or how many things stop it saving well.
+                local toFix = 0
+                for _, check in ipairs(checks) do
+                    if check.severity == "danger" then
+                        toFix = toFix + 1
+                    end
+                end
+                local status = T("blockeditor.check.ready")
+                if toFix == 1 then
+                    status = T("blockeditor.check.to_fix_one")
+                elseif toFix > 1 then
+                    status = T("blockeditor.check.to_fix", { count = toFix })
+                end
+                children[#children + 1] = gui.Label{
+                    classes = {"beStatusLine", toFix > 0 and "danger" or "ready"},
+                    text = status,
+                    interactable = false,
+                }
                 for _, check in ipairs(checks) do
                     children[#children + 1] = _issue(check)
                 end

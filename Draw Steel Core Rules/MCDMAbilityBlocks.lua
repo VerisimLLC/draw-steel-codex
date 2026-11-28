@@ -1522,7 +1522,7 @@ Block.RegisterHost{
     },
     shelfSections = {
         { title = "Common", fits = "step" },
-        { title = "Inside a power roll tier", fits = "tier" },
+        { title = "Inside a power roll tier", fits = "tier", folded = true },
         { title = "Inside Choose one when used", fits = "option" },
         { title = "Inside an option", fits = "optiontargets" },
         { title = "Can only be used when", fits = "requirement" },
@@ -1599,11 +1599,15 @@ Block.RegisterHost{
         local result = {}
         local advanced = _countBlocks(model.blocks, "ability.advanced")
         if advanced > 0 then
-            result[#result + 1] = { severity = "warning", text = string.format("No block reads %d of the steps yet: they open as Advanced blocks and save back unchanged.", advanced) }
+            local text = advanced == 1 and "No block reads one of the steps yet: it opens as an Advanced block and saves back unchanged."
+                or string.format("No block reads %d of the steps yet: they open as Advanced blocks and save back unchanged.", advanced)
+            result[#result + 1] = { severity = "warning", text = text }
         end
         local words = _countBlocks(model.blocks, Block.TIER_TEXT_BLOCK)
         if words > 0 then
-            result[#result + 1] = { severity = "warning", text = string.format("%d parts of the tier text are words no block reads yet: they are kept as written.", words) }
+            local text = words == 1 and "One part of the tier text is words no block reads yet: it is kept as written."
+                or string.format("%d parts of the tier text are words no block reads yet: they are kept as written.", words)
+            result[#result + 1] = { severity = "warning", text = text }
         end
         local untested = 0
         for _, requirement in ipairs(model.requirements or {}) do
@@ -1612,7 +1616,9 @@ Block.RegisterHost{
             end
         end
         if untested > 0 then
-            result[#result + 1] = { severity = "warning", text = string.format("%d of the requirements have no test yet: they stop nothing, and a new one is not saved until it has one.", untested) }
+            local text = untested == 1 and "A requirement has no test yet: it stops nothing, and a new one is not saved until it has one."
+                or string.format("%d requirements have no test yet: they stop nothing, and a new one is not saved until it has one.", untested)
+            result[#result + 1] = { severity = "warning", text = text }
         end
         local unnamed = 0
         local chooser = _findBlock(model.blocks, "ability.choose")
@@ -1622,7 +1628,9 @@ Block.RegisterHost{
             end
         end
         if unnamed > 0 then
-            result[#result + 1] = { severity = "warning", text = string.format("%d of the options have no name: players pick them by name when they use the ability.", unnamed) }
+            local text = unnamed == 1 and "An option has no name: players pick options by name when they use the ability."
+                or string.format("%d options have no name: players pick options by name when they use the ability.", unnamed)
+            result[#result + 1] = { severity = "warning", text = text }
         end
         if chooser ~= nil and #((chooser.bodies or {}).options or {}) < 2 then
             result[#result + 1] = { severity = "warning", text = "Choose one when used needs at least two options to be a choice." }

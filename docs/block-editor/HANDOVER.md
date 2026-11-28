@@ -416,3 +416,25 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   reads as (`_readField`). It took a restart to apply: registered step blocks capture it at load.
 - **Next for phase 2 coverage:** half of all abilities still have a step that opens as Advanced
   (kits 5 of 28, creature templates 29 of 99, monsters 458 of 1,460 fully as blocks).
+- **To revisit (owner, 2026-11-28):** "round trip" does not describe what `/blockroundtrip` does
+  for someone new to it (open every ability, save it back untouched, and check nothing changed).
+  Rename the command, its report wording (`Block Editor/RoundTrip.lua`) and the term in these docs
+  later. Candidates: "save check", "no-change check", `/blocksavecheck`. No name chosen yet.
+
+## 20. More audit items (2026-11-28, run in DMHub)
+
+- **Simple tab** registered from `Draw Steel Ability Editor/AbilityEditor.lua` (after
+  `AbilityEditor.RegisterView`), looking `BlockEditor` up lazily; removed from `MainPanel.lua`.
+- **Block menu** (`BlockPanel.lua`, `_openBlockMenu`): Move up / down greyed at the ends;
+  Duplicate (a fresh copy after the original, `_freshCopy`; greyed for Advanced and split blocks);
+  "Wrap in X" for every shelf wrapper block that shares a list kind; "Unwrap (keep the steps
+  inside)" on a wrapper; Delete. Checked on Explosive Parade: each is one undo step, and a wrap
+  saves the Only if test on the step.
+- **Checks** (`SidePanel.lua`): a status sentence first ("Ready to save..." or "N things to fix
+  before saving.", red), boxed (`beStatusLine`; a border needs `bgimage`). Singular wording for
+  the option, requirement, Advanced and tier-word checks.
+- **Shelf** (`Shelf.lua`): each section's caret folds it; `shelfSections[].folded` starts one
+  closed (Inside a power roll tier); a hint line under the search.
+- Still from the audit: the test picker, an insertion cursor the shelf follows, curated Common and
+  faded blocks that don't fit, drag visuals, fonts and header weight (decision 4), "Edit in the
+  Advanced editor" on grey blocks, keyboard paths, the card's effect paragraphs and potency box.

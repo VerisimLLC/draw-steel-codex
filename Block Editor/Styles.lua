@@ -829,6 +829,48 @@ local function _editorChromeStyles()
             bgimage = true,
             cornerRadius = 4,
         },
+        -- The shelf's hint under its search box, and a section's rows (its caret folds them).
+        {
+            selectors = {"label", "beShelfHint"},
+            width = "100%",
+            height = "auto",
+            fontSize = 12,
+            color = "@fgMuted",
+            textWrap = true,
+            hpad = 4,
+            vmargin = 4,
+            borderBox = true,
+        },
+        {
+            selectors = {"beShelfSection"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+        },
+        -- The status sentence above the checks: a bordered box, red when something must be fixed.
+        {
+            selectors = {"label", "beStatusLine"},
+            width = "100%",
+            height = "auto",
+            fontSize = 14,
+            color = "@fg",
+            textWrap = true,
+            --a border only draws on a panel with a background image.
+            bgimage = true,
+            bgcolor = "clear",
+            border = 1,
+            borderColor = "@success",
+            cornerRadius = 4,
+            hpad = 8,
+            vpad = 6,
+            borderBox = true,
+            bmargin = 6,
+        },
+        {
+            selectors = {"label", "beStatusLine", "danger"},
+            borderColor = "@danger",
+        },
         {
             selectors = {"beIssueDot", "success"},
             bgcolor = "@success",

@@ -788,19 +788,3 @@ Commands.RegisterMacro{
         BlockEditor.Open(record)
     end,
 }
-
---The Simple tab of today's ability editor: this editor, inside that one. It
---writes into the ability as it is edited; that editor's dialog uploads it.
-if rawget(_G, "AbilityEditor") ~= nil and AbilityEditor.RegisterView ~= nil then
-    AbilityEditor.RegisterView{
-        id = "blockeditor",
-        label = T("blockeditor.tab.simple"),
-        tooltip = T("blockeditor.tab.simple_tooltip"),
-        available = function(record)
-            return not mod.unloaded and BlockEditor.CanOpen(record)
-        end,
-        create = function(record, options)
-            return BlockEditor.CreatePanel(record, { embedded = true, changed = options.changed })
-        end,
-    }
-end

@@ -5363,6 +5363,22 @@ function AbilityEditor.RegisterView(view)
     AbilityEditor._views[#AbilityEditor._views + 1] = view
 end
 
+--The Simple tab: the Block Editor (its own mod, loaded after this one) inside
+--this dialog. It writes into the ability as it is edited; this dialog uploads it.
+--Shown only with developer mode and the Block Editor setting (BlockEditor.CanOpen).
+AbilityEditor.RegisterView{
+    id = "blockeditor",
+    label = "Simple",
+    tooltip = "Edit this ability as blocks (in development).",
+    available = function(record)
+        local blockEditor = rawget(_G, "BlockEditor")
+        return not mod.unloaded and blockEditor ~= nil and blockEditor.CanOpen(record)
+    end,
+    create = function(record, options)
+        return BlockEditor.CreatePanel(record, { embedded = true, changed = options.changed })
+    end,
+}
+
 --- The registered views that can show this ability.
 --- @param ability table
 --- @return AbilityEditorView[]

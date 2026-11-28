@@ -36,7 +36,57 @@ function BEBlockPanel.ChangeBlock(element, uid, description, fn)
     end)
 end
 
---- The "..." menu: delete, move up, move down.
+--- A copy of a placed block that saves as a new one: no editor id, and no
+--- link back to the saved step it was read from (inside it too).
+--- @param instance BlockInstance
+--- @return BlockInstance
+local function _freshCopy(instance)
+    local copy = DeepCopy(instance)
+    local function Clear(item)
+        item.uid = nil
+        item.src = nil
+        item.openSignature = nil
+        item.openContext = nil
+        for _, list in pairs(item.bodies or {}) do
+            for _, inner in ipairs(list) do
+                Clear(inner)
+            end
+        end
+    end
+    Clear(copy)
+    return copy
+end
+
+--- The wrapper whose block this is ("Only if"), or nil.
+--- @param blockId string
+--- @return BlockWrapper|nil
+local function _wrapperOf(blockId)
+    for _, wrapper in ipairs(Block.All("wrapper")) do
+        --- @cast wrapper BlockWrapper
+        if wrapper.block == blockId then
+            return wrapper
+        end
+    end
+    return nil
+end
+
+--- Whether two blocks share a kind of list they fit in.
+--- @param a string[]|nil
+--- @param b string[]|nil
+--- @return boolean
+local function _shareFits(a, b)
+    for _, kind in ipairs(a or {}) do
+        for _, other in ipairs(b or {}) do
+            if kind == other then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--- The "..." menu: move up and down (greyed at the ends), duplicate, wrap in
+--- a wrapper block from the shelf, unwrap, delete.
 --- @param element Panel the gear
 --- @param uid string
 --- @param label string the block's name, for the undo step
@@ -48,33 +98,117 @@ local function _openBlockMenu(element, uid, label)
             local model = state:Model()
             if model ~= nil then
                 fn(model)
+                --blocks it added (a copy, a wrapper) need editor ids.
+                BEState.AssignUids(model)
             end
         end)
     end
+
+    --where the block is now, to grey out moves that would do nothing.
+    local controller = BlockEditor._getController(element)
+    local state = controller ~= nil and controller.data.state or nil
+    local model = state ~= nil and state:Model() or nil
+    local instance, list, index = nil, nil, nil
+    if model ~= nil then
+        instance, list, index = BEState.FindInstance(model, uid)
+    end
+    if instance == nil or list == nil or index == nil then
+        return
+    end
+    local decl = Block.GetBlock(instance.block)
+    local host = BlockEditor._getHost(element)
+    local advancedBlock = host ~= nil and host.decl ~= nil and host.decl.advancedBlock or nil
+
+    local entries = {
+        {
+            text = T("blockeditor.menu.move_up"),
+            disabled = index <= 1,
+            click = function()
+                Run(T("blockeditor.change.move", { block = label }), function(m) BEState.Move(m, uid, -1) end)
+            end,
+        },
+        {
+            text = T("blockeditor.menu.move_down"),
+            disabled = index >= #list,
+            click = function()
+                Run(T("blockeditor.change.move", { block = label }), function(m) BEState.Move(m, uid, 1) end)
+            end,
+        },
+        {
+            text = T("blockeditor.menu.duplicate"),
+            group = "edit",
+            --a copy of a step no block reads, or of a block that holds options, cannot be saved.
+            disabled = instance.block == advancedBlock or (decl ~= nil and decl.split ~= nil),
+            click = function()
+                Run(T("blockeditor.change.duplicate", { block = label }), function(m)
+                    local found, foundList, foundIndex = BEState.FindInstance(m, uid)
+                    if found ~= nil and foundList ~= nil and foundIndex ~= nil then
+                        table.insert(foundList, foundIndex + 1, _freshCopy(found))
+                    end
+                end)
+            end,
+        },
+    }
+
+    --wrap in any wrapper block on the shelf that goes where this block goes.
+    if decl ~= nil and instance.block ~= advancedBlock then
+        for _, wrapper in ipairs(Block.All("wrapper")) do
+            --- @cast wrapper BlockWrapper
+            local wrapDecl = Block.GetBlock(wrapper.block)
+            if wrapDecl ~= nil and wrapDecl.shelf ~= false and _shareFits(decl.fits, wrapDecl.fits) then
+                entries[#entries + 1] = {
+                    text = T("blockeditor.menu.wrap", { block = wrapDecl.label }),
+                    group = "wrap",
+                    click = function()
+                        Run(T("blockeditor.change.wrap", { block = wrapDecl.label }), function(m)
+                            local found, foundList, foundIndex = BEState.FindInstance(m, uid)
+                            local holder = Block.Instantiate(wrapper.block)
+                            if found ~= nil and foundList ~= nil and foundIndex ~= nil and holder ~= nil then
+                                holder.bodies = holder.bodies or {}
+                                holder.bodies[wrapper.body or "steps"] = { found }
+                                foundList[foundIndex] = holder
+                            end
+                        end)
+                    end,
+                }
+            end
+        end
+    end
+
+    --a wrapper unwraps: its steps take its place.
+    local ownWrapper = _wrapperOf(instance.block)
+    if ownWrapper ~= nil then
+        entries[#entries + 1] = {
+            text = T("blockeditor.menu.unwrap"),
+            group = "wrap",
+            click = function()
+                Run(T("blockeditor.change.unwrap", { block = label }), function(m)
+                    local found, foundList, foundIndex = BEState.FindInstance(m, uid)
+                    if found == nil or foundList == nil or foundIndex == nil then
+                        return
+                    end
+                    local inner = (found.bodies or {})[ownWrapper.body or "steps"] or {}
+                    table.remove(foundList, foundIndex)
+                    for offset, step in ipairs(inner) do
+                        table.insert(foundList, foundIndex + offset - 1, step)
+                    end
+                end)
+            end,
+        }
+    end
+
+    entries[#entries + 1] = {
+        text = T("blockeditor.menu.delete"),
+        group = "delete",
+        click = function()
+            Run(T("blockeditor.change.delete", { block = label }), function(m) BEState.Remove(m, uid) end)
+        end,
+    }
+
     element.popupsInheritStyles = true
     element.popupPositioning = "mouse"
     element.popup = gui.ContextMenu{
-        entries = {
-            {
-                text = T("blockeditor.menu.move_up"),
-                click = function()
-                    Run(T("blockeditor.change.move", { block = label }), function(model) BEState.Move(model, uid, -1) end)
-                end,
-            },
-            {
-                text = T("blockeditor.menu.move_down"),
-                click = function()
-                    Run(T("blockeditor.change.move", { block = label }), function(model) BEState.Move(model, uid, 1) end)
-                end,
-            },
-            {
-                text = T("blockeditor.menu.delete"),
-                group = "delete",
-                click = function()
-                    Run(T("blockeditor.change.delete", { block = label }), function(model) BEState.Remove(model, uid) end)
-                end,
-            },
-        },
+        entries = entries,
         click = function()
             element.popup = nil
         end,

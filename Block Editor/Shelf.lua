@@ -94,16 +94,31 @@ function BEShelf.Create(host)
     local children = {}
     for _, section in ipairs(sections) do
         local decls = _blocksFor(section.fits, host)
+        local rows = {}
+        for _, decl in ipairs(decls) do
+            rows[#rows + 1] = _row(decl)
+        end
+        --- @type Panel the section's rows, which its caret folds away
+        local body = gui.Panel{
+            classes = {"beShelfSection", section.folded and "collapsed" or nil},
+            children = rows,
+        }
         local header, rule = BEStyles.SectionHeader{
             title = section.title,
             count = tostring(#decls),
             shelf = true,
+            press = function(element)
+                local folded = not body:HasClass("collapsed")
+                body:SetClass("collapsed", folded)
+                element.children[1].selfStyle.rotate = folded and 90 or 0
+            end,
         }
+        if section.folded then
+            header.children[1].selfStyle.rotate = 90
+        end
         children[#children + 1] = header
         children[#children + 1] = rule
-        for _, decl in ipairs(decls) do
-            children[#children + 1] = _row(decl)
-        end
+        children[#children + 1] = body
     end
 
     --- @type Panel
@@ -123,6 +138,11 @@ function BEShelf.Create(host)
             search = function(element, text)
                 list:FireEventTree("shelfSearch", text)
             end,
+        },
+        gui.Label{
+            classes = {"beShelfHint"},
+            text = T("blockeditor.shelf.hint"),
+            interactable = false,
         },
         list,
     }

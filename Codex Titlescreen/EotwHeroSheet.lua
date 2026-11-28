@@ -1161,6 +1161,19 @@ local function BuildRules()
             bold = true,
         },
         {
+            selectors = { "eotwsNeedDismiss" },
+            bgcolor = "#00000000",
+            cornerRadius = 6,
+        },
+        {
+            selectors = { "eotwsNeedDismiss", "hover" },
+            bgcolor = "#10110F33",
+        },
+        {
+            selectors = { "eotwsNeedDismissIcon" },
+            bgcolor = C.INK,
+        },
+        {
             selectors = { "eotwsSwitchLabel" },
             color = C.MUTED,
             fontSize = 11,
@@ -3628,54 +3641,140 @@ local function StorySignature()
     return sig
 end
 
+--The gold bar lines the player closed with the X: line -> the id of the need
+--it was showing then. Kept outside the sheet so a rebuild (Font Size, a switch
+--to a Hero still loading) does not bring a closed line back.
+---@type table<string, string>
+local g_dismissedNeeds = {}
+
 --Why the player is needed right now, as the top bar's line (T9-T12, N7), or
 --nil. Checked across this player's Heroes in the encounter, the shown Hero
---first; the story only counts once it moved since the sheet opened.
+--first; the story only counts once it moved since the sheet opened. A line the
+--player closed with the bar's X is skipped (the next need shows instead) until
+--its id changes: a new trigger, save, roll or turn choice shows it again.
 ---@param ctx table
----@return string|nil
+---@return string|nil line
+---@return string|nil id what the line is about, for the X to record
 local function NeededLine(ctx)
-    if not ctx.inGame or ctx.fallen ~= nil then
+    if ctx.fallen ~= nil then
+        g_dismissedNeeds = {}
         return nil
     end
+    ---@type {line: string, id: string}[]
+    local needs = {}
     --for testing the bar's look: set EotwHeroSheet.debugNeededLine to a line
+    --(it shows in town too, so the bar can be checked without a game)
     if type(EotwHeroSheet.debugNeededLine) == "string" then
-        return EotwHeroSheet.debugNeededLine
-    end
-    local mine = {}
-    for _,entry in ipairs(EotwHeroCard.CollectHeroes()) do
-        if entry.mine then
-            if entry.charid == ctx.charid then
-                table.insert(mine, 1, entry)
-            else
-                mine[#mine+1] = entry
+        needs[1] = { line = EotwHeroSheet.debugNeededLine, id = "debug" }
+    elseif not ctx.inGame then
+        g_dismissedNeeds = {}
+        return nil
+    else
+        local mine = {}
+        for _,entry in ipairs(EotwHeroCard.CollectHeroes()) do
+            if entry.mine then
+                if entry.charid == ctx.charid then
+                    table.insert(mine, 1, entry)
+                else
+                    mine[#mine+1] = entry
+                end
+            end
+        end
+        for _,entry in ipairs(mine) do
+            local tok = dmhub.GetCharacterById(entry.charid)
+            local p = tok ~= nil and tok.properties or nil
+            if p ~= nil then
+                local hero = { hero = tostring(entry.name) }
+                local triggerIds, saveIds, rollIds = {}, {}, {}
+                pcall(function() triggerIds = HeroNeeds.TriggerIds(p) end)
+                pcall(function() saveIds = HeroNeeds.SaveIds(p) end)
+                pcall(function() rollIds = HeroNeeds.RollIds(entry.charid) end)
+                --a save card is a trigger too: say it once, as the save
+                local otherTriggers = {}
+                for _,id in ipairs(triggerIds) do
+                    if not table.contains(saveIds, id) then
+                        otherTriggers[#otherTriggers+1] = id
+                    end
+                end
+                if #otherTriggers > 0 then
+                    needs[#needs+1] = { line = T("herosheet.topbar.needed_trigger", hero), id = table.concat(otherTriggers, ",") }
+                end
+                if #saveIds > 0 then
+                    needs[#needs+1] = { line = T("herosheet.topbar.needed_save", hero), id = table.concat(saveIds, ",") }
+                end
+                if #rollIds > 0 then
+                    needs[#needs+1] = { line = T("herosheet.topbar.needed_roll", hero), id = table.concat(rollIds, ",") }
+                end
+            end
+        end
+        if ctx.storySignature ~= nil and StorySignature() ~= ctx.storySignature then
+            needs[#needs+1] = { line = T("herosheet.topbar.needed_story"), id = "story" }
+        end
+        for _,entry in ipairs(mine) do
+            if HeroNeeds.CanAct(entry.charid) then
+                needs[#needs+1] = { line = T("herosheet.topbar.needed_act"), id = HeroNeeds.TurnChoiceId() or "turn" }
+                break
             end
         end
     end
-    for _,entry in ipairs(mine) do
-        local tok = dmhub.GetCharacterById(entry.charid)
-        local p = tok ~= nil and tok.properties or nil
-        if p ~= nil then
-            local trigger, save = false, false
-            pcall(function() trigger = HeroNeeds.HasTrigger(p) end)
-            pcall(function() save = HeroNeeds.HasSave(p) end)
-            if trigger then
-                return T("herosheet.topbar.needed_trigger", { hero = tostring(entry.name) })
-            elseif save then
-                return T("herosheet.topbar.needed_save", { hero = tostring(entry.name) })
-            elseif HeroNeeds.HasRoll(entry.charid) then
-                return T("herosheet.topbar.needed_roll", { hero = tostring(entry.name) })
-            end
+
+    --forget a closed line once its need is gone or has become a new one
+    local current = {}
+    for _,need in ipairs(needs) do
+        current[need.line] = need.id
+    end
+    for line,id in pairs(g_dismissedNeeds) do
+        if current[line] ~= id then
+            g_dismissedNeeds[line] = nil
         end
     end
-    if ctx.storySignature ~= nil and StorySignature() ~= ctx.storySignature then
-        return T("herosheet.topbar.needed_story")
-    end
-    for _,entry in ipairs(mine) do
-        if HeroNeeds.CanAct(entry.charid) then
-            return T("herosheet.topbar.needed_act")
+    for _,need in ipairs(needs) do
+        if g_dismissedNeeds[need.line] == nil then
+            return need.line, need.id
         end
     end
     return nil
+end
+
+--The X on the gold bar: hides this need so the switcher shows again.
+---@param ctx table
+---@param line string the need it closes
+---@param id string what that need is about, from NeededLine
+---@param onClosed fun()
+---@return Panel
+local function DismissNeedButton(ctx, line, id, onClosed)
+    return gui.Panel{
+        classes = { "eotwsFocusable", "eotwsNeedDismiss" },
+        canFocus = true,
+        lmargin = 8,
+        width = 32,
+        height = 32,
+        halign = "right",
+        valign = "center",
+        bgimage = "panels/square.png",
+        linger = function(element)
+            gui.Tooltip(T("herosheet.topbar.needed_dismiss_tip"))(element)
+        end,
+        click = function()
+            audio.FireSoundEvent("UI.WindowClose")
+            if line == T("herosheet.topbar.needed_story") then
+                --the story so far is seen; the next beat shows the line again
+                ctx.storySignature = StorySignature()
+            else
+                g_dismissedNeeds[line] = id
+            end
+            onClosed()
+        end,
+        gui.Panel{
+            classes = { "eotwsNeedDismissIcon" },
+            bgimage = "window-chrome/chrome-close.png",
+            width = 12,
+            height = 12,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        },
+    }
 end
 
 --The Close button: Close [Esc]; ink on gold on the you're-needed bar.
@@ -4015,6 +4114,7 @@ local function TopBarRegion(ctx)
     --shows changes, so a switch between Heroes leaves the switcher in place.
     local mode = nil
     local neededText = nil
+    local shownNeedId = nil
     local switcherSig = nil
     local rightSig = nil
     ---@type Panel|nil
@@ -4036,16 +4136,19 @@ local function TopBarRegion(ctx)
             return
         end
 
-        local needed = NeededLine(ctx)
+        local needed, neededId = NeededLine(ctx)
         element:SetClass("needed", needed ~= nil)
         if needed ~= nil then
-            if mode ~= "needed" or needed ~= neededText then
+            --a new id under the same line rebuilds too, so the X closes the current need
+            if mode ~= "needed" or needed ~= neededText or neededId ~= shownNeedId then
                 mode = "needed"
                 neededText = needed
+                shownNeedId = neededId
                 --the bar turns gold in place: nothing below it moves
                 element.children = {
                     Text(needed, { "eotwsNeededText" }, { valign = "center", width = "100% available" }),
                     CloseButton(ctx, true),
+                    DismissNeedButton(ctx, needed, neededId or "", function() Rebuild(element) end),
                 }
             end
             return

@@ -2768,6 +2768,7 @@ function CreateTokenHud(token)
                         },
                         events = {
                             click = function(element)
+                                parentElement.popup = nil
                                 monsterInfoDialog.Show(token)
                             end,
                             hover = function(element)

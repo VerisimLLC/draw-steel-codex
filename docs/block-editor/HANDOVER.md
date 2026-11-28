@@ -378,3 +378,21 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
 - **Still from the audit:** tab name "Advanced editor", add rows in every list, card book wording,
   the "fx" button (decision 1), the Simple tab registered from the Draw Steel side, and the
   look-and-feel items. Owner decisions are in the ledger (2026-11-28).
+
+## 18. Audit's cheap batch (2026-11-28, run in DMHub)
+
+- **Tab name:** "Advanced editor" (`Draw Steel Ability Editor/AbilityEditor.lua`, `_viewTabs`);
+  needs a DMHub restart to see.
+- **Add rows** (`Block Editor/Stack.lua`): a stack inside a block (`ref.owner` set) ends with an
+  add row (`_addRow`, `BEStack.AppendTo`); words from `BlockHost.addTexts`, noted by any list that
+  reaches the host (`g_addTexts`), since a new block's lists are built before they join the page.
+  Ability host: step "add step", tier "add result", option "add option", optiontargets "targets
+  differently". Checked: tier 1 and option 2 take a block at their end, one undo step each.
+- **Card:** `_cardDistance` / `_cardTarget` (`MCDMAbilityBlocks.lua`); Banshee Howl "3 burst /
+  Each enemy in the area" from its saved wording, "5 burst" once the range changes; Bifurcated
+  Incineration "Ranged 10 / Two creatures". Option text shows only with no description (decision 2).
+- **fx:** an amount slot with a value gets a small "fx" word after it (`beWordFx`) that opens the
+  amount picker; the number itself is typed in place (decision 1). Styles take no `italic`
+  property (it raised an engine error popup); the italic is `<i>` in the label text.
+- Still from the audit: the Simple tab registered from the Draw Steel side, shelf guidance and an
+  insertion cursor, the test picker, the block menu, and the look-and-feel items.

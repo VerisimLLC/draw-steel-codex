@@ -334,7 +334,7 @@ end
 --- @param word Panel the clicked word
 --- @param slot BlockSlot
 --- @param value any the current value
---- @param commit fun(value: any)
+--- @param commit fun(value: any, source?: Panel) source is the box when the value was typed in place
 local function _openAmountPicker(word, slot, value, commit)
     local current = value ~= nil and tostring(value) or ""
 
@@ -839,6 +839,27 @@ function BESlots.SentenceRow(args)
                             else
                                 _openPicker(element, slot, value, Done)
                             end
+                        end,
+                    }
+                end
+                --an amount with a value is typed over, so the kinds of amount open
+                --from a small "fx" beside it (ledger 2026-11-28).
+                if (slot.amount or slot.kinds ~= nil) and not empty then
+                    children[#children + 1] = gui.Label{
+                        classes = {"beWord", "beWordFx"},
+                        text = "<i>fx</i>",
+                        lmargin = 2,
+                        hpad = 3,
+                        data = { slot = slotId },
+                        hover = function(element)
+                            _lightSlot(element.parent, slotId)
+                            gui.Tooltip(T("blockeditor.amount.fx_tooltip"))(element)
+                        end,
+                        dehover = function(element)
+                            _lightSlot(element.parent, nil)
+                        end,
+                        press = function(element)
+                            _openAmountPicker(element, slot, value, function(newValue, source) Commit(newValue, source or element) end)
                         end,
                     }
                 end

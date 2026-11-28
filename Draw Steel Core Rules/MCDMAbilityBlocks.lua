@@ -419,6 +419,76 @@ local function _text(model, slotId)
     return Block.SlotText({ id = "ability", family = "header", group = "header", label = "", sentence = {}, slots = SLOTS }, slotId, value)
 end
 
+local NUMBER_WORDS = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten" }
+local TARGET_PLURALS = { creature = "creatures", enemy = "enemies", ally = "allies" }
+--the distances whose targets are everyone in an area ("Each enemy in the area").
+local AREA_DISTANCES = { burst = true, cube = true, line = true }
+
+--- Whether the author changed any of these header slots since the record opened.
+--- @param model table
+--- @param slotIds string[]
+--- @return boolean
+local function _slotsChanged(model, slotIds)
+    local values, opened = model.values or {}, model.openValues or {}
+    for _, slotId in ipairs(slotIds) do
+        if Block.ValueSignature(values[slotId]) ~= Block.ValueSignature(opened[slotId]) then
+            return true
+        end
+    end
+    return false
+end
+
+--- The card's distance as the book prints it: the saved wording while the
+--- distance is as opened (design 4p: saved book wording wins), otherwise
+--- "Self", "Melee 1", "Ranged 10", "3 burst".
+--- @param model table
+--- @param record table|nil
+--- @return string
+local function _cardDistance(model, record)
+    local saved = record ~= nil and rawget(record, "rangeTextOverride") or nil
+    if type(saved) == "string" and string.find(saved, "%S") ~= nil and not _slotsChanged(model, { "distance", "range" }) then
+        return saved
+    end
+    local values = model.values or {}
+    local distance = values.distance
+    local range = tostring(values.range or "")
+    if distance == "self" then
+        return "Self"
+    elseif distance == "map" then
+        return "Anywhere on the map"
+    elseif AREA_DISTANCES[distance] then
+        return string.format("%s %s", range, distance)
+    end
+    return string.format("%s %s", _text(model, "distance"), range)
+end
+
+--- The card's target as the book prints it: the saved wording while the
+--- targeting is as opened, otherwise "One creature", "Three enemies", "Each
+--- enemy in the area".
+--- @param model table
+--- @param record table|nil
+--- @return string
+local function _cardTarget(model, record)
+    local saved = record ~= nil and rawget(record, "targetTextOverride") or nil
+    if type(saved) == "string" and string.find(saved, "%S") ~= nil and not _slotsChanged(model, { "distance", "count", "target" }) then
+        return saved
+    end
+    local values = model.values or {}
+    local target = tostring(values.target or "creature")
+    if values.distance == "self" then
+        return "Self"
+    elseif AREA_DISTANCES[values.distance] then
+        return string.format("Each %s in the area", target)
+    end
+    local count = tonumber(values.count)
+    if count == nil then
+        --a formula count reads as written.
+        return string.format("%s %s", tostring(values.count), TARGET_PLURALS[target] or target)
+    end
+    local word = NUMBER_WORDS[count] or tostring(count)
+    return string.format("%s %s", word, count == 1 and target or (TARGET_PLURALS[target] or target))
+end
+
 --- The first placed block of a kind in a list or anywhere inside it, or nil.
 --- @param list BlockInstance[]|nil
 --- @param blockId string
@@ -1401,6 +1471,13 @@ Block.RegisterHost{
         { id = "req", title = "Can only be used when", optional = true, stack = "requirements", fits = "requirement", stackAddText = "add a requirement" },
         { id = "used", title = "When it's used", stack = "blocks", fits = "step", stackAddText = "add step" },
     },
+    --the add row at the end of each list inside a block, by the kind of list.
+    addTexts = {
+        step = "add step",
+        tier = "add result",
+        option = "add option",
+        optiontargets = "targets differently",
+    },
     shelfSections = {
         { title = "Common", fits = "step" },
         { title = "Inside a power roll tier", fits = "tier" },
@@ -1423,9 +1500,9 @@ Block.RegisterHost{
             rows = {
                 { left = _text(model, "keywords"), right = string.upper(string.sub(action, 1, 1)) .. string.sub(action, 2), bold = true },
                 {
-                    left = _text(model, "distance") .. " " .. _text(model, "range"),
+                    left = _cardDistance(model, record),
                     leftIcon = "triangle",
-                    right = _text(model, "count") .. " " .. _text(model, "target"),
+                    right = _cardTarget(model, record),
                     rightIcon = "target",
                 },
             },
@@ -1457,8 +1534,9 @@ Block.RegisterHost{
             end
         end
         local effect = type(values.effect) == "string" and values.effect or ""
-        --each option with card text reads as the book prints it: "Spend 1 Ferocity: ...".
-        local chooser = _findBlock(model.blocks, "ability.choose")
+        --with no description, each option with card text reads as the book prints it
+        --("Spend 1 Ferocity: ..."); a description already holds them (ledger 2026-11-28).
+        local chooser = string.find(effect, "%S") == nil and _findBlock(model.blocks, "ability.choose") or nil
         for _, option in ipairs(chooser ~= nil and (chooser.bodies or {}).options or {}) do
             local optionValues = option.values or {}
             local rules = tostring(optionValues.rules or "")

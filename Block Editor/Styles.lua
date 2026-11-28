@@ -642,6 +642,16 @@ local function _editorChromeStyles()
             selectors = {"beAddRow", "hover"},
             bgcolor = "@bgAlt",
         },
+        -- The add row at the end of a list inside a block: shorter, and quiet until hovered.
+        {
+            selectors = {"beAddRow", "beAddRowInner"},
+            height = 24,
+            opacity = 0.7,
+        },
+        {
+            selectors = {"beAddRow", "beAddRowInner", "hover"},
+            opacity = 1,
+        },
         {
             selectors = {"beAddIcon"},
             halign = "left",
@@ -1051,6 +1061,13 @@ local function _editorBlockStyles()
             selectors = {"label", "beWordFormula"},
             fontFace = "Courier",
             fontSize = 14,
+            priority = 11,
+        },
+        -- The small "fx" beside an amount: quieter than the words it follows (its text is italic).
+        {
+            selectors = {"label", "beWordFx"},
+            fontSize = 12,
+            opacity = 0.75,
             priority = 11,
         },
         {

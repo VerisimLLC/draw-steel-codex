@@ -113,8 +113,101 @@ local function _sliver(ref, index, kind, full)
     }
 end
 
+--- The blocks a list of one kind takes from the shelf, for its add row.
+--- @param kind string
+--- @return BlockDecl[]
+local function _fittingBlocks(kind)
+    local result = {}
+    for _, decl in ipairs(Block.All("block")) do
+        --- @cast decl BlockDecl
+        if decl.shelf ~= false and not decl.stub and _fitsKind(decl.fits or {}, kind) and #(decl.fits or {}) > 0 then
+            result[#result + 1] = decl
+        end
+    end
+    return result
+end
+
+--- Adds a block at the end of one list (a click on an add row), as one undo step.
+--- @param element Panel inside the editor
+--- @param blockId string
+--- @param ref BEListRef
+function BEStack.AppendTo(element, blockId, ref)
+    local decl = Block.GetBlock(blockId)
+    if decl == nil then
+        return
+    end
+    local placedUid = nil
+    BlockEditor._fireControllerEvent(element, "editorChange", T("blockeditor.change.add", { block = decl.label }), function(state)
+        --- @cast state BEState
+        local model = state:Model()
+        local instance = model ~= nil and Block.Instantiate(blockId) or nil
+        if model == nil or instance == nil then
+            return
+        end
+        local list = BEState.GetList(model, ref) or {}
+        if BEState.Insert(model, ref, #list + 1, instance) then
+            placedUid = instance.uid
+        end
+    end)
+    if placedUid ~= nil then
+        BlockEditor._fireControllerEvent(element, "flashRequest", placedUid)
+    end
+end
+
+--- The "+ add ..." row at the end of a list inside a block: a menu of the
+--- blocks that fit it, or the block itself when only one does.
+--- @param ref BEListRef
+--- @param kind string
+--- @return Panel
+local function _addRow(ref, kind)
+    return gui.Panel{
+        classes = {"beAddRow", "beAddRowInner"},
+        press = function(element)
+            local decls = _fittingBlocks(kind)
+            if #decls == 1 then
+                BEStack.AppendTo(element, decls[1].id, ref)
+                return
+            end
+            local entries = {}
+            for _, decl in ipairs(decls) do
+                entries[#entries + 1] = {
+                    text = decl.label,
+                    click = function()
+                        element.popup = nil
+                        BEStack.AppendTo(element, decl.id, ref)
+                    end,
+                }
+            end
+            element.popupsInheritStyles = true
+            element.popupPositioning = "mouse"
+            element.popup = gui.ContextMenu{
+                entries = entries,
+                click = function()
+                    element.popup = nil
+                end,
+            }
+        end,
+        gui.Panel{ classes = {"beAddIcon"}, interactable = false },
+        gui.Label{ classes = {"beAddText"}, text = T("blockeditor.add_here"), interactable = false },
+    }
+end
+
+--- The add row words of the last host a list could reach. A list inside a new
+--- block is built before it joins the editor; the page's own lists, refreshed
+--- first, always reach the host.
+--- @type table<string, string>|nil
+local g_addTexts = nil
+
+--- The add row's words for a kind of list: the host's (BlockHost.addTexts), or "add".
+--- @param kind string
+--- @return string
+local function _addText(kind)
+    local texts = g_addTexts
+    return texts ~= nil and texts[kind] or T("blockeditor.add_here")
+end
+
 --- Builds a stack. The caller sends it "refreshStack" with its list.
---- @param args {ref: BEListRef, fits: string, max?: integer, classes?: string[], width?: string|number}
+--- @param args {ref: BEListRef, fits: string, max?: integer, classes?: string[], width?: string|number, addRow?: boolean}
 --- @return Panel
 function BEStack.Create(args)
     local ref = args.ref
@@ -142,6 +235,12 @@ function BEStack.Create(args)
         --- Puts the stack's panels in the list's order, building new ones.
         --- @param list BlockInstance[]
         refreshStack = function(element, list)
+            --the add row stays the last child; it is kept, not rebuilt.
+            local addRow = element.data.addRow
+            local host = BlockEditor._getHost(element)
+            if host ~= nil and host.decl ~= nil then
+                g_addTexts = host.decl.addTexts
+            end
             local full = max ~= nil and #(list or {}) >= max
             local children = { _sliver(ref, 1, kind, full) }
             local seen = {}
@@ -167,6 +266,17 @@ function BEStack.Create(args)
                 if not seen[uid] then
                     panels[uid] = nil
                 end
+            end
+            --a list inside a block ends with "+ add ..." (a section's own list has its row below it).
+            if args.addRow and ref.owner ~= nil then
+                if addRow == nil or not addRow.valid then
+                    addRow = _addRow(ref, kind)
+                    element.data.addRow = addRow
+                end
+                addRow:SetClass("collapsed", full)
+                --the host is only reachable once the list is inside the editor.
+                addRow.children[2].text = _addText(kind)
+                children[#children + 1] = addRow
             end
             element.children = children
         end,

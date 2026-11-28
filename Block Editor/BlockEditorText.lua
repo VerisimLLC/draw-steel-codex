@@ -82,6 +82,7 @@ text("blockeditor.menu.formula", [[Formula...]])
 text("blockeditor.menu.build_test", [[Build a test...]])
 --The word after a list of keyword chips, which adds one.
 text("blockeditor.add_keyword", [[+ keyword]])
+text("blockeditor.add_here", [[add]])
 --What undo steps are called. {block} is a block's name; {what} is the changed
 --word's new value.
 text("blockeditor.change.set", [[Change to {what}]])
@@ -94,6 +95,7 @@ text("blockeditor.side.checks", [[Checks]])
 --The amount picker: one row per kind of amount, each with an example. {stat}
 --is the stat the author searched for ("Agility").
 text("blockeditor.amount.title", [[What should this be?]])
+text("blockeditor.amount.fx_tooltip", [[Change what this amount is based on: a stat, more as you level, a test, a dice roll...]])
 text("blockeditor.amount.now", [[<b>Now:</b> {value}]])
 text("blockeditor.amount.search", [[What should it be based on? e.g. level, might]])
 text("blockeditor.amount.number", [[A number]])

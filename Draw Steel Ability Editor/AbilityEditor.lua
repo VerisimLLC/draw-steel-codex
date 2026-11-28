@@ -5409,7 +5409,7 @@ local function _viewTabs(ability, opts, views, currentId, getRoot)
     for _, view in ipairs(views) do
         entries[#entries + 1] = { id = view.id, label = view.label, tooltip = view.tooltip }
     end
-    entries[#entries + 1] = { id = "advanced", label = "Advanced" }
+    entries[#entries + 1] = { id = "advanced", label = "Advanced editor" }
     local tabs = {}
     for _, entry in ipairs(entries) do
         tabs[#tabs + 1] = gui.Label{

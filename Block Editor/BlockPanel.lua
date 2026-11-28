@@ -168,7 +168,7 @@ function BEBlockPanel.Create(instance)
     for _, body in ipairs(decl.bodies or {}) do
         local ref = { field = "blocks", owner = uid, body = body.id }
         if body.label ~= nil then
-            local stack = BEStack.Create{ ref = ref, fits = body.fits, max = body.max, classes = {"beInner", "beTierInner"} }
+            local stack = BEStack.Create{ ref = ref, fits = body.fits, max = body.max, classes = {"beInner", "beTierInner"}, addRow = true }
             bodyStacks[body.id] = stack
             children[#children + 1] = gui.Panel{
                 classes = {"beTierRow"},
@@ -180,7 +180,7 @@ function BEBlockPanel.Create(instance)
                 stack,
             }
         else
-            local stack = BEStack.Create{ ref = ref, fits = body.fits, max = body.max, classes = {"beInner", "beInset"} }
+            local stack = BEStack.Create{ ref = ref, fits = body.fits, max = body.max, classes = {"beInner", "beInset"}, addRow = true }
             bodyStacks[body.id] = stack
             children[#children + 1] = stack
         end

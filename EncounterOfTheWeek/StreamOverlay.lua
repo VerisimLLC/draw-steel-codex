@@ -1280,14 +1280,22 @@ end
 --The tallies live in their own document as JSON, so a reload picks them up
 --where they were; a new combat starts them over, and after the combat they
 --stay as the fight's recap until the next one.
+--
+--Each round also keeps its turns in the order taken: a turn starts when a
+--different hero or foe group becomes the one acting, and everything that
+--changes until the next turn starts counts in it (triggered actions between
+--turns included). A turn credits its actor with the damage dealt to, and the
+--creatures downed on, the other side. Changes before a round's first turn
+--count in the round only.
 
 local BOX_DOC = "streamerKitBoxScore"
 local BOX_MAX_ROUNDS = 30
+local BOX_MAX_TURNS = 20
 local g_box = nil
 
 --- @return table
 local function NewBox(combatid)
-    return { combat = combatid, maxRound = 0, rows = {}, order = {}, pools = {}, conds = {} }
+    return { combat = combatid, maxRound = 0, rows = {}, order = {}, pools = {}, conds = {}, down = {}, turns = {} }
 end
 
 --- The saved tallies, or nil.
@@ -1306,54 +1314,101 @@ local function LoadBox()
     box.order = type(box.order) == "table" and box.order or {}
     box.pools = type(box.pools) == "table" and box.pools or {}
     box.conds = type(box.conds) == "table" and box.conds or {}
+    box.down = type(box.down) == "table" and box.down or {}
+    box.turns = type(box.turns) == "table" and box.turns or {}
     box.maxRound = tonumber(box.maxRound) or 0
     return box
 end
 
---- A row's cell for a round, made on first use.
-local function BoxCell(row, round)
-    local key = "r" .. round
-    local cell = row.r[key]
+--- A cell in a table of cells, made on first use.
+local function BoxCell(cells, key)
+    local cell = cells[key]
     if type(cell) ~= "table" then
-        cell = { t = 0, h = 0, g = {}, e = {} }
-        row.r[key] = cell
+        cell = { t = 0, h = 0, d = 0, g = {}, e = {} }
+        cells[key] = cell
     end
     cell.g = type(cell.g) == "table" and cell.g or {}
     cell.e = type(cell.e) == "table" and cell.e or {}
     return cell
 end
 
+--- Where a change lands this pass: the round, the turn in play (if any), and
+--- that turn's record, for crediting its actor.
+--- @return table
+local function BoxAt(round, turnIndex, turn)
+    return { round = round, ti = turnIndex, turn = turn }
+end
+
+--- The cells a change for this row adds to: the round's, and the turn's.
+--- @return table[]
+local function BoxCells(row, at)
+    local cells = { BoxCell(row.r, "r" .. at.round) }
+    if at.ti ~= nil then
+        cells[2] = BoxCell(row.t, "r" .. at.round .. "t" .. at.ti)
+    end
+    return cells
+end
+
+--- Credit the turn's actor when the change lands on the other side.
+local function BoxCredit(row, at, field, amount)
+    local turn = at.turn
+    if turn ~= nil and turn.s ~= nil and turn.s ~= row.side then
+        turn[field] = (tonumber(turn[field]) or 0) + amount
+    end
+end
+
 --- The row for a key, made on first use.
 local function BoxRow(box, key, side, id, group)
     local row = box.rows[key]
     if type(row) ~= "table" then
-        row = { side = side, id = id, group = group, r = {} }
+        row = { side = side, id = id, group = group, r = {}, t = {} }
         box.rows[key] = row
         box.order[#box.order + 1] = key
     end
     row.r = type(row.r) == "table" and row.r or {}
+    row.t = type(row.t) == "table" and row.t or {}
     return row
 end
 
---- Add a stamina sample's change to the round. Returns true if it changed.
-local function BoxStamina(box, poolKey, sample, row, round, countHealing)
+--- Add a stamina sample's change. Returns true if it changed.
+local function BoxStamina(box, poolKey, sample, row, at, countHealing)
     local prev = tonumber(box.pools[poolKey])
     box.pools[poolKey] = sample
     if prev == nil or sample == prev then
         return prev == nil
     end
     if sample < prev then
-        local cell = BoxCell(row, round)
-        cell.t = (tonumber(cell.t) or 0) + (prev - sample)
+        for _, cell in ipairs(BoxCells(row, at)) do
+            cell.t = (tonumber(cell.t) or 0) + (prev - sample)
+        end
+        BoxCredit(row, at, "dealt", prev - sample)
     elseif countHealing then
-        local cell = BoxCell(row, round)
-        cell.h = (tonumber(cell.h) or 0) + (sample - prev)
+        for _, cell in ipairs(BoxCells(row, at)) do
+            cell.h = (tonumber(cell.h) or 0) + (sample - prev)
+        end
+    end
+    return true
+end
+
+--- Count a creature going down (a foe dead, a hero dying or dead). Returns
+--- true if its state changed.
+local function BoxDown(box, creatureKey, isDown, row, at)
+    local prev = box.down[creatureKey]
+    box.down[creatureKey] = isDown
+    if prev == nil or prev == isDown then
+        return prev == nil
+    end
+    if isDown then
+        for _, cell in ipairs(BoxCells(row, at)) do
+            cell.d = (tonumber(cell.d) or 0) + 1
+        end
+        BoxCredit(row, at, "downs", 1)
     end
     return true
 end
 
 --- Note conditions gained and ended since the last pass. Returns true if any.
-local function BoxConditions(box, creatureKey, names, row, round)
+local function BoxConditions(box, creatureKey, names, row, at)
     local prev = box.conds[creatureKey]
     box.conds[creatureKey] = names
     if type(prev) ~= "table" then
@@ -1362,27 +1417,61 @@ local function BoxConditions(box, creatureKey, names, row, round)
     local changed = false
     for name, _ in pairs(names) do
         if not prev[name] then
-            local cell = BoxCell(row, round)
-            if cell.e[name] then
-                cell.e[name] = nil
-            else
-                cell.g[name] = true
+            for _, cell in ipairs(BoxCells(row, at)) do
+                if cell.e[name] then
+                    cell.e[name] = nil
+                else
+                    cell.g[name] = true
+                end
             end
             changed = true
         end
     end
     for name, _ in pairs(prev) do
         if not names[name] then
-            local cell = BoxCell(row, round)
-            if cell.g[name] then
-                cell.g[name] = nil
-            else
-                cell.e[name] = true
+            for _, cell in ipairs(BoxCells(row, at)) do
+                if cell.g[name] then
+                    cell.g[name] = nil
+                else
+                    cell.e[name] = true
+                end
             end
             changed = true
         end
     end
     return changed
+end
+
+--- Who is acting this pass, as a box row key and side: a hero's id, or a
+--- foe's group key (else its id). A hidden foe acts as "?" so its turn still
+--- starts but names nobody. Nil between turns.
+--- @return nil|string key, nil|string side
+local function BoxActor(raw)
+    if raw.turn == nil or type(raw.turn.tokenIds) ~= "table" then
+        return nil, nil
+    end
+    local keys = {}
+    for _, hero in ipairs(raw.heroes) do
+        if hero.id ~= nil then
+            keys[hero.id] = { hero.id, "hero" }
+        end
+    end
+    for _, monster in ipairs(raw.monsters) do
+        if monster.id ~= nil then
+            keys[monster.id] = monster.hidden and { "?", "foe" } or { monster.group or monster.id, "foe" }
+        end
+    end
+    local best = nil
+    for _, tokenid in ipairs(raw.turn.tokenIds) do
+        local k = keys[tokenid]
+        if k ~= nil and (best == nil or (best[1] == "?" and k[1] ~= "?") or (k[1] ~= "?" and k[1] < best[1])) then
+            best = k
+        end
+    end
+    if best == nil then
+        return nil, nil
+    end
+    return best[1], best[2]
 end
 
 --- @return table<string, boolean>
@@ -1424,6 +1513,7 @@ local function UpdateBoxScore(raw, q)
         return nil
     end
     local box = g_box
+    local actor = nil
 
     if q ~= nil then
         local round = math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS))
@@ -1431,13 +1521,29 @@ local function UpdateBoxScore(raw, q)
             box.maxRound = round
             changed = true
         end
+
+        --the turn in play: a new one when someone else starts acting.
+        local side
+        actor, side = BoxActor(raw)
+        local rkey = "r" .. round
+        local turns = type(box.turns[rkey]) == "table" and box.turns[rkey] or {}
+        box.turns[rkey] = turns
+        local last = turns[#turns]
+        if actor ~= nil and (last == nil or last.a ~= actor) and #turns < BOX_MAX_TURNS then
+            last = { a = actor, s = side, dealt = 0, downs = 0 }
+            turns[#turns + 1] = last
+            changed = true
+        end
+        local at = BoxAt(round, #turns > 0 and #turns or nil, last)
+
         for _, hero in ipairs(raw.heroes) do
             if hero.id ~= nil then
                 local row = BoxRow(box, hero.id, "hero", hero.id, nil)
                 local s = hero.stamina or {}
                 local sample = (tonumber(s.cur) or 0) + (tonumber(s.temp) or 0)
-                changed = BoxStamina(box, hero.id, sample, row, round, true) or changed
-                changed = BoxConditions(box, hero.id, ConditionNames(hero.conditions, false), row, round) or changed
+                changed = BoxStamina(box, hero.id, sample, row, at, true) or changed
+                changed = BoxDown(box, hero.id, hero.dead == true or hero.dying == true, row, at) or changed
+                changed = BoxConditions(box, hero.id, ConditionNames(hero.conditions, false), row, at) or changed
             end
         end
         local sampled = {}
@@ -1453,9 +1559,10 @@ local function UpdateBoxScore(raw, q)
                     sampled[pool] = true
                     local s = monster.stamina or {}
                     local sample = (tonumber(s.cur) or 0) + (tonumber(s.temp) or 0)
-                    changed = BoxStamina(box, pool, sample, row, round, false) or changed
+                    changed = BoxStamina(box, pool, sample, row, at, false) or changed
                 end
-                changed = BoxConditions(box, monster.id, ConditionNames(monster.conditions, true), row, round) or changed
+                changed = BoxDown(box, monster.id, monster.dead == true, row, at) or changed
+                changed = BoxConditions(box, monster.id, ConditionNames(monster.conditions, true), row, at) or changed
             end
         end
     end
@@ -1469,12 +1576,45 @@ local function UpdateBoxScore(raw, q)
         end)
     end
 
+    local current = q ~= nil and math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS)) or nil
     local out = {
-        current = q ~= nil and math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS)) or nil,
+        current = current,
         rounds = box.maxRound,
+        turns = {},
         heroes = {},
         foes = {},
     }
+    --each round's turns in order; the last of the round in play is "now"
+    --while its actor is still the one acting.
+    local turnCounts = {}
+    for r = 1, box.maxRound do
+        local list = {}
+        local turns = type(box.turns) == "table" and box.turns["r" .. r] or nil
+        if type(turns) == "table" then
+            for i, turn in ipairs(turns) do
+                if type(turn) == "table" then
+                    list[#list + 1] = {
+                        actor = turn.a ~= "?" and turn.a or nil,
+                        side = turn.s,
+                        dealt = tonumber(turn.dealt) or 0,
+                        downs = tonumber(turn.downs) or 0,
+                        now = r == current and i == #turns and actor ~= nil and actor == turn.a or nil,
+                    }
+                end
+            end
+        end
+        out.turns[r] = list
+        turnCounts[r] = #list
+    end
+    local function OutCell(cell)
+        return {
+            taken = tonumber(cell.t) or 0,
+            healed = tonumber(cell.h) or 0,
+            down = tonumber(cell.d) or 0,
+            gained = SortedKeys(cell.g),
+            ended = SortedKeys(cell.e),
+        }
+    end
     for _, key in ipairs(box.order) do
         local row = box.rows[key]
         if type(row) == "table" then
@@ -1482,15 +1622,21 @@ local function UpdateBoxScore(raw, q)
             for r = 1, box.maxRound do
                 local cell = type(row.r) == "table" and row.r["r" .. r] or nil
                 if type(cell) == "table" then
-                    cells[r] = {
-                        taken = tonumber(cell.t) or 0,
-                        healed = tonumber(cell.h) or 0,
-                        gained = SortedKeys(cell.g),
-                        ended = SortedKeys(cell.e),
-                    }
+                    cells[r] = OutCell(cell)
                 else
-                    cells[r] = { taken = 0, healed = 0, gained = {}, ended = {} }
+                    cells[r] = { taken = 0, healed = 0, down = 0, gained = {}, ended = {} }
                 end
+                --only the turns where something happened to this row.
+                local byTurn = {}
+                for i = 1, turnCounts[r] do
+                    local tc = type(row.t) == "table" and row.t["r" .. r .. "t" .. i] or nil
+                    if type(tc) == "table" then
+                        local c = OutCell(tc)
+                        c.i = i
+                        byTurn[#byTurn + 1] = c
+                    end
+                end
+                cells[r].turns = byTurn
             end
             if row.side == "hero" then
                 out.heroes[#out.heroes + 1] = { id = row.id, cells = cells }
@@ -1734,6 +1880,19 @@ local function FitViewerToSize(viewer)
             viewer.pastMontage.log = {}
             text = dmhub.ToJson(viewer)
         end
+    end
+    --then the box score's turn detail for rounds not in play (their totals stay).
+    if #text > VIEWER_MAX_BYTES and viewer.boxScore ~= nil then
+        for _, rows in ipairs({viewer.boxScore.heroes or {}, viewer.boxScore.foes or {}}) do
+            for _, row in ipairs(rows) do
+                for r, cell in ipairs(row.cells or {}) do
+                    if r ~= viewer.boxScore.current then
+                        cell.turns = {}
+                    end
+                end
+            end
+        end
+        text = dmhub.ToJson(viewer)
     end
     --then the card backs' long lists: abilities, then skills.
     for _, field in ipairs({"abilities", "skills"}) do

@@ -614,4 +614,48 @@ end)()
     AssertNoLeaks(out, "box score")
 end)()
 
+;(function()
+    -- the box score's turns: actors only as the viewer may see them.
+    local raw = Fixture()
+    raw.monsters[1].group = "grp-secret-squad-key"
+    local tcell = function(i, t, h, d) return { i = i, taken = t, healed = h, down = d or 0, gained = { "Bleeding" }, ended = {} } end
+    raw.boxScore = {
+        current = 1, rounds = 1,
+        turns = { {
+            { actor = "h-vex", side = "hero", dealt = 11, downs = 1 },
+            { actor = "grp-secret-squad-key", side = "foe", dealt = 7, downs = 0 },
+            { actor = "m-ambusher", side = "foe", dealt = 3, downs = 0 },
+            { actor = "h-vex", side = "foe", dealt = 0, downs = 0 },
+            { actor = "m-boss", side = "foe", dealt = 4, downs = 0, now = true },
+        } },
+        heroes = {
+            { id = "h-vex", cells = { { taken = 10, healed = 2, down = 0, gained = {}, ended = {},
+                turns = { tcell(2, 7, 0), tcell(3, 3, 2), tcell(9, 99, 0), { i = "x" } } } } },
+        },
+        foes = {
+            { id = "m-boss", group = "grp-secret-squad-key", cells = { { taken = 11, down = 1, gained = {}, ended = {},
+                turns = { tcell(1, 11, 5, 1) } } } },
+        },
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    local b = out.boxScore
+    local turns = b.turns[1]
+    check(#turns == 5, "every turn kept, in order: " .. tostring(#turns))
+    check(turns[1].hero == "h-vex" and turns[1].dealt == 11 and turns[1].downs == 1, "a hero turn names the hero")
+    check(turns[2].group == out.foes.list[1].group and turns[2].hero == nil, "a group turn names the opaque group")
+    check(turns[3].hero == nil and turns[3].group == nil and turns[3].foe == nil, "a hidden foe's turn names nobody")
+    check(turns[4].hero == nil and turns[4].foe == nil, "a hero id claimed as a foe is not named")
+    check(turns[5].now == true, "the turn in play is marked")
+    local ht = b.heroes[1].cells[1].turns
+    check(#ht == 2 and ht[1].i == 2 and ht[2].healed == 2, "hero turn cells kept; out-of-range and bad indexes dropped")
+    local ft = b.foes[1].cells[1].turns
+    check(#ft == 1 and ft[1].taken == 11 and ft[1].healed == nil and ft[1].down == 1, "foe turn cells: taken and downs, no healing")
+    Walk(b, "box", function(path, key, value)
+        check(value ~= "grp-secret-squad-key" and value ~= "m-ambusher", "no raw group key or hidden id leaves: " .. path)
+    end)
+    raw.boxScore.current = nil
+    check(StreamerKitRedact.Redact(raw).boxScore.turns[1][5].now == nil, "nothing is in play once the combat is over")
+    AssertNoLeaks(out, "box score turns")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

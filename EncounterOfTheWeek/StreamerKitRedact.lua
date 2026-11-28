@@ -80,12 +80,17 @@
 --    pastMontage = the same block for the last montage to finish (phase
 --      "done", no turn), sent while no montage is running.
 --    boxScore = nil | { current (round, nil once the combat is over), rounds,
---      heroes = { { id, cells = { { taken, healed, gained = { name },
---                                   ended = { name } } } } },
+--      turns = { { { actor (hero id or raw group key or foe id, nil if
+--                    hidden), side = "hero"|"foe", dealt, downs, now } } },
+--      heroes = { { id, cells = { { taken, healed, down, gained = { name },
+--                                   ended = { name },
+--                                   turns = { { i, taken, healed, down,
+--                                               gained, ended } } } } } },
 --      foes = { { id, group (raw group key), cells = { same, healing
 --                 ignored } } } }
---      Per-round tallies (StreamOverlay.lua UpdateBoxScore). Published with
---      foe rows per opaque group id and damage taken only.
+--      Per-round tallies and per-turn detail (StreamOverlay.lua
+--      UpdateBoxScore). Published with foe rows per opaque group id and
+--      damage taken only; a turn's actor only if the viewer can see it.
 --  }
 --  The montage block holds only what every player's screen shows: the
 --  collector leaves out locked, removed and expired entries, later rounds'
@@ -577,6 +582,7 @@ end
 
 local MAX_BOX_ROUNDS = 30
 local MAX_BOX_TAGS = 8
+local MAX_BOX_TURNS = 20
 
 --- Condition names for a box score cell: short strings, capped.
 local function BoxTags(list)
@@ -608,19 +614,64 @@ local function RedactBoxScore(box, heroIds, groupIds, foeIds)
     if current ~= nil and (current < 1 or current > rounds) then
         current = nil
     end
-    local out = { rounds = rounds, current = current, heroes = {}, foes = {} }
+    local out = { rounds = rounds, current = current, turns = {}, heroes = {}, foes = {} }
+
+    --each round's turns: the actor only as a hero in the snapshot, a shown
+    --group's opaque id or a visible foe; anyone else acts unnamed.
+    local rawTurns = type(box.turns) == "table" and box.turns or {}
+    local turnCounts = {}
+    for r = 1, rounds do
+        local list = {}
+        for _, turn in ipairs(List(rawTurns[r], MAX_BOX_TURNS)) do
+            if type(turn) == "table" then
+                local entry = {
+                    dealt = math.max(0, Whole(turn.dealt) or 0),
+                    downs = math.max(0, Whole(turn.downs) or 0),
+                    now = turn.now == true and r == current or nil,
+                }
+                local a = turn.actor
+                if type(a) == "string" then
+                    if turn.side == "hero" and heroIds[a] then
+                        entry.hero = a
+                    elseif turn.side == "foe" and groupIds[a] ~= nil then
+                        entry.group = groupIds[a]
+                    elseif turn.side == "foe" and foeIds[a] then
+                        entry.foe = a
+                    end
+                end
+                list[#list + 1] = entry
+            end
+        end
+        out.turns[r] = list
+        turnCounts[r] = #list
+    end
+
+    local function Cell(c, withHealing)
+        local cell = {
+            taken = math.max(0, Whole(c.taken) or 0),
+            down = math.max(0, Whole(c.down) or 0),
+            gained = BoxTags(c.gained),
+            ended = BoxTags(c.ended),
+        }
+        if withHealing then
+            cell.healed = math.max(0, Whole(c.healed) or 0)
+        end
+        return cell
+    end
     local function Cells(cells, withHealing)
         local result = {}
         cells = type(cells) == "table" and cells or {}
         for r = 1, rounds do
             local c = type(cells[r]) == "table" and cells[r] or {}
-            local cell = {
-                taken = math.max(0, Whole(c.taken) or 0),
-                gained = BoxTags(c.gained),
-                ended = BoxTags(c.ended),
-            }
-            if withHealing then
-                cell.healed = math.max(0, Whole(c.healed) or 0)
+            local cell = Cell(c, withHealing)
+            cell.turns = {}
+            for _, tc in ipairs(List(c.turns, MAX_BOX_TURNS)) do
+                local i = type(tc) == "table" and Whole(tc.i) or nil
+                if i ~= nil and i >= 1 and i <= turnCounts[r] then
+                    local t = Cell(tc, withHealing)
+                    t.i = i
+                    cell.turns[#cell.turns + 1] = t
+                end
             end
             result[r] = cell
         end

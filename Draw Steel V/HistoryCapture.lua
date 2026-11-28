@@ -112,7 +112,8 @@ end
 --- @param token CharacterToken
 --- @return HistoryCreature
 function History.Creature(token)
-    local name = token.name
+    --an object shows its own name, not its art's (a flying machine's art is "teleporter")
+    local name = creature.TokenDisplayName(token)
     if name == nil or name == "" then
         name = token.description
     end

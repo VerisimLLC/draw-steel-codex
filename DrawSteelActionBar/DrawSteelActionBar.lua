@@ -6585,7 +6585,7 @@ local function OverviewColumnSignals(column)
             if member == nil then
                 member = {
                     token = tok,
-                    name = squad or tok.name or column.name or "Creature",
+                    name = squad or creature.TokenDisplayName(tok) or column.name or "Creature",
                     tokens = {},
                     stamina = OverviewStaminaText(tok),
                     --P2-d: only in combat (heroes nil otherwise -> nil).
@@ -8588,7 +8588,7 @@ local function BuildOverviewColumns()
             if column == nil then
                 column = {
                     key = key,
-                    name = statblock or tok.name or "Creature",
+                    name = statblock or creature.TokenDisplayName(tok) or "Creature",
                     tokens = {},
                 }
                 byKey[key] = column

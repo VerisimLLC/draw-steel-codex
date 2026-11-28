@@ -572,6 +572,253 @@ local function _openPiecePicker(word, slot, value, ast, piece, commit)
     }
 end
 
+----------------------------------------------------------------------------
+-- Tests (slot kind "testFormula", design 4z/4ab): a true/false formula read
+-- back as words. Each part of the formula a registered test reads (Block.ReadTest)
+-- shows as that test's words: its own words open the test picker to replace
+-- it, its slots change one value. "and" / "or" / "not" join the parts. A part
+-- no test reads stays as its formula, typed over in place. The value is
+-- always the formula text, so a test only ever rewrites the part changed.
+----------------------------------------------------------------------------
+
+--- The pieces a test formula shows as. Nil when the text does not parse.
+--- piece.edit: "test" (a test's own words), "slot" (one of its values),
+--- "join" (and / or / not), "formula" (a part no test reads); nil for plain text.
+--- @param text string
+--- @return BlockFormulaNode|nil ast, {text: string, edit?: string, path: string[], test?: BlockTest, values?: table, slotId?: string}[]|nil pieces
+local function _testPieces(text)
+    local ast = Block.ParseFormula(text)
+    if ast == nil then
+        return nil, nil
+    end
+    local pieces = {}
+    local function Walk(node, path)
+        local test, values = Block.ReadTest(node)
+        if test ~= nil and values ~= nil and test.words ~= nil then
+            local pseudo = { id = test.id, family = "test", group = "", label = "", sentence = {}, slots = test.slots or {} }
+            for _, word in ipairs(test.words(values)) do
+                if type(word) == "table" and word.slot ~= nil then
+                    pieces[#pieces + 1] = { text = Block.SlotText(pseudo --[[@as BlockDecl]], word.slot, values[word.slot]), edit = "slot", path = path, test = test, values = values, slotId = word.slot }
+                else
+                    pieces[#pieces + 1] = { text = tostring(word), edit = "test", path = path, test = test, values = values }
+                end
+            end
+        elseif (node.k == "and" or node.k == "or") and node.l ~= nil and node.r ~= nil then
+            local left, right = { table.unpack(path) }, { table.unpack(path) }
+            left[#left + 1] = "l"
+            right[#right + 1] = "r"
+            Walk(node.l, left)
+            pieces[#pieces + 1] = { text = node.k, edit = "join", path = path }
+            Walk(node.r, right)
+        elseif node.k == "not" and node.a ~= nil then
+            local inner = { table.unpack(path) }
+            inner[#inner + 1] = "a"
+            pieces[#pieces + 1] = { text = "not", edit = "join", path = path }
+            Walk(node.a, inner)
+        else
+            local copy = DeepCopy(node)
+            copy.parens = nil
+            pieces[#pieces + 1] = { text = Block.PrintFormula(copy), edit = "formula", path = path }
+        end
+    end
+    Walk(ast, {})
+    return ast, pieces
+end
+
+--- A new test for "combine" to add beside the one there: the first test the picker lists.
+--- @return BlockFormulaNode
+local function _defaultTest()
+    for _, test in ipairs(Block.All("test")) do
+        --- @cast test BlockTest
+        if not test.stub and test.make ~= nil then
+            return test.make()
+        end
+    end
+    return { k = "id", path = { "Enemy" } }
+end
+
+--- The picker's groups of tests, in the order the tests' order gives them.
+--- @param query string lower case
+--- @return {title: string, tests: BlockTest[]}[]
+local function _testGroups(query)
+    local groups = {}
+    local byTitle = {}
+    for _, test in ipairs(Block.All("test")) do
+        --- @cast test BlockTest
+        if not test.stub and test.group ~= nil and test.label ~= nil then
+            local words = string.lower(test.group .. " " .. test.label .. " " .. (test.search or ""))
+            if query == "" or string.find(words, query, 1, true) ~= nil then
+                local group = byTitle[test.group]
+                if group == nil then
+                    group = { title = test.group, tests = {} }
+                    byTitle[test.group] = group
+                    groups[#groups + 1] = group
+                end
+                group.tests[#group.tests + 1] = test
+            end
+        end
+    end
+    return groups
+end
+
+--- Opens the test picker at the pointer: "Combine tests" first, then the
+--- registered tests by group, a search box and "Type a formula instead".
+--- @param word Panel the clicked word
+--- @param current BlockFormulaNode|nil the part being replaced (nil for an empty test)
+--- @param put fun(node: BlockFormulaNode) puts a new part in its place
+--- @param typeInstead fun() types the part over in place
+local function _openTestPicker(word, current, put, typeInstead)
+    --- @type Panel
+    local list
+    local function Row(name, example, pick)
+        return gui.Panel{
+            classes = {"beAmountRow"},
+            press = function(element)
+                word.popup = nil
+                pick()
+            end,
+            gui.Label{ classes = {"beAmountName"}, text = name, interactable = false },
+            example ~= nil and gui.Label{ classes = {"beAmountExample"}, text = _escape(example), interactable = false } or nil,
+        }
+    end
+    local function Fill(query)
+        local rows = {}
+        --combining leads every test picker (4z): it keeps the test that is there.
+        local combine = {
+            { T("blockeditor.test.all"), function() put({ k = "and", l = current ~= nil and DeepCopy(current) or _defaultTest(), r = _defaultTest() }) end },
+            { T("blockeditor.test.any"), function() put({ k = "or", l = current ~= nil and DeepCopy(current) or _defaultTest(), r = _defaultTest() }) end },
+            { T("blockeditor.test.not"), function() put({ k = "not", a = current ~= nil and DeepCopy(current) or _defaultTest() }) end },
+        }
+        local combineShown = query == "" or string.find("combine all any not and or both either", query, 1, true) ~= nil
+        if combineShown then
+            rows[#rows + 1] = gui.Label{ classes = {"beTestGroup"}, text = T("blockeditor.test.combine"), interactable = false }
+            for _, entry in ipairs(combine) do
+                rows[#rows + 1] = Row(entry[1], nil, entry[2])
+            end
+        end
+        for _, group in ipairs(_testGroups(query)) do
+            rows[#rows + 1] = gui.Label{ classes = {"beTestGroup"}, text = group.title, interactable = false }
+            for _, test in ipairs(group.tests) do
+                rows[#rows + 1] = Row(test.label, test.example, function()
+                    local ok, node = pcall(test.make)
+                    if ok and node ~= nil then
+                        put(node)
+                    end
+                end)
+            end
+        end
+        rows[#rows + 1] = Row(T("blockeditor.menu.formula"), nil, typeInstead)
+        list.children = rows
+    end
+    list = gui.Panel{ classes = {"beAmountList", "beTestList"} }
+    local children = {
+        gui.Label{ classes = {"beAmountTitle"}, text = T("blockeditor.test.title"), interactable = false },
+        gui.SearchInput{
+            classes = {"searchInput", "beAmountSearch"},
+            placeholderText = T("blockeditor.test.search"),
+            search = function(element, text)
+                Fill(string.lower(trim(text or "")))
+            end,
+        },
+        list,
+    }
+    Fill("")
+    word.popupsInheritStyles = true
+    word.popupPositioning = "mouse"
+    word.popup = gui.Panel{
+        classes = {"framedPanel", "beAmountPicker"},
+        interactable = true,
+        swallowPress = true,
+        children = children,
+    }
+end
+
+--- The menu on "and" / "or" / "not": switch it, or take a part out.
+--- @param word Panel
+--- @param ast BlockFormulaNode
+--- @param path string[]
+--- @param commit fun(node: BlockFormulaNode)
+local function _openJoinMenu(word, ast, path, commit)
+    local node = _nodeAt(ast, path)
+    if node == nil then
+        return
+    end
+    local entries = {}
+    local function Add(text, build)
+        entries[#entries + 1] = { text = text, click = function()
+            word.popup = nil
+            commit(_replaced(ast, path, build()))
+        end }
+    end
+    if node.k == "and" or node.k == "or" then
+        local other = node.k == "and" and "or" or "and"
+        Add(T("blockeditor.test.switch_" .. other), function()
+            local copy = DeepCopy(node)
+            copy.k = other
+            copy.kwText = nil
+            return copy
+        end)
+        Add(T("blockeditor.test.drop_second"), function() return DeepCopy(node.l) end)
+        Add(T("blockeditor.test.drop_first"), function() return DeepCopy(node.r) end)
+    elseif node.k == "not" then
+        Add(T("blockeditor.test.drop_not"), function() return DeepCopy(node.a) end)
+    end
+    word.popupsInheritStyles = true
+    word.popupPositioning = "mouse"
+    word.popup = gui.ContextMenu{
+        entries = entries,
+        click = function()
+            word.popup = nil
+        end,
+    }
+end
+
+--- The editor for one value of a test: a choice opens its menu, anything else
+--- is typed over in place.
+--- @param word Panel
+--- @param piece table a "slot" piece
+--- @param ast BlockFormulaNode
+--- @param commit fun(node: BlockFormulaNode, source?: Panel)
+local function _editTestSlot(word, piece, ast, commit)
+    local test = piece.test --[[@as BlockTest]]
+    local slot = (test.slots or {})[piece.slotId] or { kind = "text" }
+    local function Put(value, source)
+        local values = DeepCopy(piece.values)
+        values[piece.slotId] = value
+        local ok, node = pcall(test.write, values, _nodeAt(ast, piece.path))
+        if ok and node ~= nil then
+            commit(_replaced(ast, piece.path, node), source)
+        else
+            dmhub.Error("BlockEditor: a test could not be rewritten: " .. tostring(node))
+        end
+    end
+    if slot.kind == "choice" then
+        local entries = {}
+        for _, option in ipairs(Block.SlotOptions(slot)) do
+            entries[#entries + 1] = { text = option.text, check = option.id == piece.values[piece.slotId], click = function()
+                word.popup = nil
+                if option.id ~= piece.values[piece.slotId] then
+                    Put(option.id)
+                end
+            end }
+        end
+        word.popupsInheritStyles = true
+        word.popupPositioning = "mouse"
+        word.popup = gui.ContextMenu{
+            entries = entries,
+            click = function()
+                word.popup = nil
+            end,
+        }
+        return
+    end
+    _editInPlace(word, piece.values[piece.slotId] or "", function(value, source) Put(value, source) end)
+end
+
+--For tests/block_test_picker_test.lua: the reading of a test formula without drawing it.
+BESlots._testPieces = _testPieces
+BESlots._testGroups = _testGroups
+
 --For tests/block_amount_test.lua: the picker's logic without drawing it.
 BESlots._amountKinds = _amountKinds
 BESlots._formulaPieces = _formulaPieces
@@ -769,6 +1016,69 @@ function BESlots.SentenceRow(args)
                 if empty then
                     wordClasses[#wordClasses + 1] = "beWordEmpty"
                 end
+                --a test reads as words: each test's own words open the test picker,
+                --its values change one at a time, "and" / "or" / "not" join the parts.
+                if slot.kind == "testFormula" and not empty and value ~= nil then
+                    local testAst, testPieces = _testPieces(tostring(value))
+                    if testAst ~= nil and testPieces ~= nil then
+                        --- @param node BlockFormulaNode the whole new formula
+                        --- @param source Panel
+                        local function CommitNode(node, source)
+                            Commit(Block.PrintFormula(node), source)
+                        end
+                        --- Types one part over in place; a part that does not parse is not saved.
+                        local function TypePart(element, path, text)
+                            _editInPlace(element, text, function(typed, source)
+                                local parsed = Block.ParseFormula(tostring(typed))
+                                if parsed ~= nil then
+                                    CommitNode(_replaced(testAst, path, parsed), source)
+                                else
+                                    dmhub.Log(T("blockeditor.test.bad_formula", { text = tostring(typed) }))
+                                end
+                            end)
+                        end
+                        for i, piece in ipairs(testPieces) do
+                            local pieceId = slotId .. "#" .. i
+                            local pieceClasses = {"beWord"}
+                            if piece.edit == "formula" then
+                                pieceClasses[#pieceClasses + 1] = "beWordFormula"
+                            elseif piece.edit == "test" or piece.edit == "join" then
+                                pieceClasses[#pieceClasses + 1] = "beWordTest"
+                            end
+                            children[#children + 1] = gui.Label{
+                                classes = pieceClasses,
+                                text = (piece.edit == "slot" or piece.edit == "formula") and ("<u>" .. _escape(piece.text) .. "</u>") or _escape(piece.text),
+                                lmargin = (#children > 0 and (i > 1 or gap)) and BEStyles.SIZES.WORD_GAP or 0,
+                                lpad = 4,
+                                rpad = 4,
+                                data = { slot = pieceId },
+                                hover = function(element)
+                                    _lightSlot(element.parent, pieceId)
+                                end,
+                                dehover = function(element)
+                                    _lightSlot(element.parent, nil)
+                                end,
+                                press = function(element)
+                                    if piece.edit == "test" then
+                                        local current = _nodeAt(testAst, piece.path)
+                                        _openTestPicker(element, current, function(node)
+                                            CommitNode(_replaced(testAst, piece.path, node), element)
+                                        end, function()
+                                            TypePart(element, piece.path, current ~= nil and Block.PrintFormula(current) or "")
+                                        end)
+                                    elseif piece.edit == "slot" then
+                                        _editTestSlot(element, piece, testAst, function(node, source) CommitNode(node, source or element) end)
+                                    elseif piece.edit == "join" then
+                                        _openJoinMenu(element, testAst, piece.path, function(node) CommitNode(node, element) end)
+                                    else
+                                        TypePart(element, piece.path, piece.text)
+                                    end
+                                end,
+                            }
+                        end
+                        words = {}
+                    end
+                end
                 --an amount shows each number, stat and sign as its own word (a lone
                 --number opens the kinds of amount instead).
                 local ast, pieces = nil, nil
@@ -830,6 +1140,17 @@ function BESlots.SentenceRow(args)
                             local loneNumber = (slot.amount or slot.kinds ~= nil) and not empty and tonumber(tostring(value)) ~= nil
                             --a tier's amount (its own kinds, no pieces) is typed over whole once it has one.
                             local filledKinds = slot.kinds ~= nil and not empty
+                            --an empty test opens the test picker; one that does not parse is typed over.
+                            if slot.kind == "testFormula" then
+                                if empty then
+                                    _openTestPicker(element, nil, function(node) Done(Block.PrintFormula(node), element) end, function()
+                                        _editInPlace(element, "", Done)
+                                    end)
+                                else
+                                    _editInPlace(element, value, Done)
+                                end
+                                return
+                            end
                             local typed = slot.kind == "text" or slot.kind == "number" or loneNumber or filledKinds
                                 or (slot.kind == "formula" and not slot.amount and slot.kinds == nil and #Block.SlotOptions(slot) == 0)
                             if typed then

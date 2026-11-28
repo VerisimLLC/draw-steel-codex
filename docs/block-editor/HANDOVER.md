@@ -459,3 +459,20 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
 - **Drag:** the moved block fades (`beDragSource`); hint slots use the accent. The open slot keeps
   its fixed size (an inline height cannot be cleared reliably afterwards).
 - Still open: the test picker, keyboard paths, the open slot sized to the block, curated Common.
+
+## 22. Test picker, phase 1 (2026-11-28, run in DMHub)
+
+- **Framework:** `BlockTest` gains group, label, example, search, make, read, words, slots, write
+  (stubs keep prose/toScript); `Block.ReadTest(node)`, `Block.NormName`. `Slots.lua`:
+  `_testPieces` (test / slot / join / formula pieces with their formula paths), `_openTestPicker`,
+  `_openJoinMenu`, `_editTestSlot`; slot kind `testFormula`. Test: `tests/block_test_picker_test.lua`.
+- **Draw Steel tests** (`MCDMAbilityBlocks.lua`, before the Advanced block): enemy / ally (Enemy,
+  Friends(...), Target is Enemy), minion / hero / object / leader / solo, keyword, compare a number,
+  condition, potency (number or word), winded / dying / dead, ongoing effect, distance, Strained.
+  They keep the prefix as written (`_subject`), "has not" vs "not ... has", "is not".
+- **Measured:** of 1,150 saved tests, 918 read fully as words and 67 partly; misses are one-offs
+  and engine functions (ConditionCaster, IncludesConditionRider, Cast.SpacesMoved, "0"). Both save
+  checks 2,819 / 2,819. Checked on It Is Justice You Fear: the picker's groups; picking a test
+  replaces one part only; "and" to "or" and undo.
+- **Later (phase 2):** remembered values, From <parent> in follow-ups, trigger-event tests, the
+  GoblinScript reference link, nicer undo wording than the raw formula.

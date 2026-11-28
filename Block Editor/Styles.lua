@@ -1162,6 +1162,25 @@ local function _editorBlockStyles()
             fontSize = 14,
             priority = 11,
         },
+        -- A test's own words and its joining words: clickable, but no underline or fill.
+        {
+            selectors = {"label", "beWordTest"},
+            bgcolor = "clear",
+            priority = 11,
+        },
+        -- A group title in the test picker.
+        {
+            selectors = {"label", "beTestGroup"},
+            width = "100%",
+            height = "auto",
+            fontSize = 11,
+            uppercase = true,
+            color = "@fgMuted",
+            tmargin = 8,
+            bmargin = 2,
+            hpad = 6,
+            borderBox = true,
+        },
         -- The small "fx" beside an amount: quieter than the words it follows (its text is italic).
         {
             selectors = {"label", "beWordFx"},

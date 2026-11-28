@@ -215,7 +215,7 @@ local SLOTS = {
         end,
     },
     charges = { kind = "formula", style = "formula", default = "1", options = {} },
-    filter = { kind = "formula", style = "formula", default = "", empty = "+ test", options = {} },
+    filter = { kind = "testFormula", style = "formula", default = "", empty = "+ test" },
 }
 
 --- The record's own fields, by the header slot that shows them.
@@ -1173,7 +1173,7 @@ Block.RegisterBlock{
     label = "Only if",
     desc = "The steps inside only happen for targets that pass a test.",
     sentence = { { text = "Only if", bold = true }, " ", { slot = "test" }, ":" },
-    slots = { test = { kind = "formula", style = "formula", default = "Target.Winded", options = {} } },
+    slots = { test = { kind = "testFormula", style = "formula", default = "Target.Winded", empty = "+ test" } },
     bodies = { { id = "steps", fits = "step" } },
     fits = { "step" },
     order = 76,
@@ -1231,7 +1231,7 @@ Block.RegisterBlock{
     desc = "The ability can only be used on a target that passes this test; otherwise the player is told why. A plain name is the target's (Size), Caster.Size is yours.",
     sentence = { { text = "Only if", bold = true }, " ", { slot = "test" }, ", otherwise the player is told: ", { slot = "reason" } },
     slots = {
-        test = { kind = "formula", style = "formula", default = "", empty = "+ test", options = {} },
+        test = { kind = "testFormula", style = "formula", default = "", empty = "+ test" },
         reason = { kind = "text", default = "", empty = "+ reason" },
     },
     fits = { "requirement" },
@@ -1294,6 +1294,413 @@ local REQUIREMENTS = {
         end
         result.reasonedFilters = list
     end,
+}
+
+----------------------------------------------------------------------------
+-- Tests for the test picker (design 4z, 4ab): the true/false formulas of
+-- Only if, requirements and the target filter, read back as words. In these
+-- formulas a bare name is the target's and Caster.X is yours. Each test keeps
+-- how the formula was written (Target. or nothing, caster or Caster) and only
+-- rewrites the part the author changes.
+----------------------------------------------------------------------------
+
+local NormName = Block.NormName
+
+--- Who a name belongs to: the target (bare, or Target.X) or you (Caster.X).
+--- @param path string[]|nil
+--- @return string|nil who "target" or "you"
+--- @return string|nil prefix the prefix as written (nil when bare)
+--- @return string|nil field the name as written
+local function _subject(path)
+    if type(path) ~= "table" then
+        return nil, nil, nil
+    end
+    if #path == 1 then
+        return "target", nil, path[1]
+    elseif #path == 2 then
+        local prefix = NormName(path[1])
+        if prefix == "target" then
+            return "target", path[1], path[2]
+        elseif prefix == "caster" then
+            return "you", path[1], path[2]
+        end
+    end
+    return nil, nil, nil
+end
+
+--- A name node for a test's values: the prefix as it was written.
+--- @param values table
+--- @param field string
+--- @return BlockFormulaNode
+local function _subjectNode(values, field)
+    if values.prefix == nil then
+        return { k = "id", path = { field } }
+    end
+    return { k = "id", path = { values.prefix, field } }
+end
+
+--- "the target" / "you", and its possessive and verbs.
+local WHO_WORDS = {
+    target = { name = "the target", whose = "the target's", is = "is", has = "has" },
+    you = { name = "you", whose = "your", is = "are", has = "have" },
+}
+
+--- A test may arrive wrapped in "not": its inner node, and whether it was.
+--- @param node BlockFormulaNode
+--- @return BlockFormulaNode, boolean
+local function _unwrapNot(node)
+    if node.k == "not" and node.a ~= nil then
+        return node.a, true
+    end
+    return node, false
+end
+
+--- Wraps a node in "not" when asked.
+--- @param node BlockFormulaNode
+--- @param negate boolean
+--- @return BlockFormulaNode
+local function _maybeNot(node, negate)
+    if negate then
+        return { k = "not", a = node }
+    end
+    return node
+end
+
+--- The yes/no slot of a fact ("is" / "is not"), worded for who it is about.
+--- @param verb string "is" or "has"
+--- @return BlockSlot, BlockSlot for the target, for you
+local function _yesNoSlots(verb)
+    local target = verb == "is" and { "is", "is not" } or { "has", "does not have" }
+    local you = verb == "is" and { "are", "are not" } or { "have", "do not have" }
+    return { kind = "choice", default = "yes", options = { { id = "yes", text = target[1] }, { id = "no", text = target[2] } } },
+        { kind = "choice", default = "yes", options = { { id = "yes", text = you[1] }, { id = "no", text = you[2] } } }
+end
+
+--- The condition names from the game's table, as a choice's options.
+--- @return {id: string, text: string}[]
+local function _conditionOptions()
+    local result = {}
+    for _, row in unhidden_pairs(dmhub.GetTable("charConditions") or {}) do
+        local name = nil
+        pcall(function() name = row.name end)
+        if type(name) == "string" then
+            result[#result + 1] = { id = name, text = string.lower(name) }
+        end
+    end
+    table.sort(result, function(a, b) return a.text < b.text end)
+    return result
+end
+
+local COMPARE_OPS = {
+    { id = "<", text = "is less than" },
+    { id = "<=", text = "is at most" },
+    { id = ">", text = "is more than" },
+    { id = ">=", text = "is at least" },
+    { id = "=", text = "is" },
+    { id = "~=", text = "is not" },
+}
+
+--the numbers the "Compare a number" test offers (another, as written, shows as written).
+local COMPARE_FIELDS = {}
+for _, name in ipairs({ "Level", "Might", "Agility", "Reason", "Intuition", "Presence", "Stamina", "Size", "Speed",
+    "Heroic Resources Available to Spend", "Recoveries" }) do
+    COMPARE_FIELDS[#COMPARE_FIELDS + 1] = { id = name, text = name }
+end
+
+--- A yes/no fact about the target or you ("the target is winded", "you are
+--- Strained"): one test per picker group, each reading its own facts.
+--- @param spec {id: string, group: string, label: string, example?: string, search?: string, order: number, facts: {id: string, text: string}[], who: string}
+local function _factTest(spec)
+    local isTarget, isYou = _yesNoSlots("is")
+    local known = {}
+    for _, fact in ipairs(spec.facts) do
+        known[NormName(fact.id)] = fact.id
+    end
+    Block.RegisterTest{
+        id = spec.id,
+        group = spec.group,
+        label = spec.label,
+        example = spec.example,
+        search = spec.search,
+        order = spec.order,
+        slots = { fact = { kind = "choice", default = spec.facts[1].id, options = spec.facts }, isTarget = isTarget, isYou = isYou },
+        make = function()
+            local prefix = spec.who == "you" and "Caster" or "Target"
+            return { k = "id", path = { prefix, spec.facts[1].id } }
+        end,
+        read = function(node)
+            local inner, negated = _unwrapNot(node)
+            if inner.k ~= "id" then
+                return nil
+            end
+            local who, prefix, field = _subject(inner.path)
+            local fact = field ~= nil and known[NormName(field)] or nil
+            if who == nil or fact == nil then
+                return nil
+            end
+            local answer = negated and "no" or "yes"
+            --the fact as written stays when unchanged ("winded" keeps its case).
+            return { who = who, prefix = prefix, fact = fact, written = field, isTarget = answer, isYou = answer }
+        end,
+        words = function(values)
+            local words = WHO_WORDS[values.who] or WHO_WORDS.target
+            return { words.name, { slot = values.who == "you" and "isYou" or "isTarget" }, { slot = "fact" } }
+        end,
+        write = function(values, node)
+            local answer = values.who == "you" and values.isYou or values.isTarget
+            local field = (values.written ~= nil and NormName(values.written) == NormName(values.fact)) and values.written or values.fact
+            return _maybeNot(_subjectNode(values, field), answer == "no")
+        end,
+    }
+end
+
+--- "the target has the X condition / keyword / effect": a has test on one list.
+--- @param spec {id: string, group: string, label: string, example?: string, search?: string, order: number, list: string, noun: string, value: BlockSlot, default: string}
+local function _hasTest(spec)
+    local hasTarget, hasYou = _yesNoSlots("has")
+    Block.RegisterTest{
+        id = spec.id,
+        group = spec.group,
+        label = spec.label,
+        example = spec.example,
+        search = spec.search,
+        order = spec.order,
+        slots = { value = spec.value, hasTarget = hasTarget, hasYou = hasYou },
+        make = function()
+            return { k = "has", l = { k = "id", path = { "Target", spec.list } }, r = { k = "str", v = spec.default } }
+        end,
+        read = function(node)
+            local inner, negated = _unwrapNot(node)
+            if inner.k ~= "has" or inner.l == nil or inner.l.k ~= "id" or inner.r == nil or inner.r.k ~= "str" then
+                return nil
+            end
+            local who, prefix, field = _subject(inner.l.path)
+            if who == nil or NormName(field) ~= NormName(spec.list) then
+                return nil
+            end
+            local answer = (negated ~= (inner.neg == true)) and "no" or "yes"
+            return { who = who, prefix = prefix, field = field, value = inner.r.v, hasTarget = answer, hasYou = answer, notForm = negated }
+        end,
+        words = function(values)
+            local words = WHO_WORDS[values.who] or WHO_WORDS.target
+            return { words.name, { slot = values.who == "you" and "hasYou" or "hasTarget" }, "the", { slot = "value" }, spec.noun }
+        end,
+        write = function(values, node)
+            local answer = values.who == "you" and values.hasYou or values.hasTarget
+            local has = { k = "has", l = _subjectNode(values, values.field or spec.list), r = { k = "str", v = tostring(values.value or "") } }
+            --"not X has" stays that way; otherwise "has not".
+            if answer == "no" and values.notForm then
+                return { k = "not", a = has }
+            end
+            has.neg = answer == "no" or nil
+            return has
+        end,
+    }
+end
+
+Block.RegisterTest{
+    id = "ds.enemy",
+    group = "Check what kind of creature",
+    label = "The target is an enemy, or an ally",
+    example = "Enemy",
+    search = "enemy ally friend foe hostile side",
+    order = 10,
+    slots = { side = { kind = "choice", default = "enemy", options = { { id = "enemy", text = "an enemy" }, { id = "ally", text = "an ally" } } } },
+    make = function()
+        return { k = "id", path = { "Enemy" } }
+    end,
+    read = function(node)
+        local inner, negated = _unwrapNot(node)
+        if inner.k == "id" and #(inner.path or {}) == 1 and NormName(inner.path[1]) == "enemy" then
+            return { side = negated and "ally" or "enemy", form = "enemy", written = inner.path[1] }
+        end
+        --"Target is Enemy" says the same, kept in its own form.
+        if inner.k == "is" and inner.l ~= nil and inner.l.k == "id" and #(inner.l.path or {}) == 1 and NormName(inner.l.path[1]) == "target"
+            and inner.r ~= nil and inner.r.k == "id" and #(inner.r.path or {}) == 1 and NormName(inner.r.path[1]) == "enemy" then
+            local enemy = (inner.neg == true) == negated
+            return { side = enemy and "enemy" or "ally", form = "is", isNode = DeepCopy(inner), notForm = negated }
+        end
+        --Friends(Caster, Target) in either order: allies; "not" makes it enemies.
+        if inner.k == "call" and #(inner.path or {}) == 1 and NormName(inner.path[1]) == "friends" and #(inner.args or {}) == 2 then
+            return { side = negated and "enemy" or "ally", form = "friends", call = DeepCopy(inner) }
+        end
+        return nil
+    end,
+    words = function(values)
+        return { "the target is", { slot = "side" } }
+    end,
+    write = function(values, node)
+        if values.form == "friends" and values.call ~= nil then
+            return _maybeNot(DeepCopy(values.call), values.side == "enemy")
+        end
+        if values.form == "is" and values.isNode ~= nil then
+            local isNode = DeepCopy(values.isNode)
+            isNode.neg = nil
+            --"is not" when it was written that way, else a leading "not".
+            if values.side == "ally" and not values.notForm then
+                isNode.neg = true
+                return isNode
+            end
+            return _maybeNot(isNode, values.side == "ally")
+        end
+        return _maybeNot({ k = "id", path = { values.written or "Enemy" } }, values.side == "ally")
+    end,
+}
+
+_factTest{
+    id = "ds.kind", group = "Check what kind of creature", label = "The target is a minion, a hero or an object",
+    search = "minion hero object leader solo kind type", order = 11, who = "target",
+    facts = { { id = "Minion", text = "a minion" }, { id = "Hero", text = "a hero" }, { id = "Object", text = "an object" },
+        { id = "Leader", text = "a leader" }, { id = "Solo", text = "a solo creature" } },
+}
+_hasTest{
+    id = "ds.keyword", group = "Check what kind of creature", label = "The target has a keyword (Undead...)",
+    search = "keyword undead demon elemental type", order = 12, list = "Keywords", noun = "keyword",
+    value = { kind = "text", default = "Undead", empty = "+ keyword" }, default = "Undead",
+}
+Block.RegisterTest{
+    id = "ds.compare",
+    group = "Compare a number",
+    label = "The target's [Level] is at least [ ]",
+    example = "a characteristic, Stamina, size, speed...",
+    search = "level might agility reason intuition presence characteristic stamina size speed heroic resource compare number",
+    order = 20,
+    slots = {
+        field = { kind = "choice", default = "Level", options = COMPARE_FIELDS },
+        op = { kind = "choice", default = ">=", options = COMPARE_OPS },
+        right = { kind = "formula", style = "formula", default = "1", options = {} },
+    },
+    make = function()
+        return { k = "cmp", op = ">=", l = { k = "id", path = { "Target", "Level" } }, r = { k = "num", v = "1" } }
+    end,
+    read = function(node)
+        if node.k ~= "cmp" or node.l == nil or node.l.k ~= "id" or node.r == nil then
+            return nil
+        end
+        local who, prefix, field = _subject(node.l.path)
+        if who == nil then
+            return nil
+        end
+        return { who = who, prefix = prefix, field = field, op = node.op, right = Block.PrintFormula(node.r), rightNode = DeepCopy(node.r) }
+    end,
+    words = function(values)
+        local words = WHO_WORDS[values.who] or WHO_WORDS.target
+        return { words.whose, { slot = "field" }, { slot = "op" }, { slot = "right" } }
+    end,
+    write = function(values, node)
+        local right = values.rightNode
+        if right == nil or Block.PrintFormula(right) ~= tostring(values.right) then
+            right = Block.ParseFormula(tostring(values.right)) or { k = "num", v = tostring(values.right) }
+        end
+        return { k = "cmp", op = values.op, opText = node ~= nil and node.op == values.op and node.opText or nil, l = _subjectNode(values, values.field), r = right }
+    end,
+}
+_hasTest{
+    id = "ds.condition", group = "Check a condition", label = "The target has a condition",
+    search = "condition prone slowed grabbed restrained frightened taunted dazed weakened bleeding", order = 30,
+    list = "Conditions", noun = "condition",
+    value = { kind = "choice", default = "Prone", options = _conditionOptions }, default = "Prone",
+}
+Block.RegisterTest{
+    id = "ds.potency",
+    group = "Check potency",
+    label = "The target fails a potency check (M < strong)",
+    example = "the effect lands if the target's characteristic is below the potency",
+    search = "potency might agility reason intuition presence fails passes resist",
+    order = 40,
+    slots = {
+        pass = { kind = "choice", default = "fails", options = { { id = "fails", text = "fails" }, { id = "passes", text = "passes" } } },
+        char = { kind = "choice", default = "M", options = {
+            { id = "M", text = "Might" }, { id = "A", text = "Agility" }, { id = "R", text = "Reason" },
+            { id = "I", text = "Intuition" }, { id = "P", text = "Presence" } } },
+        n = { kind = "formula", style = "formula", default = "2", options = {} },
+    },
+    make = function()
+        return { k = "not", a = { k = "call", path = { "Cast", "PassesPotency" }, args = { { k = "id", path = { "Target" } }, { k = "str", v = "M" } } } }
+    end,
+    read = function(node)
+        local inner, negated = _unwrapNot(node)
+        local path = inner.path or {}
+        if inner.k ~= "call" or #path ~= 2 or NormName(path[1]) ~= "cast" or NormName(path[2]) ~= "passespotency" then
+            return nil
+        end
+        local args = inner.args or {}
+        if args[2] == nil or args[2].k ~= "str" then
+            return nil
+        end
+        --a potency can be a number or a word ("Average"): a word shows and saves as a word.
+        local n, nIsWord = nil, false
+        if args[3] ~= nil then
+            nIsWord = args[3].k == "str"
+            n = nIsWord and args[3].v or Block.PrintFormula(args[3])
+        end
+        return { pass = negated and "fails" or "passes", char = args[2].v, n = n, nIsWord = nIsWord, call = DeepCopy(inner) }
+    end,
+    words = function(values)
+        local words = { "the target", { slot = "pass" }, "a", { slot = "char" }, "potency check" }
+        if values.n ~= nil then
+            words[#words + 1] = "of"
+            words[#words + 1] = { slot = "n" }
+        end
+        return words
+    end,
+    write = function(values, node)
+        local call = DeepCopy(values.call)
+        call.args = call.args or {}
+        call.args[2] = { k = "str", v = values.char }
+        if values.n ~= nil and values.nIsWord then
+            call.args[3] = { k = "str", v = tostring(values.n) }
+        elseif values.n ~= nil then
+            call.args[3] = Block.ParseFormula(tostring(values.n)) or { k = "num", v = tostring(values.n) }
+        end
+        return _maybeNot(call, values.pass == "fails")
+    end,
+}
+_factTest{
+    id = "ds.health", group = "Check health", label = "The target is winded, dying or dead",
+    search = "winded bloodied half health stamina dying dead", order = 50, who = "target",
+    facts = { { id = "Winded", text = "winded" }, { id = "Dying", text = "dying" }, { id = "Dead", text = "dead" } },
+}
+_hasTest{
+    id = "ds.effect", group = "Check effects", label = "The target has an ongoing effect",
+    search = "ongoing effect buff marker", order = 60, list = "Ongoing Effects", noun = "effect",
+    value = { kind = "text", default = "", empty = "+ effect name" }, default = "",
+}
+Block.RegisterTest{
+    id = "ds.distance",
+    group = "Check what's nearby",
+    label = "The target is within [1] square of you",
+    search = "distance range adjacent near within squares",
+    order = 70,
+    slots = {
+        op = { kind = "choice", default = "<=", options = COMPARE_OPS },
+        right = { kind = "formula", style = "formula", default = "1", options = {} },
+    },
+    make = function()
+        return { k = "cmp", op = "<=", l = { k = "call", path = { "Caster", "Distance" }, args = { { k = "id", path = { "Target" } } } }, r = { k = "num", v = "1" } }
+    end,
+    read = function(node)
+        if node.k ~= "cmp" or node.l == nil or node.l.k ~= "call" or node.r == nil then
+            return nil
+        end
+        local path = node.l.path or {}
+        if NormName(path[#path]) ~= "distance" then
+            return nil
+        end
+        return { op = node.op, right = Block.PrintFormula(node.r), call = DeepCopy(node.l) }
+    end,
+    words = function(values)
+        return { "the target's distance from you", { slot = "op" }, { slot = "right" } }
+    end,
+    write = function(values, node)
+        local right = Block.ParseFormula(tostring(values.right)) or { k = "num", v = tostring(values.right) }
+        return { k = "cmp", op = values.op, l = DeepCopy(values.call), r = right }
+    end,
+}
+_factTest{
+    id = "ds.strained", group = "Strained (Talent)", label = "You are Strained",
+    search = "strained strain talent psionic", order = 80, who = "you",
+    facts = { { id = "Strained", text = "Strained" } },
 }
 
 --Steps no block reads: shown by name, saved back untouched.

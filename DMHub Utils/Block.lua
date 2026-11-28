@@ -181,12 +181,23 @@ local mod = dmhub.GetModLoading()
 --- @field stub? boolean
 
 --- A test offered in the test picker.
+--- A test (a true/false formula) the test picker offers and reads back as
+--- words. Its saved form stays the formula text: a test is only how one part
+--- of a parsed formula is shown and changed (Slots.lua, kind "testFormula").
 --- @class BlockTest
 --- @field id string
---- @field prose string how it reads in a sentence ("you are winded")
---- @field toScript fun(values: table): string the GoblinScript it saves as
---- @field fromAst? fun(ast: table): table|nil reads it back from a parsed formula (not a regex)
---- @field order? number
+--- @field group? string the picker group it is listed under ("Check a condition")
+--- @field label? string its picker entry, one per kind ("The target has a condition")
+--- @field example? string a line under the entry
+--- @field search? string extra words the picker's search finds it by ("prone slowed grabbed")
+--- @field make? fun(): BlockFormulaNode a new test's formula, as the picker adds it
+--- @field read? fun(node: BlockFormulaNode): table|nil this test's values when the formula part is this test, else nil
+--- @field words? fun(values: table): ((string|{slot: string})[]) how it reads: plain words, and the slots that can be changed
+--- @field slots? table<string, BlockSlot> those slots, by id (a choice, a number, a name)
+--- @field write? fun(values: table, node: BlockFormulaNode|nil): BlockFormulaNode the formula for changed values; node is the one it was read from
+--- @field order? number the picker lists groups by their first test's order, and tests within a group by order
+--- @field prose? string a stub's words ("you are winded")
+--- @field toScript? fun(values: table): string a stub's GoblinScript
 --- @field stub? boolean
 
 --- Wording for an engine trigger.
@@ -368,9 +379,39 @@ end
 
 --- @param entry BlockTest
 function Block.RegisterTest(entry)
-    if Validate("test", entry, { prose = "string", toScript = "function" }) then
+    --a stub only has words and a script; a real test reads and writes formulas.
+    local required = { prose = "string", toScript = "function" }
+    if type(entry) == "table" and not entry.stub then
+        required = { group = "string", label = "string", make = "function", read = "function", words = "function", write = "function" }
+    end
+    if Validate("test", entry, required) then
         Store("test", entry)
     end
+end
+
+--- The registered test a formula part is, with its values; nil when no test
+--- reads it. Stubs never match.
+--- @param node BlockFormulaNode
+--- @return BlockTest|nil, table|nil
+function Block.ReadTest(node)
+    for _, test in ipairs(Block.All("test")) do
+        --- @cast test BlockTest
+        if not test.stub and test.read ~= nil then
+            local ok, values = pcall(test.read, node)
+            if ok and type(values) == "table" then
+                return test, values
+            end
+        end
+    end
+    return nil, nil
+end
+
+--- A name as the formula reader compares it: lower case, no spaces
+--- ("Heroic Resources Available to Spend" and "HeroicResourcesAvailabletoSpend" match).
+--- @param name any
+--- @return string
+function Block.NormName(name)
+    return (string.gsub(string.lower(tostring(name or "")), "%s", ""))
 end
 
 --- @param entry BlockTrigger

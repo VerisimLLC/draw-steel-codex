@@ -149,7 +149,7 @@ local mod = dmhub.GetModLoading()
 --- @field related? {tableName: string, field: string, label: string} records shown as pills beside this one
 --- @field upload? fun(record: table): boolean|nil uploads a record the editor has just written into (an ability: the class or subclass that holds it); false or an error keeps the change waiting to retry. Without it the window cannot save
 --- @field locate? fun(record: table): table|nil the record's current version in the game's tables, which an upload from elsewhere replaces; lets an open editor notice other people's changes
---- @field records? fun(): {record: table, where: string}[] every record this host edits, for /blockroundtrip and for /blockeditor by name (developers)
+--- @field records? fun(): {record: table, where: string, group?: string}[] every record this host edits, for /blockroundtrip (reported by group) and for /blockeditor by name (developers)
 --- @field stepName? fun(step: table): string how a step no block reads is named on its Advanced block; its typeName split into words when absent
 --- @field order? number
 --- @field stub? boolean

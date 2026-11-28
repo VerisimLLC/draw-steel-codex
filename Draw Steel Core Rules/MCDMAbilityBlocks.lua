@@ -1270,8 +1270,31 @@ Block.RegisterBlock{
     fits = { "step", "tier" },
 }
 
---the tables whose abilities /blockroundtrip covers: the core class content.
-local ROUND_TRIP_TABLES = { "classes", "subclasses" }
+--the tables listed first (by /blockeditor's name lookup too): the core class content.
+local FIRST_TABLES = { "classes", "subclasses" }
+
+--- Every table to look for abilities in: the class tables first, then every
+--- other table the game has, by name.
+--- @return string[]
+local function _abilityTables()
+    local result = {}
+    local listed = {}
+    for _, tableName in ipairs(FIRST_TABLES) do
+        result[#result + 1] = tableName
+        listed[tableName] = true
+    end
+    local others = {}
+    for _, tableName in ipairs(dmhub.GetTableTypes() or {}) do
+        if not listed[tableName] then
+            others[#others + 1] = tableName
+        end
+    end
+    table.sort(others)
+    for _, tableName in ipairs(others) do
+        result[#result + 1] = tableName
+    end
+    return result
+end
 
 --- Where each listed ability was found: its table, row and the keys down to
 --- it. Several rows can hold an ability with the same guid (Censor and Conduit
@@ -1280,11 +1303,12 @@ local ROUND_TRIP_TABLES = { "classes", "subclasses" }
 --- @type table<table, {tableid: string, key: string, path: any[]}>
 local g_sources = setmetatable({}, { __mode = "k" })
 
---- Every top-level ability in the class tables, with where it was found. An
---- ability inside another (a follow-up) is checked as part of its parent;
---- Hidden ones are the engine's own helpers.
---- @return {record: table, where: string}[]
-local function _classAbilities()
+--- Every top-level ability in the game's tables, then every monster's, with
+--- where it was found and its group (the table, or "monsters") for the round
+--- trip's report. An ability inside another (a follow-up) is checked as part
+--- of its parent; Hidden ones are the engine's own helpers.
+--- @return {record: table, where: string, group: string}[]
+local function _tableAbilities()
     local result = {}
     local seen = {}
     local function Walk(obj, where, depth, source, path)
@@ -1296,7 +1320,7 @@ local function _classAbilities()
         pcall(function() typeName = obj.typeName end)
         if typeName == "ActivatedAbility" then
             if rawget(obj, "categorization") ~= "Hidden" then
-                result[#result + 1] = { record = obj, where = where }
+                result[#result + 1] = { record = obj, where = where, group = source.tableid }
                 g_sources[obj] = { tableid = source.tableid, key = source.key, path = path }
             end
             return
@@ -1311,9 +1335,27 @@ local function _classAbilities()
             end
         end)
     end
-    for _, tableName in ipairs(ROUND_TRIP_TABLES) do
+    for _, tableName in ipairs(_abilityTables()) do
         for key, row in unhidden_pairs(dmhub.GetTable(tableName) or {}) do
-            Walk(row, string.format("%s/%s", tableName, tostring(row.name)), 0, { tableid = tableName, key = key }, {})
+            local name = nil
+            pcall(function() name = row.name end)
+            Walk(row, string.format("%s/%s", tableName, tostring(name)), 0, { tableid = tableName, key = key }, {})
+        end
+    end
+    --monsters are assets, not table rows: they are checked, but the window
+    --cannot save them yet (no row is found, so the change stays waiting).
+    for _, monster in pairs(assets.monsters or {}) do
+        local name, list = nil, nil
+        pcall(function()
+            name = monster.name
+            list = monster.info.properties.innateActivatedAbilities
+        end)
+        for _, ability in ipairs(type(list) == "table" and list or {}) do
+            local typeName = nil
+            pcall(function() typeName = ability.typeName end)
+            if typeName == "ActivatedAbility" and rawget(ability, "categorization") ~= "Hidden" then
+                result[#result + 1] = { record = ability, where = "monsters/" .. tostring(name), group = "monsters" }
+            end
         end
     end
     return result
@@ -1417,7 +1459,7 @@ Block.RegisterHost{
     stepsField = "behaviors",
     lists = { requirements = REQUIREMENTS },
     advancedBlock = "ability.advanced",
-    records = _classAbilities,
+    records = _tableAbilities,
     stepName = _stepName,
     sections = {
         {

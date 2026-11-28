@@ -90,12 +90,19 @@ end
 
 --- Checks one record and adds it to the report.
 --- @param host BlockHost
---- @param entry {record: table, where: string}
+--- @param entry {record: table, where: string, group?: string}
 --- @param forced? boolean
 --- @param report table
 function BERoundTrip._check(host, entry, forced, report)
     local ability = entry.record
     report.total = report.total + 1
+    local groupId = entry.group or string.match(entry.where or "", "^([^/]+)") or "other"
+    local group = report.groups[groupId]
+    if group == nil then
+        group = { total = 0, identical = 0, allBlocks = 0 }
+        report.groups[groupId] = group
+    end
+    group.total = group.total + 1
     local ok, model = pcall(BERecordCache.Open, ability, host)
     local same, diff = false, nil
     if ok then
@@ -108,6 +115,7 @@ function BERoundTrip._check(host, entry, forced, report)
         local advanced, words = _scan(model.blocks, host.advancedBlock)
         if not advanced then
             report.allBlocks = report.allBlocks + 1
+            group.allBlocks = group.allBlocks + 1
             if not words then
                 report.allRead = report.allRead + 1
             end
@@ -123,6 +131,7 @@ function BERoundTrip._check(host, entry, forced, report)
     end
     if same then
         report.identical = report.identical + 1
+        group.identical = group.identical + 1
     else
         report.failures[#report.failures + 1] = {
             name = tostring(rawget(ability, "name")),
@@ -134,9 +143,9 @@ end
 
 --- Runs the check over every host that lists its records.
 --- @param forced? boolean save every piece through its writer
---- @return {total: integer, identical: integer, allBlocks: integer, allRead: integer, blocks: table<string, integer>, locked: table<string, integer>, failures: {name: string, where: string, diff: string}[]}
+--- @return {total: integer, identical: integer, allBlocks: integer, allRead: integer, blocks: table<string, integer>, locked: table<string, integer>, failures: {name: string, where: string, diff: string}[], groups: table<string, {total: integer, identical: integer, allBlocks: integer}>}
 function BERoundTrip.Run(forced)
-    local report = { total = 0, identical = 0, allBlocks = 0, allRead = 0, blocks = {}, locked = {}, failures = {} }
+    local report = { total = 0, identical = 0, allBlocks = 0, allRead = 0, blocks = {}, locked = {}, failures = {}, groups = {} }
     local hosts = _hosts()
     if #hosts == 0 then
         dmhub.Error("BlockEditor: no host lists its records for the round trip.")
@@ -160,6 +169,16 @@ function BERoundTrip.Describe(report, forced)
         string.format("Block Editor round trip%s: %d of %d abilities save back identical; %d open with every step as a block (%d of them with every tier word read too).",
             forced and " (forced through the writers)" or "", report.identical, report.total, report.allBlocks, report.allRead),
     }
+    --one line per group (a table, or monsters), largest first.
+    local groups = {}
+    for groupId, group in pairs(report.groups or {}) do
+        groups[#groups + 1] = { id = groupId, group = group }
+    end
+    table.sort(groups, function(a, b) return a.group.total > b.group.total end)
+    for _, entry in ipairs(groups) do
+        local group = entry.group
+        lines[#lines + 1] = string.format("  %s: %d of %d identical, %d fully as blocks", entry.id, group.identical, group.total, group.allBlocks)
+    end
     local used = {}
     for blockId, count in pairs(report.blocks or {}) do
         used[#used + 1] = { id = blockId, count = count }

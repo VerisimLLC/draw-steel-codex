@@ -396,3 +396,23 @@ target differently / variations, design 4n); add a requirement; drop-slot precis
   property (it raised an engine error popup); the italic is `<i>` in the label text.
 - Still from the audit: the Simple tab registered from the Draw Steel side, shelf guidance and an
   insertion cursor, the test picker, the block menu, and the look-and-feel items.
+
+## 19. Wider round trip (2026-11-28, run in DMHub)
+
+- The plan's "1,019 core abilities" was the prototype's count of every class and subclass ability
+  at any depth (nested follow-ups and variations included); our 748 are the same abilities counted
+  at the top level, so the class content was already covered.
+- `_tableAbilities` (`MCDMAbilityBlocks.lua`) now walks every table (classes and subclasses first,
+  then `dmhub.GetTableTypes()` sorted) and every monster (`assets.monsters`, each
+  `info.properties.innateActivatedAbilities`); entries carry `group`. `/blockroundtrip` prints one
+  line per group. Monsters are check-only: `_uploadOwner` finds no row for them, so a save stays
+  waiting instead of writing anywhere.
+- **Result:** 2,819 of 2,819 identical, plain and forced; 1,411 open with every step as a block.
+  Monsters 1,460 (458 fully as blocks), classes 451 (340), subclasses 297 (214),
+  characterOngoingEffects 138 (123), tbl_Gear 120 (95), creatureTemplates 99 (29), MonsterGroup 45
+  (30), complications 32, kits 28 (5), titles 27, globalRuleMods 24, races 19, and 11 small tables.
+- Fixed on the way: an unsaved field whose type has no default (`ongoingEffect`) was written as
+  the block's default `""` in a forced save; `_writeField` now compares with what an unsaved field
+  reads as (`_readField`). It took a restart to apply: registered step blocks capture it at load.
+- **Next for phase 2 coverage:** half of all abilities still have a step that opens as Advanced
+  (kits 5 of 28, creature templates 29 of 99, monsters 458 of 1,460 fully as blocks).

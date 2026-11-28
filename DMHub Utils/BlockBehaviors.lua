@@ -97,8 +97,9 @@ local function _writeField(behavior, codec, value)
         end
         codec.write(behavior, value)
     elseif codec.field ~= nil then
-        --nothing saved and the value is the type's default: leave it unsaved.
-        if rawget(behavior, codec.field) == nil and _same(value, Block.FieldValue(behavior, codec.field)) then
+        --nothing saved and the value is what an unsaved field reads as (the type's
+        --default, else the block's): leave it unsaved.
+        if rawget(behavior, codec.field) == nil and _same(value, _readField(behavior, codec)) then
             return
         end
         behavior[codec.field] = type(value) == "table" and DeepCopy(value) or value

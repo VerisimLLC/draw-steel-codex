@@ -12527,11 +12527,24 @@ end
 --whole queue, which can erase an event another player just added.
 local g_triggeredEventsVersionKey = "version"
 
+--Relay events this client already ran (key -> dmhub.Time()). A copy of the queue
+--from before our delete can bring an event back; it must not fire a second time.
+--Kept outside the creature because a fresh copy of the token loses _tmp_ fields.
+local g_handledRelayEvents = {}
+--Longer than the 30 seconds a relay record lives, so a returning copy is still caught.
+local g_handledRelayEventsKeepSeconds = 120
+
 function creature:PumpTriggeredEvents()
     local token = dmhub.LookupToken(self)
     local events = self:try_get("triggeredEvents")
     if token == nil or events == nil or self:try_get("_tmp_pumpingTriggeredEvents", false) then return end
     self._tmp_pumpingTriggeredEvents = true
+    local now = dmhub.Time()
+    for key,handledAt in pairs(g_handledRelayEvents) do
+        if now - handledAt > g_handledRelayEventsKeepSeconds then
+            g_handledRelayEvents[key] = nil
+        end
+    end
     --The events we handled, by key.
     local consumed = {}
     for key,event in pairs(events) do
@@ -12550,9 +12563,24 @@ function creature:PumpTriggeredEvents()
                 if mine then
                     print("TRIGGERRELAY:: DROP expired on", token.name, token.charid, DescribeRelayEvent(event))
                 end
+            elseif mine and type(key) == "string" and g_handledRelayEvents[key] ~= nil then
+                --Already evaluated: delete it again, never fire it twice.
+                consumed[key] = {event = event, result = true, replay = true}
+                print("TRIGGERRELAY:: DROP replay on", token.name, token.charid, DescribeRelayEvent(event))
             elseif mine then
+                --Only random string keys are unique. Older clients numbered their
+                --events, and those numbers repeat, so they are not remembered.
+                if type(key) == "string" then
+                    g_handledRelayEvents[key] = now
+                end
                 consumed[key] = {event = event, result = true}
                 print("TRIGGERRELAY:: RECV on", token.name, token.charid, DescribeRelayEvent(event))
+                --Temporary: the dice a relayed power roll arrives with.
+                --Remove once the natural 19-20 bug is confirmed.
+                if event.eventName == "rollpower" and type(event.info) == "table" then
+                    print("TRIGGERRELAY:: ROLLPOWER key=" .. tostring(key), "natural=" .. tostring(event.info.naturalroll),
+                        "high=" .. tostring(event.info.highroll), "low=" .. tostring(event.info.lowroll))
+                end
                 local ok, err = pcall(function()
                     local info = DeserializeEventValue(event.info or {})
                     info.remote = true
@@ -12581,7 +12609,7 @@ function creature:PumpTriggeredEvents()
                 for _,entry in pairs(consumed) do
                     local event, result = entry.event, entry.result
                     local info = type(event) == "table" and event.info
-                    if type(info) == "table" and type(info.aiReactionDispatchId) == "string" then
+                    if not entry.replay and type(info) == "table" and type(info.aiReactionDispatchId) == "string" then
                         if result == true then
                             self:CompletePendingAIActivityReaction(info.aiActivityId, info.aiReactionDispatchId)
                         else

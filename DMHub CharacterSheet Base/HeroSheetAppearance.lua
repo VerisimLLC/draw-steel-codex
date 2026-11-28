@@ -8795,7 +8795,9 @@ function HeroSheetAppearance.DiceSource(token)
     end
     --a Director's class dice mean nothing to the player who rolls their Hero,
     --so a Director changes them only on a Hero with no owner or owned by them.
-    local controls = token.canControlAsUser and (not dmhub.isDM or token.ownerId == nil or token.ownerId == dmhub.userid)
+    --A party Hero (every lobby / EotW Hero) has no one player, so it counts as unowned.
+    local owner = token.ownerId
+    local controls = token.canControlAsUser and (not dmhub.isDM or owner == nil or owner == "PARTY" or owner == dmhub.userid)
     if not controls then
         result.reason = "player"
     elseif key == nil then

@@ -563,7 +563,7 @@ unit tests.
    unfreeze --env staging` to use staging as the test town (its data stays
    as it was at the freeze).
 
-## Ending the playtest: the town reset (BUILT 2026-11-27; RUN ON STAGING 2026-11-27, not yet on release)
+## Ending the playtest: the town reset (DONE ON RELEASE 2026-11-27)
 
 David's decisions (2026-11-27): end the playtest and start the town again at
 week 1 with Goblin Ambush. Every player starts as a new player (heroes
@@ -647,16 +647,21 @@ Level itself.
    before), `reset-playtest --env release --dry-run` and check the list;
    announce; freeze; reset; check; unfreeze. Needs `DMHUB_ADMIN_SECRET`.
 
-**Status:** server, tool and client written; tsc, 531 unit tests, the smoke
-test, `luac` and the Lua type check pass. Staging: deployed 2026-11-27 (a
-test upload of Lisa's Streamer Kit had taken migration tag v6 there, so
-`wrangler.toml` has staging-only v6 + v7 `deleted_classes = ["ViewerLinkObject"]`
-entries; her branch's migration must become v8). The staging reset ran the
-same day: 238 Founding Heroes, 342 accounts, week 1 of Goblin Ambush, all five
-community projects hidden, survey (434) and Proving Pits feedback (84) kept;
-backup at `~/eotw-city-backups/blackbottom-staging-20261127-104250.json`. The
-city is serving again. NOT yet checked in the app (needs a Codex restart for
-`EotwRoster.lua`). Nothing on release. Uncommitted.
+**Status:** done. The playtest ended on release on 2026-11-27 (resetAt
+1795809497682): 2,052 Founding Heroes, nobody left out, week 1 of Goblin
+Ambush, all five community projects hidden, 29 parties and 200 town chat lines
+dropped, survey (13,085) and Proving Pits feedback (1,269) kept. Backup:
+`~/eotw-city-backups/blackbottom-release-20261127-115816.json` (199 MB) and
+`...-founding-heroes.json`. The client half shipped first, as a Lua deploy of
+codex `release/0.0.893` @ f30ca13e (deploy id
+f59ff242-b979-4f6d-be7d-34ee64aa5ea0); the server is release version
+9c5dc777. Staging was reset the same day as the rehearsal (238 Founding Heroes).
+For about a minute after the release deploy, the city object kept answering
+with the old code (reset-playtest -> 426), so wait for it after a deploy.
+Staging's `wrangler.toml` has staging-only v6 + v7 `deleted_classes =
+["ViewerLinkObject"]` migrations (a test upload of Lisa's Streamer Kit had
+taken v6 there); her server branch's migration must become v8. The server and
+tool changes in the dmhub repo are uncommitted.
 
 ## The Lobby: a Durable Object that is not a game
 

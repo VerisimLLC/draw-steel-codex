@@ -35,6 +35,7 @@ local g_librarySections = {
             { moduleid = "venla-deliantomb", docid = "cbddffb4-0c92-4245-bdfb-ad7621163a57" }, --Delian Tomb Encounters
             { moduleid = "codex-redroad", premium = true },
             { moduleid = "codex-darkheart", premium = true },
+            { moduleid = "codex-condemned", premium = true },
         },
     },
 }
@@ -56,6 +57,7 @@ end
 local g_downloadableDocIds = {
     ["8856e864-ab59-4ae0-9966-b0e1b86bf394"] = true, --The Red Road
     ["429d295e-5306-441a-b763-dc09358f2ded"] = true, --The Dark Heart of the Wood
+    ["f0243d98-6601-4e3f-9500-3b305fa48d26"] = true, --The Condemned (v1.1)
 }
 
 --Book cover size, in the screen's 1920-wide logical units (US letter aspect).

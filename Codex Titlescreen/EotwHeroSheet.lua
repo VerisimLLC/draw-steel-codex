@@ -1167,7 +1167,7 @@ local function BuildRules()
         },
         {
             selectors = { "eotwsNeedDismiss", "hover" },
-            bgcolor = "#1a140b33",
+            bgcolor = "#10110F33",
         },
         {
             selectors = { "eotwsNeedDismissIcon" },
@@ -3736,8 +3736,12 @@ local function DismissNeedButton(ctx, line, onClosed)
         end,
         click = function()
             audio.FireSoundEvent("UI.WindowClose")
-            ctx.dismissedNeeds = ctx.dismissedNeeds or {}
-            ctx.dismissedNeeds[line] = true
+            if line == T("herosheet.topbar.needed_story") then
+                --the story so far is seen; the next beat shows the line again
+                ctx.storySignature = StorySignature()
+            else
+                ctx.dismissedNeeds[line] = true
+            end
             onClosed()
         end,
         gui.Panel{

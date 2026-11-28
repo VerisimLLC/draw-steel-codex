@@ -328,4 +328,334 @@ end)()
     AssertNoLeaks(out, "outcome")
 end)()
 
+--the montage: its block passes only in montage mode, and only known fields.
+;(function()
+    local raw = Fixture()
+    raw.mode = "montage"
+    raw.montage = {
+        title = "Through the Reedmarsh",
+        round = 2, rounds = 3, phase = "rounds",
+        successes = 3, failures = 1, unvanquished = 0,
+        secretEntries = { SECRET },
+        board = {
+            { id = "o1", kind = "opportunity", name = "Bribe the Ferryman", state = "taken", notes = SECRET },
+            { id = "t1", kind = "threat", name = "Leeches", state = "open", remaining = 2, temporary = true,
+              consequence = { text = SECRET } },
+            { id = "x", kind = "secret", name = SECRET },
+            { id = "y", kind = "threat", name = "" },
+            { id = "z", kind = "opportunity", name = "Odd state", state = SECRET },
+        },
+        turn = { hero = "Ilsa Varn", entry = "Leeches", option = "Burn them off", status = "rolling", tier = 9,
+                 options = { SECRET } },
+        log = {},
+    }
+    for i = 1, 20 do
+        raw.montage.log[i] = { round = 1, hero = "Sev", entry = "Entry " .. i, option = "Climb", tier = 2, applied = { SECRET } }
+    end
+    raw.montage.log[21] = { round = 2, entry = "Leeches", consequence = true, effects = SECRET }
+
+    local out = StreamerKitRedact.Redact(raw)
+    check(out.mode == "montage", "montage mode passes")
+    local m = out.montage
+    check(m ~= nil and m.title == "Through the Reedmarsh", "montage title")
+    check(m.round == 2 and m.rounds == 3 and m.phase == "rounds", "round, rounds and phase")
+    check(m.successes == 3 and m.failures == 1 and m.unvanquished == 0, "totals")
+    check(#m.board == 3, "board keeps known kinds with names: " .. #m.board)
+    check(m.board[1].state == "taken" and m.board[2].remaining == 2 and m.board[2].temporary == true, "entry state, remaining, temporary")
+    check(m.board[1].remaining == nil, "an opportunity has no remaining count")
+    check(m.board[3].state == "open", "an unknown state reads open")
+    check(m.turn.option == "Burn them off" and m.turn.tier == nil, "the chosen option passes; an impossible tier does not")
+    check(#m.log == 12, "only the last 12 log lines: " .. #m.log)
+    check(m.log[12].consequence == true and m.log[12].entry == "Leeches", "the newest line is last")
+    AssertNoLeaks(out, "montage")
+
+    raw.montage.turn.status = "choosing"
+    check(StreamerKitRedact.Redact(raw).montage.turn.option == nil, "no option while the hero is still choosing")
+    raw.montage.turn.status = "peeking"
+    check(StreamerKitRedact.Redact(raw).montage.turn == nil, "an unknown turn status drops the turn")
+
+    raw.mode = "combat"
+    check(StreamerKitRedact.Redact(raw).montage == nil, "no montage block outside montage mode")
+    raw.mode = "montage"
+    raw.montage = SECRET
+    out = StreamerKitRedact.Redact(raw)
+    check(out.montage == nil, "a non-table montage is dropped")
+    AssertNoLeaks(out, "montage garbage")
+
+    --a finished montage rides along, folded up, once the montage is over.
+    raw.mode = "combat"
+    raw.montage = nil
+    raw.pastMontage = {
+        title = "Through the Reedmarsh", round = 3, rounds = 3, phase = "rounds",
+        successes = 5, failures = 2, unvanquished = 1,
+        board = { { id = "o1", kind = "opportunity", name = "Bribe the Ferryman", state = "taken", notes = SECRET } },
+        turn = { hero = "Ilsa Varn", entry = SECRET, option = SECRET, status = "rolling" },
+        log = { { round = 3, hero = "Sev", entry = "Leeches", option = "Climb", tier = 3, applied = { SECRET } } },
+        secret = SECRET,
+    }
+    out = StreamerKitRedact.Redact(raw)
+    local past = out.pastMontage
+    check(past ~= nil and past.title == "Through the Reedmarsh" and past.phase == "done", "the finished montage passes, as done")
+    check(past.successes == 5 and past.failures == 2 and #past.board == 1 and #past.log == 1, "its totals, board and log")
+    check(past.turn == nil, "no turn on a finished montage")
+    AssertNoLeaks(out, "past montage")
+    raw.mode = "montage"
+    raw.montage = { title = "Next", round = 1, rounds = 2, phase = "rounds", board = {}, log = {} }
+    check(StreamerKitRedact.Redact(raw).pastMontage == nil, "not while a montage is running")
+    raw.mode = "none"
+    raw.pastMontage = SECRET
+    check(StreamerKitRedact.Redact(raw).pastMontage == nil, "a non-table past montage is dropped")
+end)()
+
+--initiative groups: opaque ids in order, titles kept unless a member's name is private.
+;(function()
+    local raw = Fixture()
+    local byId = {}
+    for _, m in ipairs(raw.monsters) do byId[m.id] = m end
+    byId["m-boss"].group = "boss-guid"; byId["m-boss"].groupTitle = "The Underboss and Friends"
+    byId["m-ambusher"].group = "boss-guid"; byId["m-ambusher"].groupTitle = SECRET
+    byId["m-runner1"].group = "MONSTER-Runners"; byId["m-runner1"].groupTitle = "Runners"
+    byId["m-runner2"].group = "MONSTER-Runners"; byId["m-runner2"].groupTitle = "Runners"
+    byId["m-masked"].group = "masked-guid"; byId["m-masked"].groupTitle = SECRET .. " Knight's Retinue"
+    local out = StreamerKitRedact.Redact(raw)
+    local foes = {}
+    for _, f in ipairs(out.foes.list) do foes[f.id] = f end
+    check(foes["m-boss"].group == "g1" and foes["m-boss"].groupTitle == "The Underboss and Friends", "first group, its title")
+    check(foes["m-runner1"].group == "g2" and foes["m-runner2"].group == "g2", "a squad shares one group")
+    check(foes["m-runner1"].groupTitle == "Runners", "the squad's title")
+    check(foes["m-masked"].group == "g3" and foes["m-masked"].groupTitle == "???", "a private member hides the title")
+    check(foes["m-ambusher"] == nil, "a hidden member stays out")
+    AssertNoLeaks(out, "groups")
+    for _, f in ipairs(out.foes.list) do
+        check(f._groupKey == nil, "no internal key left on " .. tostring(f.id))
+        check(f.group == nil or string.match(f.group, "^g%d+$") ~= nil, "group ids are opaque")
+    end
+end)()
+
+--actions from History: who used what, on whom, what happened; hidden creatures out.
+;(function()
+    local raw = Fixture()
+    raw.actions = {
+        { t = 1000, round = 1, ability = "Judgment", actor = { id = "h-vex", name = "Vex Thornwood", hero = true },
+          roll = { total = 17, tier = 3, sources = { SECRET } },
+          targets = {
+            { id = "m-boss", name = "Goblin Underboss", tier = 3, taken = 9, state = "winded", conds = { "Taunted" }, parts = { SECRET } },
+            { id = "m-ambusher", name = SECRET, tier = 2, taken = 5 },
+            { id = "m-masked", name = SECRET .. " Mystery Knight", secret = true, tier = 1, taken = 2, state = "exploded" },
+          } },
+        { t = 2000, round = 1, ability = SECRET .. " Ambush", actor = { id = "m-ambusher", name = SECRET },
+          targets = { { id = "h-kal", name = "Kallis", hero = true, taken = 7 } } },
+        { t = 3000, round = 2, ability = "Get Them!", villain = true, actor = { id = "m-unknown", name = SECRET, secret = true },
+          roll = { total = 9, tier = 7 }, targets = {} },
+        { t = 4000, ability = "" },
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    check(type(out.actions) == "table" and #out.actions == 2, "two actions survive: " .. tostring(out.actions and #out.actions))
+    local a = out.actions[1]
+    check(a.ability == "Judgment" and a.actor.name == "Vex Thornwood" and a.actor.side == "hero", "actor and ability")
+    check(a.roll.total == 17 and a.roll.tier == 3 and a.roll.sources == nil, "roll total and tier only")
+    check(#a.targets == 2, "the hidden target is dropped")
+    check(a.targets[1].name == "Goblin Underboss" and a.targets[1].taken == 9 and a.targets[1].state == "winded", "target result")
+    check(a.targets[1].conds[1] == "Taunted", "conditions it started")
+    check(a.targets[2].name == "???" and a.targets[2].state == nil, "a secret name reads ???; an unknown state is dropped")
+    local v = out.actions[2]
+    check(v.villain == true and v.actor.name == "???" and v.roll.tier == nil, "villain action, secret actor, impossible tier dropped")
+    AssertNoLeaks(out, "actions")
+
+    raw.actions = SECRET
+    check(StreamerKitRedact.Redact(raw).actions == nil, "non-table actions are dropped")
+    raw.actions = nil
+    check(StreamerKitRedact.Redact(raw).actions == nil, "no History, no actions")
+end)()
+
+-- Hero card art: only a stored image id of the two known forms, with its crop.
+;(function()
+    local P = StreamerKitRedact.PortraitImage
+    check(P("eQGTS9rnrtJ_wOjVvwdjbw") == nil, "an R2 key without its host is not a bare md5 (has _)")
+    check(P("q83vEjRWeJASNFZ4kBI0Vg==") == "q83vEjRWeJASNFZ4kBI0Vg==", "a bare base64 md5")
+    check(P("https://codexback.com/eQGTS9rnrtJ_wOjVvwdjbw") ~= nil, "a URL-form id on the Codex host")
+    check(P("https://evil.example.com/eQGTS9rnrtJ_wOjVvwdjbw") == nil, "another host")
+    check(P("https://codexback.com/a/../../x") == nil, "a path with segments")
+    check(P("http://codexback.com/eQGTS9rnrtJ_wOjVvwdjbw") == nil, "plain http")
+    check(P("0f8c3b9e-1d2a-4c5b-9e7f-112233445566") == nil, "an asset id (GUID)")
+    check(P("C:/Users/someone/portrait.png") == nil, "a local path")
+    check(P(42) == nil and P(nil) == nil and P("short") == nil, "non-strings and short strings")
+
+    local raw = Fixture()
+    raw.heroes[1].portrait = { image = "q83vEjRWeJASNFZ4kBI0Vg==", rect = { x1 = -0.5, y1 = 0.1, x2 = 0.9, y2 = 7 }, extra = SECRET }
+    raw.heroes[1].player = "Sam"
+    if raw.heroes[2] ~= nil then
+        raw.heroes[2].portrait = { image = "https://elsewhere.example/" .. SECRET }
+    end
+    local out = StreamerKitRedact.Redact(raw)
+    local p = out.heroes[1].portrait
+    check(p ~= nil and p.image == "q83vEjRWeJASNFZ4kBI0Vg==", "the portrait id is kept")
+    check(p ~= nil and p.rect.x1 == 0 and p.rect.y1 == 0.1 and p.rect.x2 == 0.9 and p.rect.y2 == 1, "the crop is clamped to the image")
+    check(p ~= nil and p.extra == nil, "nothing else rides along")
+    check(out.heroes[1].player == "Sam", "the player name")
+    if out.heroes[2] ~= nil then
+        check(out.heroes[2].portrait == nil, "a portrait on another host is dropped")
+    end
+    raw.heroes[1].portrait = { image = "q83vEjRWeJASNFZ4kBI0Vg==", rect = { x1 = 0.8, y1 = 0, x2 = 0.2, y2 = 1 } }
+    local r = StreamerKitRedact.Redact(raw).heroes[1].portrait.rect
+    check(r.x1 == 0 and r.x2 == 1, "an inside-out crop falls back to the whole image")
+    AssertNoLeaks(out, "portraits")
+end)()
+
+;(function()
+    -- the back of a hero's card: known fields only, lists capped.
+    local raw = Fixture()
+    local skills, abilities = {}, {}
+    for i = 1, 50 do skills[i] = "Skill " .. i end
+    for i = 1, 40 do abilities[i] = { name = "Ability " .. i, kind = "heroic", cost = i, text = SECRET } end
+    abilities[1] = { name = "Judgment", kind = SECRET, cost = 3 }
+    abilities[2] = { name = "", kind = "main" }
+    raw.heroes[1].back = {
+        className = "Censor", subclass = "Paragon", ancestry = "Human", kit = string.rep("K", 200),
+        winded = 16.4, death = -16, recoveryValue = 11, heroTokens = 2,
+        speed = 5, disengage = 1, stability = 2,
+        skills = skills, abilities = abilities,
+        notes = SECRET, gear = { SECRET }, complication = SECRET, downtime = SECRET,
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    local b = out.heroes[1].back
+    check(b ~= nil and b.subclass == "Paragon", "subclass")
+    check(b.winded == 16 and b.death == -16 and b.recoveryValue == 11 and b.heroTokens == 2, "thresholds and counts")
+    check(b.speed == 5 and b.disengage == 1 and b.stability == 2, "movement")
+    check(#b.kit == 60, "a long name is cut short")
+    check(#b.skills == 40, "skills capped: " .. #b.skills)
+    check(#b.abilities == 29, "abilities capped, the unnamed one dropped: " .. #b.abilities)
+    check(b.abilities[1].name == "Judgment" and b.abilities[1].kind == "other", "an unknown kind reads other")
+    check(b.abilities[2].cost == 3 and b.abilities[2].text == nil, "cost kept, text dropped")
+    check(b.notes == nil and b.gear == nil and b.complication == nil and b.downtime == nil, "nothing else rides along")
+    AssertNoLeaks(out, "hero back")
+    raw.heroes[1].back = SECRET
+    check(StreamerKitRedact.Redact(raw).heroes[1].back == nil, "a non-table back is dropped")
+end)()
+
+;(function()
+    -- each combatant's turn this round: three known values, nothing else.
+    local raw = Fixture()
+    raw.heroes[1].turnStatus = "now"
+    raw.heroes[2].turnStatus = "acted"
+    raw.monsters[1].turnStatus = "waiting"
+    raw.monsters[2].turnStatus = SECRET
+    local out = StreamerKitRedact.Redact(raw)
+    check(out.heroes[1].turnStatus == "now" and out.heroes[2].turnStatus == "acted", "hero turn status")
+    local byId = {}
+    for _, foe in ipairs(out.foes.list) do byId[foe.id] = foe end
+    local m1 = byId[raw.monsters[1].id]
+    check(m1 == nil or m1.turnStatus == "waiting", "foe turn status")
+    for _, foe in ipairs(out.foes.list) do
+        check(foe.turnStatus == nil or foe.turnStatus == "now" or foe.turnStatus == "acted" or foe.turnStatus == "waiting", "only known turn values")
+    end
+    AssertNoLeaks(out, "turn status")
+end)()
+
+;(function()
+    -- who applied a condition: named only when that creature is in the snapshot.
+    local raw = Fixture()
+    local heroId = raw.heroes[1].id
+    raw.monsters[1].conditions = {
+        { id = "judged", name = "Judged", byId = heroId },
+        { id = "slowed", name = "Slowed", byId = "nobody-we-show" },
+        { id = "dazed", name = "Dazed" },
+    }
+    local hiddenId = nil
+    for _, m in ipairs(raw.monsters) do if m.hidden then hiddenId = m.id end end
+    raw.heroes[2].conditions = { { id = "frightened", name = "Frightened", byId = hiddenId or "hidden-x" } }
+    local out = StreamerKitRedact.Redact(raw)
+    local foe = nil
+    for _, f in ipairs(out.foes.list) do if f.id == raw.monsters[1].id then foe = f end end
+    check(foe ~= nil, "the fixture's first monster is shown")
+    local by = {}
+    for _, c in ipairs(foe.conditions) do by[c.id] = c.by or false; check(c._byId == nil and c.byId == nil, "no raw source id leaves") end
+    check(by.judged == out.heroes[1].name, "a visible hero is named: " .. tostring(by.judged))
+    check(by.slowed == false, "a source not in the snapshot is left off")
+    check(by.dazed == false, "no source, no name")
+    check(out.heroes[2].conditions[1].by == nil, "a hidden creature is never named")
+    AssertNoLeaks(out, "condition sources")
+end)()
+
+;(function()
+    -- the box score: heroes per round, foes per opaque group, never stamina.
+    local raw = Fixture()
+    raw.monsters[1].group = "grp-secret-squad-key"
+    raw.monsters[3].group = "grp-secret-squad-key"
+    raw.monsters[4].group = "grp-secret-squad-key"
+    local cell = function(t, h, g, e) return { taken = t, healed = h, gained = g or {}, ended = e or {} } end
+    raw.boxScore = {
+        current = 2, rounds = 3,
+        heroes = {
+            { id = "h-vex", cells = { cell(14, 0, { "Winded" }), cell(6, 10, {}, { "Bleeding" }), cell(0, 0) } },
+            { id = "h-nobody", cells = { cell(99, 0) } },
+        },
+        foes = {
+            { id = "m-boss", group = "grp-secret-squad-key", cells = { cell(0, 0), cell(9, 50, { "Winded" }) }, stamina = { cur = 18 } },
+            { id = "m-ambusher", cells = { cell(5, 0, { SECRET .. " Mark" }) } },
+            { id = "m-ambusher", group = "grp-hidden-only", cells = { cell(5, 0) } },
+        },
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    local b = out.boxScore
+    check(b ~= nil and b.rounds == 3 and b.current == 2, "box score rounds and current round")
+    check(#b.heroes == 1 and b.heroes[1].id == "h-vex", "only heroes in the snapshot get a row")
+    check(#b.heroes[1].cells == 3 and b.heroes[1].cells[2].healed == 10 and b.heroes[1].cells[1].gained[1] == "Winded", "hero cells keep taken, healed and tags")
+    check(#b.foes == 1, "one foe row per shown group; hidden foes are dropped: " .. tostring(#b.foes))
+    local foe = b.foes[1]
+    check(foe.group == out.foes.list[1].group and foe.id == nil, "a foe row carries the opaque group id only")
+    check(foe.cells[2].taken == 9 and foe.cells[2].healed == nil and foe.cells[3].taken == 0, "foe cells: damage taken, no healing, empty rounds filled")
+    check(foe.stamina == nil, "no stamina in a foe row")
+    Walk(b, "box", function(path, key, value)
+        check(value ~= "grp-secret-squad-key", "the raw group key never leaves: " .. path)
+    end)
+    raw.boxScore.current = 9
+    check(StreamerKitRedact.Redact(raw).boxScore.current == nil, "a current round past the last is dropped")
+    AssertNoLeaks(out, "box score")
+end)()
+
+;(function()
+    -- the box score's turns: actors only as the viewer may see them.
+    local raw = Fixture()
+    raw.monsters[1].group = "grp-secret-squad-key"
+    local tcell = function(i, t, h, d) return { i = i, taken = t, healed = h, down = d or 0, gained = { "Bleeding" }, ended = {} } end
+    raw.boxScore = {
+        current = 1, rounds = 1,
+        turns = { {
+            { actor = "h-vex", side = "hero", dealt = 11, downs = 1 },
+            { actor = "grp-secret-squad-key", side = "foe", dealt = 7, downs = 0 },
+            { actor = "m-ambusher", side = "foe", dealt = 3, downs = 0 },
+            { actor = "h-vex", side = "foe", dealt = 0, downs = 0 },
+            { actor = "m-boss", side = "foe", dealt = 4, downs = 0, now = true },
+        } },
+        heroes = {
+            { id = "h-vex", cells = { { taken = 10, healed = 2, down = 0, gained = {}, ended = {},
+                turns = { tcell(2, 7, 0), tcell(3, 3, 2), tcell(9, 99, 0), { i = "x" } } } } },
+        },
+        foes = {
+            { id = "m-boss", group = "grp-secret-squad-key", cells = { { taken = 11, down = 1, gained = {}, ended = {},
+                turns = { tcell(1, 11, 5, 1) } } } },
+        },
+    }
+    local out = StreamerKitRedact.Redact(raw)
+    local b = out.boxScore
+    local turns = b.turns[1]
+    check(#turns == 5, "every turn kept, in order: " .. tostring(#turns))
+    check(turns[1].hero == "h-vex" and turns[1].dealt == 11 and turns[1].downs == 1, "a hero turn names the hero")
+    check(turns[2].group == out.foes.list[1].group and turns[2].hero == nil, "a group turn names the opaque group")
+    check(turns[3].hero == nil and turns[3].group == nil and turns[3].foe == nil, "a hidden foe's turn names nobody")
+    check(turns[4].hero == nil and turns[4].foe == nil, "a hero id claimed as a foe is not named")
+    check(turns[5].now == true, "the turn in play is marked")
+    local ht = b.heroes[1].cells[1].turns
+    check(#ht == 2 and ht[1].i == 2 and ht[2].healed == 2, "hero turn cells kept; out-of-range and bad indexes dropped")
+    local ft = b.foes[1].cells[1].turns
+    check(#ft == 1 and ft[1].taken == 11 and ft[1].healed == nil and ft[1].down == 1, "foe turn cells: taken and downs, no healing")
+    Walk(b, "box", function(path, key, value)
+        check(value ~= "grp-secret-squad-key" and value ~= "m-ambusher", "no raw group key or hidden id leaves: " .. path)
+    end)
+    raw.boxScore.current = nil
+    check(StreamerKitRedact.Redact(raw).boxScore.turns[1][5].now == nil, "nothing is in play once the combat is over")
+    AssertNoLeaks(out, "box score turns")
+end)()
+
 print(string.format("streamer_kit_redact_test: %d checks passed", passed))

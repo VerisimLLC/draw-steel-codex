@@ -156,6 +156,69 @@ local function MonsterStaminaDisplay(token)
     return showAs
 end
 
+--- The creature id behind a casterInfo, as the feed keys creatures.
+--- @param casterInfo any
+--- @return nil|string
+local function CasterId(casterInfo)
+    if type(casterInfo) ~= "table" or type(casterInfo.tokenid) ~= "string" then
+        return nil
+    end
+    local id = casterInfo.tokenid
+    pcall(function()
+        local tok = dmhub.GetTokenById(casterInfo.tokenid)
+        if tok ~= nil and tok.charid ~= nil then
+            id = tok.charid
+        end
+    end)
+    return id
+end
+
+--- Who put each of a creature's conditions on it, by lower-cased condition
+--- name: from Draw Steel's inflicted conditions and from ongoing effects,
+--- both of which record the caster. A condition with no recorded caster, or
+--- one the creature put on itself, is left out.
+--- @param token CharacterToken
+--- @return table<string, string> conditionName -> caster creature id
+local function ConditionSources(token)
+    local result = {}
+    pcall(function()
+        local props = token.properties
+        local conditions = dmhub.GetTable(CharacterCondition.tableName) or {}
+        for condid, entry in pairs(props:try_get("inflictedConditions", {})) do
+            local info = conditions[condid]
+            local id = type(entry) == "table" and CasterId(entry.casterInfo) or nil
+            if info ~= nil and type(info.name) == "string" and id ~= nil and id ~= token.charid then
+                result[string.lower(info.name)] = id
+            end
+        end
+        local effects = dmhub.GetTable("characterOngoingEffects") or {}
+        for _, effect in ipairs(props:ActiveOngoingEffects()) do
+            local info = effects[effect.ongoingEffectid]
+            if info ~= nil then
+                local condInfo = conditions[info.condition]
+                local name = (condInfo ~= nil and condInfo.name) or info.name
+                local id = CasterId(effect:try_get("casterInfo"))
+                if type(name) == "string" and id ~= nil and id ~= token.charid and result[string.lower(name)] == nil then
+                    result[string.lower(name)] = id
+                end
+            end
+        end
+    end)
+    return result
+end
+
+--- Marks each condition with byId, the creature that put it on, where known.
+--- @param list table
+--- @param token CharacterToken
+--- @return table list
+local function WithSources(list, token)
+    local sources = ConditionSources(token)
+    for _, c in ipairs(list) do
+        c.byId = sources[string.lower(c.name or "")]
+    end
+    return list
+end
+
 --- Conditions on a hero, as { {id, name} }. Uses exactly what the token HUD
 --- shows; a hero is always friendly to the players, so nothing here is secret.
 --- @param token CharacterToken
@@ -392,6 +455,29 @@ local function TurnInfo(q)
         turn.name = table.concat(list, ", ")
     end
     return turn, active
+end
+
+--- A combatant's turn this round, as the initiative bar shows it: "now" while
+--- its turn runs, "acted" once taken, "waiting" before. Nil out of combat.
+--- @param q nil|InitiativeQueue
+--- @param token CharacterToken
+--- @param activeTokenIds table<string, boolean>
+--- @return nil|string
+local function TurnStatusOf(q, token, activeTokenIds)
+    if q == nil then
+        return nil
+    end
+    if activeTokenIds[token.charid] then
+        return "now"
+    end
+    local status = nil
+    pcall(function()
+        local initid = InitiativeQueue.GetInitiativeId(token)
+        if initid ~= nil and q:HasInitiative(initid) then
+            status = cond(q:HasHadTurn(initid), "acted", "waiting")
+        end
+    end)
+    return status
 end
 
 --- The encounter's title as players see it, e.g. "The Goblin Ambush".
@@ -632,6 +718,10 @@ local VIEWER_MAX_BYTES = 48000
 --then: it can under-report, never over-report.
 local g_usedAbilities = {}
 local g_usedAbilitiesCombat = nil
+--each monster's initiative group from the last combat (charid -> {group,
+--title}), kept after it ends; cleared when the next combat starts.
+local g_monsterGroups = {}
+local g_monsterGroupsCombat = nil
 
 --- A characteristic's value, or nil.
 --- @param props Creature
@@ -641,6 +731,165 @@ local function Characteristic(props, attrid)
     local value = nil
     pcall(function() value = props:GetAttribute(attrid):Value() end)
     return value
+end
+
+--The stored image id behind each portrait asset, by asset id: the lookup
+--logs on every call, and a portrait seldom changes.
+local g_portraitImageIds = {}
+
+--- The hero's card art as the viewer page draws it: the stored image id (a
+--- content-addressed id the server can fetch) and the crop the in-app hero
+--- card cuts it with. nil while the portrait's asset record has not loaded,
+--- or when the hero has no art.
+--- @param token CharacterToken
+--- @return nil|{image: string, rect: {x1: number, y1: number, x2: number, y2: number}}
+local function HeroPortrait(token)
+    local portrait = nil
+    pcall(function() portrait = token.offTokenPortrait end)
+    if type(portrait) ~= "string" or portrait == "" then
+        return nil
+    end
+    local image = g_portraitImageIds[portrait]
+    if image == nil then
+        local known = false
+        pcall(function() known = assets.allAssets[portrait] ~= nil end)
+        if not known then
+            return nil
+        end
+        pcall(function() image = dmhub.GetRawImageId(portrait) end)
+        --an id that comes back unchanged was not an image asset.
+        if type(image) ~= "string" or image == portrait then
+            return nil
+        end
+        g_portraitImageIds[portrait] = image
+    end
+    local width, height = 132, 188
+    local card = rawget(_G, "EotwHeroCard")
+    if type(card) == "table" and type(card.CARD_WIDTH) == "number" and type(card.CARD_HEIGHT) == "number" then
+        width, height = card.CARD_WIDTH, card.CARD_HEIGHT
+    end
+    local rect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+    pcall(function()
+        local r = CardPortraitRect(token, width / height, portrait)
+        if r ~= nil then
+            rect = { x1 = r.x1, y1 = r.y1, x2 = r.x2, y2 = r.y2 }
+        end
+    end)
+    return { image = image, rect = rect }
+end
+
+--- The name of the player who controls a hero, as the hero card shows it
+--- (without the Player Tag). nil for an unclaimed or party hero.
+--- @param token CharacterToken
+--- @return nil|string
+local function HeroPlayer(token)
+    local owner = nil
+    pcall(function() owner = token.ownerId end)
+    if type(owner) ~= "string" or owner == "" or owner == "PARTY" then
+        return nil
+    end
+    local name = nil
+    pcall(function() name = dmhub.GetDisplayName(owner) end)
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    return name
+end
+
+--The card back's slow reads (abilities, skills, kit), per hero, reused for
+--a while: the sheet's ability list builds a feature index each time.
+local BACK_CACHE_SECONDS = 10
+local g_backCache = {}
+
+--the hero's own ability groups the back lists (free strikes and the standard
+--actions are every hero's, so they stay off).
+local BACK_ABILITY_GROUPS = { main = true, maneuver = true, triggered = true, other = true }
+
+--- The slow part of the card back: subclass, kit, skills and abilities.
+--- @param token CharacterToken
+--- @param props creature
+--- @return table
+local function HeroBackSlow(token, props)
+    local now = dmhub.Time()
+    local cached = g_backCache[token.charid]
+    if cached ~= nil and now - cached.at < BACK_CACHE_SECONDS then
+        return cached.back
+    end
+    local back = { skills = {}, abilities = {} }
+    --a hero's class reads live on character (GetClass, GetSubClass).
+    local hero = props --[[@as character]]
+    pcall(function()
+        local classItem = hero:GetClass()
+        if classItem ~= nil then
+            back.className = classItem.name
+            local sub = hero:GetSubClass(classItem)
+            back.subclass = sub ~= nil and sub.name or nil
+        end
+    end)
+    pcall(function() back.ancestry = props:RaceOrMonsterType() end)
+    pcall(function()
+        local kit = props:Kit()
+        back.kit = kit ~= nil and kit.name or nil
+    end)
+    pcall(function()
+        for _, skill in ipairs(Skill.SkillsInfo) do
+            if props:ProficientInSkill(skill) then
+                back.skills[#back.skills + 1] = skill.name
+            end
+        end
+        table.sort(back.skills)
+    end)
+    pcall(function()
+        local sheet = rawget(_G, "EotwHeroSheet")
+        local d = sheet ~= nil and sheet.Data(token, {"resource", "abilities"}) or nil
+        for _, group in ipairs(d ~= nil and d.abilities or {}) do
+            if BACK_ABILITY_GROUPS[group.id] then
+                for _, item in ipairs(group.items or {}) do
+                    local kind = group.id
+                    local cost = nil
+                    if item.category == "Signature Ability" then
+                        kind = "signature"
+                    elseif item.ability ~= nil then
+                        pcall(function()
+                            if item.ability.resourceCost == CharacterResource.heroicResourceId then
+                                cost = tonumber(item.ability:try_get("resourceNumber", 1))
+                            end
+                        end)
+                        if cost ~= nil then
+                            kind = "heroic"
+                        end
+                    end
+                    back.abilities[#back.abilities + 1] = { name = item.name, kind = kind, cost = cost }
+                end
+            end
+        end
+    end)
+    g_backCache[token.charid] = { at = now, back = back }
+    return back
+end
+
+--- The back of the hero's card, as every player can turn it over in the
+--- app (HeroCardBack.lua): the tac panel's public reads. Never the hero's
+--- notes, gear, complications or downtime.
+--- @param token CharacterToken
+--- @param props creature
+--- @return table
+local function HeroBack(token, props)
+    local slow = HeroBackSlow(token, props)
+    local back = {
+        className = slow.className, subclass = slow.subclass, ancestry = slow.ancestry, kit = slow.kit,
+        skills = slow.skills, abilities = slow.abilities,
+    }
+    pcall(function() back.winded = props:BloodiedThreshold() end)
+    pcall(function() back.death = props:KillThresholdStamina() end)
+    pcall(function() back.recoveryValue = props:RecoveryAmount() end)
+    pcall(function() back.heroTokens = props:GetHeroTokens() end)
+    pcall(function() back.speed = props:CurrentMovementSpeed() end)
+    pcall(function()
+        back.disengage = props:GetCustomAttribute(CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"])
+    end)
+    pcall(function() back.stability = props:Stability() end)
+    return back
 end
 
 --- @param token CharacterToken
@@ -666,7 +915,7 @@ local function RawHero(token, activeTokenIds)
             intuition = Characteristic(props, "inu"),
             presence = Characteristic(props, "prs"),
         },
-        conditions = HeroConditions(token),
+        conditions = WithSources(HeroConditions(token), token),
         active = activeTokenIds[token.charid] == true,
     }
     if hero.name == nil or hero.name == "" then
@@ -684,6 +933,13 @@ local function RawHero(token, activeTokenIds)
     pcall(function() hero.surges = props:GetAvailableSurges() end)
     pcall(function() hero.victories = props:GetVictories() end)
     pcall(function() hero.level = props:CharacterLevel() end)
+    pcall(function() hero.portrait = HeroPortrait(token) end)
+    pcall(function() hero.player = HeroPlayer(token) end)
+    pcall(function()
+        hero.back = HeroBack(token, props)
+        hero.className = hero.back.className
+        hero.ancestry = hero.back.ancestry
+    end)
     return hero
 end
 
@@ -783,6 +1039,615 @@ end
 local g_outcome = nil
 local g_outcomeCombat = nil
 
+--- How many recent History entries the viewer feed looks back over, and how
+--- many of the newest it reads again each time (a reveal or an Undo rewrites
+--- an entry in place).
+local HISTORY_LOOKBACK = 40
+local HISTORY_REREAD = 6
+
+--key -> the players' cut of a History entry (false when players get none).
+local g_historyCache = {}
+local g_historyMap = nil
+
+--- A creature from a History entry, as the viewer feed keeps it.
+--- @param c any
+--- @return nil|table
+local function RawHistoryCreature(c)
+    if type(c) ~= "table" then
+        return nil
+    end
+    return { id = c.id, name = c.name, secret = c.secret == true, hero = c.hero == true }
+end
+
+--- This combat's actions from History (Draw Steel V/History.lua), in the cut
+--- players read (History.PlayerEntry): who used what, on whom, the roll, and
+--- what it did to each target. Nil when History is off.
+--- @param q table the initiative queue
+--- @return nil|table
+local function RawActions(q)
+    local history = rawget(_G, "History")
+    if history == nil or history.PlayerEntry == nil or not history.Enabled() then
+        return nil
+    end
+    local mapid = history.CurrentMap()
+    if mapid == nil then
+        return nil
+    end
+    if mapid ~= g_historyMap then
+        g_historyCache = {}
+        g_historyMap = mapid
+    end
+    local keys = history.Keys(mapid)
+    local actions = {}
+    local first = math.max(1, #keys - HISTORY_LOOKBACK + 1)
+    for i = first, #keys do
+        local key = keys[i]
+        local entry = g_historyCache[key]
+        if entry == nil or i > #keys - HISTORY_REREAD then
+            entry = history.PlayerEntry(mapid, key) or false
+            g_historyCache[key] = entry
+        end
+        if entry and entry.kind == "action" and entry.encounter == q.guid and entry.reverted == nil and entry.ability ~= nil then
+            local action = {
+                t = entry.t,
+                round = entry.round,
+                actor = RawHistoryCreature(entry.actor),
+                ability = entry.ability.name,
+                villain = entry.ability.villainaction ~= nil,
+                targets = {},
+            }
+            if type(entry.roll) == "table" and not entry.secretroll then
+                action.roll = { total = entry.roll.total, tier = entry.roll.tier }
+            end
+            for _, target in ipairs(entry.targets or {}) do
+                local t = RawHistoryCreature(target)
+                if t ~= nil then
+                    t.tier = target.tier
+                    t.taken = target.taken
+                    t.healed = target.healed
+                    t.state = target.state
+                    t.conds = {}
+                    for _, c in ipairs(target.conds or {}) do
+                        if type(c) == "table" and not c.secret then
+                            t.conds[#t.conds + 1] = c.name
+                        end
+                    end
+                    action.targets[#action.targets + 1] = t
+                end
+            end
+            actions[#actions + 1] = action
+        end
+    end
+    --drop cached entries that have scrolled out of the look-back.
+    if first > 1 then
+        for i = 1, first - 1 do
+            g_historyCache[keys[i]] = nil
+        end
+    end
+    return actions
+end
+
+--- The montage as the party's screen shows it, or nil when no montage is
+--- running. Only what every player can see goes in: entries already on the
+--- board (EncounterMontage.EntryHidden keeps locked, removed and expired ones
+--- out, and later rounds are not on it yet), the option a hero has chosen
+--- once it is chosen, and the montage log. StreamerKitRedact still decides
+--- what leaves.
+--- @return nil|table
+--The last montage seen to finish (its block as of its "done" phase): the
+--feed keeps it as pastMontage, so viewers can still look back at it after
+--the next beat starts. Replaced when another montage finishes; after a
+--reload it comes back from the saved totals (SavedMontage).
+local g_pastMontage = nil
+
+--- The last finished montage from the encounter doc's saved totals, for when
+--- g_pastMontage was lost (a reload): title and totals, no board or log.
+--- @return nil|table
+local function SavedMontage()
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return nil
+    end
+    local doc = montage.GetDoc()
+    local script = montage.FindMapScript()
+    local beats = script and script.parse and script.parse.beats or {}
+    local bestIndex, best = nil, nil
+    for key, totals in pairs(doc.data.montageTotals or {}) do
+        local index = tonumber(string.match(tostring(key), "^b(%d+)$"))
+        local beat = index ~= nil and beats[index] or nil
+        if type(totals) == "table" and beat ~= nil and beat.kind == "montage" and (bestIndex == nil or index > bestIndex) then
+            bestIndex = index
+            local rounds = #(beat.rounds or {})
+            best = {
+                title = beat.title,
+                round = math.max(rounds, 1),
+                rounds = rounds,
+                phase = "done",
+                successes = tonumber(totals.successes) or 0,
+                failures = tonumber(totals.failures) or 0,
+                unvanquished = tonumber(totals.unvanquished) or 0,
+                board = {},
+                log = {},
+            }
+        end
+    end
+    return best
+end
+
+--- The montage block (see StreamerKitRedact), phase "done" included.
+--- @return nil|table
+local function RawMontage()
+    local montage = rawget(_G, "EncounterMontage")
+    if montage == nil then
+        return nil
+    end
+    local m = montage.GetState()
+    if m == nil then
+        return nil
+    end
+    local beat = montage.CurrentBeat()
+    if beat == nil or beat.kind ~= "montage" then
+        return nil
+    end
+    local round = tonumber(m.round) or 1
+
+    local totals = montage.TotalsFromLog(m)
+    local raw = {
+        title = beat.title,
+        round = round,
+        rounds = #(beat.rounds or {}),
+        phase = m.phase,
+        successes = totals.successes,
+        failures = totals.failures,
+        unvanquished = totals.unvanquished,
+        board = {},
+        log = {},
+    }
+
+    for _, r in ipairs(beat.rounds or {}) do
+        for _, entry in ipairs(r.entries or {}) do
+            if (tonumber(entry.round) or 1) <= round and not montage.EntryHidden(m, beat, entry) then
+                local state = "open"
+                if entry.kind == "opportunity" and (m.taken or {})[entry.id] then
+                    state = "taken"
+                elseif entry.kind == "threat" and (m.vanquished or {})[entry.id] then
+                    state = "vanquished"
+                end
+                raw.board[#raw.board + 1] = {
+                    id = entry.id,
+                    kind = entry.kind,
+                    name = entry.name,
+                    state = state,
+                    temporary = entry.temporary == true,
+                    remaining = cond(entry.kind == "threat", montage.ThreatRemaining(m, entry), nil),
+                }
+            end
+        end
+    end
+
+    local t = m.turn
+    if type(t) == "table" and t.status ~= "resolved" then
+        local heroName = nil
+        for _, hero in ipairs(montage.Heroes()) do
+            if hero.charid == t.heroid then
+                heroName = hero.name
+            end
+        end
+        local entry = montage.TurnEntry(beat, t)
+        local turn = {
+            hero = heroName,
+            entry = entry ~= nil and entry.name or nil,
+            status = t.status,
+        }
+        --the option once the hero has picked it (not while choosing).
+        if t.optionIndex ~= nil and t.status ~= "choosing" and entry ~= nil then
+            local option = (entry.options or {})[t.optionIndex]
+            turn.option = option ~= nil and option.name or nil
+        end
+        if t.tier ~= nil then
+            turn.tier = tonumber(t.tier)
+        end
+        raw.turn = turn
+    end
+
+    for _, e in ipairs(m.log or {}) do
+        if type(e) == "table" then
+            raw.log[#raw.log + 1] = {
+                round = tonumber(e.round),
+                hero = e.heroName,
+                entry = e.entryName,
+                option = e.optionName,
+                tier = tonumber(e.tier),
+                passed = e.passed == true,
+                consequence = e.consequence == true,
+            }
+        end
+    end
+    return raw
+end
+
+-- ---------------------------------------------------------------------------
+-- The box score (per-round tallies for the viewer page's Box score view)
+-- ---------------------------------------------------------------------------
+--
+--Each publish pass during combat compares every combatant's stamina (temporary
+--stamina included) and conditions with the last pass, and adds the change to
+--the current round: damage taken, healing (heroes only) and conditions gained
+--or ended. Sampling stamina catches every source (abilities, ongoing damage,
+--edits by hand), which History does not. Minions share their squad's pool, so
+--a squad is sampled once. Foes are tallied per initiative group.
+--
+--The tallies live in their own document as JSON, so a reload picks them up
+--where they were; a new combat starts them over, and after the combat they
+--stay as the fight's recap until the next one.
+--
+--Each round also keeps its turns in the order taken: a turn starts when a
+--different hero or foe group becomes the one acting, and everything that
+--changes until the next turn starts counts in it (triggered actions between
+--turns included). A turn credits its actor with the damage dealt to, and the
+--creatures downed on, the other side. Changes before a round's first turn
+--count in the round only.
+
+local BOX_DOC = "streamerKitBoxScore"
+local BOX_MAX_ROUNDS = 30
+local BOX_MAX_TURNS = 20
+local g_box = nil
+
+--- @return table
+local function NewBox(combatid)
+    return { combat = combatid, maxRound = 0, rows = {}, order = {}, pools = {}, conds = {}, down = {}, turns = {} }
+end
+
+--- The saved tallies, or nil.
+--- @return nil|table
+local function LoadBox()
+    local box = nil
+    pcall(function()
+        local text = mod:GetDocumentSnapshot(BOX_DOC).data.box
+        if type(text) == "string" then
+            box = dmhub.FromJson(text)
+        end
+    end)
+    if type(box) ~= "table" or type(box.rows) ~= "table" then
+        return nil
+    end
+    box.order = type(box.order) == "table" and box.order or {}
+    box.pools = type(box.pools) == "table" and box.pools or {}
+    box.conds = type(box.conds) == "table" and box.conds or {}
+    box.down = type(box.down) == "table" and box.down or {}
+    box.turns = type(box.turns) == "table" and box.turns or {}
+    box.maxRound = tonumber(box.maxRound) or 0
+    return box
+end
+
+--- A cell in a table of cells, made on first use.
+local function BoxCell(cells, key)
+    local cell = cells[key]
+    if type(cell) ~= "table" then
+        cell = { t = 0, h = 0, d = 0, g = {}, e = {} }
+        cells[key] = cell
+    end
+    cell.g = type(cell.g) == "table" and cell.g or {}
+    cell.e = type(cell.e) == "table" and cell.e or {}
+    return cell
+end
+
+--- Where a change lands this pass: the round, the turn in play (if any), and
+--- that turn's record, for crediting its actor.
+--- @return table
+local function BoxAt(round, turnIndex, turn)
+    return { round = round, ti = turnIndex, turn = turn }
+end
+
+--- The cells a change for this row adds to: the round's, and the turn's.
+--- @return table[]
+local function BoxCells(row, at)
+    local cells = { BoxCell(row.r, "r" .. at.round) }
+    if at.ti ~= nil then
+        cells[2] = BoxCell(row.t, "r" .. at.round .. "t" .. at.ti)
+    end
+    return cells
+end
+
+--- Credit the turn's actor when the change lands on the other side.
+local function BoxCredit(row, at, field, amount)
+    local turn = at.turn
+    if turn ~= nil and turn.s ~= nil and turn.s ~= row.side then
+        turn[field] = (tonumber(turn[field]) or 0) + amount
+    end
+end
+
+--- The row for a key, made on first use.
+local function BoxRow(box, key, side, id, group)
+    local row = box.rows[key]
+    if type(row) ~= "table" then
+        row = { side = side, id = id, group = group, r = {}, t = {} }
+        box.rows[key] = row
+        box.order[#box.order + 1] = key
+    end
+    row.r = type(row.r) == "table" and row.r or {}
+    row.t = type(row.t) == "table" and row.t or {}
+    return row
+end
+
+--- Add a stamina sample's change. Returns true if it changed.
+local function BoxStamina(box, poolKey, sample, row, at, countHealing)
+    local prev = tonumber(box.pools[poolKey])
+    box.pools[poolKey] = sample
+    if prev == nil or sample == prev then
+        return prev == nil
+    end
+    if sample < prev then
+        for _, cell in ipairs(BoxCells(row, at)) do
+            cell.t = (tonumber(cell.t) or 0) + (prev - sample)
+        end
+        BoxCredit(row, at, "dealt", prev - sample)
+    elseif countHealing then
+        for _, cell in ipairs(BoxCells(row, at)) do
+            cell.h = (tonumber(cell.h) or 0) + (sample - prev)
+        end
+    end
+    return true
+end
+
+--- Count a creature going down (a foe dead, a hero dying or dead). Returns
+--- true if its state changed.
+local function BoxDown(box, creatureKey, isDown, row, at)
+    local prev = box.down[creatureKey]
+    box.down[creatureKey] = isDown
+    if prev == nil or prev == isDown then
+        return prev == nil
+    end
+    if isDown then
+        for _, cell in ipairs(BoxCells(row, at)) do
+            cell.d = (tonumber(cell.d) or 0) + 1
+        end
+        BoxCredit(row, at, "downs", 1)
+    end
+    return true
+end
+
+--- Note conditions gained and ended since the last pass. Returns true if any.
+local function BoxConditions(box, creatureKey, names, row, at)
+    local prev = box.conds[creatureKey]
+    box.conds[creatureKey] = names
+    if type(prev) ~= "table" then
+        return true
+    end
+    local changed = false
+    for name, _ in pairs(names) do
+        if not prev[name] then
+            for _, cell in ipairs(BoxCells(row, at)) do
+                if cell.e[name] then
+                    cell.e[name] = nil
+                else
+                    cell.g[name] = true
+                end
+            end
+            changed = true
+        end
+    end
+    for name, _ in pairs(prev) do
+        if not names[name] then
+            for _, cell in ipairs(BoxCells(row, at)) do
+                if cell.g[name] then
+                    cell.g[name] = nil
+                else
+                    cell.e[name] = true
+                end
+            end
+            changed = true
+        end
+    end
+    return changed
+end
+
+--- Who is acting this pass, as a box row key and side: a hero's id, or a
+--- foe's group key (else its id). A hidden foe acts as "?" so its turn still
+--- starts but names nobody. Nil between turns.
+--- @return nil|string key, nil|string side
+local function BoxActor(raw)
+    if raw.turn == nil or type(raw.turn.tokenIds) ~= "table" then
+        return nil, nil
+    end
+    local keys = {}
+    for _, hero in ipairs(raw.heroes) do
+        if hero.id ~= nil then
+            keys[hero.id] = { hero.id, "hero" }
+        end
+    end
+    for _, monster in ipairs(raw.monsters) do
+        if monster.id ~= nil then
+            keys[monster.id] = monster.hidden and { "?", "foe" } or { monster.group or monster.id, "foe" }
+        end
+    end
+    local best = nil
+    for _, tokenid in ipairs(raw.turn.tokenIds) do
+        local k = keys[tokenid]
+        if k ~= nil and (best == nil or (best[1] == "?" and k[1] ~= "?") or (k[1] ~= "?" and k[1] < best[1])) then
+            best = k
+        end
+    end
+    if best == nil then
+        return nil, nil
+    end
+    return best[1], best[2]
+end
+
+--- @return table<string, boolean>
+local function ConditionNames(list, dropSecret)
+    local names = {}
+    for _, c in ipairs(list or {}) do
+        if type(c) == "table" and type(c.name) == "string" and not (dropSecret and c.hiddenFromEnemies) then
+            names[c.name] = true
+        end
+    end
+    return names
+end
+
+--- @return string[]
+local function SortedKeys(set)
+    local list = {}
+    for k, _ in pairs(set or {}) do
+        list[#list + 1] = k
+    end
+    table.sort(list)
+    return list
+end
+
+--- Update the tallies from this pass's raw heroes and monsters, and give the
+--- box score block for the raw snapshot (nil before any combat was seen).
+--- @param raw table
+--- @param q nil|InitiativeQueue
+--- @return nil|table
+local function UpdateBoxScore(raw, q)
+    if g_box == nil then
+        g_box = LoadBox()
+    end
+    local changed = false
+    if q ~= nil and (g_box == nil or g_box.combat ~= q.guid) then
+        g_box = NewBox(q.guid)
+        changed = true
+    end
+    if g_box == nil then
+        return nil
+    end
+    local box = g_box
+    local actor = nil
+
+    if q ~= nil then
+        local round = math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS))
+        if round > box.maxRound then
+            box.maxRound = round
+            changed = true
+        end
+
+        --the turn in play: a new one when someone else starts acting.
+        local side
+        actor, side = BoxActor(raw)
+        local rkey = "r" .. round
+        local turns = type(box.turns[rkey]) == "table" and box.turns[rkey] or {}
+        box.turns[rkey] = turns
+        local last = turns[#turns]
+        if actor ~= nil and (last == nil or last.a ~= actor) and #turns < BOX_MAX_TURNS then
+            last = { a = actor, s = side, dealt = 0, downs = 0 }
+            turns[#turns + 1] = last
+            changed = true
+        end
+        local at = BoxAt(round, #turns > 0 and #turns or nil, last)
+
+        for _, hero in ipairs(raw.heroes) do
+            if hero.id ~= nil then
+                local row = BoxRow(box, hero.id, "hero", hero.id, nil)
+                local s = hero.stamina or {}
+                local sample = (tonumber(s.cur) or 0) + (tonumber(s.temp) or 0)
+                changed = BoxStamina(box, hero.id, sample, row, at, true) or changed
+                changed = BoxDown(box, hero.id, hero.dead == true or hero.dying == true, row, at) or changed
+                changed = BoxConditions(box, hero.id, ConditionNames(hero.conditions, false), row, at) or changed
+            end
+        end
+        local sampled = {}
+        for _, monster in ipairs(raw.monsters) do
+            if not monster.hidden and monster.id ~= nil then
+                local key = monster.group or monster.id
+                local row = BoxRow(box, key, "foe", monster.id, monster.group)
+                local pool = monster.id
+                if monster.minion and monster.squad ~= nil then
+                    pool = "squad/" .. tostring(monster.squad)
+                end
+                if not sampled[pool] then
+                    sampled[pool] = true
+                    local s = monster.stamina or {}
+                    local sample = (tonumber(s.cur) or 0) + (tonumber(s.temp) or 0)
+                    changed = BoxStamina(box, pool, sample, row, at, false) or changed
+                end
+                changed = BoxDown(box, monster.id, monster.dead == true, row, at) or changed
+                changed = BoxConditions(box, monster.id, ConditionNames(monster.conditions, true), row, at) or changed
+            end
+        end
+    end
+
+    if changed then
+        pcall(function()
+            local doc = mod:GetDocumentSnapshot(BOX_DOC)
+            doc:BeginChange()
+            doc.data.box = dmhub.ToJson(box)
+            doc:CompleteChange("Box score", {undoable = false})
+        end)
+    end
+
+    local current = q ~= nil and math.max(1, math.min(tonumber(q.round) or 1, BOX_MAX_ROUNDS)) or nil
+    local out = {
+        current = current,
+        rounds = box.maxRound,
+        turns = {},
+        heroes = {},
+        foes = {},
+    }
+    --each round's turns in order; the last of the round in play is "now"
+    --while its actor is still the one acting.
+    local turnCounts = {}
+    for r = 1, box.maxRound do
+        local list = {}
+        local turns = type(box.turns) == "table" and box.turns["r" .. r] or nil
+        if type(turns) == "table" then
+            for i, turn in ipairs(turns) do
+                if type(turn) == "table" then
+                    list[#list + 1] = {
+                        actor = turn.a ~= "?" and turn.a or nil,
+                        side = turn.s,
+                        dealt = tonumber(turn.dealt) or 0,
+                        downs = tonumber(turn.downs) or 0,
+                        now = r == current and i == #turns and actor ~= nil and actor == turn.a or nil,
+                    }
+                end
+            end
+        end
+        out.turns[r] = list
+        turnCounts[r] = #list
+    end
+    local function OutCell(cell)
+        return {
+            taken = tonumber(cell.t) or 0,
+            healed = tonumber(cell.h) or 0,
+            down = tonumber(cell.d) or 0,
+            gained = SortedKeys(cell.g),
+            ended = SortedKeys(cell.e),
+        }
+    end
+    for _, key in ipairs(box.order) do
+        local row = box.rows[key]
+        if type(row) == "table" then
+            local cells = {}
+            for r = 1, box.maxRound do
+                local cell = type(row.r) == "table" and row.r["r" .. r] or nil
+                if type(cell) == "table" then
+                    cells[r] = OutCell(cell)
+                else
+                    cells[r] = { taken = 0, healed = 0, down = 0, gained = {}, ended = {} }
+                end
+                --only the turns where something happened to this row.
+                local byTurn = {}
+                for i = 1, turnCounts[r] do
+                    local tc = type(row.t) == "table" and row.t["r" .. r .. "t" .. i] or nil
+                    if type(tc) == "table" then
+                        local c = OutCell(tc)
+                        c.i = i
+                        byTurn[#byTurn + 1] = c
+                    end
+                end
+                cells[r].turns = byTurn
+            end
+            if row.side == "hero" then
+                out.heroes[#out.heroes + 1] = { id = row.id, cells = cells }
+            elseif row.side == "foe" then
+                out.foes[#out.foes + 1] = { id = row.id, group = row.group, cells = cells }
+            end
+        end
+    end
+    return out
+end
+
 --- The raw (Director-level) snapshot for the viewer feed. Malice is never
 --- collected: viewers do not see it (decided 2026-11-27), and what is not
 --- gathered cannot leak.
@@ -795,6 +1660,10 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
     if combatid ~= g_usedAbilitiesCombat then
         g_usedAbilities = {}
         g_usedAbilitiesCombat = combatid
+    end
+    if combatid ~= nil and combatid ~= g_monsterGroupsCombat then
+        g_monsterGroups = {}
+        g_monsterGroupsCombat = combatid
     end
 
     local raw = {
@@ -849,10 +1718,43 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
     end
     raw.outcome = g_outcome
 
+    if q ~= nil then
+        local ok, actions = pcall(RawActions, q)
+        if ok then
+            raw.actions = actions
+        else
+            print("StreamOverlay:: history actions failed:", actions)
+        end
+    end
+
+    --a montage beat: its own mode and block (combat wins if both somehow are).
+    if q == nil then
+        local ok, montage = pcall(RawMontage)
+        if ok and montage ~= nil and montage.phase == "done" then
+            montage.turn = nil
+            g_pastMontage = montage
+        elseif ok and montage ~= nil then
+            raw.mode = "montage"
+            raw.montage = montage
+        elseif not ok then
+            print("StreamOverlay:: montage snapshot failed:", montage)
+        end
+    end
+    if raw.mode ~= "montage" and g_pastMontage == nil then
+        local ok, saved = pcall(SavedMontage)
+        if ok then
+            g_pastMontage = saved
+        end
+    end
+    if raw.mode ~= "montage" and g_pastMontage ~= nil then
+        raw.pastMontage = g_pastMontage
+    end
+
     for _, token in ipairs(HeroTokens()) do
         if token.valid and token.properties ~= nil then
             local ok, hero = pcall(RawHero, token, activeTokenIds)
             if ok then
+                hero.turnStatus = TurnStatusOf(q, token, activeTokenIds)
                 raw.heroes[#raw.heroes + 1] = hero
             end
         end
@@ -885,25 +1787,76 @@ local function BuildViewerRaw(summary, q, activeTokenIds)
                     id = token.charid,
                     name = PublicName(token),
                     namePrivate = token.namePrivate == true,
-                    stamina = { cur = props:CurrentHitpoints(), max = props:MaxHitpoints() },
+                    stamina = { cur = props:CurrentHitpoints(), max = props:MaxHitpoints(), temp = props:TemporaryHitpoints() },
                     dead = props:IsDead(),
                     conditions = {},
                 }
                 pcall(function() monster.squad = props:MinionSquad() end)
                 monster.minion = monster.squad ~= nil
                 pcall(function() monster.monsterType = props:GetMonsterType() end)
-                monster.conditions = MonsterConditions(props)
+                --the initiative group it acts with, and the group's title.
+                --Remembered per monster, so the groups outlive the initiative
+                --queue: the end-of-fight list and the recap card stay grouped.
+                local initiative = rawget(_G, "InitiativeQueue")
+                if q ~= nil and initiative ~= nil then
+                    pcall(function()
+                        local groupid = initiative.GetInitiativeId(token)
+                        if groupid ~= nil then
+                            monster.group = groupid
+                            monster.groupTitle = q:DescribeEntry(groupid)
+                            g_monsterGroups[token.charid] = { group = groupid, title = monster.groupTitle }
+                        end
+                    end)
+                elseif q == nil then
+                    local remembered = g_monsterGroups[token.charid]
+                    if remembered ~= nil then
+                        monster.group = remembered.group
+                        monster.groupTitle = remembered.title
+                    elseif initiative ~= nil then
+                        --after a reload the memory is gone, but the token
+                        --still carries its group (initiativeGrouping, or its
+                        --squad); the title is filled in below.
+                        pcall(function() monster.group = initiative.GetInitiativeId(token) end)
+                    end
+                end
+                monster.conditions = WithSources(MonsterConditions(props), token)
+                monster.turnStatus = TurnStatusOf(q, token, activeTokenIds)
                 monster.abilities, monster.villainActions = RawMonsterAbilities(token, used)
                 raw.monsters[#raw.monsters + 1] = monster
             end
         end
     end
 
+
+    --groups read back from the tokens have no title (it lived on the
+    --initiative queue): name them for their leader, else their first member,
+    --as the queue does.
+    local titles = {}
+    for _, monster in ipairs(raw.monsters) do
+        if monster.group ~= nil and monster.groupTitle == nil then
+            local t = titles[monster.group]
+            if t == nil or (t.minion and not monster.minion) then
+                titles[monster.group] = { name = monster.name, minion = monster.minion }
+            end
+        end
+    end
+    for _, monster in ipairs(raw.monsters) do
+        if monster.group ~= nil and monster.groupTitle == nil and titles[monster.group] ~= nil then
+            monster.groupTitle = titles[monster.group].name
+        end
+    end
+
+    local okBox, box = pcall(UpdateBoxScore, raw, q)
+    if okBox then
+        raw.boxScore = box
+    else
+        print("StreamOverlay:: box score failed:", box)
+    end
     return raw
 end
 
 --- Shrink the viewer snapshot past its cap: drop ability text, then older
---- events, then foes' ability lists.
+--- events, then older actions, then foes' ability lists.
 --- @param viewer table
 --- @return string json
 local function FitViewerToSize(viewer)
@@ -919,8 +1872,45 @@ local function FitViewerToSize(viewer)
         end
         text = dmhub.ToJson(viewer)
     end
+    --a finished montage is the first thing to give up: its board, then its log.
+    if #text > VIEWER_MAX_BYTES and viewer.pastMontage ~= nil then
+        viewer.pastMontage.board = {}
+        text = dmhub.ToJson(viewer)
+        if #text > VIEWER_MAX_BYTES then
+            viewer.pastMontage.log = {}
+            text = dmhub.ToJson(viewer)
+        end
+    end
+    --then the box score's turn detail for rounds not in play (their totals stay).
+    if #text > VIEWER_MAX_BYTES and viewer.boxScore ~= nil then
+        for _, rows in ipairs({viewer.boxScore.heroes or {}, viewer.boxScore.foes or {}}) do
+            for _, row in ipairs(rows) do
+                for r, cell in ipairs(row.cells or {}) do
+                    if r ~= viewer.boxScore.current then
+                        cell.turns = {}
+                    end
+                end
+            end
+        end
+        text = dmhub.ToJson(viewer)
+    end
+    --then the card backs' long lists: abilities, then skills.
+    for _, field in ipairs({"abilities", "skills"}) do
+        if #text > VIEWER_MAX_BYTES then
+            for _, hero in ipairs(viewer.heroes or {}) do
+                if hero.back ~= nil then
+                    hero.back[field] = {}
+                end
+            end
+            text = dmhub.ToJson(viewer)
+        end
+    end
     while #text > VIEWER_MAX_BYTES and #viewer.events > 1 do
         table.remove(viewer.events, 1)
+        text = dmhub.ToJson(viewer)
+    end
+    while #text > VIEWER_MAX_BYTES and viewer.actions ~= nil and #viewer.actions > 1 do
+        table.remove(viewer.actions, 1)
         text = dmhub.ToJson(viewer)
     end
     if #text > VIEWER_MAX_BYTES then

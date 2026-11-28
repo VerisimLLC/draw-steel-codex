@@ -45,7 +45,11 @@
 --      stamina = { cur, max, temp }, dead, dying,
 --      characteristics = { might, agility, reason, intuition, presence },
 --      resource = { name, value }, recoveries = { cur, max }, surges,
---      victories, conditions = { { id, name } }, active } },
+--      victories, conditions = { { id, name } }, active,
+--      portrait = { image, rect = { x1, y1, x2, y2 } }, player,
+--      back = { className, subclass, ancestry, kit, winded, death,
+--               recoveryValue, heroTokens, speed, disengage, stability,
+--               skills = { name }, abilities = { { name, kind, cost } } } } },
 --    monsters = { {
 --      id, name, namePrivate, monsterType, squad, minion, hidden,
 --      stamina = { cur, max }, dead, ev, notes, role, organization, level,
@@ -53,7 +57,44 @@
 --      abilities = { { id, name, text, used, maliceCost, notes } },
 --      villainActions = { { id, name, text, used, notes } } } },
 --    events = { { seq, t, kind, whoId, who, targetId, target, amount, crit } },
+--    monsters[i].group, groupTitle: the initiative group it acts with
+--      (InitiativeQueue.GetInitiativeId) and that group's title.
+--    heroes[i].conditions[j].byId, monsters[i].conditions[j].byId: the
+--      creature that applied it; published as conditions[j].by (its public
+--      name) only when that creature is itself in the snapshot.
+--    heroes[i].turnStatus, monsters[i].turnStatus: "now"|"acted"|"waiting",
+--      this round's turn as the initiative bar shows it (combat only).
+--    actions = nil | { { t, round, ability, villain,
+--      actor = { id, name, secret, hero },
+--      roll = { total, tier },
+--      targets = { { id, name, secret, hero, tier, taken, healed, state,
+--                    conds = { name, ... } } } } }
+--      This combat's actions from History, already in the players' cut
+--      (History.PlayerEntry): hidden rolls and secret conditions are out.
+--    montage = nil | { title, round, rounds, phase, successes, failures,
+--      unvanquished,
+--      board = { { id, kind ("opportunity"|"threat"), name,
+--                  state ("open"|"taken"|"vanquished"), temporary, remaining } },
+--      turn = { hero, entry, option, status, tier },
+--      log = { { round, hero, entry, option, tier, passed, consequence } } },
+--    pastMontage = the same block for the last montage to finish (phase
+--      "done", no turn), sent while no montage is running.
+--    boxScore = nil | { current (round, nil once the combat is over), rounds,
+--      turns = { { { actor (hero id or raw group key or foe id, nil if
+--                    hidden), side = "hero"|"foe", dealt, downs, now } } },
+--      heroes = { { id, cells = { { taken, healed, down, gained = { name },
+--                                   ended = { name },
+--                                   turns = { { i, taken, healed, down,
+--                                               gained, ended } } } } } },
+--      foes = { { id, group (raw group key), cells = { same, healing
+--                 ignored } } } }
+--      Per-round tallies and per-turn detail (StreamOverlay.lua
+--      UpdateBoxScore). Published with foe rows per opaque group id and
+--      damage taken only; a turn's actor only if the viewer can see it.
 --  }
+--  The montage block holds only what every player's screen shows: the
+--  collector leaves out locked, removed and expired entries, later rounds'
+--  entries, and the option a hero is still choosing.
 --
 --VIEWER SNAPSHOT (output): see Redact below; FORMAT_VERSION bumps on change.
 
@@ -77,7 +118,24 @@ local MAX_EVENTS = 20
 local MAX_STRING = 600
 
 local HERO_STATES = { ok = true, winded = true, dying = true, dead = true }
-local MODES = { combat = true, exploration = true, respite = true, none = true }
+local MODES = { combat = true, exploration = true, respite = true, montage = true, none = true }
+local MAX_BOARD = 40
+local MAX_MONTAGE_LOG = 12
+local ENTRY_KINDS = { opportunity = true, threat = true }
+local MAX_ACTIONS = 12
+local MAX_TARGETS = 10
+--the back of a hero's card (what any player sees turning it over).
+local MAX_BACK_SKILLS = 40
+local MAX_BACK_ABILITIES = 30
+local BACK_ABILITY_KINDS = { signature = true, heroic = true, main = true, maneuver = true, triggered = true, other = true }
+local MAX_SHORT = 60
+local TARGET_STATES = { winded = true, dying = true, killed = true }
+local ENTRY_STATES = { open = true, taken = true, vanquished = true }
+local MONTAGE_PHASES = { rounds = true, consequences = true, done = true }
+local TURN_STATUSES = {
+    scene = true, choosing = true, rolling = true, perk = true, pardon = true,
+    dice = true, chest = true, chestlanded = true, delvechoice = true,
+}
 local TURN_KINDS = { hero = true, monster = true, ["heroes-choosing"] = true, ["monsters-choosing"] = true }
 --the kinds StreamOverlay.lua emits, plus ones planned for the ticker.
 local EVENT_KINDS = {
@@ -113,6 +171,57 @@ local function Str(s)
     return s
 end
 
+--- A portrait image id the viewer server may fetch: a bare content id
+--- (base64 md5, served from the legacy image bucket) or a URL-form id on the
+--- Codex image host. Anything else -- an asset id, a local path, another
+--- host -- is dropped, so the server is never pointed somewhere else.
+--- @param s any
+--- @return nil|string
+function StreamerKitRedact.PortraitImage(s)
+    if type(s) ~= "string" or #s < 16 or #s > 120 then
+        return nil
+    end
+    if string.match(s, "^[%w%+/=]+$") ~= nil and #s <= 64 then
+        return s
+    end
+    local key = string.match(s, "^https://codexback%.com/([%w_%-~]+)$")
+    if key ~= nil and #key >= 16 then
+        return s
+    end
+    return nil
+end
+
+--- A crop fraction, clamped to the image.
+--- @param n any
+--- @param default number
+--- @return number
+local function Fraction(n, default)
+    n = tonumber(n)
+    if n == nil or n ~= n then
+        return default
+    end
+    n = math.max(0, math.min(1, n))
+    return math.floor(n * 10000 + 0.5) / 10000
+end
+
+--- @param portrait any
+--- @return nil|{image: string, rect: {x1: number, y1: number, x2: number, y2: number}}
+local function Portrait(portrait)
+    if type(portrait) ~= "table" then
+        return nil
+    end
+    local image = StreamerKitRedact.PortraitImage(portrait.image)
+    if image == nil then
+        return nil
+    end
+    local r = type(portrait.rect) == "table" and portrait.rect or {}
+    local rect = { x1 = Fraction(r.x1, 0), y1 = Fraction(r.y1, 0), x2 = Fraction(r.x2, 1), y2 = Fraction(r.y2, 1) }
+    if rect.x2 <= rect.x1 or rect.y2 <= rect.y1 then
+        rect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+    end
+    return { image = image, rect = rect }
+end
+
 --- An array part only, capped: ignores map keys a caller may have mixed in.
 --- @param list any
 --- @param max integer
@@ -126,6 +235,189 @@ local function List(list, max)
         result[#result + 1] = list[i]
     end
     return result
+end
+
+--- A short label (a name, a size), or nil.
+--- @param s any
+--- @return nil|string
+local function Short(s)
+    s = Str(s)
+    if s ~= nil and #s > MAX_SHORT then
+        s = string.sub(s, 1, MAX_SHORT)
+    end
+    return s
+end
+
+--- The back of a hero's card: known fields only, lists capped. Never notes,
+--- gear, complications or anything else the raw table may carry.
+--- @param back any
+--- @return nil|table
+local function HeroBack(back)
+    if type(back) ~= "table" then
+        return nil
+    end
+    local out = {
+        subclass = Short(back.subclass),
+        kit = Short(back.kit),
+        winded = Whole(back.winded),
+        death = Whole(back.death),
+        recoveryValue = Whole(back.recoveryValue),
+        heroTokens = Whole(back.heroTokens),
+        speed = Whole(back.speed),
+        disengage = Whole(back.disengage),
+        stability = Whole(back.stability),
+        skills = {},
+        abilities = {},
+    }
+    for _, skill in ipairs(List(back.skills, MAX_BACK_SKILLS)) do
+        local name = Short(skill)
+        if name ~= nil then
+            out.skills[#out.skills + 1] = name
+        end
+    end
+    for _, a in ipairs(List(back.abilities, MAX_BACK_ABILITIES)) do
+        if type(a) == "table" and Short(a.name) ~= nil then
+            local cost = Whole(a.cost)
+            out.abilities[#out.abilities + 1] = {
+                name = Short(a.name),
+                kind = BACK_ABILITY_KINDS[a.kind] and a.kind or "other",
+                cost = (cost ~= nil and cost > 0 and cost <= 99) and cost or nil,
+            }
+        end
+    end
+    return out
+end
+
+--- A creature named in an action, or nil when viewers may not learn of it.
+--- @param c any
+--- @param hiddenIds table
+--- @param visibleNames table
+--- @return nil|table
+local function ActionCreature(c, hiddenIds, visibleNames)
+    if type(c) ~= "table" then
+        return nil
+    end
+    if c.id ~= nil and hiddenIds[c.id] then
+        return nil
+    end
+    local name = (c.id ~= nil and visibleNames[c.id]) or nil
+    if name == nil then
+        name = (c.secret == true) and "???" or (Str(c.name) or "???")
+    end
+    return { name = name, side = (c.hero == true) and "hero" or "monster" }
+end
+
+--- This combat's actions (see RAW SNAPSHOT), newest last, capped.
+--- @param raw any
+--- @param hiddenIds table
+--- @param visibleNames table
+--- @return nil|table
+local function RedactActions(raw, hiddenIds, visibleNames)
+    if type(raw) ~= "table" then
+        return nil
+    end
+    local out = {}
+    for i = math.max(1, #raw - MAX_ACTIONS + 1), #raw do
+        local a = raw[i]
+        if type(a) == "table" and Str(a.ability) ~= nil
+            and not (type(a.actor) == "table" and a.actor.id ~= nil and hiddenIds[a.actor.id]) then
+            local action = {
+                t = Whole(a.t),
+                round = Whole(a.round),
+                ability = Str(a.ability),
+                villain = a.villain == true or nil,
+                actor = ActionCreature(a.actor, hiddenIds, visibleNames),
+                targets = {},
+            }
+            if type(a.roll) == "table" then
+                local tier = Whole(a.roll.tier)
+                action.roll = {
+                    total = Whole(a.roll.total),
+                    tier = (tier ~= nil and tier >= 1 and tier <= 3) and tier or nil,
+                }
+            end
+            for _, t in ipairs(List(a.targets, MAX_TARGETS)) do
+                local target = ActionCreature(t, hiddenIds, visibleNames)
+                if target ~= nil then
+                    local tier = Whole(t.tier)
+                    target.tier = (tier ~= nil and tier >= 1 and tier <= 3) and tier or nil
+                    target.taken = Whole(t.taken)
+                    target.healed = Whole(t.healed)
+                    target.state = TARGET_STATES[t.state] and t.state or nil
+                    target.conds = {}
+                    for _, c in ipairs(List(t.conds, MAX_CONDITIONS)) do
+                        if Str(c) ~= nil then
+                            target.conds[#target.conds + 1] = Str(c)
+                        end
+                    end
+                    action.targets[#action.targets + 1] = target
+                end
+            end
+            out[#out + 1] = action
+        end
+    end
+    return out
+end
+
+--- The montage block (see RAW SNAPSHOT). Nil unless it is a table.
+--- @param raw any
+--- @return nil|table
+local function RedactMontage(raw)
+    if type(raw) ~= "table" then
+        return nil
+    end
+    local out = {
+        title = Str(raw.title),
+        round = Whole(raw.round),
+        rounds = Whole(raw.rounds),
+        phase = MONTAGE_PHASES[raw.phase] and raw.phase or "rounds",
+        successes = Whole(raw.successes) or 0,
+        failures = Whole(raw.failures) or 0,
+        unvanquished = Whole(raw.unvanquished) or 0,
+        board = {},
+        log = {},
+    }
+    for _, entry in ipairs(List(raw.board, MAX_BOARD)) do
+        if type(entry) == "table" and ENTRY_KINDS[entry.kind] and Str(entry.name) ~= nil then
+            out.board[#out.board + 1] = {
+                id = Str(entry.id),
+                kind = entry.kind,
+                name = Str(entry.name),
+                state = ENTRY_STATES[entry.state] and entry.state or "open",
+                temporary = entry.temporary == true or nil,
+                remaining = entry.kind == "threat" and Whole(entry.remaining) or nil,
+            }
+        end
+    end
+    local turn = raw.turn
+    if type(turn) == "table" and TURN_STATUSES[turn.status] then
+        local tier = Whole(turn.tier)
+        out.turn = {
+            hero = Str(turn.hero),
+            entry = Str(turn.entry),
+            --the choice only once it is made.
+            option = (turn.status ~= "choosing" and turn.status ~= "scene") and Str(turn.option) or nil,
+            status = turn.status,
+            tier = (tier ~= nil and tier >= 1 and tier <= 4) and tier or nil,
+        }
+    end
+    local log = type(raw.log) == "table" and raw.log or {}
+    for i = math.max(1, #log - MAX_MONTAGE_LOG + 1), #log do
+        local e = log[i]
+        if type(e) == "table" then
+            local tier = Whole(e.tier)
+            out.log[#out.log + 1] = {
+                round = Whole(e.round),
+                hero = Str(e.hero),
+                entry = Str(e.entry),
+                option = Str(e.option),
+                tier = (tier ~= nil and tier >= 1 and tier <= 4) and tier or nil,
+                passed = e.passed == true or nil,
+                consequence = e.consequence == true or nil,
+            }
+        end
+    end
+    return out
 end
 
 local function Initials(name)
@@ -160,7 +452,8 @@ local function Conditions(list, dropSecret)
             local id = Str(c.id)
             if id ~= nil and not seen[id] and #result < MAX_CONDITIONS then
                 seen[id] = true
-                result[#result + 1] = { id = id, name = Str(c.name) or id }
+                --byId rides along until Redact can name it (ResolveSources).
+                result[#result + 1] = { id = id, name = Str(c.name) or id, _byId = Str(c.byId) }
             end
         end
     end
@@ -206,6 +499,18 @@ function StreamerKitRedact.MonsterBand(stamina, dead)
     return "healthy"
 end
 
+--a combatant's turn this round, as the initiative bar shows it.
+local TURN_STATUSES = { now = true, acted = true, waiting = true }
+
+--- @param s any
+--- @return nil|string
+local function TurnStatus(s)
+    if type(s) == "string" and TURN_STATUSES[s] then
+        return s
+    end
+    return nil
+end
+
 local function RedactHero(hero)
     local name = PublicName(hero)
     local stamina = type(hero.stamina) == "table" and hero.stamina or {}
@@ -218,11 +523,15 @@ local function RedactHero(hero)
         state = HeroState(hero, cur, max),
         conditions = Conditions(hero.conditions, false),
         active = hero.active == true,
+        turnStatus = TurnStatus(hero.turnStatus),
         victories = Whole(hero.victories),
         surges = Whole(hero.surges),
         level = Whole(hero.level),
         className = Str(hero.className),
         ancestry = Str(hero.ancestry),
+        portrait = Portrait(hero.portrait),
+        back = HeroBack(hero.back),
+        player = Str(hero.player),
     }
     if type(hero.characteristics) == "table" then
         out.characteristics = {}
@@ -246,6 +555,7 @@ local function RedactMonster(monster)
         minion = monster.minion == true,
         state = StreamerKitRedact.MonsterBand(monster.stamina, monster.dead == true),
         conditions = Conditions(monster.conditions, true),
+        turnStatus = TurnStatus(monster.turnStatus),
         abilities = {},
         villainActions = {},
     }
@@ -264,6 +574,125 @@ local function RedactMonster(monster)
                 out.villainActions[#out.villainActions + 1] = { slot = i, used = true, name = Str(action.name) or "???", text = Str(action.text) }
             else
                 out.villainActions[#out.villainActions + 1] = { slot = i, used = false }
+            end
+        end
+    end
+    return out
+end
+
+local MAX_BOX_ROUNDS = 30
+local MAX_BOX_TAGS = 8
+local MAX_BOX_TURNS = 20
+
+--- Condition names for a box score cell: short strings, capped.
+local function BoxTags(list)
+    local result = {}
+    for _, name in ipairs(List(list, MAX_BOX_TAGS)) do
+        local s = Short(name)
+        if s ~= nil then
+            result[#result + 1] = s
+        end
+    end
+    return result
+end
+
+--- The box score block. Heroes keep taken and healed per round; foes keep
+--- damage taken only (it is in the combat log already), per initiative
+--- group, never stamina. A row is kept only for a hero in the snapshot, a
+--- group the snapshot shows, or a foe the snapshot shows.
+--- @param box any
+--- @param heroIds table<string, boolean>
+--- @param groupIds table<string, string> raw group key -> opaque id
+--- @param foeIds table<string, boolean> visible foes
+--- @return nil|table
+local function RedactBoxScore(box, heroIds, groupIds, foeIds)
+    if type(box) ~= "table" then
+        return nil
+    end
+    local rounds = math.max(0, math.min(Whole(box.rounds) or 0, MAX_BOX_ROUNDS))
+    local current = Whole(box.current)
+    if current ~= nil and (current < 1 or current > rounds) then
+        current = nil
+    end
+    local out = { rounds = rounds, current = current, turns = {}, heroes = {}, foes = {} }
+
+    --each round's turns: the actor only as a hero in the snapshot, a shown
+    --group's opaque id or a visible foe; anyone else acts unnamed.
+    local rawTurns = type(box.turns) == "table" and box.turns or {}
+    local turnCounts = {}
+    for r = 1, rounds do
+        local list = {}
+        for _, turn in ipairs(List(rawTurns[r], MAX_BOX_TURNS)) do
+            if type(turn) == "table" then
+                local entry = {
+                    dealt = math.max(0, Whole(turn.dealt) or 0),
+                    downs = math.max(0, Whole(turn.downs) or 0),
+                    now = turn.now == true and r == current or nil,
+                }
+                local a = turn.actor
+                if type(a) == "string" then
+                    if turn.side == "hero" and heroIds[a] then
+                        entry.hero = a
+                    elseif turn.side == "foe" and groupIds[a] ~= nil then
+                        entry.group = groupIds[a]
+                    elseif turn.side == "foe" and foeIds[a] then
+                        entry.foe = a
+                    end
+                end
+                list[#list + 1] = entry
+            end
+        end
+        out.turns[r] = list
+        turnCounts[r] = #list
+    end
+
+    local function Cell(c, withHealing)
+        local cell = {
+            taken = math.max(0, Whole(c.taken) or 0),
+            down = math.max(0, Whole(c.down) or 0),
+            gained = BoxTags(c.gained),
+            ended = BoxTags(c.ended),
+        }
+        if withHealing then
+            cell.healed = math.max(0, Whole(c.healed) or 0)
+        end
+        return cell
+    end
+    local function Cells(cells, withHealing)
+        local result = {}
+        cells = type(cells) == "table" and cells or {}
+        for r = 1, rounds do
+            local c = type(cells[r]) == "table" and cells[r] or {}
+            local cell = Cell(c, withHealing)
+            cell.turns = {}
+            for _, tc in ipairs(List(c.turns, MAX_BOX_TURNS)) do
+                local i = type(tc) == "table" and Whole(tc.i) or nil
+                if i ~= nil and i >= 1 and i <= turnCounts[r] then
+                    local t = Cell(tc, withHealing)
+                    t.i = i
+                    cell.turns[#cell.turns + 1] = t
+                end
+            end
+            result[r] = cell
+        end
+        return result
+    end
+    for _, row in ipairs(List(box.heroes, MAX_HEROES * 2)) do
+        if type(row) == "table" and type(row.id) == "string" and heroIds[row.id] and #out.heroes < MAX_HEROES then
+            out.heroes[#out.heroes + 1] = { id = row.id, cells = Cells(row.cells, true) }
+        end
+    end
+    local seenGroups = {}
+    for _, row in ipairs(List(box.foes, MAX_MONSTERS * 2)) do
+        if type(row) == "table" and #out.foes < MAX_MONSTERS then
+            if type(row.group) == "string" then
+                local gid = groupIds[row.group]
+                if gid ~= nil and not seenGroups[gid] then
+                    seenGroups[gid] = true
+                    out.foes[#out.foes + 1] = { group = gid, cells = Cells(row.cells, false) }
+                end
+            elseif type(row.id) == "string" and foeIds[row.id] then
+                out.foes[#out.foes + 1] = { id = row.id, cells = Cells(row.cells, false) }
             end
         end
     end
@@ -304,6 +733,39 @@ function StreamerKitRedact.Redact(raw)
         end
     end
 
+    --initiative groups: an opaque id per group, in order of first appearance
+    --(the raw id can carry a squad name), and the group's title unless a
+    --member's name is private.
+    local groupIds, groupCount, groupPrivate = {}, 0, {}
+    local visibleIndex = 0
+    for _, monster in ipairs(List(raw.monsters, MAX_MONSTERS * 4)) do
+        if type(monster) == "table" and not monster.hidden and visibleIndex < MAX_MONSTERS then
+            visibleIndex = visibleIndex + 1
+            local key = monster.group
+            if type(key) == "string" and key ~= "" then
+                if groupIds[key] == nil then
+                    groupCount = groupCount + 1
+                    groupIds[key] = "g" .. groupCount
+                end
+                if monster.namePrivate then
+                    groupPrivate[key] = true
+                end
+                local entry = monsters[visibleIndex]
+                entry.group = groupIds[key]
+                entry.groupTitle = Str(monster.groupTitle)
+                entry._groupKey = key
+            end
+        end
+    end
+    for _, entry in ipairs(monsters) do
+        if entry._groupKey ~= nil then
+            if groupPrivate[entry._groupKey] then
+                entry.groupTitle = "???"
+            end
+            entry._groupKey = nil
+        end
+    end
+
     local heroes = {}
     for _, hero in ipairs(List(raw.heroes, MAX_HEROES)) do
         if type(hero) == "table" then
@@ -313,6 +775,25 @@ function StreamerKitRedact.Redact(raw)
                 visibleNames[hero.id] = entry.name
             end
         end
+    end
+
+    --who applied each condition: named only when it is a creature this
+    --snapshot already shows (as the combat log names actors); unknown,
+    --hidden or off-feed sources leave the condition unattributed.
+    local function ResolveSources(list)
+        for _, c in ipairs(list or {}) do
+            local id = c._byId
+            c._byId = nil
+            if id ~= nil and not hiddenIds[id] and visibleNames[id] ~= nil and visibleNames[id] ~= "???" then
+                c.by = visibleNames[id]
+            end
+        end
+    end
+    for _, entry in ipairs(heroes) do
+        ResolveSources(entry.conditions)
+    end
+    for _, entry in ipairs(monsters) do
+        ResolveSources(entry.conditions)
     end
 
     local out = {
@@ -327,6 +808,30 @@ function StreamerKitRedact.Redact(raw)
         foes = { standing = standing, total = total, list = monsters },
         events = {},
     }
+    out.actions = RedactActions(raw.actions, hiddenIds, visibleNames)
+
+    local heroIds, foeIds = {}, {}
+    for _, entry in ipairs(heroes) do
+        if entry.id ~= nil then
+            heroIds[entry.id] = true
+        end
+    end
+    for _, entry in ipairs(monsters) do
+        if entry.id ~= nil and not hiddenIds[entry.id] then
+            foeIds[entry.id] = true
+        end
+    end
+    out.boxScore = RedactBoxScore(raw.boxScore, heroIds, groupIds, foeIds)
+    if out.mode == "montage" then
+        out.montage = RedactMontage(raw.montage)
+    else
+        --the last montage to finish, folded up on the page: no turn in flight.
+        out.pastMontage = RedactMontage(raw.pastMontage)
+        if out.pastMontage ~= nil then
+            out.pastMontage.phase = "done"
+            out.pastMontage.turn = nil
+        end
+    end
 
     local encounter = type(raw.encounter) == "table" and raw.encounter or {}
     out.encounter = { title = Str(encounter.title) }

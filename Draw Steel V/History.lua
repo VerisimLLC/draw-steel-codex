@@ -902,6 +902,27 @@ function History.Entry(mapid, key)
     return parsed.entry
 end
 
+--- An entry exactly as a player reads it, whoever asks: always the players' cut
+--- (ForPlayers), decoded fresh rather than from the Entry cache, whose cut depends
+--- on the local user. For pages players see away from the table, such as the
+--- Streamer Kit's viewer feed (EncounterOfTheWeek/StreamOverlay.lua), which the
+--- Director's client may be the one to publish. Nil when players get no row.
+--- @param mapid string
+--- @param key string
+--- @return HistoryEntry|nil
+function History.PlayerEntry(mapid, key)
+    local entries = mod:GetDocumentSnapshot(History.DocId(mapid)).data.entries
+    local raw = type(entries) == "table" and entries[key] or nil
+    if raw == nil then
+        return nil
+    end
+    local ok, decoded = pcall(dmhub.FromJson, raw)
+    if not ok or not decoded.success then
+        return nil
+    end
+    return ForPlayers(decoded.result)
+end
+
 --- A modifier's roll dialog hover text, by the id its source keeps in hover. Spoiler markup
 --- is kept: format it for the viewer. Nil when the text is gone or was never recorded.
 --- @param mapid string

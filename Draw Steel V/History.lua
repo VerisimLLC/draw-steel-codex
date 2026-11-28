@@ -91,6 +91,7 @@ local T = UIText.T
 --- @field costs? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it spent; icon is a heroic resource's.
 --- @field gains? table<string, {amount: number, style: string, icon: string|nil}> On an action: resources it gave its user, shaped like costs.
 --- @field state? string On a threshold line: "winded", "dying" or "killed".
+--- @field isobject? boolean On a threshold line, or a target with a state: it is an object, so "killed" reads as destroyed.
 --- @field killed? integer On a minions line: how many died.
 --- @field left? integer On a minions line: how many of the squad are left.
 --- @field each? number On a minions line: one minion's Stamina.
@@ -538,8 +539,10 @@ function History.Write(entry)
     end
     entry.id = entry.id or dmhub.GenerateGuid()
     --a token on no map (a Hero away from the table) files under the map being looked at, and
-    --with no map at all, under the game-wide record.
-    entry.map = entry.map or History.CurrentMap()
+    --with no map at all, under the game-wide record. Objects report their map as "".
+    if entry.map == nil or entry.map == "" then
+        entry.map = History.CurrentMap()
+    end
     --entries sort by their stamp, so two written in the same millisecond would fall in a
     --random order: each new stamp is at least one past the last this client gave out.
     if entry.t == nil then

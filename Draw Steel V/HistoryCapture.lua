@@ -48,6 +48,7 @@ local Int = History.Int
 --- @field resistedeffect? string On a target that resisted: the ongoing effect it escaped (Can't Hide), when no condition was named.
 --- @field potency? HistoryPotency[] On a target: each potency test it faced.
 --- @field state? string On a target: "winded", "dying" or "killed" if this did that.
+--- @field isobject? boolean On a target with a state: it is an object, so "killed" reads as destroyed.
 --- @field recovered? string On a target: "winded" or "dying" if this ended that.
 --- @field squad? string On a minion: the name of its squad.
 --- @field moved? {kind: string, distance: number, fell: number, collision: number, walls: number, falldamage: number|nil, fallraw: number|nil, fallseparate: boolean|nil, collidedobject: boolean|nil, collidedwith: HistoryCreature|nil, collisiondamage: number|nil, collisionreduction: number|nil, pushbonus: number|nil, pusher: HistoryCreature|nil, path: table|nil, near: table[]|nil, requested: number|nil, stability: number|nil, ignored: boolean|nil, stopped: boolean|nil, immune: boolean|nil} On a target: how another creature moved it. The path is for the side view, and near (the creatures around it then, see NearMove in HistoryCapture) too. On a collision: collisiondamage is the damage the Collision rule dealt it, collisionreduction its forced movement damage reduction, and pushbonus what the pusher added for pushing it into an object. requested/stability: the push before stability and what stability took off; stopped: stability left nothing to move; immune: it is immune to forced movement (stopped is set too).
@@ -1202,6 +1203,13 @@ local function OnRested(creature)
     end
 end
 
+--- Objects have Stamina but are never winded, so History leaves winded out of their rows.
+--- @param token CharacterToken
+--- @return boolean
+local function IsObjectToken(token)
+    return token.isObject or (token.properties ~= nil and token.properties:try_get("treatAsObject", false)) == true
+end
+
 local function OnHeal(creature, regained, note, recovered)
     if not History.Enabled() then
         return
@@ -1213,6 +1221,9 @@ local function OnHeal(creature, regained, note, recovered)
     local token = dmhub.LookupToken(creature)
     if token == nil then
         return
+    end
+    if recovered == "winded" and IsObjectToken(token) then
+        recovered = nil
     end
     local state = CastFor(nil)
     if state == nil then
@@ -1235,19 +1246,19 @@ local function OnThreshold(creature, thresholdState, info)
     if not History.Enabled() or token == nil then
         return
     end
-    --objects have Stamina but are never winded: their rows just say they took damage.
-    local isObject = token.isObject or (token.properties ~= nil and token.properties:try_get("treatAsObject", false))
+    local isObject = IsObjectToken(token)
     if thresholdState == "winded" and isObject then
         return
     end
     local state = OpenCast(info.cast)
     if state == nil then
-        WriteLine(token, "threshold", {state = thresholdState, causetext = Cause(info.source)})
+        WriteLine(token, "threshold", {state = thresholdState, isobject = isObject or nil, causetext = Cause(info.source)})
         return
     end
     local target = RowTarget(state, token)
     if target ~= nil then
         target.state = thresholdState
+        target.isobject = isObject or nil
     end
 end
 

@@ -226,7 +226,7 @@ local function Predicate(who, isAlly)
         verbs[#verbs + 1] = T("history.story.is", {conditions = JoinWords(adjectives)})
     end
     if who.state == "killed" then
-        verbs[#verbs + 1] = T("history.story.killed")
+        verbs[#verbs + 1] = T(cond(who.isobject, "history.story.destroyed", "history.story.killed"))
     end
     if type(who.resisted) == "string" then
         verbs[#verbs + 1] = T("history.story.resisted_being", {conditions = who.resisted})

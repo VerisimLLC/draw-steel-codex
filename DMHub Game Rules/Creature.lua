@@ -1090,7 +1090,8 @@ function creature.TokenDisplayName(token)
 	end
 	local objectName = nil
 	pcall(function()
-		if token.isObject then
+		--a removed object's token can still be on screen (an old roll card), and reading its object logs an engine error
+		if token.isObject and token.valid then
 			objectName = token.objectInstance.name
 		end
 	end)
